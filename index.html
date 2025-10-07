@@ -12,75 +12,115 @@
       color: #e0e0ff;
       text-align: center;
     }
+
     header {
       background: linear-gradient(90deg, #ff00cc, #3333ff);
       padding: 20px 0;
       text-shadow: 0 0 10px #ff00cc;
     }
+
     h1 {
-      font-size: 2.5em;
+      font-size: 2.2em;
       margin: 0;
     }
+
     p.tagline {
-      font-size: 1.2em;
+      font-size: 1em;
       color: #b0b0ff;
     }
+
     nav {
       display: flex;
+      flex-wrap: wrap;
       justify-content: center;
       background-color: #111122;
       border-top: 2px solid #3333ff;
       border-bottom: 2px solid #3333ff;
     }
+
     nav a {
       color: #00ccff;
       text-decoration: none;
-      padding: 15px 20px;
+      padding: 12px 15px;
       display: block;
       transition: background 0.3s;
+      font-size: 0.9em;
     }
+
     nav a:hover {
       background-color: #222244;
       text-shadow: 0 0 10px #00ccff;
     }
+
     section {
-      padding: 40px 20px;
+      padding: 30px 15px;
       max-width: 900px;
       margin: 0 auto;
     }
+
     h2 {
       color: #ff66ff;
       text-shadow: 0 0 10px #ff33cc;
+      font-size: 1.5em;
     }
+
     footer {
       background-color: #0f0f1a;
-      padding: 20px;
+      padding: 15px;
       color: #8888ff;
-      font-size: 0.9em;
+      font-size: 0.8em;
       border-top: 1px solid #3333ff;
     }
+
     .glow-box {
       background: rgba(20,20,40,0.8);
       border: 1px solid #3333ff;
       box-shadow: 0 0 15px #3333ff;
       border-radius: 10px;
       margin: 20px 0;
-      padding: 20px;
+      padding: 15px;
     }
+
     a.button {
       display: inline-block;
       background: #3333ff;
       color: white;
-      padding: 10px 20px;
+      padding: 8px 15px;
       border-radius: 5px;
       text-decoration: none;
       text-transform: uppercase;
       letter-spacing: 1px;
       transition: 0.3s;
+      font-size: 0.9em;
     }
+
     a.button:hover {
       background: #ff00cc;
       box-shadow: 0 0 10px #ff00cc;
+    }
+
+    /* --- Responsive adjustments --- */
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.8em;
+      }
+      h2 {
+        font-size: 1.2em;
+      }
+      p.tagline {
+        font-size: 0.9em;
+      }
+      nav a {
+        padding: 10px;
+        font-size: 0.85em;
+      }
+      .glow-box {
+        padding: 10px;
+      }
+      a.button {
+        padding: 6px 12px;
+        font-size: 0.8em;
+      }
     }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
