@@ -5,156 +5,194 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RetroOnlineMatchmaking</title>
 <style>
-  /* --- Base Styling --- */
-  body, html {
-    margin: 0; padding: 0;
-    font-family: "Orbitron", Arial, sans-serif;
-    background: #000; color: #fff;
-    overflow-x: hidden; position: relative;
-  }
+/* --- Base Styling --- */
+body, html {
+  margin:0; padding:0; font-family: "Orbitron", Arial, sans-serif;
+  background: #000; color:#fff; overflow-x:hidden; position:relative;
+}
 
-  /* CRT Overlay */
-  .crt-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none;
-    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px);
-    animation: scan 8s linear infinite; z-index: 999;
-  }
-  @keyframes scan { 0%{opacity:0.1}50%{opacity:0.2}100%{opacity:0.1} }
+/* --- Splash Screen --- */
+#splash {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
+  z-index:2000;
+}
+#splash h1 {
+  font-size:3rem; color:#0ff; animation:flicker 1s infinite;
+}
+#splash p { color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; }
+@keyframes flicker {
+  0%,100%{opacity:1} 50%{opacity:0.6}
+}
 
-  @keyframes glowFlicker {
-    0%,100% { text-shadow:0 0 5px #00e0ff,0 0 15px #00e0ff; opacity:1; }
-    50% { text-shadow:0 0 10px #00e0ff,0 0 25px #00e0ff; opacity:0.95; }
-  }
+/* --- Starfield --- */
+.stars { position:fixed; width:100%; height:100%; background:transparent; z-index:0; overflow:hidden; }
+.star { position:absolute; width:2px; height:2px; background:#0ff; animation:twinkle 3s linear infinite; }
+@keyframes twinkle { 0%{opacity:0.1}50%{opacity:1}100%{opacity:0.1} }
 
-  /* --- Splash Screen --- */
-  #splash {
-    position: fixed; top:0; left:0; width:100%; height:100%;
-    background:#000; display:flex; justify-content:center; align-items:center; flex-direction:column;
-    z-index: 2000;
-  }
-  #splash h1 {
-    font-size: 3rem; color:#00e0ff;
-    animation: flicker 1s infinite;
-  }
-  #splash p { color:#0ff; margin-top:0.5rem; font-size:1.2rem; animation: flicker 1.5s infinite; }
+/* --- CRT Overlay --- */
+.crt-overlay {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events:none;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px);
+  animation: scan 8s linear infinite; z-index:999;
+}
+@keyframes scan { 0%{opacity:0.1}50%{opacity:0.2}100%{opacity:0.1} }
 
-  @keyframes flicker {
-    0%,100%{opacity:1} 50%{opacity:0.7}
-  }
+/* --- Main Content --- */
+#mainContent { display:none; padding:0; text-align:center; position:relative; z-index:1; }
 
-  /* --- Main Content --- */
-  #mainContent { display:none; padding:0; text-align:center; }
+header { padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44; }
+header h1 { font-size:2.3rem; color:#0ff; text-shadow:0 0 10px #0ff66; }
+header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 
-  header {
-    padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #00e0ff44;
-    animation: glowFlicker 2s infinite alternate;
-  }
-  h1 { font-size:2.3rem; color:#00e0ff; margin-bottom:0.5rem; }
-  p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #00e0ff33; }
+/* Buttons */
+.button {
+  display:inline-block; margin:0.6rem; padding:1rem 2rem; background:#0ff; color:#111;
+  border-radius:10px; text-decoration:none; font-weight:bold; position:relative; overflow:hidden;
+  box-shadow:0 0 10px #0ff55; transition:0.3s; cursor:pointer;
+}
+.button::before {
+  content:""; position:absolute; top:0; left:-100%; width:100%; height:100%;
+  background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
+  transition:left 0.3s ease-in-out;
+}
+.button:hover::before { left:0; }
+.button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
 
-  /* Buttons */
-  .button { display:inline-block; margin:0.6rem; padding:1rem 2rem; background:#00e0ff; color:#111; border-radius:10px; text-decoration:none; font-weight:bold; position:relative; overflow:hidden; box-shadow:0 0 10px #00e0ff55; animation:glowFlicker 3s infinite alternate; transition:0.3s; }
-  .button::before {
-    content:""; position:absolute; top:0; left:-100%; width:100%; height:100%;
-    background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
-    transition:left 0.3s ease-in-out;
-  }
-  .button:hover::before { left:0; }
-  .button:hover { background:#00b5cc; box-shadow:0 0 25px #00e0ff; transform:scale(1.05); }
+/* Connection Cards */
+.card {
+  background: rgba(0,0,0,0.6); border:2px solid #0ff; border-radius:12px;
+  margin:1rem auto; padding:1rem; max-width:600px; text-align:left;
+  box-shadow:0 0 15px #0ff33;
+}
+.card h3 { color:#0ff; margin-bottom:0.3rem; }
+.card p { color:#ccc; font-size:0.95rem; }
+.card a { color:#0ff; text-decoration:underline; }
 
-  /* Modal */
-  .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.9); justify-content:center; align-items:center; padding:1rem; }
-  .modal iframe { width:90%; max-width:640px; height:85vh; border:none; border-radius:12px; box-shadow:0 0 25px #00e0ff55; background:#000; }
-  .close-btn { position:absolute; top:20px; right:30px; color:#00e0ff; font-size:2rem; font-weight:bold; cursor:pointer; text-shadow:0 0 10px #00e0ff; }
+/* Modal */
+.modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.95); justify-content:center; align-items:center; padding:1rem; }
+.modal iframe { width:90%; max-width:640px; height:85vh; border:none; border-radius:12px; box-shadow:0 0 25px #0ff55; }
+.close-btn { position:absolute; top:20px; right:30px; color:#0ff; font-size:2rem; font-weight:bold; cursor:pointer; text-shadow:0 0 10px #0ff; }
 
-  footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem; box-shadow:0 0 15px #00e0ff33 inset; }
+/* Footer */
+footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem; }
 
-  /* Mobile */
-  @media(max-width:768px){
-    h1{font-size:1.8rem;}
-    .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
-    iframe{height:75vh;}
-  }
+/* Mobile */
+@media(max-width:768px){
+  header h1{font-size:1.8rem;}
+  .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
+  iframe{height:75vh;}
+}
 
-  /* TV Curvature */
-  body::after {
-    content:""; position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; background:radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.25) 100%); z-index:998;
-  }
+/* TV Curvature */
+body::after { content:""; position:fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events:none; background:radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.25) 100%); z-index:998; }
 
 </style>
 </head>
 <body>
-  <!-- Splash -->
-  <div id="splash">
+<!-- Splash -->
+<div id="splash">
+  <h1>RetroOnlineMatchmaking</h1>
+  <p>Booting Arcade Servers...</p>
+</div>
+
+<!-- Starfield -->
+<div class="stars" id="stars"></div>
+
+<!-- Main Content -->
+<div id="mainContent">
+  <header>
     <h1>RetroOnlineMatchmaking</h1>
-    <p>Booting Arcade Servers...</p>
+    <p>Play Classic Games Online Again</p>
+  </header>
+
+  <div class="links">
+    <a href="https://discord.com/invite/jcRqpmMZdZ" class="button" target="_blank">Join Discord</a>
+    <a href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" class="button" target="_blank">Watch on YouTube</a>
+    <a href="https://retroonlinematchmaking.flarum.cloud/" class="button" target="_blank">Visit the Forum</a>
   </div>
 
-  <!-- Main Content -->
-  <div id="mainContent">
-    <header>
-      <h1>RetroOnlineMatchmaking</h1>
-      <p>Play Classic Games Online Again</p>
-    </header>
+  <h2 style="color:#0ff;">Submit a New Connection Method</h2>
+  <p>Help revive classic games online! Submit your method below.</p>
+  <a class="button" id="openFormBtn">Open Submission Form</a>
 
-    <div class="links">
-      <a href="https://discord.com/invite/jcRqpmMZdZ" class="button" target="_blank">Join Discord</a>
-      <a href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" class="button" target="_blank">Watch on YouTube</a>
-      <a href="https://retroonlinematchmaking.cloud" class="button" target="_blank">Visit the Forum</a>
-    </div>
-
-    <h2 style="color:#00e0ff;">Submit a New Connection Method</h2>
-    <p>Share your connection method below — help revive more classic games online!</p>
-    <a class="button" href="#" id="openFormBtn">Open Submission Form</a>
-
-    <!-- Music Toggle -->
-    <div>
-      <a class="button" id="musicToggle">▶ Play Retro Music</a>
-    </div>
-    <audio id="bgMusic" loop>
-      <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
-    </audio>
-
-    <!-- Modal -->
-    <div id="formModal" class="modal">
-      <span class="close-btn" id="closeModal">&times;</span>
-      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true">Loading…</iframe>
-    </div>
-
-    <footer>
-      <p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
-    </footer>
-
-    <div class="crt-overlay"></div>
+  <div>
+    <a class="button" id="musicToggle">▶ Play Retro Music</a>
   </div>
 
-  <script>
-    // Splash fade
-    window.addEventListener("load", () => {
-      setTimeout(() => {
-        document.getElementById("splash").style.display = "none";
-        document.getElementById("mainContent").style.display = "block";
-      }, 3500); // 3.5 seconds splash
-    });
+  <audio id="bgMusic" loop preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
+  </audio>
 
-    // Modal
-    const modal = document.getElementById("formModal");
-    const openBtn = document.getElementById("openFormBtn");
-    const closeBtn = document.getElementById("closeModal");
-    openBtn.addEventListener("click", () => modal.style.display = "flex");
-    closeBtn.addEventListener("click", () => modal.style.display = "none");
-    window.addEventListener("click", e => { if(e.target===modal) modal.style.display="none"; });
+  <!-- Modal -->
+  <div id="formModal" class="modal">
+    <span class="close-btn" id="closeModal">&times;</span>
+    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true">Loading…</iframe>
+  </div>
 
-    // Music toggle
-    const music = document.getElementById("bgMusic");
-    const musicToggle = document.getElementById("musicToggle");
-    let musicPlaying = false;
-    musicToggle.addEventListener("click", () => {
-      if(musicPlaying){ music.pause(); musicPlaying=false; musicToggle.textContent="▶ Play Retro Music"; }
-      else { music.play(); musicPlaying=true; musicToggle.textContent="⏸ Pause Music"; }
-    });
-  </script>
+  <!-- Sample Connection Cards -->
+  <div class="card">
+    <h3>EA Nation Hub - PSP</h3>
+    <p>Play various EA PSP titles online.</p>
+    <a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank">Discord</a> | 
+    <a href="https://mohh-revival.pages.dev/#setup" target="_blank">Setup Guide</a>
+  </div>
+  <div class="card">
+    <h3>Vita3K - PS Vita</h3>
+    <p>Play certain PS Vita games online using emulator and Xlink.</p>
+    <a href="https://discord.gg/aBUTzGnCUS" target="_blank">Discord</a> | 
+    <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank">Download</a>
+  </div>
+
+  <footer>
+    <p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
+  </footer>
+
+  <div class="crt-overlay"></div>
+</div>
+
+<script>
+// Splash fade
+window.addEventListener("load", () => {
+  setTimeout(()=>{
+    document.getElementById("splash").style.display="none";
+    document.getElementById("mainContent").style.display="block";
+  }, 3500);
+});
+
+// Modal
+const modal = document.getElementById("formModal");
+const openBtn = document.getElementById("openFormBtn");
+const closeBtn = document.getElementById("closeModal");
+openBtn.addEventListener("click", () => modal.style.display = "flex");
+closeBtn.addEventListener("click", () => modal.style.display = "none");
+window.addEventListener("click", e => { if(e.target===modal) modal.style.display="none"; });
+
+// Music toggle
+const music = document.getElementById("bgMusic");
+const musicToggle = document.getElementById("musicToggle");
+let musicPlaying = false;
+musicToggle.addEventListener("click", () => {
+  if(musicPlaying){ music.pause(); musicPlaying=false; musicToggle.textContent="▶ Play Retro Music"; }
+  else { music.play().catch(err=>console.log("Playback failed:",err)); musicPlaying=true; musicToggle.textContent="⏸ Pause Music"; }
+});
+
+// Starfield
+const starsContainer = document.getElementById("stars");
+for(let i=0;i<100;i++){
+  const star=document.createElement("div");
+  star.className="star";
+  star.style.top=Math.random()*100+"%";
+  star.style.left=Math.random()*100+"%";
+  star.style.width=(Math.random()*2+1)+"px";
+  star.style.height=star.style.width;
+  starsContainer.appendChild(star);
+}
+</script>
 </body>
 </html>
+
 
