@@ -1,154 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Retro Online Matchmaking</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetroOnlineMatchmaking</title>
   <style>
     body {
-      font-family: "Arial", sans-serif;
-      background-color: #0b0b0b;
-      color: #f0f0f0;
       margin: 0;
-      padding: 0;
-      line-height: 1.6;
+      font-family: 'Orbitron', sans-serif;
+      background-color: #000;
+      color: #0ff;
+      text-align: center;
+      background-image: radial-gradient(circle at top, #111 0%, #000 80%);
     }
 
     header {
-      background: linear-gradient(90deg, #111, #1a1a1a);
-      color: #00ffff;
-      text-align: center;
-      padding: 25px 0;
-      border-bottom: 2px solid #00ffff;
-    }
-
-    header h1 {
-      font-size: 2.5em;
-      margin: 0;
+      padding: 20px;
+      background: linear-gradient(90deg, #0ff, #08f, #f0f);
+      color: #000;
+      font-size: 1.8em;
+      font-weight: bold;
+      text-shadow: 0 0 10px #0ff;
     }
 
     nav {
-      background: #121212;
-      padding: 12px;
-      text-align: center;
-      border-bottom: 1px solid #222;
+      margin-top: 10px;
     }
 
     nav a {
-      color: #00ffff;
       text-decoration: none;
-      margin: 0 15px;
-      font-weight: bold;
+      color: #0ff;
+      padding: 10px 20px;
+      border: 1px solid #0ff;
+      border-radius: 8px;
+      margin: 0 8px;
+      transition: all 0.3s ease;
+      display: inline-block;
     }
 
     nav a:hover {
-      color: #ffffff;
+      background-color: #0ff;
+      color: #000;
+      text-shadow: none;
     }
 
     section {
       padding: 40px 20px;
-      max-width: 1100px;
+      max-width: 900px;
       margin: auto;
     }
 
     h2 {
-      color: #00ffff;
-      border-bottom: 2px solid #00ffff;
-      padding-bottom: 10px;
-      margin-bottom: 20px;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff;
     }
 
-    .connection-list a {
-      color: #00ffff;
-      text-decoration: underline;
-      display: inline-block;
-      margin-bottom: 8px;
-    }
-
-    footer {
-      text-align: center;
-      padding: 15px;
-      background: #111;
-      color: #aaa;
-      border-top: 1px solid #222;
-    }
-
-    iframe {
-      width: 100%;
-      max-width: 100%;
-      border: 2px solid #00ffff;
-      border-radius: 10px;
-      background-color: #111;
+    p {
+      color: #bdf;
+      font-size: 1.1em;
+      line-height: 1.6em;
     }
 
     .button {
       display: inline-block;
-      background: #00ffff;
+      padding: 14px 28px;
+      margin-top: 20px;
+      background-color: #0ff;
       color: #000;
-      padding: 10px 20px;
-      margin-top: 10px;
-      border-radius: 8px;
       text-decoration: none;
       font-weight: bold;
+      border-radius: 8px;
+      box-shadow: 0 0 20px #0ff;
+      transition: all 0.3s ease;
     }
 
     .button:hover {
-      background: #00cccc;
+      background-color: #000;
+      color: #0ff;
+      box-shadow: 0 0 30px #0ff;
+    }
+
+    footer {
+      padding: 20px;
+      background-color: #010101;
+      color: #0ff;
+      font-size: 0.9em;
+      border-top: 1px solid #0ff;
+    }
+
+    /* Neon CRT Scanline effect */
+    body::after {
+      content: "";
+      pointer-events: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.05),
+        rgba(255,255,255,0.05) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      opacity: 0.1;
+      z-index: 999;
+    }
+
+    @media (max-width: 768px) {
+      nav a {
+        display: block;
+        margin: 10px auto;
+      }
+      section {
+        padding: 20px;
+      }
     }
   </style>
 </head>
-
 <body>
-  <header>
-    <h1>Retro Online Matchmaking</h1>
-    <p>The hub for reviving online play across classic consoles and emulators.</p>
-  </header>
+
+  <header>RetroOnlineMatchmaking</header>
 
   <nav>
-    <a href="#connection-methods">Connection Methods</a>
-    <a href="#submit-methods">Submit a Method</a>
-    <a href="https://retroonlinematchmaking.flarum.cloud/" target="_blank">Forum</a>
+    <a href="#about">About</a>
+    <a href="#methods">Connection Methods</a>
+    <a href="#submit-methods">Submit Method</a>
+    <a href="https://discord.com/invite/jcRqpmMZdZ" target="_blank">Discord</a>
+    <a href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" target="_blank">YouTube</a>
+    <a href="https://retroonlinematchmaking.flarum.cloud/" target="_blank">Forums</a>
   </nav>
 
-  <section id="connection-methods">
-    <h2>Connection Methods</h2>
+  <section id="about">
+    <h2>Play Classic Games Online Again</h2>
     <p>
-      Explore a collection of modern tools and community projects that bring back online multiplayer for retro systems.
-      Check each for setup instructions and active servers.
+      Welcome to RetroOnlineMatchmaking — your hub for reviving the online experiences of classic games!  
+      We bring back multiplayer for retro titles using community-run servers, emulators, and connection methods.  
+      Join our Discord to find matches, share progress, and help rebuild the online gaming history.
     </p>
-
-    <div class="connection-list">
-      <a href="https://psrewired.com/guides/ps3" target="_blank">PSRewired</a><br />
-      <a href="https://openspy.net/" target="_blank">OpenSpy</a><br />
-      <a href="https://www.teamxlink.co.uk/wiki/PCSX2_XLink_Kai_Setup" target="_blank">XLink Kai</a><br />
-      <a href="https://ryujinx.org/" target="_blank">Ryujinx</a><br />
-      <a href="https://dolphin-emu.org/" target="_blank">Dolphin</a><br />
-      <a href="https://retroarch.com/" target="_blank">RetroArch</a><br />
-      <a href="https://rpcs3.net/" target="_blank">RPCS3</a><br />
-      <a href="https://vita3k.org/" target="_blank">Vita3K</a><br />
-      <a href="https://obsrv.org/" target="_blank">OBSRV (Resident Evil Outbreak)</a><br />
-      <a href="https://wiimmfi.de/" target="_blank">Wiimmfi (Wii Online Revival)</a><br />
-    </div>
-
-    <a class="button" href="https://retroonlinematchmaking.flarum.cloud/" target="_blank">Discuss on the Forum</a>
   </section>
 
-  <section id="submit-methods" style="text-align:center;">
-    <h2>Submit a New Connection Method</h2>
-    <p>Got a new way to bring an old game back online? Submit it below to share it with the community.</p>
+  <section id="methods">
+    <h2>Connection Methods</h2>
+    <p>
+      Discover how to play your favorite classic games online again.  
+      Check out the supported servers, DNS setups, and emulator guides listed on our forums and Discord.
+    </p>
+    <a class="button" href="https://retroonlinematchmaking.flarum.cloud/" target="_blank">
+      View Full Connection List
+    </a>
+  </section>
 
-    <iframe
-      src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true"
-      height="1126"
-      frameborder="0"
-      marginheight="0"
-      marginwidth="0">
-      Loading…
-    </iframe>
+  <section id="submit-methods">
+    <h2>Submit a New Connection Method</h2>
+    <p>Got a new way to bring an old game back online? Share it with the community below.</p>
+    <a class="button" href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank">
+      Open Google Form
+    </a>
   </section>
 
   <footer>
-    <p>© 2025 Retro Online Matchmaking — Built for the Community</p>
+    © 2025 RetroOnlineMatchmaking | Designed in Retro Neon Style
   </footer>
+
 </body>
 </html>
+
