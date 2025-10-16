@@ -18,13 +18,18 @@ body, html {
   z-index:2000;
 }
 #splash h1 {
-  font-size:3.5rem; color:#0ff; animation:flicker 1s infinite;
-  text-align:center; padding:0 1rem;
+  font-size:3.5rem; color:#0ff; text-align:center; padding:0 1rem;
 }
 #splash p {
-  color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; text-align:center; padding:0 1rem;
+  color:#0ff; font-size:1.2rem; margin-top:0.5rem; text-align:center; padding:0 1rem;
 }
-@keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
+#progressContainer {
+  width:80%; height:20px; background:rgba(0,255,255,0.1); border:1px solid #0ff; margin-top:2rem; border-radius:10px;
+}
+#progressBar {
+  width:0%; height:100%; background:#0ff; border-radius:10px;
+  transition:width 0.3s ease;
+}
 
 /* --- Main Content --- */
 #mainContent { display:none; padding:0; text-align:center; position:relative; z-index:10; }
@@ -103,6 +108,11 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .card p { color:#ccc; font-size:0.95rem; }
 .card a { color:#0ff; text-decoration:underline; }
 
+/* Caption above connection methods */
+#connectionCaption {
+  font-size:1.4rem; color:#0ff; margin:2rem 0 1rem 0; text-shadow:0 0 10px #0ff66;
+}
+
 /* Footer */
 footer {
   padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem;
@@ -133,7 +143,10 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 <!-- Splash -->
 <div id="splash">
   <h1>RetroOnlineMatchmaking</h1>
-  <p>Booting Arcade Servers...</p>
+  <p id="bootText">Booting Arcade Servers...</p>
+  <div id="progressContainer">
+    <div id="progressBar"></div>
+  </div>
 </div>
 
 <!-- Background Canvas -->
@@ -154,7 +167,10 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 
   <a class="button" id="musicToggle">▶ Play Retro Music</a>
 
-  <!-- Connection Methods -->
+  <!-- Connection Methods Caption -->
+  <div id="connectionCaption">Find your Player 2 using these methods below</div>
+
+  <!-- Collapsible Sections -->
   <div class="collapsible">PSP Connections</div>
   <div class="content">
     <div class="card">
@@ -210,6 +226,37 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
     </div>
   </div>
 
+  <!-- Arcade Connections -->
+  <div class="collapsible">Arcade Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>Arkadyzja</h3>
+      <p>Arcade multiplayer client for various titles.</p>
+      <a href="https://github.com/Arkadyzja/ArkadyzjaClient/releases" target="_blank">Github</a> • 
+      <a href="https://discord.gg/qBVN2nqAHdZ" target="_blank">Discord</a> • 
+      <a href="https://youtu.be/9_pGj-tnkJM?si=Zo0DFLljnnLgSk8z" target="_blank">Video Guide</a>
+    </div>
+    <div class="card">
+      <h3>Retroarch Netplay</h3>
+      <p>Connection method for various retro systems.</p>
+      <a href="https://www.retroarch.com/?page=platforms" target="_blank">Website/Download</a> •
+      <a href="https://youtu.be/wFE3S5TIawA?si=SzRurCi9KSoR_fbf" target="_blank">Video Guide</a>
+    </div>
+    <div class="card">
+      <h3>Fightcade</h3>
+      <p>Online arcade emulator service.</p>
+      <a href="https://www.fightcade.com/" target="_blank">Website/Download</a> •
+      <a href="https://youtu.be/9fpeDgxGTEQ?si=6xqPugYz_t09tbnA" target="_blank">Video Guide</a>
+    </div>
+    <div class="card">
+      <h3>Parsec</h3>
+      <p>Cloud-based arcade remote play.</p>
+      <a href="https://parsec.app/" target="_blank">Website/Download</a> •
+      <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a> •
+      <a href="https://discord.gg/fightcade-official-160417191743848448" target="_blank">Discord</a>
+    </div>
+  </div>
+
   <!-- Submit New Method Section -->
   <div id="submitMethodSection">
     <h2>Have a new connection method? Submit it here!</h2>
@@ -226,15 +273,33 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif">
 
 <script>
-// Splash fade + init all after splash
+// Splash fade + boot sequence + progress bar
 window.addEventListener("load", () => {
   const splash = document.getElementById("splash");
   const mainContent = document.getElementById("mainContent");
-  setTimeout(() => {
-    splash.style.display = "none";
-    mainContent.style.display = "block";
-    initCursorAndCanvas();
-  }, 3500);
+  const progressBar = document.getElementById("progressBar");
+  const bootText = document.getElementById("bootText");
+  let progress = 0;
+  const bootMessages = [
+    "Initializing Network Stack...",
+    "Loading Arcade ROMs...",
+    "Connecting Players...",
+    "Syncing High Scores...",
+    "Almost Ready..."
+  ];
+  let msgIndex = 0;
+  const interval = setInterval(()=>{
+    progress += 2;
+    progressBar.style.width = progress + "%";
+    if(progress%20===0 && msgIndex<bootMessages.length){
+      bootText.textContent = bootMessages[msgIndex];
+      msgIndex++;
+    }
+    if(progress>=100){
+      clearInterval(interval);
+      setTimeout(()=>{ splash.style.display="none"; mainContent.style.display="block"; initCursorAndCanvas(); }, 500);
+    }
+  }, 70);
 });
 
 // Collapsible Sections
@@ -351,7 +416,8 @@ function initCursorAndCanvas(){
       if(p.x>canvas.width)p.x=0;if(p.x<0)p.x=canvas.width;
       if(p.y>canvas.height)p.y=0;if(p.y<0)p.y=canvas.height;
       ctx.fillStyle=`rgba(0,255,255,${p.alpha})`;
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
     });
 
     // Shooting Stars
