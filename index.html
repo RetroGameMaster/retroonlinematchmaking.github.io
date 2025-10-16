@@ -98,7 +98,6 @@ footer {
 /* Mouse Cursor */
 #customCursor {
   position:fixed; width:32px; height:32px; pointer-events:none; z-index:9999;
-  transform:translate(-50%,-50%);
 }
 
 /* Canvas Background */
@@ -234,10 +233,13 @@ function initCursorAndCanvas(){
   const trail = [];
   const maxTrail = 12;
 
+  // Fixed cursor tracking
   document.addEventListener("mousemove", e=>{
-    cursor.style.left = e.pageX + "px";
-    cursor.style.top = e.pageY + "px";
-    trail.push({x:e.pageX, y:e.pageY});
+    const x = e.clientX;
+    const y = e.clientY;
+    cursor.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+
+    trail.push({x, y});
     if(trail.length>maxTrail) trail.shift();
   });
 
