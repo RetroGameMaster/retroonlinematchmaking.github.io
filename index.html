@@ -71,6 +71,16 @@
     opacity:0.2;
   }
 
+  /* animated neon grid lines */
+  .grid::before{
+    content:"";
+    position:absolute; left:-60%; top:55%; width:220%; height:140%;
+    background:
+      radial-gradient(circle at 50% 20%, rgba(255,255,255,0.02), transparent 10%),
+      linear-gradient( to top, transparent, rgba(0,0,0,0.6) 60% );
+    transform: translateZ(0);
+    pointer-events:none;
+  }
   @keyframes gridShift { from{transform:translateY(0);} to{transform:translateY(-6vh);} }
   .plane{ animation:gridShift 18s linear infinite; }
 
@@ -87,21 +97,20 @@
     position:fixed; inset:0; z-index:1490;
     background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.45) 100%);
   }
+
+  /* slight RGB chromatic aberration */
   .rgbShift{ position:fixed; inset:0; z-index:1480; pointer-events:none; mix-blend-mode:screen; opacity:0.04;
     background:
       linear-gradient(90deg, rgba(0,224,255,0.02), rgba(255,0,128,0.02));
     filter: blur(4px);
   }
 
-  /* --------- Stars --------- */
-  .stars{position:fixed; inset:0; z-index:1; pointer-events:none;}
-
   /* --------- Header / layout --------- */
   header.site-header{
     position:relative; z-index:20;
     padding: clamp(14px,3.2vw,28px);
-    display:flex; flex-direction:column; gap:12px; align-items:flex-start;
-    max-width:100%; margin:0 auto;
+    display:flex; gap:12px; align-items:center; justify-content:space-between;
+    max-width:1200px; margin:0 auto;
     padding-left:4vw; padding-right:4vw;
   }
   .brand {
@@ -117,8 +126,9 @@
   .brand h1 { margin:0; font-size:clamp(14px,2.6vw,22px); color:var(--neon-cyan); text-shadow:0 0 12px rgba(0,224,255,0.12); }
   .brand p { margin:0; font-size:12px; color:#bfeefc; opacity:0.9; }
 
-  nav.site-nav { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  nav.site-nav { display:flex; gap:8px; align-items:center; }
 
+  /* Button style with CRT hover overlay */
   .btn {
     display:inline-flex; align-items:center; gap:10px; padding:10px 14px; border-radius:10px;
     background:linear-gradient(180deg,#00d7ff, #00a8bf); color:#001;
@@ -135,17 +145,17 @@
   .btn.muted{ background:linear-gradient(180deg,#ff33cc,#cc0099); color:#fff }
 
   /* --------- Content area --------- */
-  .container{ max-width:100%; margin:2.2rem auto; padding:0 4vw; z-index:20; position:relative; }
+  .container{ max-width:1100px; margin:2.2rem auto; padding:0 4vw; z-index:20; position:relative; }
   .hero {
     background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.3));
-    border-radius:12px; padding:18px; display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start;
+    border-radius:12px; padding:18px; display:flex; gap:18px; align-items:center; justify-content:space-between;
     border:1px solid rgba(0,224,255,0.06); box-shadow:0 6px 40px rgba(0,0,0,0.6);
     backdrop-filter: blur(4px);
   }
-  .hero-left { flex:1 1 100%; min-width:0 }
+  .hero-left { flex:1; min-width:0 }
   .hero-left h2{ margin:0; font-size:clamp(18px,3.4vw,28px); color:var(--neon-cyan); text-shadow:0 0 14px rgba(0,224,255,0.12) }
   .hero-left p{ margin:.6rem 0 0 0; color:#dff; font-size:clamp(13px,2.3vw,16px) }
-  .hero-right { display:flex; gap:10px; align-items:center; flex:1 1 100%; justify-content:flex-start; margin-top:10px }
+  .hero-right { display:flex; gap:10px; align-items:center; }
 
   /* ---------- Cards ---------- */
   .cards{ margin-top:1.2rem; display:flex; flex-direction:column; gap:12px; }
@@ -160,11 +170,17 @@
   /* footer */
   footer.site-footer { text-align:center; padding:18px 4vw; color:#a8dfe8; font-size:13px; border-top:1px solid rgba(0,224,255,0.04); margin-top:2.2rem }
 
+  /* responsive adjustments */
+  @media (max-width:820px){
+    .hero{ flex-direction:column; align-items:stretch }
+    .hero-right{ justify-content:center }
+    header.site-header{ flex-direction:column; gap:12px; align-items:flex-start; padding-bottom:10px }
+  }
 </style>
 </head>
 
 <body>
-  <!-- Animated Splash -->
+  <!-- Upgraded Animated Splash -->
   <div id="splash" aria-hidden="false" role="dialog">
     <div class="splash-line" id="sl1">SYSTEM BOOTING...</div>
     <div class="splash-line" id="sl2">CHECKING CONNECTION...</div>
@@ -214,7 +230,6 @@
       </section>
 
       <div class="cards" aria-live="polite">
-        <!-- Sample cards -->
         <article class="card">
           <h3>EA Nation Hub — PSP</h3>
           <p>Unoffical hub to restore EA PSP multiplayer. <a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank" rel="noopener">Discord</a> • <a href="https://mohh-revival.pages.dev/#setup" target="_blank" rel="noopener">Setup Guide</a></p>
@@ -232,106 +247,76 @@
     </footer>
   </main>
 
+  <!-- Submit as new tab -->
   <script>
-  /* ---------- Splash sequence ---------- */
-  (function(){
-    const s1 = document.getElementById('sl1');
-    const s2 = document.getElementById('sl2');
-    const s3 = document.getElementById('sl3');
-    const s4 = document.getElementById('sl4');
-    const splash = document.getElementById('splash');
-    const main = document.getElementById('mainContent');
+    /* ---------- Upgraded Splash sequence ---------- */
+    (function(){
+      const s1 = document.getElementById('sl1');
+      const s2 = document.getElementById('sl2');
+      const s3 = document.getElementById('sl3');
+      const s4 = document.getElementById('sl4');
+      const splash = document.getElementById('splash');
+      const main = document.getElementById('mainContent');
 
-    function showLine(el, delay, duration){
-      setTimeout(()=> {
-        el.style.opacity = '1';
-        el.style.transform = 'translateY(0)';
-        el.style.animation = 'flicker 0.9s linear infinite';
-        setTimeout(()=> el.style.animation = '', duration);
-      }, delay);
-    }
+      // optional beep per line
+      const beep = new Audio("https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/beep.mp3");
+      beep.preload = "auto";
 
-    showLine(s1, 200, 900);
-    showLine(s2, 900, 900);
-    showLine(s3, 1500, 1200);
-    showLine(s4, 2100, 1200);
-
-    setTimeout(()=>{
-      splash.style.transition = 'opacity 500ms ease, transform 500ms ease';
-      splash.style.opacity = '0';
-      splash.style.transform = 'scale(1.02)';
-      setTimeout(()=> {
-        splash.style.display = 'none';
-        main.style.display = 'block';
-      }, 520);
-    }, 3600);
-  })();
-
-  /* ---------- Starfield generation ---------- */
-  document.addEventListener('DOMContentLoaded', () => {
-    const starCnt = Math.min(Math.max(Math.round((window.innerWidth*window.innerHeight)/16000), 30), 140);
-    const container = document.querySelector('.stars');
-    for(let i=0;i<starCnt;i++){
-      const el = document.createElement('div');
-      el.style.position = 'absolute';
-      const size = Math.random()*2.5+0.5;
-      el.style.width = size+'px';
-      el.style.height = size+'px';
-      el.style.left = (Math.random()*100)+'%';
-      el.style.top = (Math.random()*100)+'%';
-      el.style.background = 'var(--neon-cyan)';
-      el.style.opacity = (0.1 + Math.random()*0.85).toString();
-      el.style.borderRadius = '50%';
-      container.appendChild(el);
-    }
-  });
-
-  /* ---------- Buttons & submit ---------- */
-  document.getElementById('openSubmitBtn').addEventListener('click', function(){
-    const formURL = "https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform";
-    window.open(formURL, '_blank', 'noopener');
-  });
-
-  /* ---------- Music toggle ---------- */
-  (function(){
-    const musicSrc = "https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3";
-    const audio = document.createElement('audio');
-    audio.id = 'bgAudio';
-    audio.loop = true;
-    audio.preload = 'auto';
-    const src = document.createElement('source');
-    src.src = musicSrc;
-    src.type = 'audio/mpeg';
-    audio.appendChild(src);
-    audio.style.display = 'none';
-    document.body.appendChild(audio);
-
-    const btn = document.getElementById('musicButton');
-    let playing = false;
-
-    btn.addEventListener('click', function(){
-      if(!playing){
-        audio.play().then(()=> {
-          playing = true;
-          btn.textContent = '⏸ Music';
-          btn.classList.add('muted');
-        }).catch(()=> {
-          btn.textContent = '▶ Play (tap again)';
-        });
-      } else {
-        audio.pause();
-        playing = false;
-        btn.textContent = '🔊 Music';
-        btn.classList.remove('muted');
+      function showLine(el, delay, duration){
+        setTimeout(()=>{
+          if(beep){ beep.currentTime = 0; beep.play().catch(()=>{}); }
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+          el.style.animation = 'flicker 0.9s linear infinite';
+          setTimeout(()=> el.style.animation = '', duration);
+        }, delay);
       }
-    });
-  })();
 
-  /* ---------- Accessibility ---------- */
-  (function(){
-    const body = document.body;
-    body.setAttribute('tabindex','0');
-  })();
+      showLine(s1, 200, 900);
+      showLine(s2, 900, 900);
+      showLine(s3, 1500, 1200);
+      showLine(s4, 2100, 1200);
+
+      setTimeout(()=>{
+        splash.style.transition = 'opacity 500ms ease, transform 500ms ease';
+        splash.style.opacity = '0';
+        splash.style.transform = 'scale(1.02)';
+        setTimeout(()=> {
+          splash.style.display = 'none';
+          main.style.display = 'block';
+        }, 520);
+      }, 3600);
+    })();
+
+    /* ---------- Starfield generation (subtle) ---------- */
+    (function(){
+      const starCnt = Math.min(Math.max(Math.round((innerWidth*innerHeight)/16000), 30), 140);
+      const container = document.querySelector('.stars') || document.createElement('div');
+      container.className='stars';
+      if(!document.body.contains(container)) document.body.appendChild(container);
+      for(let i=0;i<starCnt;i++){
+        const el = document.createElement('div');
+        el.className='star';
+        const size = (Math.random()*2.5)+0.5;
+        el.style.width = size+'px';
+        el.style.height = size+'px';
+        el.style.left = (Math.random()*100)+'%';
+        el.style.top = (Math.random()*100)+'%';
+        el.style.opacity = (0.1 + Math.random()*0.85).toString();
+        el.style.background = (Math.random()>0.85? 'radial-gradient(circle, #fff, var(--neon-cyan))' : 'var(--neon-cyan)');
+        el.style.filter = 'blur(' + (Math.random()*0.6)+'px)';
+        container.appendChild(el);
+      }
+    })();
+
+    /* ---------- Buttons & submit ---------- */
+    document.getElementById('openSubmitBtn').addEventListener('click', function(){
+      const formURL = "https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5n7hZQ/viewform";
+      window.open(formURL,'_blank');
+    });
+    document.getElementById('musicButton').addEventListener('click', function(){
+      alert("Music toggle feature coming soon!");
+    });
   </script>
 </body>
 </html>
