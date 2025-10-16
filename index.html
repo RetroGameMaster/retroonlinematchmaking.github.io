@@ -1,183 +1,228 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Retro Online Matchmaking</title>
-  <style>
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RetroOnlineMatchmaking</title>
+<style>
+/* --- Base Styling --- */
+body, html {
+  margin:0; padding:0; font-family: "Orbitron", Arial, sans-serif;
+  background: #000; color:#fff; overflow-x:hidden; position:relative;
+}
 
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
+/* --- Splash Screen --- */
+#splash {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
+  z-index:2000;
+}
+#splash h1 {
+  font-size:3.5rem; color:#0ff; animation:flicker 1s infinite;
+  text-align:center; padding:0 1rem;
+}
+#splash p { color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; text-align:center; padding:0 1rem;}
+@keyframes flicker {
+  0%,100%{opacity:1} 50%{opacity:0.6}
+}
 
-    @keyframes insertCoinBlink {
-      0%, 50%, 100% { opacity: 1; }
-      25%, 75% { opacity: 0; }
-    }
+/* --- Starfield --- */
+.stars { position:fixed; width:100%; height:100%; background:transparent; z-index:0; overflow:hidden; }
+.star { position:absolute; width:2px; height:2px; background:#0ff; animation:twinkle 3s linear infinite; }
+@keyframes twinkle { 0%{opacity:0.1}50%{opacity:1}100%{opacity:0.1} }
 
-    body {
-      margin: 0;
-      font-family: 'Press Start 2P', monospace;
-      background-color: #000;
-      color: #00ffcc;
-      overflow-x: hidden;
-    }
+/* --- CRT Overlay --- */
+.crt-overlay {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events:none;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px);
+  animation: scan 8s linear infinite; z-index:999;
+}
+@keyframes scan { 0%{opacity:0.1}50%{opacity:0.2}100%{opacity:0.1} }
 
-    .intro-screen {
-      position: fixed;
-      inset: 0;
-      background-color: #000;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      animation: fadeOut 1s ease forwards;
-      animation-delay: 3.5s;
-    }
+/* --- Main Content --- */
+#mainContent { display:none; padding:0; text-align:center; position:relative; z-index:1; }
 
-    .intro-text {
-      font-size: 1.2rem;
-      text-align: center;
-      color: #00ffcc;
-      animation: fadeIn 1.5s ease, insertCoinBlink 1.5s infinite;
-    }
+header { padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44; }
+header h1 { font-size:2.3rem; color:#0ff; text-shadow:0 0 10px #0ff66; }
+header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 
-    .main-content {
-      opacity: 0;
-      animation: fadeIn 2s ease forwards;
-      animation-delay: 3.5s;
-    }
+/* Buttons */
+.button {
+  display:inline-block; margin:0.6rem; padding:1rem 2rem; background:#0ff; color:#111;
+  border-radius:10px; text-decoration:none; font-weight:bold; position:relative; overflow:hidden;
+  box-shadow:0 0 10px #0ff55; transition:0.3s; cursor:pointer;
+}
+.button::before {
+  content:""; position:absolute; top:0; left:-100%; width:100%; height:100%;
+  background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
+  transition:left 0.3s ease-in-out;
+}
+.button:hover::before { left:0; }
+.button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
 
-    header {
-      text-align: center;
-      padding: 2rem 1rem;
-      background: linear-gradient(90deg, #001a1a, #003333);
-      border-bottom: 3px solid #00ffcc;
-    }
+/* Connection Cards */
+.card {
+  background: rgba(0,0,0,0.6); border:2px solid #0ff; border-radius:12px;
+  margin:1rem auto; padding:1rem; max-width:600px; text-align:left;
+  box-shadow:0 0 15px #0ff33;
+}
+.card h3 { color:#0ff; margin-bottom:0.3rem; }
+.card p { color:#ccc; font-size:0.95rem; }
+.card a { color:#0ff; text-decoration:underline; }
 
-    header h1 {
-      margin: 0;
-      font-size: 1.5rem;
-      text-transform: uppercase;
-    }
+/* Modal */
+.modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.95); justify-content:center; align-items:center; padding:1rem; }
+.modal iframe { width:90%; max-width:640px; height:85vh; border:none; border-radius:12px; box-shadow:0 0 25px #0ff55; }
+.close-btn { position:absolute; top:20px; right:30px; color:#0ff; font-size:2rem; font-weight:bold; cursor:pointer; text-shadow:0 0 10px #0ff; }
 
-    header p {
-      font-size: 0.8rem;
-      color: #80ffe6;
-    }
+/* Footer */
+footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem; }
 
-    .container {
-      padding: 1rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-    }
+/* Mobile */
+@media(max-width:768px){
+  header h1{font-size:1.8rem;}
+  .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
+  iframe{height:75vh;}
+  #splash h1{font-size:2.2rem;}
+}
 
-    .card {
-      background-color: #001a1a;
-      border: 2px solid #00ffcc;
-      border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 0 15px #00ffcc40;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
+/* TV Curvature */
+body::after { content:""; position:fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events:none; background:radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.25) 100%); z-index:998; }
 
-    .card:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 25px #00ffcc;
-    }
-
-    .card h2 {
-      color: #00ffcc;
-      font-size: 1rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .card a {
-      color: #80ffe6;
-      text-decoration: none;
-    }
-
-    .card a:hover {
-      text-decoration: underline;
-    }
-
-    footer {
-      text-align: center;
-      padding: 1rem;
-      font-size: 0.8rem;
-      border-top: 3px solid #00ffcc;
-      background: #001a1a;
-      color: #80ffe6;
-    }
-
-    @media (max-width: 600px) {
-      header h1 { font-size: 1.2rem; }
-      .card h2 { font-size: 0.9rem; }
-    }
-  </style>
+</style>
 </head>
 <body>
-  <!-- Intro Splash Screen -->
-  <div class="intro-screen">
-    <div class="intro-text">INSERT COIN<br>NETLINK OVERDRIVE</div>
+<!-- Splash -->
+<div id="splash">
+  <h1>RetroOnlineMatchmaking</h1>
+  <p>Booting Arcade Servers...</p>
+</div>
+
+<!-- Starfield -->
+<div class="stars" id="stars"></div>
+
+<!-- Main Content -->
+<div id="mainContent">
+  <header>
+    <h1>RetroOnlineMatchmaking</h1>
+    <p>Play Classic Games Online Again</p>
+  </header>
+
+  <div class="links">
+    <a href="https://discord.com/invite/jcRqpmMZdZ" class="button" target="_blank">Join Discord</a>
+    <a href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" class="button" target="_blank">Watch on YouTube</a>
+    <a href="https://retroonlinematchmaking.flarum.cloud/" class="button" target="_blank">Visit the Forum</a>
   </div>
 
-  <!-- Main Website -->
-  <div class="main-content">
-    <header>
-      <h1>Retro Online Matchmaking</h1>
-      <p>Connecting Retro Players Worldwide — PS2, PSP, Dreamcast, and More!</p>
-    </header>
+  <h2 style="color:#0ff;">Submit a New Connection Method</h2>
+  <p>Help revive classic games online! Submit your method below.</p>
+  <a class="button" id="openFormBtn">Open Submission Form</a>
 
-    <div class="container">
-
-      <!-- Jak X Combat Racing -->
-      <div class="card">
-        <h2>Jak X Combat Racing</h2>
-        <p><strong>Connection Method:</strong> DNS<br>45.7.228.197</p>
-        <p><a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank">Discord</a></p>
-      </div>
-
-      <!-- PSRewired -->
-      <div class="card">
-        <h2>PSRewired Online Setup</h2>
-        <p><strong>Connection Method:</strong> DNS<br>67.222.156.250</p>
-        <p><a href="https://psrewired.com/guides/pcsx2" target="_blank">Website</a></p>
-      </div>
-
-      <!-- Parsec -->
-      <div class="card">
-        <h2>Parsec</h2>
-        <p><strong>Connection Method:</strong> Remote Play</p>
-        <p>
-          <a href="https://parsec.app/" target="_blank">Website/Download</a> • 
-          <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
-        </p>
-      </div>
-
-      <!-- OBSRV -->
-      <div class="card">
-        <h2>OBSRV</h2>
-        <p><strong>Connection Method:</strong> Resident Evil Outbreak: File #2 Infrastructure</p>
-        <p>
-          <a href="https://obsrv.org/website" target="_blank">Website</a> • 
-          <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> • 
-          <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Guide</a>
-        </p>
-      </div>
-
-    </div>
-
-    <footer>
-      © 2025 Retro Online Matchmaking • Arcade Edition v3.5
-    </footer>
+  <div>
+    <a class="button" id="musicToggle">▶ Play Retro Music</a>
   </div>
+
+  <audio id="bgMusic" loop preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Modal -->
+  <div id="formModal" class="modal">
+    <span class="close-btn" id="closeModal">&times;</span>
+    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true">Loading…</iframe>
+  </div>
+
+  <!-- Connection Method Cards -->
+  <div class="card">
+    <h3>EA Nation Hub - PSP</h3>
+    <p>Play various EA PSP titles online.</p>
+    <a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank">Discord</a> | 
+    <a href="https://mohh-revival.pages.dev/#setup" target="_blank">Setup Guide</a>
+  </div>
+
+  <div class="card">
+    <h3>Vita3K - PS Vita</h3>
+    <p>Play certain PS Vita games online using emulator and Xlink.</p>
+    <a href="https://discord.gg/aBUTzGnCUS" target="_blank">Discord</a> | 
+    <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank">Download</a>
+  </div>
+
+  <div class="card">
+    <h3>Jak X: Combat Racing - PS2</h3>
+    <p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
+    <p><strong>DNS:</strong> 45.7.228.197</p>
+    <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank">Discord</a>
+  </div>
+
+  <div class="card">
+    <h3>PSRewired - PS2</h3>
+    <p>Universal online setup for PS2 games using custom DNS.</p>
+    <p><strong>DNS:</strong> 67.222.156.250</p>
+    <a href="https://psrewired.com/guides/pcsx2" target="_blank">Setup Guide</a>
+  </div>
+
+  <div class="card">
+    <h3>Parsec - Cross Platform</h3>
+    <p>Cloud-based remote play for any local multiplayer retro game.</p>
+    <a href="https://parsec.app/" target="_blank">Website</a> | 
+    <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
+  </div>
+
+  <div class="card">
+    <h3>OBSVR - Resident Evil Outbreak File #2</h3>
+    <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
+    <a href="https://obsrv.org/website" target="_blank">Website</a> | 
+    <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
+    <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
+  </div>
+
+  <footer>
+    <p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
+  </footer>
+
+  <div class="crt-overlay"></div>
+</div>
+
+<script>
+// Splash fade
+window.addEventListener("load", () => {
+  setTimeout(()=>{
+    document.getElementById("splash").style.display="none";
+    document.getElementById("mainContent").style.display="block";
+  }, 3500);
+});
+
+// Modal
+const modal = document.getElementById("formModal");
+const openBtn = document.getElementById("openFormBtn");
+const closeBtn = document.getElementById("closeModal");
+openBtn.addEventListener("click", () => modal.style.display = "flex");
+closeBtn.addEventListener("click", () => modal.style.display = "none");
+window.addEventListener("click", e => { if(e.target===modal) modal.style.display="none"; });
+
+// Music toggle
+const music = document.getElementById("bgMusic");
+const musicToggle = document.getElementById("musicToggle");
+let musicPlaying = false;
+musicToggle.addEventListener("click", () => {
+  if(musicPlaying){ music.pause(); musicPlaying=false; musicToggle.textContent="▶ Play Retro Music"; }
+  else { music.play().catch(err=>console.log("Playback failed:",err)); musicPlaying=true; musicToggle.textContent="⏸ Pause Music"; }
+});
+
+// Starfield
+const starsContainer = document.getElementById("stars");
+for(let i=0;i<100;i++){
+  const star=document.createElement("div");
+  star.className="star";
+  star.style.top=Math.random()*100+"%";
+  star.style.left=Math.random()*100+"%";
+  star.style.width=(Math.random()*2+1)+"px";
+  star.style.height=star.style.width;
+  starsContainer.appendChild(star);
+}
+</script>
 </body>
 </html>
