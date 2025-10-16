@@ -21,10 +21,10 @@ body, html {
   font-size:3.5rem; color:#0ff; animation:flicker 1s infinite;
   text-align:center; padding:0 1rem;
 }
-#splash p { color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; text-align:center; padding:0 1rem;}
-@keyframes flicker {
-  0%,100%{opacity:1} 50%{opacity:0.6}
+#splash p {
+  color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; text-align:center; padding:0 1rem;
 }
+@keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
 /* --- Starfield --- */
 .stars { position:fixed; width:100%; height:100%; background:transparent; z-index:0; overflow:hidden; }
@@ -43,7 +43,9 @@ body, html {
 /* --- Main Content --- */
 #mainContent { display:none; padding:0; text-align:center; position:relative; z-index:1; }
 
-header { padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44; }
+header {
+  padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44;
+}
 header h1 { font-size:2.3rem; color:#0ff; text-shadow:0 0 10px #0ff66; }
 header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 
@@ -72,13 +74,23 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .card a { color:#0ff; text-decoration:underline; }
 
 /* Modal */
-.modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.95); justify-content:center; align-items:center; padding:1rem; }
-.modal iframe { width:90%; max-width:640px; height:85vh; border:none; border-radius:12px; box-shadow:0 0 25px #0ff55; }
-.close-btn { position:absolute; top:20px; right:30px; color:#0ff; font-size:2rem; font-weight:bold; cursor:pointer; text-shadow:0 0 10px #0ff; }
+.modal {
+  display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.95); justify-content:center; align-items:center; padding:1rem;
+}
+.modal iframe {
+  width:90%; max-width:640px; height:85vh; border:none; border-radius:12px;
+  box-shadow:0 0 25px #0ff55;
+}
+.close-btn {
+  position:absolute; top:20px; right:30px; color:#0ff; font-size:2rem; font-weight:bold;
+  cursor:pointer; text-shadow:0 0 10px #0ff;
+}
 
 /* Footer */
-footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem; }
+footer {
+  padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem;
+}
 
 /* Mobile */
 @media(max-width:768px){
@@ -89,12 +101,15 @@ footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aa
 }
 
 /* TV Curvature */
-body::after { content:""; position:fixed; top:0; left:0; width:100%; height:100%;
-  pointer-events:none; background:radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.25) 100%); z-index:998; }
-
+body::after {
+  content:""; position:fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events:none; background:radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.25) 100%);
+  z-index:998;
+}
 </style>
 </head>
 <body>
+
 <!-- Splash -->
 <div id="splash">
   <h1>RetroOnlineMatchmaking</h1>
