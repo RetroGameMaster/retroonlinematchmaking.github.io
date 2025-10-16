@@ -15,15 +15,33 @@ body, html {
 #splash {
   position:fixed; top:0; left:0; width:100%; height:100%;
   background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
-  z-index:2000;
+  z-index:2000; text-align:center;
 }
+.splash-text {
+  font-size:2rem; color:#0ff; text-shadow:0 0 10px #0ff;
+  opacity:0; animation: bootSequence 3.5s steps(1,end) forwards;
+}
+#final-line {
+  font-size:1.2rem; color:#0ff; margin-top:0.8rem;
+  text-shadow:0 0 6px #0ff; opacity:0;
+  animation: fadeInFinal 0.8s ease 2.8s forwards;
+}
+@keyframes bootSequence {
+  0% {content:"SYSTEM BOOTING..."; opacity:1;}
+  20% {opacity:0;}
+  25% {content:"CHECKING CONNECTION..."; opacity:1;}
+  45% {opacity:0;}
+  50% {content:"ONLINE!"; opacity:1;}
+  70% {opacity:0;}
+  100% {opacity:0;}
+}
+@keyframes fadeInFinal { from{opacity:0;} to{opacity:1;} }
+
 #splash h1 {
-  font-size:3rem; color:#0ff; animation:flicker 1s infinite;
+  font-size:2.6rem; color:#0ff; margin-bottom:1rem;
+  animation:flicker 1s infinite;
 }
-#splash p { color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; }
-@keyframes flicker {
-  0%,100%{opacity:1} 50%{opacity:0.6}
-}
+@keyframes flicker {0%,100%{opacity:1}50%{opacity:0.6}}
 
 /* --- Starfield --- */
 .stars { position:fixed; width:100%; height:100%; background:transparent; z-index:0; overflow:hidden; }
@@ -84,6 +102,7 @@ footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aa
   header h1{font-size:1.8rem;}
   .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
   iframe{height:75vh;}
+  #splash h1{font-size:2rem;}
 }
 
 /* TV Curvature */
@@ -95,8 +114,8 @@ body::after { content:""; position:fixed; top:0; left:0; width:100%; height:100%
 <body>
 <!-- Splash -->
 <div id="splash">
-  <h1>RetroOnlineMatchmaking</h1>
-  <p>Booting Arcade Servers...</p>
+  <h1 id="bootLine">SYSTEM BOOTING...</h1>
+  <p id="final-line">RetroOnlineMatchmaking System v1.0</p>
 </div>
 
 <!-- Starfield -->
@@ -155,8 +174,12 @@ body::after { content:""; position:fixed; top:0; left:0; width:100%; height:100%
 </div>
 
 <script>
-// Splash fade
+// Splash sequence
 window.addEventListener("load", () => {
+  const line = document.getElementById("bootLine");
+  const finalLine = document.getElementById("final-line");
+  setTimeout(()=>{ line.textContent="CHECKING CONNECTION..."; }, 1000);
+  setTimeout(()=>{ line.textContent="ONLINE!"; }, 2000);
   setTimeout(()=>{
     document.getElementById("splash").style.display="none";
     document.getElementById("mainContent").style.display="block";
