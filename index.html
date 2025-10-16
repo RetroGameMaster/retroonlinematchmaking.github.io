@@ -13,26 +13,18 @@ body, html {
 
 /* --- Splash Screen --- */
 #splash {
-  position:fixed; top:0; left:0; width:100%; min-height:100vh;
+  position:fixed; top:0; left:0; width:100%; height:100%;
   background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
   z-index:2000;
-  padding:1rem;
 }
 #splash h1 {
   font-size:3.5rem; color:#0ff; animation:flicker 1s infinite;
   text-align:center; padding:0 1rem;
 }
 #splash p {
-  color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite;
-  text-align:center; padding:0 1rem;
+  color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; text-align:center; padding:0 1rem;
 }
 @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
-
-/* Mobile splash adjustments */
-@media(max-width:768px){
-  #splash h1 { font-size:2rem; }
-  #splash p { font-size:1rem; }
-}
 
 /* --- Main Content --- */
 #mainContent { display:none; padding:0; text-align:center; position:relative; z-index:10; }
@@ -103,6 +95,15 @@ footer {
   padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem;
 }
 
+/* Google Form Section */
+#connection-form { margin:2rem auto; width:90%; max-width:800px; }
+#connection-form .form-button {
+  display:inline-block; margin:0.6rem; padding:1rem 2rem; background:#0ff; color:#111;
+  border-radius:10px; text-decoration:none; font-weight:bold; position:relative; overflow:hidden;
+  box-shadow:0 0 10px #0ff55; transition:0.3s; cursor:pointer;
+}
+#connection-form .form-button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
+
 /* Mouse Cursor */
 #customCursor {
   position:fixed; width:32px; height:32px; pointer-events:none; z-index:9999;
@@ -112,11 +113,13 @@ footer {
 /* Canvas Background */
 canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 
-/* Mobile adjustments */
+/* Mobile */
 @media(max-width:768px){
   header h1{font-size:1.8rem;}
-  .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
+  .button, #connection-form .form-button{padding:0.8rem 1.2rem;font-size:0.95rem;}
   #customCursor{width:24px; height:24px;}
+  #splash h1{font-size:2.5rem;}
+  #splash p{font-size:1rem;}
 }
 </style>
 </head>
@@ -201,6 +204,13 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
       <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
     </div>
   </div>
+
+  <!-- Google Form Section -->
+  <section id="connection-form" class="text-center py-10 bg-black bg-opacity-70 rounded-2xl border border-cyan-400 shadow-lg mx-4 my-10">
+    <h2 class="text-3xl font-bold text-cyan-300 mb-4">Submit a New Connection Method</h2>
+    <p class="text-gray-300 mb-6">Got a new way to bring classic games back online? Submit it below and help expand the RetroOnlineMatchmaking network!</p>
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" class="form-button">Submit New Method</a>
+  </section>
 
   <footer>
     <p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
