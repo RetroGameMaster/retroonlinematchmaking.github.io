@@ -180,7 +180,7 @@
 </head>
 
 <body>
-  <!-- Upgraded Animated Splash -->
+  <!-- Animated Splash -->
   <div id="splash" aria-hidden="false" role="dialog">
     <div class="splash-line" id="sl1">SYSTEM BOOTING...</div>
     <div class="splash-line" id="sl2">CHECKING CONNECTION...</div>
@@ -230,6 +230,7 @@
       </section>
 
       <div class="cards" aria-live="polite">
+        <!-- Sample cards - replace or duplicate for each method -->
         <article class="card">
           <h3>EA Nation Hub — PSP</h3>
           <p>Unoffical hub to restore EA PSP multiplayer. <a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank" rel="noopener">Discord</a> • <a href="https://mohh-revival.pages.dev/#setup" target="_blank" rel="noopener">Setup Guide</a></p>
@@ -239,6 +240,8 @@
           <h3>Vita3K — PS Vita (Ad-Hoc)</h3>
           <p>Ad-hoc revival via Vita3K with XLink and community patches. <a href="https://discord.gg/aBUTzGnCUS" target="_blank" rel="noopener">Discord</a> • <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank" rel="noopener">Download</a></p>
         </article>
+
+        <!-- Add more cards here -->
       </div>
     </div>
 
@@ -247,9 +250,9 @@
     </footer>
   </main>
 
-  <!-- Submit as new tab -->
+  <!-- Submit as new tab (avoids embedding errors) -->
   <script>
-    /* ---------- Upgraded Splash sequence ---------- */
+    /* ---------- Splash sequence (arcade-style) ---------- */
     (function(){
       const s1 = document.getElementById('sl1');
       const s2 = document.getElementById('sl2');
@@ -258,26 +261,26 @@
       const splash = document.getElementById('splash');
       const main = document.getElementById('mainContent');
 
-      // optional beep per line
-      const beep = new Audio("https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/beep.mp3");
-      beep.preload = "auto";
-
+      // helper to show a line with flicker
       function showLine(el, delay, duration){
-        setTimeout(()=>{
-          if(beep){ beep.currentTime = 0; beep.play().catch(()=>{}); }
+        setTimeout(()=> {
           el.style.opacity = '1';
           el.style.transform = 'translateY(0)';
           el.style.animation = 'flicker 0.9s linear infinite';
+          // stop flicker after duration
           setTimeout(()=> el.style.animation = '', duration);
         }, delay);
       }
 
-      showLine(s1, 200, 900);
-      showLine(s2, 900, 900);
-      showLine(s3, 1500, 1200);
-      showLine(s4, 2100, 1200);
+      // sequence timings (in ms) - short and snappy like an arcade boot
+      showLine(s1, 200, 900);     // booting
+      showLine(s2, 900, 900);     // checking
+      showLine(s3, 1500, 1200);   // online
+      showLine(s4, 2100, 1200);   // version
 
+      // end splash and reveal main after ~3.6s
       setTimeout(()=>{
+        // smooth fade out
         splash.style.transition = 'opacity 500ms ease, transform 500ms ease';
         splash.style.opacity = '0';
         splash.style.transform = 'scale(1.02)';
@@ -309,14 +312,64 @@
       }
     })();
 
-    /* ---------- Buttons & submit ---------- */
+    /* ---------- Buttons & submit (open form in new tab to avoid embed issues) ---------- */
     document.getElementById('openSubmitBtn').addEventListener('click', function(){
-      const formURL = "https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5n7hZQ/viewform";
-      window.open(formURL,'_blank');
+      // open google form in new tab (replace URL if you have a different form)
+      const formURL = "https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform";
+      window.open(formURL, '_blank', 'noopener');
     });
-    document.getElementById('musicButton').addEventListener('click', function(){
-      alert("Music toggle feature coming soon!");
-    });
+
+    /* ---------- Music toggle (user gesture required) ---------- */
+    (function(){
+      // music source placeholder:
+      // Replace the URL below with your hosted mp3 when ready.
+      // EXAMPLE: "https://yourdomain.com/assets/retro-loop.mp3"
+      const musicSrc = "https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3";
+
+      // create audio element dynamically (keeps markup clean; user gesture required)
+      const audio = document.createElement('audio');
+      audio.id = 'bgAudio';
+      audio.loop = true;
+      audio.preload = 'auto';
+      const src = document.createElement('source');
+      src.src = musicSrc; // placeholder - replace with your file if needed
+      src.type = 'audio/mpeg';
+      audio.appendChild(src);
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+
+      const btn = document.getElementById('musicButton');
+      let playing = false;
+
+      btn.addEventListener('click', function(e){
+        // first click attempts to play (user gesture allowed)
+        if(!playing){
+          audio.play().then(()=> {
+            playing = true;
+            btn.textContent = '⏸ Music';
+            btn.classList.add('muted');
+          }).catch(err => {
+            console.warn('Music playback blocked or unavailable:', err);
+            // fallback: open hint to user
+            btn.textContent = '▶ Play (tap again)';
+          });
+        } else {
+          audio.pause();
+          playing = false;
+          btn.textContent = '🔊 Music';
+          btn.classList.remove('muted');
+        }
+      });
+    })();
+
+    /* ---------- small accessibility: focus outlines for keyboard users ---------- */
+    (function(){
+      const body = document.body;
+      window.addEventListener('keydown', function(e){
+        if(e.key === 'Tab') body.classList.add('show-focus');
+      });
+      window.addEventListener('mousedown', function(){ body.classList.remove('show-focus'); });
+    })();
   </script>
 </body>
 </html>
