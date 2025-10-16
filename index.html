@@ -203,18 +203,15 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif">
 
 <script>
-// Splash fade + init all after splash
+// Splash fade
 window.addEventListener("load", () => {
-  const splash = document.getElementById("splash");
-  const mainContent = document.getElementById("mainContent");
-  setTimeout(() => {
-    splash.style.display = "none";
-    mainContent.style.display = "block";
-    initCursorAndCanvas();
+  setTimeout(()=>{
+    document.getElementById("splash").style.display="none";
+    document.getElementById("mainContent").style.display="block";
   }, 3500);
 });
 
-// Collapsible Sections
+// Collapsible
 const collapsibles = document.querySelectorAll(".collapsible");
 collapsibles.forEach(c=>{
   c.addEventListener("click", function(){
@@ -228,135 +225,138 @@ collapsibles.forEach(c=>{
   });
 });
 
-// Cursor, trail, and canvas animations
-function initCursorAndCanvas(){
-  const cursor = document.getElementById("customCursor");
-  const trail = [];
-  const maxTrail = 12;
+// Custom Cursor + Trail
+const cursor = document.getElementById("customCursor");
+const trail = [];
+const maxTrail = 12;
 
-  document.addEventListener("mousemove", e=>{
-    cursor.style.left = e.pageX + "px";
-    cursor.style.top = e.pageY + "px";
-    trail.push({x:e.pageX, y:e.pageY});
-    if(trail.length>maxTrail) trail.shift();
+document.addEventListener("mousemove", e=>{
+  const x = e.clientX + window.scrollX;
+  const y = e.clientY + window.scrollY;
+
+  cursor.style.left = x + "px";
+  cursor.style.top = y + "px";
+
+  trail.push({x, y});
+  if(trail.length>maxTrail) trail.shift();
+});
+
+// Canvas Background
+const canvas = document.getElementById("retroBG");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Stars
+const starLayers = [
+  { count: 60, speed: 0.2, size: 2, stars: [] },
+  { count: 40, speed: 0.5, size: 1.5, stars: [] },
+  { count: 20, speed: 1.0, size: 1, stars: [] }
+];
+starLayers.forEach(layer => {
+  for(let i=0;i<layer.count;i++){
+    layer.stars.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      size: layer.size,
+      color: `rgba(0,255,255,${Math.random()*0.8+0.2})`
+    });
+  }
+});
+
+// Grid
+const gridSpacing = 80;
+let gridOffset = 0;
+
+// Particles
+const particles = [];
+for(let i=0;i<40;i++){
+  particles.push({
+    x: Math.random()*canvas.width,
+    y: Math.random()*canvas.height,
+    vx: (Math.random()-0.5)*0.2,
+    vy: (Math.random()-0.5)*0.2,
+    size: Math.random()*2+1,
+    alpha: Math.random()*0.5+0.3
   });
+});
 
-  // Canvas
-  const canvas = document.getElementById("retroBG");
-  const ctx = canvas.getContext("2d");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+// Shooting stars
+const shootingStars = [];
+function spawnShootingStar(){
+  shootingStars.push({
+    x: Math.random()*canvas.width,
+    y: 0,
+    vx: Math.random()*2+1,
+    vy: Math.random()*2+1,
+    length: Math.random()*80+50,
+    alpha: 1
+  });
+}
+setInterval(spawnShootingStar, 2500);
+
+// Animation loop
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
   // Stars
-  const starLayers = [
-    { count: 60, speed: 0.2, size: 2, stars: [] },
-    { count: 40, speed: 0.5, size: 1.5, stars: [] },
-    { count: 20, speed: 1.0, size: 1, stars: [] }
-  ];
-  starLayers.forEach(layer => {
-    for(let i=0;i<layer.count;i++){
-      layer.stars.push({
-        x: Math.random()*canvas.width,
-        y: Math.random()*canvas.height,
-        size: layer.size,
-        color: `rgba(0,255,255,${Math.random()*0.8+0.2})`
-      });
-    }
+  starLayers.forEach(layer=>{
+    layer.stars.forEach(star=>{
+      star.y += layer.speed;
+      if(star.y>canvas.height) star.y=0;
+      ctx.fillStyle = star.color;
+      ctx.fillRect(star.x, star.y, star.size, star.size);
+    });
   });
 
   // Grid
-  const gridSpacing = 80;
-  let gridOffset = 0;
+  ctx.strokeStyle="rgba(0,255,255,0.1)";
+  ctx.lineWidth=1;
+  for(let x=0;x<canvas.width;x+=gridSpacing){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+  }
+  for(let y=0;y<canvas.height;y+=gridSpacing){
+    ctx.beginPath(); ctx.moveTo(0,y+gridOffset); ctx.lineTo(canvas.width,y+gridOffset); ctx.stroke();
+  }
+  gridOffset+=0.3;
+  if(gridOffset>gridSpacing) gridOffset=0;
 
   // Particles
-  const particles = [];
-  for(let i=0;i<40;i++){
-    particles.push({
-      x: Math.random()*canvas.width,
-      y: Math.random()*canvas.height,
-      vx: (Math.random()-0.5)*0.2,
-      vy: (Math.random()-0.5)*0.2,
-      size: Math.random()*2+1,
-      alpha: Math.random()*0.5+0.3
-    });
-  }
-
-  // Shooting stars
-  const shootingStars = [];
-  function spawnShootingStar(){
-    shootingStars.push({
-      x: Math.random()*canvas.width,
-      y: 0,
-      vx: Math.random()*2+1,
-      vy: Math.random()*2+1,
-      length: Math.random()*80+50,
-      alpha: 1
-    });
-  }
-  setInterval(spawnShootingStar, 2500);
-
-  function animate(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // Stars
-    starLayers.forEach(layer=>{
-      layer.stars.forEach(star=>{
-        star.y += layer.speed;
-        if(star.y>canvas.height) star.y=0;
-        ctx.fillStyle = star.color;
-        ctx.fillRect(star.x, star.y, star.size, star.size);
-      });
-    });
-
-    // Grid
-    ctx.strokeStyle="rgba(0,255,255,0.1)";
-    ctx.lineWidth=1;
-    for(let x=0;x<canvas.width;x+=gridSpacing){
-      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
-    }
-    for(let y=0;y<canvas.height;y+=gridSpacing){
-      ctx.beginPath(); ctx.moveTo(0,y+gridOffset); ctx.lineTo(canvas.width,y+gridOffset); ctx.stroke();
-    }
-    gridOffset+=0.3;
-    if(gridOffset>gridSpacing) gridOffset=0;
-
-    // Particles
-    particles.forEach(p=>{
-      p.x+=p.vx; p.y+=p.vy;
-      if(p.x>canvas.width)p.x=0;if(p.x<0)p.x=canvas.width;
-      if(p.y>canvas.height)p.y=0;if(p.y<0)p.y=canvas.height;
-      ctx.fillStyle=`rgba(0,255,255,${p.alpha})`;
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
-    });
-
-    // Shooting Stars
-    shootingStars.forEach((s,i)=>{
-      s.x+=s.vx; s.y+=s.vy; s.alpha-=0.01;
-      ctx.strokeStyle=`rgba(0,255,255,${s.alpha})`;
-      ctx.beginPath();
-      ctx.moveTo(s.x,s.y);
-      ctx.lineTo(s.x-s.length,s.y-s.length);
-      ctx.stroke();
-      if(s.alpha<=0) shootingStars.splice(i,1);
-    });
-
-    // Cursor trail
-    for(let i=0;i<trail.length;i++){
-      ctx.fillStyle=`rgba(0,255,255,${i/maxTrail})`;
-      ctx.beginPath();
-      ctx.arc(trail[i].x,trail[i].y,2,0,Math.PI*2); ctx.fill();
-    }
-
-    requestAnimationFrame(animate);
-  }
-
-  window.addEventListener("resize",()=>{
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x>canvas.width)p.x=0;if(p.x<0)p.x=canvas.width;
+    if(p.y>canvas.height)p.y=0;if(p.y<0)p.y=canvas.height;
+    ctx.fillStyle=`rgba(0,255,255,${p.alpha})`;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
   });
 
-  animate();
+  // Shooting Stars
+  shootingStars.forEach((s,i)=>{
+    s.x+=s.vx; s.y+=s.vy; s.alpha-=0.01;
+    ctx.strokeStyle=`rgba(0,255,255,${s.alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(s.x,s.y);
+    ctx.lineTo(s.x-s.length,s.y-s.length);
+    ctx.stroke();
+    if(s.alpha<=0) shootingStars.splice(i,1);
+  });
+
+  // Cursor trail
+  for(let i=0;i<trail.length;i++){
+    ctx.fillStyle=`rgba(0,255,255,${i/maxTrail})`;
+    ctx.beginPath();
+    ctx.arc(trail[i].x,trail[i].y,2,0,Math.PI*2); ctx.fill();
+  }
+
+  requestAnimationFrame(animate);
 }
+
+window.addEventListener("resize",()=>{
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+animate();
 </script>
 </body>
 </html>
