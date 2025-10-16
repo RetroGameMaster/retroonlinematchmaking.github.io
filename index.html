@@ -15,26 +15,13 @@ body, html {
 #splash {
   position:fixed; top:0; left:0; width:100%; height:100%;
   background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
-  z-index:2000;
+  z-index:2000; color:#0ff; font-family: "Courier New", monospace; text-align:center;
+}
+#splash .line {
+  opacity:0; margin:3px 0; font-size:1.2rem; text-shadow:0 0 8px #0ff66;
 }
 #splash h1 {
-  font-size:3rem; color:#0ff; text-align:center;
-  animation:flicker 1s infinite, neonFlicker 2s infinite alternate;
-  text-shadow:
-    0 0 5px #0ff,
-    0 0 10px #0ff,
-    0 0 20px #0ff,
-    0 0 40px #00ffff,
-    0 0 80px #00ffff;
-}
-#splash p {
-  font-size:1.2rem; color:#0ff; margin-top:0.5rem; text-align:center;
-  animation:flicker 1.5s infinite;
-}
-@keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
-@keyframes neonFlicker {
-  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { text-shadow:0 0 5px #0ff,0 0 10px #0ff,0 0 20px #0ff,0 0 40px #00ffff,0 0 80px #00ffff; }
-  20%, 22%, 24%, 55% { text-shadow:none; }
+  font-size:2.5rem; color:#0ff; margin-bottom:1rem; text-shadow:0 0 12px #0ff66;
 }
 
 /* --- Main Content --- */
@@ -43,15 +30,14 @@ body, html {
 header {
   padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44;
 }
-header h1 { font-size:2.3rem; color:#0ff; text-shadow:0 0 5px #0ff,0 0 10px #0ff,0 0 20px #0ff,0 0 40px #00ffff; animation:neonFlicker 2s infinite alternate; }
+header h1 { font-size:2.3rem; color:#0ff; text-shadow:0 0 10px #0ff66; }
 header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 
 /* Buttons */
 .button {
   display:inline-block; margin:0.6rem; padding:1rem 2rem; background:#0ff; color:#111;
   border-radius:10px; text-decoration:none; font-weight:bold; position:relative; overflow:hidden;
-  box-shadow:0 0 10px #0ff55,0 0 20px #0ff55,0 0 40px #00ffff;
-  transition:0.3s; cursor:pointer;
+  box-shadow:0 0 10px #0ff55; transition:0.3s; cursor:pointer;
 }
 .button::before {
   content:""; position:absolute; top:0; left:-100%; width:100%; height:100%;
@@ -59,7 +45,7 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
   transition:left 0.3s ease-in-out;
 }
 .button:hover::before { left:0; }
-.button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff,0 0 50px #0ff,0 0 80px #00ffff; transform:scale(1.05); }
+.button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
 
 /* Collapsible Sections */
 .collapsible {
@@ -76,7 +62,6 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
   border-radius:10px;
   position:relative;
   transition:0.3s;
-  text-shadow:0 0 2px #0ff,0 0 5px #0ff,0 0 10px #0ff44;
 }
 .collapsible:hover { background: rgba(0,255,255,0.1); }
 .collapsible::after {
@@ -85,11 +70,8 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
   position:absolute; right:20px; top:50%;
   transform:translateY(-50%);
   transition:0.3s;
-  text-shadow:0 0 2px #0ff,0 0 5px #0ff,0 0 10px #0ff44;
 }
 .collapsible.active::after { transform:translateY(-50%) rotate(90deg); }
-
-/* Content inside collapsibles */
 .content {
   max-height:0;
   overflow:hidden;
@@ -100,9 +82,9 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .card {
   background: rgba(0,0,0,0.6); border:2px solid #0ff; border-radius:12px;
   margin:0.5rem auto; padding:1rem; text-align:left;
-  box-shadow:0 0 15px #0ff33,0 0 30px #0ff44,0 0 60px #00ffff;
+  box-shadow:0 0 15px #0ff33;
 }
-.card h3 { color:#0ff; margin-bottom:0.3rem; text-shadow:0 0 5px #0ff,0 0 10px #0ff,0 0 20px #0ff,0 0 40px #00ffff; }
+.card h3 { color:#0ff; margin-bottom:0.3rem; }
 .card p { color:#ccc; font-size:0.95rem; }
 .card a { color:#0ff; text-decoration:underline; }
 
@@ -111,7 +93,7 @@ footer {
   padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem;
 }
 
-/* Custom Cursor */
+/* Mouse Cursor */
 #customCursor {
   position:fixed; width:32px; height:32px; pointer-events:none; z-index:9999;
   transform:translate(-50%,-50%);
@@ -132,8 +114,12 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 
 <!-- Splash -->
 <div id="splash">
-  <h1>Booting Online RetroOnlineMatchmaking v1...</h1>
-  <p>Initializing Arcade Servers</p>
+  <h1>Booting RetroOnlineMatchmaking v1...</h1>
+  <div class="line">Initializing arcade servers...</div>
+  <div class="line">Loading connection modules...</div>
+  <div class="line">Checking network protocols...</div>
+  <div class="line">Preparing PS2, PSP, Vita systems...</div>
+  <div class="line">Starting interface...</div>
 </div>
 
 <!-- Background Canvas -->
@@ -141,99 +127,108 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 
 <!-- Main Content -->
 <div id="mainContent">
-<header>
-<h1>RetroOnlineMatchmaking</h1>
-<p>Play Classic Games Online Again</p>
-</header>
+  <header>
+    <h1>RetroOnlineMatchmaking</h1>
+    <p>Play Classic Games Online Again</p>
+  </header>
 
-<div class="links">
-<a href="https://discord.com/invite/jcRqpmMZdZ" class="button" target="_blank">Join Discord</a>
-<a href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" class="button" target="_blank">Watch on YouTube</a>
-<a href="https://retroonlinematchmaking.flarum.cloud/" class="button" target="_blank">Visit the Forum</a>
-</div>
+  <a class="button" id="musicToggle">▶ Play Retro Music</a>
 
-<a class="button" id="musicToggle">▶ Play Retro Music</a>
+  <!-- Connection Methods -->
+  <div class="collapsible">PSP Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>EA Nation Hub - PSP</h3>
+      <p>Play various EA PSP titles online.</p>
+      <a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank">Discord</a> | 
+      <a href="https://mohh-revival.pages.dev/#setup" target="_blank">Setup Guide</a>
+    </div>
+  </div>
 
-<!-- Connection Methods -->
-<div class="collapsible">PSP Connections</div>
-<div class="content">
-<div class="card">
-<h3>EA Nation Hub - PSP</h3>
-<p>Play various EA PSP titles online.</p>
-<a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank">Discord</a> | 
-<a href="https://mohh-revival.pages.dev/#setup" target="_blank">Setup Guide</a>
-</div>
-</div>
+  <div class="collapsible">Vita Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>Vita3K - PS Vita</h3>
+      <p>Play certain PS Vita games online using emulator and Xlink.</p>
+      <a href="https://discord.gg/aBUTzGnCUS" target="_blank">Discord</a> | 
+      <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank">Download</a>
+    </div>
+  </div>
 
-<div class="collapsible">Vita Connections</div>
-<div class="content">
-<div class="card">
-<h3>Vita3K - PS Vita</h3>
-<p>Play certain PS Vita games online using emulator and Xlink.</p>
-<a href="https://discord.gg/aBUTzGnCUS" target="_blank">Discord</a> | 
-<a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank">Download</a>
-</div>
-</div>
+  <div class="collapsible">PS2 Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>Jak X: Combat Racing - PS2</h3>
+      <p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
+      <p><strong>DNS:</strong> 45.7.228.197</p>
+      <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank">Discord</a>
+    </div>
 
-<div class="collapsible">PS2 Connections</div>
-<div class="content">
-<div class="card">
-<h3>Jak X: Combat Racing - PS2</h3>
-<p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
-<p><strong>DNS:</strong> 45.7.228.197</p>
-<a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank">Discord</a>
-</div>
+    <div class="card">
+      <h3>PSRewired - PS2</h3>
+      <p>Universal online setup for PS2 games using custom DNS.</p>
+      <p><strong>DNS:</strong> 67.222.156.250</p>
+      <a href="https://psrewired.com/guides/pcsx2" target="_blank">Setup Guide</a>
+    </div>
 
-<div class="card">
-<h3>PSRewired - PS2</h3>
-<p>Universal online setup for PS2 games using custom DNS.</p>
-<p><strong>DNS:</strong> 67.222.156.250</p>
-<a href="https://psrewired.com/guides/pcsx2" target="_blank">Setup Guide</a>
-</div>
+    <div class="card">
+      <h3>OBSVR - Resident Evil Outbreak File #2</h3>
+      <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
+      <a href="https://obsrv.org/website" target="_blank">Website</a> | 
+      <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
+      <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
+    </div>
+  </div>
 
-<div class="card">
-<h3>OBSVR - Resident Evil Outbreak File #2</h3>
-<p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
-<a href="https://obsrv.org/website" target="_blank">Website</a> | 
-<a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
-<a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
-</div>
-</div>
+  <div class="collapsible">PC Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>Parsec - PC</h3>
+      <p>Cloud-based remote play for any local multiplayer retro game.</p>
+      <a href="https://parsec.app/" target="_blank">Website</a> | 
+      <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
+    </div>
+  </div>
 
-<div class="collapsible">PC Connections</div>
-<div class="content">
-<div class="card">
-<h3>Parsec - PC</h3>
-<p>Cloud-based remote play for any local multiplayer retro game.</p>
-<a href="https://parsec.app/" target="_blank">Website</a> | 
-<a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
-</div>
-</div>
-
-<footer>
-<p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
-</footer>
+  <footer>
+    <p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
+  </footer>
 </div>
 
 <!-- Custom Cursor -->
 <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif">
 
 <script>
-// Splash fade
-window.addEventListener("load", () => {
-  setTimeout(()=>{
-    document.getElementById("splash").style.display="none";
-    document.getElementById("mainContent").style.display="block";
-  }, 3500);
+// Splash typing/fade
+const splashLines = document.querySelectorAll("#splash .line");
+let lineIndex = 0;
+function showNextLine(){
+  if(lineIndex < splashLines.length){
+    splashLines[lineIndex].style.opacity = 1;
+    lineIndex++;
+    setTimeout(showNextLine, 600);
+  } else {
+    setTimeout(()=>{
+      document.getElementById("splash").style.display="none";
+      document.getElementById("mainContent").style.display="block";
+    }, 500);
+  }
+}
+window.addEventListener("load", ()=>{
+  showNextLine();
 });
 
 // Collapsible
-document.querySelectorAll(".collapsible").forEach(c=>{
+const collapsibles = document.querySelectorAll(".collapsible");
+collapsibles.forEach(c=>{
   c.addEventListener("click", function(){
     this.classList.toggle("active");
     const content = this.nextElementSibling;
-    if(content.style.maxHeight){ content.style.maxHeight=null; }
-    else { content.style.maxHeight = content.scrollHeight + "px"; }
+    if(content.style.maxHeight){
+      content.style.maxHeight=null;
+    }else{
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
   });
 });
 
@@ -241,11 +236,10 @@ document.querySelectorAll(".collapsible").forEach(c=>{
 const cursor = document.getElementById("customCursor");
 const trail = [];
 const maxTrail = 12;
-
 document.addEventListener("mousemove", e=>{
-  cursor.style.left = e.pageX + "px";
-  cursor.style.top = e.pageY + "px";
-  trail.push({x:e.pageX, y:e.pageY});
+  cursor.style.left = (window.scrollX + e.clientX) + "px";
+  cursor.style.top = (window.scrollY + e.clientY) + "px";
+  trail.push({x:e.clientX + window.scrollX, y:e.clientY + window.scrollY});
   if(trail.length>maxTrail) trail.shift();
 });
 
@@ -261,7 +255,7 @@ const starLayers = [
   { count: 40, speed: 0.5, size: 1.5, stars: [] },
   { count: 20, speed: 1.0, size: 1, stars: [] }
 ];
-starLayers.forEach(layer=>{
+starLayers.forEach(layer => {
   for(let i=0;i<layer.count;i++){
     layer.stars.push({
       x: Math.random()*canvas.width,
@@ -307,6 +301,7 @@ setInterval(spawnShootingStar, 2500);
 function animate(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
+  // Stars
   starLayers.forEach(layer=>{
     layer.stars.forEach(star=>{
       star.y += layer.speed;
