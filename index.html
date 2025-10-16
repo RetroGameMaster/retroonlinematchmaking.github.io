@@ -233,12 +233,15 @@ function initCursorAndCanvas(){
   const trail = [];
   const maxTrail = 12;
 
-  // Fixed cursor tracking
   document.addEventListener("mousemove", e=>{
     const x = e.clientX;
     const y = e.clientY;
-    cursor.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
 
+    // Position the actual cursor image
+    cursor.style.left = x + "px";
+    cursor.style.top = y + "px";
+
+    // Add trail point
     trail.push({x, y});
     if(trail.length>maxTrail) trail.shift();
   });
