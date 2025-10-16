@@ -9,6 +9,7 @@
 body, html {
   margin:0; padding:0; font-family: "Orbitron", Arial, sans-serif;
   background: #000; color:#fff; overflow-x:hidden; position:relative;
+  cursor: crosshair;
 }
 
 /* --- Splash Screen --- */
@@ -88,9 +89,16 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
   margin-bottom: 1rem;
   text-shadow: 0 0 8px #0ff66;
   cursor: pointer;
+  display:flex; align-items:center; justify-content:space-between;
 }
+.console-box h2 span.arrow {
+  display:inline-block;
+  transition: transform 0.3s ease;
+}
+
+/* Collapsible container */
 .cards-container {
-  transition: max-height 0.4s ease-out;
+  transition: max-height 0.4s ease-out, opacity 0.4s ease;
   overflow: hidden;
 }
 
@@ -126,6 +134,14 @@ body::after {
   content:""; position:fixed; top:0; left:0; width:100%; height:100%;
   pointer-events:none; background:radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.25) 100%);
   z-index:998;
+}
+
+/* Mouse Trail */
+.trail {
+  position:fixed; width:6px; height:6px; border-radius:50%;
+  background:#0ff; pointer-events:none;
+  mix-blend-mode:screen;
+  opacity:0.8; z-index:1001;
 }
 </style>
 </head>
@@ -173,7 +189,7 @@ body::after {
 
   <!-- Console Sections -->
   <div class="console-box">
-    <h2>PSP Connections</h2>
+    <h2>PSP Connections <span class="arrow">▼</span></h2>
     <div class="cards-container">
       <div class="card">
         <h3>EA Nation Hub - PSP</h3>
@@ -185,7 +201,7 @@ body::after {
   </div>
 
   <div class="console-box">
-    <h2>Vita Connections</h2>
+    <h2>Vita Connections <span class="arrow">▼</span></h2>
     <div class="cards-container">
       <div class="card">
         <h3>Vita3K - PS Vita</h3>
@@ -197,7 +213,7 @@ body::after {
   </div>
 
   <div class="console-box">
-    <h2>PS2 Connections</h2>
+    <h2>PS2 Connections <span class="arrow">▼</span></h2>
     <div class="cards-container">
       <div class="card">
         <h3>Jak X: Combat Racing - PS2</h3>
@@ -224,7 +240,7 @@ body::after {
   </div>
 
   <div class="console-box">
-    <h2>PC Connections (Universal Retro)</h2>
+    <h2>PC Connections (Universal Retro) <span class="arrow">▼</span></h2>
     <div class="cards-container">
       <div class="card">
         <h3>Parsec - PC</h3>
@@ -280,22 +296,46 @@ for(let i=0;i<100;i++){
   starsContainer.appendChild(star);
 }
 
-// Collapsible Console Sections
+// Collapsible Console Sections with arrows
 document.querySelectorAll('.console-box h2').forEach(header => {
+  const container = header.nextElementSibling;
+  const arrow = header.querySelector('.arrow');
+  container.style.maxHeight = container.scrollHeight + "px"; // initially open
   header.addEventListener('click', () => {
-    const container = header.nextElementSibling;
-    if(container.style.maxHeight){
-      container.style.maxHeight = null;
+    if(container.style.maxHeight && container.style.maxHeight !== "0px"){
+      container.style.maxHeight = "0px";
+      arrow.style.transform = "rotate(-90deg)";
     } else {
       container.style.maxHeight = container.scrollHeight + "px";
+      arrow.style.transform = "rotate(0deg)";
     }
   });
 });
 
-// Initialize sections expanded
-document.querySelectorAll('.cards-container').forEach(c => {
-  c.style.maxHeight = c.scrollHeight + "px";
-});
+// Mouse Trail
+const trailElements = [];
+for(let i=0;i<20;i++){
+  const t = document.createElement("div");
+  t.className="trail";
+  document.body.appendChild(t);
+  trailElements.push({el:t,x:0,y:0});
+}
+let mouse = {x:0,y:0};
+document.addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+function animateTrail(){
+  let x = mouse.x;
+  let y = mouse.y;
+  trailElements.forEach((t,i)=>{
+    t.x += (x - t.x)*0.3;
+    t.y += (y - t.y)*0.3;
+    t.el.style.transform = `translate(${t.x}px,${t.y}px)`;
+    x = t.x;
+    y = t.y;
+  });
+  requestAnimationFrame(animateTrail);
+}
+animateTrail();
 </script>
 </body>
 </html>
