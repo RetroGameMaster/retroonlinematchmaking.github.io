@@ -9,7 +9,6 @@
 body, html {
   margin:0; padding:0; font-family: "Orbitron", Arial, sans-serif;
   background: #000; color:#fff; overflow-x:hidden; position:relative;
-  cursor:none; /* hide default cursor */
 }
 
 /* --- Splash Screen --- */
@@ -75,25 +74,14 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .card a { color:#0ff; text-decoration:underline; }
 
 /* Collapsible Sections */
-.section {
-  background: rgba(0,0,0,0.5); border:2px solid #0ff; border-radius:12px;
-  margin:1rem auto; max-width:650px; overflow:hidden;
-}
+.section { margin:1rem auto; max-width:650px; text-align:left; }
 .section-header {
-  padding:0.8rem 1rem; cursor:pointer; font-weight:bold; font-size:1.1rem;
-  display:flex; justify-content:space-between; align-items:center;
+  background: rgba(0,255,255,0.1); color:#0ff; cursor:pointer; padding:0.8rem 1rem; border:2px solid #0ff; border-radius:8px;
+  display:flex; justify-content:space-between; align-items:center; font-weight:bold;
 }
-.section-header::after {
-  content: "\25B6"; /* ▶ */
-  display:inline-block;
-  transition: transform 0.3s ease;
-}
-.section-header.active::after {
-  transform: rotate(90deg);
-}
-.section-content {
-  display:none; padding:0.5rem 1rem;
-}
+.section-header:hover { background: rgba(0,255,255,0.2); }
+.section-content { display:none; margin-top:0.5rem; }
+.section-header .arrow { transition: transform 0.3s; }
 
 /* Modal */
 .modal {
@@ -174,7 +162,7 @@ body::after {
 
   <!-- Collapsible Sections -->
   <div class="section">
-    <div class="section-header">PSP Connections</div>
+    <div class="section-header">PSP Connections <span class="arrow">&#9656;</span></div>
     <div class="section-content">
       <div class="card">
         <h3>EA Nation Hub - PSP</h3>
@@ -186,7 +174,7 @@ body::after {
   </div>
 
   <div class="section">
-    <div class="section-header">Vita Connections</div>
+    <div class="section-header">Vita Connections <span class="arrow">&#9656;</span></div>
     <div class="section-content">
       <div class="card">
         <h3>Vita3K - PS Vita</h3>
@@ -198,7 +186,7 @@ body::after {
   </div>
 
   <div class="section">
-    <div class="section-header">PS2 Connections</div>
+    <div class="section-header">PS2 Connections <span class="arrow">&#9656;</span></div>
     <div class="section-content">
       <div class="card">
         <h3>Jak X: Combat Racing - PS2</h3>
@@ -213,11 +201,19 @@ body::after {
         <p><strong>DNS:</strong> 67.222.156.250</p>
         <a href="https://psrewired.com/guides/pcsx2" target="_blank">Setup Guide</a>
       </div>
+
+      <div class="card">
+        <h3>OBSVR - Resident Evil Outbreak File #2</h3>
+        <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
+        <a href="https://obsrv.org/website" target="_blank">Website</a> | 
+        <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
+        <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
+      </div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-header">PC Connections</div>
+    <div class="section-header">PC Connections <span class="arrow">&#9656;</span></div>
     <div class="section-content">
       <div class="card">
         <h3>Parsec - PC</h3>
@@ -226,14 +222,6 @@ body::after {
         <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
       </div>
     </div>
-  </div>
-
-  <div class="card">
-    <h3>OBSVR - Resident Evil Outbreak File #2</h3>
-    <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
-    <a href="https://obsrv.org/website" target="_blank">Website</a> | 
-    <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
-    <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
   </div>
 
   <footer>
@@ -281,20 +269,20 @@ for(let i=0;i<100;i++){
   starsContainer.appendChild(star);
 }
 
-// Collapsible sections
-document.querySelectorAll(".section-header").forEach(header=>{
-  header.addEventListener("click",()=>{
-    header.classList.toggle("active");
+// Collapsible Sections with rotating arrows
+document.querySelectorAll('.section-header').forEach(header=>{
+  const arrow = header.querySelector('.arrow');
+  header.addEventListener('click', ()=>{
     const content = header.nextElementSibling;
-    if(content.style.display==="block"){ content.style.display="none"; }
-    else{ content.style.display="block"; }
+    content.style.display = content.style.display === 'block' ? 'none' : 'block';
+    arrow.style.transform = content.style.display==='block' ? 'rotate(90deg)' : 'rotate(0deg)';
   });
 });
 
-// Custom Cursor
+// Custom Cursor and Trail
 const cursor = document.createElement("img");
 cursor.src = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif";
-cursor.style.position="fixed";
+cursor.style.position="absolute";
 cursor.style.width="40px";
 cursor.style.height="40px";
 cursor.style.pointerEvents="none";
@@ -303,12 +291,13 @@ document.body.appendChild(cursor);
 
 let mouseTrail = [];
 document.addEventListener("mousemove", e=>{
-  const x = e.clientX;
-  const y = e.clientY;
-  cursor.style.transform = `translate(${x-20}px, ${y-20}px)`;
-  
+  const x = e.pageX;
+  const y = e.pageY;
+  cursor.style.left = (x-20) + "px";
+  cursor.style.top = (y-20) + "px";
+
   const dot = document.createElement("div");
-  dot.style.position="fixed";
+  dot.style.position="absolute";
   dot.style.left = x + "px";
   dot.style.top = y + "px";
   dot.style.width="6px";
