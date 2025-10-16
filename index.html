@@ -5,25 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RetroOnlineMatchmaking</title>
 <style>
-body, html { margin:0; padding:0; font-family:"Orbitron", Arial, sans-serif; background:#000; color:#fff; overflow-x:hidden; cursor:none; }
+/* --- Base Styling --- */
+body, html {
+  margin:0; padding:0; font-family:"Orbitron", Arial, sans-serif;
+  background:#000; color:#fff; overflow-x:hidden; cursor:none;
+}
 
-/* Splash Screen */
+/* --- Splash Screen --- */
 #splash {
   position:fixed; top:0; left:0; width:100%; height:100%;
   background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
   z-index:2000;
 }
-#splash h1 { font-size:3.5rem; color:#0ff; animation:flicker 1s infinite; text-align:center; }
-#splash p { color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; text-align:center; }
+#splash h1 {
+  font-size:3.5rem; color:#0ff; animation:flicker 1s infinite;
+  text-align:center; padding:0 1rem;
+}
+#splash p {
+  color:#0ff; font-size:1.2rem; margin-top:0.5rem; animation:flicker 1.5s infinite; text-align:center; padding:0 1rem;
+}
 @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
-/* Main Content */
+/* --- Main Content --- */
 #mainContent { display:none; padding:0; text-align:center; position:relative; z-index:10; }
 
-header { padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44; }
+header {
+  padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44;
+}
 header h1 { font-size:2.3rem; color:#0ff; text-shadow:0 0 10px #0ff66; }
 header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 
+/* Buttons */
 .button {
   display:inline-block; margin:0.6rem; padding:1rem 2rem; background:#0ff; color:#111;
   border-radius:10px; text-decoration:none; font-weight:bold; position:relative; overflow:hidden;
@@ -37,100 +49,195 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .button:hover::before { left:0; }
 .button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
 
-/* Collapsible */
-.collapsible { background: rgba(0,0,0,0.6); color:#0ff; cursor:pointer; padding: 1rem; width: 90%; max-width:700px; border: 2px solid #0ff; margin: 1rem auto; text-align:left; font-weight:bold; border-radius:10px; position:relative; transition:0.3s; }
+/* Collapsible Sections */
+.collapsible {
+  background: rgba(0,0,0,0.6);
+  color:#0ff;
+  cursor:pointer;
+  padding: 1rem;
+  width: 90%;
+  max-width:700px;
+  border: 2px solid #0ff;
+  margin: 1rem auto;
+  text-align:left;
+  font-weight:bold;
+  border-radius:10px;
+  position:relative;
+  transition:0.3s;
+}
 .collapsible:hover { background: rgba(0,255,255,0.1); }
-.collapsible::after { content: '\25B6'; font-size:1rem; position:absolute; right:20px; top:50%; transform:translateY(-50%); transition:0.3s; }
+.collapsible::after {
+  content: '\25B6';
+  font-size:1rem;
+  position:absolute; right:20px; top:50%;
+  transform:translateY(-50%);
+  transition:0.3s;
+}
 .collapsible.active::after { transform:translateY(-50%) rotate(90deg); }
-.content { max-height:0; overflow:hidden; transition:max-height 0.3s ease-out; }
+.content {
+  max-height:0;
+  overflow:hidden;
+  transition:max-height 0.3s ease-out;
+}
 
 /* Cards */
-.card { background: rgba(0,0,0,0.6); border:2px solid #0ff; border-radius:12px; margin:0.5rem auto; padding:1rem; text-align:left; box-shadow:0 0 15px #0ff33; }
+.card {
+  background: rgba(0,0,0,0.6); border:2px solid #0ff; border-radius:12px;
+  margin:0.5rem auto; padding:1rem; text-align:left;
+  box-shadow:0 0 15px #0ff33;
+}
 .card h3 { color:#0ff; margin-bottom:0.3rem; }
 .card p { color:#ccc; font-size:0.95rem; }
 .card a { color:#0ff; text-decoration:underline; }
 
 /* Footer */
-footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem; }
+footer {
+  padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem;
+}
 
-/* Custom Cursor */
-#customCursor { position:fixed; width:32px; height:32px; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); }
+/* Mouse Cursor */
+#customCursor {
+  position:fixed; width:32px; height:32px; pointer-events:none; z-index:9999;
+  transform:translate(-50%,-50%);
+}
 
 /* Canvas Background */
 canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+
+/* Mobile */
+@media(max-width:768px){
+  header h1{font-size:1.8rem;}
+  .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
+  #customCursor{width:24px; height:24px;}
+}
 </style>
 </head>
 <body>
 
+<!-- Splash -->
 <div id="splash">
   <h1>RetroOnlineMatchmaking</h1>
   <p>Booting Arcade Servers...</p>
 </div>
 
+<!-- Background Canvas -->
 <canvas id="retroBG"></canvas>
 
+<!-- Main Content -->
 <div id="mainContent">
   <header>
     <h1>RetroOnlineMatchmaking</h1>
     <p>Play Classic Games Online Again</p>
   </header>
 
+  <div class="links">
+    <a href="https://discord.com/invite/jcRqpmMZdZ" class="button" target="_blank">Join Discord</a>
+    <a href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" class="button" target="_blank">Watch on YouTube</a>
+    <a href="https://retroonlinematchmaking.flarum.cloud/" class="button" target="_blank">Visit the Forum</a>
+  </div>
+
   <a class="button" id="musicToggle">▶ Play Retro Music</a>
 
+  <!-- Connection Methods -->
   <div class="collapsible">PSP Connections</div>
-  <div class="content"><div class="card"><h3>EA Nation Hub - PSP</h3><p>Play various EA PSP titles online.</p><a href="#" target="_blank">Discord</a> | <a href="#" target="_blank">Setup Guide</a></div></div>
+  <div class="content">
+    <div class="card">
+      <h3>EA Nation Hub - PSP</h3>
+      <p>Play various EA PSP titles online.</p>
+      <a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank">Discord</a> | 
+      <a href="https://mohh-revival.pages.dev/#setup" target="_blank">Setup Guide</a>
+    </div>
+  </div>
 
   <div class="collapsible">Vita Connections</div>
-  <div class="content"><div class="card"><h3>Vita3K - PS Vita</h3><p>Play certain PS Vita games online using emulator and Xlink.</p><a href="#" target="_blank">Discord</a> | <a href="#" target="_blank">Download</a></div></div>
+  <div class="content">
+    <div class="card">
+      <h3>Vita3K - PS Vita</h3>
+      <p>Play certain PS Vita games online using emulator and Xlink.</p>
+      <a href="https://discord.gg/aBUTzGnCUS" target="_blank">Discord</a> | 
+      <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank">Download</a>
+    </div>
+  </div>
 
   <div class="collapsible">PS2 Connections</div>
   <div class="content">
-    <div class="card"><h3>Jak X - PS2</h3><p>Multiplayer DNS: 45.7.228.197</p></div>
-    <div class="card"><h3>PSRewired - PS2</h3><p>Universal DNS: 67.222.156.250</p></div>
-    <div class="card"><h3>OBSVR - RE Outbreak File #2</h3><p>Infrastructure connection method</p></div>
+    <div class="card">
+      <h3>Jak X: Combat Racing - PS2</h3>
+      <p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
+      <p><strong>DNS:</strong> 45.7.228.197</p>
+      <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank">Discord</a>
+    </div>
+
+    <div class="card">
+      <h3>PSRewired - PS2</h3>
+      <p>Universal online setup for PS2 games using custom DNS.</p>
+      <p><strong>DNS:</strong> 67.222.156.250</p>
+      <a href="https://psrewired.com/guides/pcsx2" target="_blank">Setup Guide</a>
+    </div>
+
+    <div class="card">
+      <h3>OBSVR - Resident Evil Outbreak File #2</h3>
+      <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
+      <a href="https://obsrv.org/website" target="_blank">Website</a> | 
+      <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
+      <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
+    </div>
   </div>
 
   <div class="collapsible">PC Connections</div>
-  <div class="content"><div class="card"><h3>Parsec - PC</h3><p>Cloud-based remote play for any local multiplayer retro game.</p></div></div>
+  <div class="content">
+    <div class="card">
+      <h3>Parsec - PC</h3>
+      <p>Cloud-based remote play for any local multiplayer retro game.</p>
+      <a href="https://parsec.app/" target="_blank">Website</a> | 
+      <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
+    </div>
+  </div>
 
-  <footer>© 2025 RetroOnlineMatchmaking</footer>
+  <footer>
+    <p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
+  </footer>
 </div>
 
+<!-- Custom Cursor -->
 <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif">
 
 <script>
-// Splash
-window.addEventListener("load",()=>{
-  const splash = document.getElementById("splash");
-  const main = document.getElementById("mainContent");
+// Splash fade
+window.addEventListener("load", () => {
   setTimeout(()=>{
-    splash.style.display="none";
-    main.style.display="block";
-  },3500);
+    document.getElementById("splash").style.display="none";
+    document.getElementById("mainContent").style.display="block";
+  }, 3500);
 });
 
 // Collapsible
-document.querySelectorAll(".collapsible").forEach(c=>{
+const collapsibles = document.querySelectorAll(".collapsible");
+collapsibles.forEach(c=>{
   c.addEventListener("click", function(){
     this.classList.toggle("active");
     const content = this.nextElementSibling;
-    if(content.style.maxHeight) content.style.maxHeight=null;
-    else content.style.maxHeight = content.scrollHeight + "px";
+    if(content.style.maxHeight){
+      content.style.maxHeight=null;
+    }else{
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
   });
 });
 
-// Cursor + trail
+// Custom Cursor + Trail
 const cursor = document.getElementById("customCursor");
 const trail = [];
 const maxTrail = 12;
+
 document.addEventListener("mousemove", e=>{
-  cursor.style.left = e.clientX + "px";
-  cursor.style.top = e.clientY + "px";
-  trail.push({x:e.clientX, y:e.clientY});
+  cursor.style.left = e.pageX + "px";
+  cursor.style.top = e.pageY + "px";
+  trail.push({x:e.pageX, y:e.pageY});
   if(trail.length>maxTrail) trail.shift();
 });
 
-// Canvas
+// Canvas Background
 const canvas = document.getElementById("retroBG");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
@@ -142,7 +249,7 @@ const starLayers = [
   { count: 40, speed: 0.5, size: 1.5, stars: [] },
   { count: 20, speed: 1.0, size: 1, stars: [] }
 ];
-starLayers.forEach(layer=>{
+starLayers.forEach(layer => {
   for(let i=0;i<layer.count;i++){
     layer.stars.push({
       x: Math.random()*canvas.width,
@@ -168,7 +275,7 @@ for(let i=0;i<40;i++){
     size: Math.random()*2+1,
     alpha: Math.random()*0.5+0.3
   });
-}
+});
 
 // Shooting stars
 const shootingStars = [];
@@ -179,12 +286,12 @@ function spawnShootingStar(){
     vx: Math.random()*2+1,
     vy: Math.random()*2+1,
     length: Math.random()*80+50,
-    alpha:1
+    alpha: 1
   });
 }
 setInterval(spawnShootingStar, 2500);
 
-// Animate loop
+// Animation loop
 function animate(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
