@@ -15,18 +15,21 @@ body, html {
 #splash {
   position:fixed; top:0; left:0; width:100%; height:100%;
   background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
-  z-index:2000; padding:1rem; box-sizing:border-box;
+  z-index:2000; padding:1rem;
 }
-#splash .boot-messages {
-  font-family:monospace; color:#0ff; font-size:1.2rem; line-height:1.4rem;
-  text-align:left; max-width:90%; margin-bottom:2rem;
+#splash h1 {
+  font-size:3rem; color:#0ff; text-align:center; margin-bottom:1rem;
+}
+#splash .boot-lines {
+  width:100%; max-width:500px; text-align:left; font-family:monospace; color:#0ff;
+  font-size:0.9rem; line-height:1.3rem; margin-bottom:1rem;
 }
 #splash .progress-container {
-  width:80%; height:25px; background:rgba(0,255,255,0.1); border:2px solid #0ff; border-radius:10px;
-  overflow:hidden;
+  width:100%; max-width:500px; height:20px; background:rgba(0,255,255,0.1); border-radius:10px; overflow:hidden;
+  border:2px solid #0ff;
 }
 #splash .progress-bar {
-  height:100%; width:0%; background:#0ff; box-shadow:0 0 10px #0ff66; transition:width 0.2s;
+  width:0%; height:100%; background:#0ff; border-radius:10px; transition:width 0.2s;
 }
 
 /* --- Main Content --- */
@@ -51,19 +54,6 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 }
 .button:hover::before { left:0; }
 .button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
-
-/* Submit New Method Section */
-#submitMethodSection {
-  margin:3rem auto; padding:2rem; max-width:600px;
-  background:rgba(0,255,255,0.05); border:2px solid #0ff; border-radius:15px;
-  box-shadow:0 0 20px #0ff33;
-}
-#submitMethodSection h2 {
-  font-size:1.8rem; color:#0ff; margin-bottom:1rem; text-shadow:0 0 10px #0ff66;
-}
-#submitMethodSection p {
-  color:#ccc; font-size:1rem; margin-bottom:1.5rem;
-}
 
 /* Collapsible Sections */
 .collapsible {
@@ -111,9 +101,9 @@ footer {
   padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem;
 }
 
-/* Mouse Cursor */
+/* Custom Cursor */
 #customCursor {
-  position:absolute; width:32px; height:32px; pointer-events:none; z-index:9999;
+  position:fixed; width:32px; height:32px; pointer-events:none; z-index:9999;
   transform:translate(-50%,-50%);
 }
 
@@ -125,8 +115,6 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
   header h1{font-size:1.8rem;}
   .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
   #customCursor{width:24px; height:24px;}
-  #splash .boot-messages{font-size:1rem;}
-  #submitMethodSection h2{font-size:1.4rem;}
 }
 </style>
 </head>
@@ -134,7 +122,8 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 
 <!-- Splash -->
 <div id="splash">
-  <div class="boot-messages" id="bootMessages"></div>
+  <h1>RetroOnlineMatchmaking Boot Sequence</h1>
+  <div class="boot-lines" id="bootLines"></div>
   <div class="progress-container">
     <div class="progress-bar" id="progressBar"></div>
   </div>
@@ -154,84 +143,144 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
     <a href="https://discord.com/invite/jcRqpmMZdZ" class="button" target="_blank">Join Discord</a>
     <a href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" class="button" target="_blank">Watch on YouTube</a>
     <a href="https://retroonlinematchmaking.flarum.cloud/" class="button" target="_blank">Visit the Forum</a>
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" class="button" target="_blank">Submit New Method</a>
   </div>
 
-  <a class="button" id="musicToggle">▶ Play Retro Music</a>
-
-  <!-- Submit New Method Section -->
-  <div id="submitMethodSection">
-    <h2>Have a new connection method? Submit it here!</h2>
-    <p>Help expand the RetroOnlineMatchmaking network by submitting your own connection methods.</p>
-    <a href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" class="button">Submit New Method</a>
+  <!-- Connection Methods -->
+  <div class="collapsible">PSP Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>EA Nation Hub - PSP</h3>
+      <p>Play various EA PSP titles online.</p>
+      <a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank">Discord</a> | 
+      <a href="https://mohh-revival.pages.dev/#setup" target="_blank">Setup Guide</a>
+    </div>
   </div>
 
-  <!-- Collapsibles / Cards here as before -->
+  <div class="collapsible">Vita Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>Vita3K - PS Vita</h3>
+      <p>Play certain PS Vita games online using emulator and Xlink.</p>
+      <a href="https://discord.gg/aBUTzGnCUS" target="_blank">Discord</a> | 
+      <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank">Download</a>
+    </div>
+  </div>
+
+  <div class="collapsible">PS2 Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>Jak X: Combat Racing - PS2</h3>
+      <p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
+      <p><strong>DNS:</strong> 45.7.228.197</p>
+      <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank">Discord</a>
+    </div>
+
+    <div class="card">
+      <h3>PSRewired - PS2</h3>
+      <p>Universal online setup for PS2 games using custom DNS.</p>
+      <p><strong>DNS:</strong> 67.222.156.250</p>
+      <a href="https://psrewired.com/guides/pcsx2" target="_blank">Setup Guide</a>
+    </div>
+
+    <div class="card">
+      <h3>OBSVR - Resident Evil Outbreak File #2</h3>
+      <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
+      <a href="https://obsrv.org/website" target="_blank">Website</a> | 
+      <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
+      <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
+    </div>
+  </div>
+
+  <div class="collapsible">PC Connections</div>
+  <div class="content">
+    <div class="card">
+      <h3>Parsec - PC</h3>
+      <p>Cloud-based remote play for any local multiplayer retro game.</p>
+      <a href="https://parsec.app/" target="_blank">Website</a> | 
+      <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 RetroOnlineMatchmaking — Built by the community.</p>
+  </footer>
 </div>
 
 <!-- Custom Cursor -->
 <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif">
 
 <script>
-// Splash boot messages + progress
+// Splash boot sequence with progress
 window.addEventListener("load", () => {
   const splash = document.getElementById("splash");
   const mainContent = document.getElementById("mainContent");
-  const messagesEl = document.getElementById("bootMessages");
+  const bootLines = document.getElementById("bootLines");
   const progressBar = document.getElementById("progressBar");
 
-  const bootMessages = [
-    "Initializing RetroOnlineMatchmaking v1...",
-    "Checking arcade server status...",
-    "Loading connection methods...",
-    "Scanning PS2/PSP/Vita/PC modules...",
-    "Establishing secure links...",
-    "Preparing chiptune audio...",
-    "Finalizing interface...",
-    "Ready to launch!"
+  const bootText = [
+    "Initializing RetroOnlineMatchmaking...",
+    "Checking arcade servers...",
+    "Loading connection modules...",
+    "Syncing player data...",
+    "Finalizing boot sequence..."
   ];
 
+  let lineIndex = 0;
   let progress = 0;
-  let msgIndex = 0;
 
-  function nextStep(){
-    if(msgIndex < bootMessages.length){
-      messagesEl.innerHTML += bootMessages[msgIndex] + "<br>";
-      msgIndex++;
-      progress = (msgIndex / bootMessages.length) * 100;
+  const interval = setInterval(() => {
+    if(lineIndex < bootText.length){
+      bootLines.innerHTML += bootText[lineIndex] + "<br>";
+      lineIndex++;
+      progress += 20;
       progressBar.style.width = progress + "%";
-      setTimeout(nextStep, 600);
-    } else {
+    }else{
+      clearInterval(interval);
       setTimeout(()=>{
-        splash.style.display = "none";
-        mainContent.style.display = "block";
+        splash.style.display="none";
+        mainContent.style.display="block";
         initCursorAndCanvas();
-      }, 400);
+      },500);
     }
-  }
-
-  nextStep();
+  }, 600);
 });
 
-// Cursor + canvas (same as before)
+// Collapsible Sections
+const collapsibles = document.querySelectorAll(".collapsible");
+collapsibles.forEach(c=>{
+  c.addEventListener("click", function(){
+    this.classList.toggle("active");
+    const content = this.nextElementSibling;
+    if(content.style.maxHeight){
+      content.style.maxHeight=null;
+    }else{
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+});
+
+// Cursor, trail, and canvas animations
 function initCursorAndCanvas(){
   const cursor = document.getElementById("customCursor");
   const trail = [];
   const maxTrail = 12;
 
   document.addEventListener("mousemove", e=>{
-    const scrollX = window.scrollX || window.pageXOffset;
-    const scrollY = window.scrollY || window.pageYOffset;
-    cursor.style.left = (e.clientX + scrollX) + "px";
-    cursor.style.top = (e.clientY + scrollY) + "px";
-    trail.push({x:e.clientX + scrollX, y:e.clientY + scrollY});
+    const rect = document.documentElement.getBoundingClientRect();
+    cursor.style.left = (e.clientX - rect.left) + "px";
+    cursor.style.top = (e.clientY - rect.top) + "px";
+    trail.push({x:e.clientX - rect.left, y:e.clientY - rect.top});
     if(trail.length>maxTrail) trail.shift();
   });
 
+  // Canvas
   const canvas = document.getElementById("retroBG");
   const ctx = canvas.getContext("2d");
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
+  // Stars
   const starLayers = [
     { count: 60, speed: 0.2, size: 2, stars: [] },
     { count: 40, speed: 0.5, size: 1.5, stars: [] },
@@ -248,9 +297,11 @@ function initCursorAndCanvas(){
     }
   });
 
+  // Grid
   const gridSpacing = 80;
   let gridOffset = 0;
 
+  // Particles
   const particles = [];
   for(let i=0;i<40;i++){
     particles.push({
@@ -263,6 +314,7 @@ function initCursorAndCanvas(){
     });
   }
 
+  // Shooting stars
   const shootingStars = [];
   function spawnShootingStar(){
     shootingStars.push({
@@ -279,6 +331,7 @@ function initCursorAndCanvas(){
   function animate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
+    // Stars
     starLayers.forEach(layer=>{
       layer.stars.forEach(star=>{
         star.y += layer.speed;
@@ -288,6 +341,7 @@ function initCursorAndCanvas(){
       });
     });
 
+    // Grid
     ctx.strokeStyle="rgba(0,255,255,0.1)";
     ctx.lineWidth=1;
     for(let x=0;x<canvas.width;x+=gridSpacing){
@@ -299,6 +353,7 @@ function initCursorAndCanvas(){
     gridOffset+=0.3;
     if(gridOffset>gridSpacing) gridOffset=0;
 
+    // Particles
     particles.forEach(p=>{
       p.x+=p.vx; p.y+=p.vy;
       if(p.x>canvas.width)p.x=0;if(p.x<0)p.x=canvas.width;
@@ -307,6 +362,7 @@ function initCursorAndCanvas(){
       ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
     });
 
+    // Shooting Stars
     shootingStars.forEach((s,i)=>{
       s.x+=s.vx; s.y+=s.vy; s.alpha-=0.01;
       ctx.strokeStyle=`rgba(0,255,255,${s.alpha})`;
@@ -317,6 +373,7 @@ function initCursorAndCanvas(){
       if(s.alpha<=0) shootingStars.splice(i,1);
     });
 
+    // Cursor trail
     for(let i=0;i<trail.length;i++){
       ctx.fillStyle=`rgba(0,255,255,${i/maxTrail})`;
       ctx.beginPath();
