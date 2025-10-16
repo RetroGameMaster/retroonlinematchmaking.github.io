@@ -9,7 +9,7 @@
 body, html {
   margin:0; padding:0; font-family: "Orbitron", Arial, sans-serif;
   background: #000; color:#fff; overflow-x:hidden; position:relative;
-  cursor: crosshair;
+  cursor:none; /* hide default cursor */
 }
 
 /* --- Splash Screen --- */
@@ -64,6 +64,26 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .button:hover::before { left:0; }
 .button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
 
+/* Collapsible Containers */
+.collapsible-container {
+  margin: 1rem auto;
+  max-width: 650px;
+  border:2px solid #0ff;
+  border-radius:12px;
+  padding:0.5rem;
+}
+.collapsible-header {
+  background: rgba(0,0,0,0.4);
+  color:#0ff;
+  font-weight:bold;
+  cursor:pointer;
+  padding:0.7rem 1rem;
+  border-radius:10px;
+  user-select:none;
+}
+.collapsible-header:hover { background: rgba(0,255,255,0.2); }
+.collapsible-content { display:none; padding:0.5rem 1rem; }
+
 /* Connection Cards */
 .card {
   background: rgba(0,0,0,0.6); border:2px solid #0ff; border-radius:12px;
@@ -73,34 +93,6 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .card h3 { color:#0ff; margin-bottom:0.3rem; }
 .card p { color:#ccc; font-size:0.95rem; }
 .card a { color:#0ff; text-decoration:underline; }
-
-/* Console Section Boxes */
-.console-box {
-  border: 2px solid #0ff;
-  border-radius: 12px;
-  margin: 2rem auto;
-  padding: 1rem 1.5rem;
-  max-width: 700px;
-  background: rgba(0,0,0,0.4);
-  box-shadow: 0 0 15px #0ff44;
-}
-.console-box h2 {
-  color: #0ff;
-  margin-bottom: 1rem;
-  text-shadow: 0 0 8px #0ff66;
-  cursor: pointer;
-  display:flex; align-items:center; justify-content:space-between;
-}
-.console-box h2 span.arrow {
-  display:inline-block;
-  transition: transform 0.3s ease;
-}
-
-/* Collapsible container */
-.cards-container {
-  transition: max-height 0.4s ease-out, opacity 0.4s ease;
-  overflow: hidden;
-}
 
 /* Modal */
 .modal {
@@ -121,27 +113,38 @@ footer {
   padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem;
 }
 
+/* Cursor */
+#cursor {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background-image: url('https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif');
+  background-size: cover;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+}
+.mouse-trail {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #0ff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  animation: trail-fade 0.5s forwards;
+}
+@keyframes trail-fade {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0); }
+}
+
 /* Mobile */
 @media(max-width:768px){
   header h1{font-size:1.8rem;}
   .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
   iframe{height:75vh;}
   #splash h1{font-size:2.2rem;}
-}
-
-/* TV Curvature */
-body::after {
-  content:""; position:fixed; top:0; left:0; width:100%; height:100%;
-  pointer-events:none; background:radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.25) 100%);
-  z-index:998;
-}
-
-/* Mouse Trail */
-.trail {
-  position:fixed; width:6px; height:6px; border-radius:50%;
-  background:#0ff; pointer-events:none;
-  mix-blend-mode:screen;
-  opacity:0.8; z-index:1001;
 }
 </style>
 </head>
@@ -155,6 +158,9 @@ body::after {
 
 <!-- Starfield -->
 <div class="stars" id="stars"></div>
+
+<!-- Cursor -->
+<div id="cursor"></div>
 
 <!-- Main Content -->
 <div id="mainContent">
@@ -187,10 +193,10 @@ body::after {
     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true">Loading…</iframe>
   </div>
 
-  <!-- Console Sections -->
-  <div class="console-box">
-    <h2>PSP Connections <span class="arrow">▼</span></h2>
-    <div class="cards-container">
+  <!-- Collapsible Sections -->
+  <div class="collapsible-container">
+    <div class="collapsible-header">PSP Connections</div>
+    <div class="collapsible-content">
       <div class="card">
         <h3>EA Nation Hub - PSP</h3>
         <p>Play various EA PSP titles online.</p>
@@ -200,9 +206,9 @@ body::after {
     </div>
   </div>
 
-  <div class="console-box">
-    <h2>Vita Connections <span class="arrow">▼</span></h2>
-    <div class="cards-container">
+  <div class="collapsible-container">
+    <div class="collapsible-header">Vita Connections</div>
+    <div class="collapsible-content">
       <div class="card">
         <h3>Vita3K - PS Vita</h3>
         <p>Play certain PS Vita games online using emulator and Xlink.</p>
@@ -212,36 +218,27 @@ body::after {
     </div>
   </div>
 
-  <div class="console-box">
-    <h2>PS2 Connections <span class="arrow">▼</span></h2>
-    <div class="cards-container">
+  <div class="collapsible-container">
+    <div class="collapsible-header">PS2 Connections</div>
+    <div class="collapsible-content">
       <div class="card">
         <h3>Jak X: Combat Racing - PS2</h3>
         <p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
         <p><strong>DNS:</strong> 45.7.228.197</p>
         <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank">Discord</a>
       </div>
-
       <div class="card">
         <h3>PSRewired - PS2</h3>
         <p>Universal online setup for PS2 games using custom DNS.</p>
         <p><strong>DNS:</strong> 67.222.156.250</p>
         <a href="https://psrewired.com/guides/pcsx2" target="_blank">Setup Guide</a>
       </div>
-
-      <div class="card">
-        <h3>OBSVR - Resident Evil Outbreak File #2</h3>
-        <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
-        <a href="https://obsrv.org/website" target="_blank">Website</a> | 
-        <a href="https://discord.gg/88uVwczShn" target="_blank">Discord</a> | 
-        <a href="https://youtu.be/Zv7o--OUQp8" target="_blank">Setup Guide</a>
-      </div>
     </div>
   </div>
 
-  <div class="console-box">
-    <h2>PC Connections (Universal Retro) <span class="arrow">▼</span></h2>
-    <div class="cards-container">
+  <div class="collapsible-container">
+    <div class="collapsible-header">PC Connections</div>
+    <div class="collapsible-content">
       <div class="card">
         <h3>Parsec - PC</h3>
         <p>Cloud-based remote play for any local multiplayer retro game.</p>
@@ -296,46 +293,29 @@ for(let i=0;i<100;i++){
   starsContainer.appendChild(star);
 }
 
-// Collapsible Console Sections with arrows
-document.querySelectorAll('.console-box h2').forEach(header => {
-  const container = header.nextElementSibling;
-  const arrow = header.querySelector('.arrow');
-  container.style.maxHeight = container.scrollHeight + "px"; // initially open
-  header.addEventListener('click', () => {
-    if(container.style.maxHeight && container.style.maxHeight !== "0px"){
-      container.style.maxHeight = "0px";
-      arrow.style.transform = "rotate(-90deg)";
-    } else {
-      container.style.maxHeight = container.scrollHeight + "px";
-      arrow.style.transform = "rotate(0deg)";
-    }
+// Collapsible
+const headers = document.querySelectorAll(".collapsible-header");
+headers.forEach(header=>{
+  header.addEventListener("click", ()=>{
+    const content = header.nextElementSibling;
+    if(content.style.display==="block"){ content.style.display="none"; }
+    else { content.style.display="block"; }
   });
 });
 
-// Mouse Trail
-const trailElements = [];
-for(let i=0;i<20;i++){
-  const t = document.createElement("div");
-  t.className="trail";
-  document.body.appendChild(t);
-  trailElements.push({el:t,x:0,y:0});
-}
-let mouse = {x:0,y:0};
-document.addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+// Cursor with trail
+const cursor = document.getElementById("cursor");
+document.addEventListener("mousemove", e=>{
+  cursor.style.left = e.clientX + "px";
+  cursor.style.top = e.clientY + "px";
 
-function animateTrail(){
-  let x = mouse.x;
-  let y = mouse.y;
-  trailElements.forEach((t,i)=>{
-    t.x += (x - t.x)*0.3;
-    t.y += (y - t.y)*0.3;
-    t.el.style.transform = `translate(${t.x}px,${t.y}px)`;
-    x = t.x;
-    y = t.y;
-  });
-  requestAnimationFrame(animateTrail);
-}
-animateTrail();
+  const trail = document.createElement("div");
+  trail.className = "mouse-trail";
+  trail.style.left = e.clientX + "px";
+  trail.style.top = e.clientY + "px";
+  document.body.appendChild(trail);
+  setTimeout(()=>{ trail.remove(); }, 500);
+});
 </script>
 </body>
 </html>
