@@ -97,7 +97,7 @@ footer {
 
 /* Mouse Cursor */
 #customCursor {
-  position:fixed; width:32px; height:32px; pointer-events:none; z-index:9999;
+  position:absolute; width:32px; height:32px; pointer-events:none; z-index:9999;
   transform:translate(-50%,-50%);
 }
 
@@ -109,8 +109,8 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
   header h1{font-size:1.8rem;}
   .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
   #customCursor{width:24px; height:24px;}
-  #splash h1 { font-size:2.2rem; }
-  #splash p { font-size:1rem; }
+  #splash h1{font-size:2rem;}
+  #splash p{font-size:1rem;}
 }
 </style>
 </head>
@@ -138,7 +138,6 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
     <a href="https://retroonlinematchmaking.flarum.cloud/" class="button" target="_blank">Visit the Forum</a>
   </div>
 
-  <!-- Music Toggle Button -->
   <a class="button" id="musicToggle">▶ Play Retro Music</a>
 
   <!-- Connection Methods -->
@@ -201,8 +200,7 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
   <section id="connection-form" class="text-center py-10 bg-black bg-opacity-70 rounded-2xl border border-cyan-400 shadow-lg mx-4 my-10">
     <h2 class="text-3xl font-bold text-cyan-300 mb-4">Submit a New Connection Method</h2>
     <p class="text-gray-300 mb-6">Got a new way to bring classic games back online? Submit it below and help expand the RetroOnlineMatchmaking network!</p>
-    <a href="#connection-form" class="button" onclick="document.getElementById('googleForm').scrollIntoView({behavior:'smooth'});">Submit New Method</a>
-    <div id="googleForm" class="relative" style="padding-top: 56.25%; position: relative; overflow: hidden; border-radius: 1rem; margin-top:1rem;">
+    <div class="relative" style="padding-top: 56.25%; position: relative; overflow: hidden; border-radius: 1rem;">
       <iframe 
         src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true" 
         style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;"
@@ -254,15 +252,13 @@ function initCursorAndCanvas(){
   const trail = [];
   const maxTrail = 12;
 
-  // Fixed cursor tracking for viewport
-  document.addEventListener("mousemove", e => {
-    const x = e.clientX;
-    const y = e.clientY;
-    cursor.style.left = x + "px";
-    cursor.style.top = y + "px";
-
-    trail.push({x, y});
-    if(trail.length > maxTrail) trail.shift();
+  document.addEventListener("mousemove", e=>{
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+    cursor.style.left = (e.clientX + scrollX) + "px";
+    cursor.style.top = (e.clientY + scrollY) + "px";
+    trail.push({x:e.clientX + scrollX, y:e.clientY + scrollY});
+    if(trail.length>maxTrail) trail.shift();
   });
 
   // Canvas
