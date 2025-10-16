@@ -15,21 +15,27 @@ body, html {
 #splash {
   position:fixed; top:0; left:0; width:100%; height:100%;
   background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
-  z-index:2000;
+  z-index:2000; color:#0ff;
 }
 #splash h1 {
-  font-size:3.5rem; color:#0ff; text-align:center; padding:0 1rem;
+  font-size:3.5rem; animation:flicker 1s infinite; margin:0; text-align:center;
 }
 #splash p {
-  color:#0ff; font-size:1.2rem; margin-top:0.5rem; text-align:center; padding:0 1rem;
+  font-size:1.2rem; margin:0.5rem 0; animation:flicker 1.5s infinite; text-align:center;
 }
 #progressContainer {
-  width:80%; max-width:400px; height:20px; border:2px solid #0ff; border-radius:10px; margin-top:2rem;
-  overflow:hidden; background:rgba(0,255,255,0.1);
+  width:70%; max-width:500px; height:20px; background:rgba(0,255,255,0.1); border:2px solid #0ff;
+  border-radius:10px; margin-top:20px; overflow:hidden;
 }
 #progressBar {
-  width:0%; height:100%; background:#0ff; transition:width 0.2s linear;
+  width:0%; height:100%; background:#0ff44;
+  transition:width 0.2s linear;
 }
+#bootText {
+  margin-top:15px; font-size:1rem; text-align:center; color:#0ff;
+  min-height:1.2rem;
+}
+@keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
 /* --- Main Content --- */
 #mainContent { display:none; padding:0; text-align:center; position:relative; z-index:10; }
@@ -129,7 +135,6 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
   #customCursor{width:24px; height:24px;}
   #splash h1{font-size:2rem;}
   #splash p{font-size:1rem;}
-  #progressContainer{width:90%;}
   #submitMethodSection h2{font-size:1.4rem;}
 }
 </style>
@@ -139,8 +144,10 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 <!-- Splash -->
 <div id="splash">
   <h1>RetroOnlineMatchmaking</h1>
-  <p id="bootText">Booting Arcade Servers...</p>
-  <div id="progressContainer"><div id="progressBar"></div></div>
+  <p id="bootText">Initializing...</p>
+  <div id="progressContainer">
+    <div id="progressBar"></div>
+  </div>
 </div>
 
 <!-- Background Canvas -->
@@ -161,8 +168,8 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 
   <a class="button" id="musicToggle">▶ Play Retro Music</a>
 
-  <!-- Arcade Caption -->
-  <div style="margin:2rem auto; color:#0ff; text-shadow:0 0 8px #0ff; font-weight:bold; font-size:1.5rem;">
+  <!-- Arcade Methods Caption -->
+  <div style="margin-top:2rem; font-size:1.4rem; color:#0ff; text-shadow:0 0 8px #0ff; font-weight:bold;">
     Find your Player 2 using these methods below
   </div>
 
@@ -220,6 +227,28 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
       <a href="https://parsec.app/" target="_blank">Website</a> | 
       <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank">Video Guide</a>
     </div>
+
+    <div class="card">
+      <h3>Retroarch Netplay</h3>
+      <p>Connection method for various retro systems.</p>
+      <a href="https://www.retroarch.com/?page=platforms" target="_blank">Website/Download</a> | 
+      <a href="https://youtu.be/wFE3S5TIawA?si=SzRurCi9KSoR_fbf" target="_blank">Video Guide</a>
+    </div>
+
+    <div class="card">
+      <h3>Fightcade</h3>
+      <p>Play retro arcade games online with Fightcade.</p>
+      <a href="https://www.fightcade.com/" target="_blank">Website/Download</a> | 
+      <a href="https://youtu.be/9fpeDgxGTEQ?si=6xqPugYz_t09tbnA" target="_blank">Video Guide</a>
+    </div>
+
+    <div class="card">
+      <h3>Arkadyzja</h3>
+      <p>Multiplayer support for retro games via Arkadyzja client.</p>
+      <a href="https://github.com/Arkadyzja/ArkadyzjaClient/releases" target="_blank">GitHub</a> | 
+      <a href="https://discord.gg/qBVN2nqAHd" target="_blank">Discord</a> | 
+      <a href="https://youtu.be/9_pGj-tnkJM?si=Zo0DFLljnnLgSk8z" target="_blank">Video Guide</a>
+    </div>
   </div>
 
   <!-- Submit New Method Section -->
@@ -238,57 +267,39 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif">
 
 <script>
-// Splash Screen + Boot Sequence
+// Splash fade + progress bar
 window.addEventListener("load", () => {
   const splash = document.getElementById("splash");
   const mainContent = document.getElementById("mainContent");
   const progressBar = document.getElementById("progressBar");
   const bootText = document.getElementById("bootText");
-
-  const messages = [
-    "Initializing Arcade Systems...",
-    "Loading Connection Methods...",
-    "Booting Retro Servers...",
-    "Checking Player Network...",
-    "Finalizing Setup..."
-  ];
-
+  
   let progress = 0;
+  const bootMessages = [
+    "Checking Arcade Servers...",
+    "Loading Multiplayer Modules...",
+    "Initializing Retro Systems...",
+    "Syncing Online Players...",
+    "Ready to Play!"
+  ];
   let msgIndex = 0;
-
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  function playPing() {
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    osc.type = "square";
-    osc.frequency.value = 880 + Math.random()*220;
-    gainNode.gain.value = 0.1;
-    osc.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
-  }
-
+  
   const interval = setInterval(()=>{
-    if(progress < 100){
-      progress += Math.random()*3 + 1; // random step
-      if(progress>100) progress=100;
-      progressBar.style.width = progress+"%";
-      if(progress%15<3){ // every ~15%
-        bootText.textContent = messages[msgIndex];
-        msgIndex = (msgIndex+1)%messages.length;
-        playPing();
-      }
-    } else {
-      clearInterval(interval);
-      setTimeout(()=>{
-        splash.style.display = "none";
-        mainContent.style.display = "block";
-        initCursorAndCanvas();
-      },500);
+    progress+=2;
+    progressBar.style.width = progress+"%";
+    
+    if(progress % 20 === 0 && msgIndex<bootMessages.length){
+      bootText.textContent = bootMessages[msgIndex];
+      msgIndex++;
     }
-  },100);
+    
+    if(progress>=100){
+      clearInterval(interval);
+      splash.style.display="none";
+      mainContent.style.display="block";
+      initCursorAndCanvas();
+    }
+  },70);
 });
 
 // Collapsible Sections
