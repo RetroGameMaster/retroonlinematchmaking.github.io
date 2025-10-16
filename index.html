@@ -49,6 +49,19 @@ header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; }
 .button:hover::before { left:0; }
 .button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
 
+/* Submit New Method Section */
+#submitMethodSection {
+  margin:3rem auto; padding:2rem; max-width:600px;
+  background:rgba(0,255,255,0.05); border:2px solid #0ff; border-radius:15px;
+  box-shadow:0 0 20px #0ff33;
+}
+#submitMethodSection h2 {
+  font-size:1.8rem; color:#0ff; margin-bottom:1rem; text-shadow:0 0 10px #0ff66;
+}
+#submitMethodSection p {
+  color:#ccc; font-size:1rem; margin-bottom:1.5rem;
+}
+
 /* Collapsible Sections */
 .collapsible {
   background: rgba(0,0,0,0.6);
@@ -111,6 +124,7 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
   #customCursor{width:24px; height:24px;}
   #splash h1{font-size:2rem;}
   #splash p{font-size:1rem;}
+  #submitMethodSection h2{font-size:1.4rem;}
 }
 </style>
 </head>
@@ -196,8 +210,10 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
     </div>
   </div>
 
-  <!-- Submit New Method Button -->
-  <div class="text-center my-10">
+  <!-- Submit New Method Section -->
+  <div id="submitMethodSection">
+    <h2>Have a new connection method? Submit it here!</h2>
+    <p>Help expand the RetroOnlineMatchmaking network by submitting your own connection methods.</p>
     <a href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" class="button">Submit New Method</a>
   </div>
 
