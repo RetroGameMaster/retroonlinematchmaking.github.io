@@ -199,7 +199,7 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
     <div style="max-width:1100px; margin:1.2rem auto; padding:0 4vw;">
       <div class="platform-caption">Find your Player 2 — choose a platform</div>
 
-      <!-- PSP -->
+        <!-- PSP -->
       <button class="collapsible" type="button">PSP Connections</button>
       <div class="content" aria-hidden="true">
         <div class="card">
@@ -312,12 +312,10 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
           <p><a href="https://www.retroarch.com/?page=platforms" target="_blank" rel="noopener">Website</a></p>
         </div>
       </div>
-
       <!-- Submit -->
       <section id="submitMethodSection">
         <h2>Have a new connection method? Submit it here!</h2>
         <p>Help expand the RetroOnlineMatchmaking network by submitting your own connection methods.</p>
-        <!-- The form opens in a new tab (preferred for GitHub Pages reliability). -->
         <a class="button" id="openFormBtn" href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" rel="noopener">Submit New Method</a>
       </section>
 
@@ -327,33 +325,30 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
     </div>
   </main>
 
-  <!-- Google form modal kept (not auto-open) so you can enable embed if needed -->
+  <!-- Google form modal -->
   <div id="formModal" class="modal" aria-hidden="true">
     <span class="close-btn" id="closeModal" role="button" aria-label="Close form">&times;</span>
     <div style="color:#0ff; font-weight:700; margin-bottom:10px;">Have new methods? Submit them here.</div>
     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true" title="Submission Form">Loading…</iframe>
   </div>
 
-  <!-- Custom cursor image (fixed) -->
+  <!-- Custom cursor -->
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
-  <!-- Audio (toggle) -->
+  <!-- Audio -->
   <audio id="bgAudio" loop preload="auto" style="display:none">
     <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
   </audio>
 
 <script>
-/* ---------- Splash + progress (fixed) ---------- */
+/* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
-  // only run once
   window.removeEventListener('load', onLoad);
-
   const splash = document.getElementById('splash');
   const main = document.getElementById('mainContent');
   const progressBar = document.getElementById('progressBar');
   const bootText = document.getElementById('bootText');
   const splashTitle = document.getElementById('splashTitle');
-
   let progress = 0;
   const messages = [
     "Checking Arcade Servers...",
@@ -363,37 +358,25 @@ window.addEventListener('load', function onLoad() {
     "Bringing Up Lobbies..."
   ];
   let idx = 0;
-
-  // subtle randomization so progress doesn't hang the same every time
   const interval = setInterval(() => {
-    progress += Math.ceil(Math.random()*3); // variable step
+    progress += Math.ceil(Math.random()*3);
     if (progress > 100) progress = 100;
     if (progressBar) progressBar.style.width = progress + '%';
-
-    // show messages in sequence
     if (progress >= (idx+1)*20 && idx < messages.length) {
       if (bootText) bootText.textContent = messages[idx++];
     }
-
-    // small visual title change at mid
     if(progress >= 60 && splashTitle && !splashTitle.dataset.switched){
       splashTitle.dataset.switched = '1';
       splashTitle.textContent = "CHECKING CONNECTION...";
     }
-
     if (progress >= 100) {
       clearInterval(interval);
-      // final message then fade
       if (bootText) bootText.textContent = "ONLINE!";
       setTimeout(() => {
         splash.classList.add('fade');
         setTimeout(()=> {
           try { splash.remove(); } catch(e){ splash.style.display='none'; }
-          if (main) {
-            main.style.display = 'block';
-            main.setAttribute('aria-hidden', 'false');
-          }
-          // init visuals and interaction
+          if (main) { main.style.display = 'block'; main.setAttribute('aria-hidden', 'false'); }
           initCursorAndCanvas();
           initCollapsibles();
           initFormControls();
@@ -404,11 +387,10 @@ window.addEventListener('load', function onLoad() {
   }, 70);
 });
 
-/* ---------- Collapsibles (separate initializer so it can be re-run) ---------- */
+/* ---------- Collapsibles ---------- */
 function initCollapsibles(){
   const coll = document.querySelectorAll('.collapsible');
   coll.forEach(c=>{
-    // ensure listener not added multiple times
     if(c.dataset.bound) return;
     c.dataset.bound = '1';
     c.addEventListener('click', function(){
@@ -419,7 +401,6 @@ function initCollapsibles(){
         content.style.maxHeight = null;
         content.setAttribute('aria-hidden','true');
       } else {
-        // set exact height for smooth open
         content.style.maxHeight = content.scrollHeight + 'px';
         content.setAttribute('aria-hidden','false');
       }
@@ -432,16 +413,12 @@ function initFormControls(){
   const openBtn = document.getElementById('openSubmitBtn');
   const modal = document.getElementById('formModal');
   const closeModal = document.getElementById('closeModal');
-
-  // open button opens new tab (preferred for GitHub Pages); keeps modal available if you want embed later
   if(openBtn){
     openBtn.addEventListener('click', function(e){
-      // open in new tab
       const url = "https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform";
       window.open(url, '_blank', 'noopener');
     });
   }
-
   if(closeModal){
     closeModal.addEventListener('click', ()=> modal.style.display='none');
     window.addEventListener('click', (ev)=> { if(ev.target === modal) modal.style.display='none'; });
@@ -475,34 +452,20 @@ function initMusicToggle(){
 
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
-  // custom cursor (fixed so it lines up with pointer during scroll)
   const cursor = document.getElementById('customCursor');
-  // ensure image loads properly; fallback to small dot if blocked
-  if(!cursor) {
-    console.warn('customCursor not found');
-  } else {
-    cursor.style.display = 'block';
-  }
-
-  // position using clientX/Y (fixed) to match viewport pointer always
+  if(cursor) cursor.style.display = 'block';
   document.addEventListener('mousemove', function(e){
     if(!cursor) return;
-    cursor.style.left = (e.clientX) + 'px';
-    cursor.style.top = (e.clientY) + 'px';
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
   });
-
-  // small trail drawn onto canvas for retro glow
   const canvas = document.getElementById('retroCanvas');
   const ctx = canvas.getContext('2d');
-
-  function resizeCanvas(){
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+  function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
 
-  // star layers and particles
+  // star & particle layers
   const starLayers = [
     {count:80, speed:0.2, sizeRange:[1,2], stars:[]},
     {count:50, speed:0.5, sizeRange:[0.7,1.4], stars:[]},
@@ -518,126 +481,56 @@ function initCursorAndCanvas(){
       });
     }
   });
-
   const particles = [];
   for(let i=0;i<40;i++){
-    particles.push({
-      x: Math.random()*canvas.width,
-      y: Math.random()*canvas.height,
-      vx: (Math.random()-0.5)*0.4,
-      vy: (Math.random()-0.5)*0.4,
-      r: Math.random()*1.8+0.6,
-      a: Math.random()*0.6+0.2
-    });
+    particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4, r: Math.random()*1.8+0.6, a: Math.random()*0.6+0.2 });
   }
-
   const shooting = [];
-  function spawnShoot(){ shooting.push({
-    x: Math.random()*canvas.width,
-    y: -20,
-    vx: Math.random()*3+1.2,
-    vy: Math.random()*2+1.2,
-    len: Math.random()*80+30,
-    a: 1
-  }); }
+  function spawnShoot(){ shooting.push({ x: Math.random()*canvas.width, y: -20, vx: Math.random()*3+1.2, vy: Math.random()*2+1.2, len: Math.random()*80+30, a: 1 }); }
   setInterval(spawnShoot, 2600);
 
-  // cursor trail points
-  const trail = [];
-  const maxTrail = 14;
-  document.addEventListener('mousemove', e => {
-    trail.push({x:e.clientX, y:e.clientY, t:Date.now()});
-    if(trail.length>maxTrail) trail.shift();
-  });
+  const trail = []; const maxTrail=14;
+  document.addEventListener('mousemove', e => { trail.push({x:e.clientX, y:e.clientY, t:Date.now()}); if(trail.length>maxTrail) trail.shift(); });
 
-  // animation
   function frame(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // ambient gradient
     const g = ctx.createRadialGradient(canvas.width/2, canvas.height*0.12, 0, canvas.width/2, canvas.height/1.1, Math.max(canvas.width, canvas.height));
-    g.addColorStop(0, 'rgba(0,30,60,0.05)');
-    g.addColorStop(1, 'rgba(0,0,0,0.6)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    g.addColorStop(0, 'rgba(0,30,60,0.05)'); g.addColorStop(1, 'rgba(0,0,0,0.6)'); ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // stars
-    starLayers.forEach(layer=>{
-      layer.stars.forEach(s=>{
-        s.y += layer.speed;
-        if(s.y > canvas.height) s.y = 0;
-        ctx.fillStyle = s.col;
-        ctx.fillRect(s.x, s.y, s.size, s.size);
-      });
-    });
+    starLayers.forEach(layer=>{ layer.stars.forEach(s=>{ s.y += layer.speed; if(s.y>canvas.height) s.y=0; ctx.fillStyle=s.col; ctx.fillRect(s.x,s.y,s.size,s.size); }); });
 
-    // grid
-    ctx.strokeStyle = 'rgba(0,255,255,0.06)';
-    ctx.lineWidth = 1;
-    const spacing = Math.max(60, Math.floor(canvas.width/16));
-    let offset = (Date.now()/50) % spacing;
-    for(let x=0;x<canvas.width;x+=spacing){
-      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
-    }
-    for(let y=0;y<canvas.height;y+=spacing){
-      ctx.beginPath(); ctx.moveTo(0,y+offset); ctx.lineTo(canvas.width,y+offset); ctx.stroke();
-    }
+    ctx.strokeStyle='rgba(0,255,255,0.06)'; ctx.lineWidth=1;
+    const spacing=Math.max(60, Math.floor(canvas.width/16)); let offset=(Date.now()/50)%spacing;
+    for(let x=0;x<canvas.width;x+=spacing){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+    for(let y=0;y<canvas.height;y+=spacing){ ctx.beginPath(); ctx.moveTo(0,y+offset); ctx.lineTo(canvas.width,y+offset); ctx.stroke(); }
 
-    // particles
-    particles.forEach(p=>{
-      p.x += p.vx; p.y += p.vy;
-      if(p.x < 0) p.x = canvas.width;
-      if(p.x > canvas.width) p.x = 0;
-      if(p.y < 0) p.y = canvas.height;
-      if(p.y > canvas.height) p.y = 0;
-      ctx.beginPath(); ctx.fillStyle = `rgba(0,255,255,${p.a})`; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-    });
+    particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; if(p.x<0)p.x=canvas.width; if(p.x>canvas.width)p.x=0; if(p.y<0)p.y=canvas.height; if(p.y>canvas.height)p.y=0; ctx.beginPath(); ctx.fillStyle=`rgba(0,255,255,${p.a})`; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); });
 
-    // shooting stars
-    for(let i=shooting.length-1;i>=0;i--){
-      const s = shooting[i];
-      s.x += s.vx; s.y += s.vy; s.a -= 0.01;
-      ctx.strokeStyle = `rgba(0,255,255,${s.a})`;
-      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.len, s.y - s.len); ctx.stroke();
-      if(s.a <= 0) shooting.splice(i,1);
-    }
+    for(let i=shooting.length-1;i>=0;i--){ const s=shooting[i]; s.x+=s.vx; s.y+=s.vy; s.a-=0.01; ctx.strokeStyle=`rgba(0,255,255,${s.a})`; ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x-s.len,s.y-s.len); ctx.stroke(); if(s.a<=0) shooting.splice(i,1); }
 
-    // cursor trail
-    for(let i=0;i<trail.length;i++){
-      const p = trail[i];
-      const alpha = (i+1)/trail.length * 0.9;
-      ctx.fillStyle = `rgba(0,200,255,${alpha*0.5})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 2 + (i/maxTrail)*3, 0, Math.PI*2); ctx.fill();
-    }
+    for(let i=0;i<trail.length;i++){ const p=trail[i]; const alpha=(i+1)/trail.length*0.9; ctx.fillStyle=`rgba(0,200,255,${alpha*0.5})`; ctx.beginPath(); ctx.arc(p.x,p.y,2+(i/maxTrail)*3,0,Math.PI*2); ctx.fill(); }
 
     requestAnimationFrame(frame);
   }
   frame();
 }
 
-/* ---------- Page init fallback for things that may run before splash removed ---------- */
+/* ---------- DOM stars fallback ---------- */
 document.addEventListener('DOMContentLoaded', () => {
-  // populate star DOM fallback (small DOM stars) for older setups if desired
   const starContainer = document.querySelector('.stars');
   if(starContainer && starContainer.children.length === 0){
     for(let i=0;i<40;i++){
-      const s = document.createElement('div');
-      s.className='star';
-      s.style.left = Math.random()*100+'%';
-      s.style.top = Math.random()*100+'%';
-      s.style.opacity = (0.2 + Math.random()*0.8).toString();
+      const s=document.createElement('div'); s.className='star'; s.style.left=Math.random()*100+'%'; s.style.top=Math.random()*100+'%'; s.style.opacity=(0.2+Math.random()*0.8).toString();
       starContainer.appendChild(s);
     }
   }
 });
 
-/* ---------- Accessibility: keyboard focus outlines ---------- */
+/* ---------- Keyboard focus accessibility ---------- */
 (function(){
-  const body = document.body;
-  window.addEventListener('keydown', function(e){
-    if(e.key === 'Tab') body.classList.add('show-focus');
-  });
-  window.addEventListener('mousedown', function(){ body.classList.remove('show-focus'); });
+  const body=document.body;
+  window.addEventListener('keydown', e=>{ if(e.key==='Tab') body.classList.add('show-focus'); });
+  window.addEventListener('mousedown', ()=>{ body.classList.remove('show-focus'); });
 })();
 </script>
 </body>
