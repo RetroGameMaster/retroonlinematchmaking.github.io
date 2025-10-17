@@ -15,403 +15,630 @@ body, html {
 #splash {
   position:fixed; top:0; left:0; width:100%; height:100%;
   background:#000; display:flex; flex-direction:column; justify-content:center; align-items:center;
-  z-index:2000; color:#0ff; transition: opacity 0.45s ease, transform 0.45s ease;
+  z-index:3000; color:#0ff; transition: opacity 0.45s ease, transform 0.45s ease;
 }
 #splash.fade {
   opacity:0; transform:scale(1.02); pointer-events:none;
 }
 #splash h1 {
-  font-size:3.5rem; animation:flicker 1s infinite; margin:0; text-align:center;
+  font-size:clamp(28px,6vw,48px); animation:flicker 1s infinite; margin:0; text-align:center;
+  text-shadow: 0 0 12px rgba(0,255,255,0.12);
 }
 #splash p {
-  font-size:1.2rem; margin:0.5rem 0; animation:flicker 1.5s infinite; text-align:center;
+  font-size:clamp(12px,2.4vw,18px); margin:0.5rem 0; animation:flicker 1.5s infinite; text-align:center;
+  color: #ff33cc;
 }
 @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
 /* --- Progress --- */
 #progressContainer {
-  width:70%; max-width:500px; height:12px; background:rgba(0,255,255,0.06); border:2px solid #0ff;
+  width:70%; max-width:560px; height:12px; background:rgba(0,255,255,0.04); border:2px solid rgba(0,255,255,0.08);
   border-radius:10px; margin-top:18px; overflow:hidden; display:block;
+  box-shadow: inset 0 0 18px rgba(0,255,255,0.02);
 }
-#progressBar { width:0%; height:100%; background:#0ff44; transition:width 0.2s linear; }
+#progressBar { width:0%; height:100%; background:linear-gradient(90deg,#00e0ff,#ff33cc); transition:width 0.12s linear; }
 
-/* --- Starfield --- */
-.stars { position:fixed; width:100%; height:100%; background:transparent; z-index:0; overflow:hidden; }
-.star { position:absolute; width:2px; height:2px; background:#0ff; animation:twinkle 3s linear infinite; }
-@keyframes twinkle { 0%{opacity:0.1}50%{opacity:1}100%{opacity:0.1} }
+/* --- Starfield container fallback --- */
+.stars { position:fixed; width:100%; height:100%; background:transparent; z-index:0; overflow:hidden; pointer-events:none; }
 
-/* --- CRT Overlay --- */
+/* --- CRT & overlays --- */
 .crt-overlay {
   position:fixed; top:0; left:0; width:100%; height:100%;
   pointer-events:none;
-  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px);
-  animation: scan 8s linear infinite; z-index:999;
+  background-image: repeating-linear-gradient(to bottom, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px);
+  mix-blend-mode: overlay;
+  opacity:0.12; z-index:2000;
 }
-@keyframes scan { 0%{opacity:0.1}50%{opacity:0.2}100%{opacity:0.1} }
 
-/* --- Main Content --- */
-#mainContent { display:none; padding:0; text-align:center; position:relative; z-index:1; }
-
-header {
-  padding:2rem 1rem; background:rgba(0,0,0,0.6); border-bottom:2px solid #0ff44;
+/* --- Header / layout --- */
+header{
+  position:relative; z-index:20; padding:clamp(12px,3vw,28px);
+  max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding-left:4vw; padding-right:4vw;
 }
-header h1 { font-size:2.3rem; color:#0ff; text-shadow:0 0 10px #0ff66; margin:0; }
-header p { font-size:1.1rem; color:#ccc; text-shadow:0 0 5px #0ff33; margin:6px 0 0 0 }
+.brand { display:flex; gap:12px; align-items:center }
+.brand .logo { width:48px; height:48px; border-radius:8px; background:linear-gradient(135deg,#00e0ff,#ff33cc);
+  display:flex; align-items:center; justify-content:center; font-weight:700; color:#010101; font-size:18px;
+  box-shadow:0 0 18px rgba(0,224,255,0.12);
+}
+.brand h1{ margin:0; font-size:clamp(16px,2.6vw,22px); color:#0ff; text-shadow:0 0 12px rgba(0,224,255,0.12); }
+.brand p{ margin:0; font-size:12px; color:#bfeefc; opacity:0.9; }
 
 /* Buttons */
 .button {
-  display:inline-block; margin:0.6rem; padding:1rem 2rem; background:#0ff; color:#111;
-  border-radius:10px; text-decoration:none; font-weight:bold; position:relative; overflow:hidden;
-  box-shadow:0 0 10px #0ff55; transition:0.3s; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 14px; border-radius:10px;
+  background:linear-gradient(180deg,#00d7ff,#00a8bf); color:#001; font-weight:700; border:1px solid rgba(255,255,255,0.06);
+  box-shadow:0 6px 20px rgba(0,224,255,0.06);
+  text-decoration:none; cursor:pointer; user-select:none;
 }
-.button::before {
-  content:""; position:absolute; top:0; left:-100%; width:100%; height:100%;
-  background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
-  transition:left 0.3s ease-in-out;
-}
-.button:hover::before { left:0; }
-.button:hover { background:#00b5cc; box-shadow:0 0 25px #0ff; transform:scale(1.05); }
+.button.muted{ background:linear-gradient(180deg,#ff33cc,#cc0099); color:#fff; }
 
-/* Collapsible */
+/* --- Main Content --- */
+#mainContent { display:none; min-height:100vh; position:relative; z-index:10; padding-bottom:4rem; }
+
+/* --- Section top caption --- */
+.platform-caption{
+  text-align:center; color:#00ffff; font-weight:800; margin:1.2rem 0; font-size:1rem; text-shadow:0 0 8px rgba(0,255,255,0.08);
+}
+
+/* --- Collapsible --- */
 .collapsible {
   background: rgba(0,0,0,0.6);
   color:#0ff;
   cursor:pointer;
   padding: 1rem;
   width: 90%;
-  max-width:900px;
+  max-width:1100px;
   border: 2px solid #0ff;
   margin: 1rem auto;
   text-align:left;
-  font-weight:bold;
+  font-weight:800;
   border-radius:10px;
   position:relative;
   transition:0.25s;
 }
-.collapsible::after {
+.collapsible::after{
   content: '\25B6';
-  position:absolute; right:20px; top:50%; transform:translateY(-50%); transition:0.25s;
+  font-size:1.1rem;
+  position:absolute; right:20px; top:50%; transform:translateY(-50%);
+  transition:0.25s;
 }
-.collapsible.active::after { transform:translateY(-50%) rotate(90deg); }
-.content { max-height:0; overflow:hidden; transition:max-height .35s ease; }
+.collapsible.active::after{ transform:translateY(-50%) rotate(90deg); }
+.content { max-height:0; overflow:hidden; transition:max-height .35s ease; padding:0 1rem 0 1rem; }
 
-/* Cards */
+/* --- Cards --- */
 .card {
-  background: rgba(0,0,0,0.6); border:2px solid #0ff; border-radius:12px;
-  margin:0.6rem auto; padding:12px; text-align:left; max-width:900px;
-  box-shadow:0 0 15px #0ff33;
+  background: rgba(0,0,0,0.6); border:1px solid rgba(0,224,255,0.06); border-radius:12px;
+  margin:0.6rem auto; padding:12px; text-align:left; max-width:1100px;
+  box-shadow:0 12px 30px rgba(0,0,0,0.6), 0 0 10px rgba(0,224,255,0.02);
 }
-.card h3 { color:#0ff; margin:0 0 6px 0; }
-.card p { color:#ccc; margin:0.25rem 0; font-size:0.95rem; }
-.card a { color:#0ff; text-decoration:underline; }
+.card h3 { color:#ff33cc; margin:0 0 6px 0; font-size:1.05rem; }
+.card p { color:#cfeff6; margin:0.2rem 0; font-size:.95rem; }
+.card a { color:#00e0ff; text-decoration:underline; font-weight:700; }
 
-/* Modal */
-.modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.95); justify-content:center; align-items:center; padding:1rem; }
-.modal iframe { width:90%; max-width:640px; height:85vh; border:none; border-radius:12px; box-shadow:0 0 25px #0ff55; }
-.close-btn { position:absolute; top:20px; right:30px; color:#0ff; font-size:2rem; font-weight:bold; cursor:pointer; text-shadow:0 0 10px #0ff; }
+/* --- Submit section --- */
+#submitMethodSection{
+  margin:2rem auto; padding:18px; max-width:760px; border-radius:12px;
+  background:linear-gradient(180deg, rgba(0,255,255,0.02), rgba(0,0,0,0.18));
+  border:1px solid rgba(0,255,255,0.06);
+  box-shadow:0 8px 30px rgba(0,0,0,0.6);
+  text-align:center;
+}
+#submitMethodSection h2{ margin:0 0 8px 0; color:#00ffff; font-size:1.3rem; text-shadow:0 0 8px rgba(0,255,255,0.08); }
+#submitMethodSection p{ margin:0 0 12px 0; color:#cfeff6; }
 
-/* Footer */
-footer { padding:1.5rem; font-size:0.9rem; background:rgba(0,0,0,0.4); color:#aaa; margin-top:2rem; }
+/* --- Modal --- */
+.modal {
+  display:none;
+  position:fixed; left:0; top:0; width:100%; height:100%; z-index:4000;
+  background:rgba(0,0,0,0.95); justify-content:center; align-items:center; padding:1rem;
+}
+.modal iframe{ width:90%; max-width:720px; height:85vh; border:none; border-radius:12px; box-shadow:0 0 25px rgba(0,255,255,0.08); }
+.close-btn{ position:absolute; top:14px; right:18px; font-size:28px; color:#0ff; cursor:pointer }
 
-/* Cursor */
-#customCursor { position:absolute; width:32px; height:32px; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); }
+/* --- Footer --- */
+footer.site-footer { text-align:center; padding:18px 4vw; color:#a8dfe8; font-size:13px; border-top:1px solid rgba(0,224,255,0.04); margin-top:2.2rem }
 
-/* Canvas */
-canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+/* --- Cursor (fixed for correct tracking) --- */
+#customCursor{
+  position:fixed; width:40px; height:40px; pointer-events:none; z-index:5000; transform:translate(-50%,-50%);
+  filter: drop-shadow(0 6px 18px rgba(0,224,255,0.08));
+}
 
-/* Mobile */
-@media(max-width:768px){
-  header h1{font-size:1.8rem;}
-  .button{padding:0.8rem 1.2rem;font-size:0.95rem;}
-  #customCursor{width:24px; height:24px;}
-  #splash h1{font-size:2rem;}
-  #splash p{font-size:1rem;}
+/* --- Canvas BG --- */
+canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+
+/* --- Responsive tweaks --- */
+@media (max-width:820px){
+  header{ padding:14px; align-items:flex-start; gap:10px; }
+  .brand h1{ font-size:16px }
+  #customCursor{ width:28px; height:28px }
+  .collapsible{ width:94%; }
+  #progressContainer{ width:86%; }
 }
 </style>
 </head>
 <body>
-
-<!-- Splash -->
-<div id="splash" aria-hidden="false">
-  <h1>RetroOnlineMatchmaking</h1>
-  <p id="bootText">Initializing...</p>
-  <div id="progressContainer" aria-hidden="true"><div id="progressBar"></div></div>
-</div>
-
-<!-- Starfield -->
-<div class="stars" id="stars"></div>
-
-<!-- Main Content -->
-<div id="mainContent" aria-hidden="true">
-  <header>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-      <div>
-        <h1>RetroOnlineMatchmaking</h1>
-        <p>Play Classic Games Online Again</p>
+  <!-- Splash -->
+  <div id="splash" role="dialog" aria-modal="true" aria-label="Boot splash">
+    <div style="text-align:center;">
+      <div style="display:flex; gap:12px; align-items:center; justify-content:center; margin-bottom:10px;">
+        <div style="width:54px; height:54px; border-radius:10px; background:linear-gradient(135deg,#00e0ff,#ff33cc); box-shadow:0 0 24px rgba(0,224,255,0.12); display:flex; align-items:center; justify-content:center; font-weight:800; color:#010101;">ROM</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <h1 id="splashTitle">SYSTEM BOOTING...</h1>
+      <p id="bootText">RetroOnlineMatchmaking — Initializing v1.0</p>
+      <div id="progressContainer" aria-hidden="true"><div id="progressBar"></div></div>
+    </div>
+  </div>
+
+  <!-- Decorative backgrounds -->
+  <div class="stars" aria-hidden="true"></div>
+  <canvas id="retroCanvas" aria-hidden="true"></canvas>
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <!-- Main content -->
+  <main id="mainContent" style="display:none;">
+    <header class="site-header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">ROM</div>
+        <div>
+          <h1>RetroOnlineMatchmaking</h1>
+          <p>Play classic games online again</p>
+        </div>
+      </div>
+
+      <nav class="site-nav" aria-label="primary" style="display:flex; gap:8px; align-items:center;">
         <a class="button" href="https://discord.com/invite/jcRqpmMZdZ" target="_blank" rel="noopener">Join Discord</a>
-        <a class="button" href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" target="_blank" rel="noopener">Watch on YouTube</a>
-        <a class="button" href="https://retroonlinematchmaking.flarum.cloud/" target="_blank" rel="noopener">Visit the Forum</a>
+        <a class="button" href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" target="_blank" rel="noopener">YouTube</a>
+        <a class="button" id="openSubmitBtn">Submit Method</a>
+        <a class="button" href="https://retroonlinematchmaking.flarum.cloud/" target="_blank" rel="noopener">Forum</a>
         <a class="button" id="musicButton" title="Toggle music (off by default)">🔊 Music</a>
-        <a class="button" id="openForm">📋 Google Form</a>
-      </div>
-    </div>
-  </header>
+      </nav>
+    </header>
 
-  <main style="max-width:1100px;margin:1.2rem auto;padding:0 4vw;">
-    <div style="text-align:center;color:#00ffff;font-weight:800;margin-bottom:12px;">Find your Player 2 — choose a platform</div>
+    <div style="max-width:1100px; margin:1.2rem auto; padding:0 4vw;">
+      <div class="platform-caption">Find your Player 2 — choose a platform</div>
 
-    <!-- PSP -->
-    <button class="collapsible" type="button">PSP Connections</button>
-    <div class="content" aria-hidden="true">
-      <div class="card">
-        <h3>EA Nation Hub — PSP</h3>
-        <p>Play various EA PSP titles online.</p>
-        <p><a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank" rel="noopener">Discord</a> · <a href="https://mohh-revival.pages.dev/#setup" target="_blank" rel="noopener">Setup Guide</a></p>
-      </div>
-    </div>
-
-    <!-- Vita -->
-    <button class="collapsible" type="button">Vita Connections</button>
-    <div class="content" aria-hidden="true">
-      <div class="card">
-        <h3>Vita3K — PS Vita</h3>
-        <p>Play PS Vita games online using Vita3K + tools.</p>
-        <p><a href="https://discord.gg/aBUTzGnCUS" target="_blank" rel="noopener">Discord</a> · <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank" rel="noopener">Download</a></p>
-      </div>
-    </div>
-
-    <!-- PS2 -->
-    <button class="collapsible" type="button">PS2 Connections</button>
-    <div class="content" aria-hidden="true">
-      <div class="card">
-        <h3>Jak X: Combat Racing — PS2</h3>
-        <p><strong>DNS:</strong> 45.7.228.197</p>
-        <p><a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank" rel="noopener">Discord</a></p>
+      <!-- PSP -->
+      <button class="collapsible" type="button">PSP Connections</button>
+      <div class="content" aria-hidden="true">
+        <div class="card">
+          <h3>EA Nation Hub — PSP</h3>
+          <p>Unoffical hub to restore EA PSP multiplayer.</p>
+          <p><a href="https://discord.com/invite/fwrQHHxrQQ" target="_blank" rel="noopener">Discord</a> • <a href="https://mohh-revival.pages.dev/#setup" target="_blank" rel="noopener">Setup Guide</a></p>
+        </div>
       </div>
 
-      <div class="card">
-        <h3>PSRewired — PS2</h3>
-        <p><strong>DNS:</strong> 67.222.156.250</p>
-        <p><a href="https://psrewired.com/guides/pcsx2" target="_blank" rel="noopener">Setup Guide</a></p>
+      <!-- Vita -->
+      <button class="collapsible" type="button">Vita Connections</button>
+      <div class="content" aria-hidden="true">
+        <div class="card">
+          <h3>Vita3K — PS Vita</h3>
+          <p>Ad-hoc revival via Vita3K with XLink and community patches.</p>
+          <p><a href="https://discord.gg/aBUTzGnCUS" target="_blank" rel="noopener">Discord</a> • <a href="https://nightly.link/Vita3K/Vita3K/actions/runs/16026361158" target="_blank" rel="noopener">Download</a></p>
+        </div>
       </div>
 
-      <div class="card">
-        <h3>OBSVR — Resident Evil Outbreak (File #2)</h3>
-        <p>Infrastructure revival for Outbreak File #2.</p>
-        <p><a href="https://obsrv.org/website" target="_blank" rel="noopener">Website</a> · <a href="https://discord.gg/88uVwczShn" target="_blank" rel="noopener">Discord</a> · <a href="https://youtu.be/Zv7o--OUQp8" target="_blank" rel="noopener">Guide</a></p>
-      </div>
-    </div>
+      <!-- PS2 -->
+      <button class="collapsible" type="button">PS2 Connections</button>
+      <div class="content" aria-hidden="true">
+        <div class="card">
+          <h3>Jak X: Combat Racing — PS2</h3>
+          <p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
+          <p><strong>DNS:</strong> 45.7.228.197 • <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank" rel="noopener">Discord</a></p>
+        </div>
 
-    <!-- PS3 -->
-    <button class="collapsible" type="button">PS3 Connections</button>
-    <div class="content" aria-hidden="true">
-      <div class="card">
-        <h3>RPCS3</h3>
-        <p>PS3 emulator solution — community & guides.</p>
-        <p><a href="https://rpcs3.net/" target="_blank" rel="noopener">Website</a> · <a href="https://discord.com/invite/RPCS3" target="_blank" rel="noopener">Discord</a> · <a href="https://www.youtube.com/watch?v=JzaocFeV4po&t=35s" target="_blank" rel="noopener">Guide</a></p>
-      </div>
+        <div class="card">
+          <h3>PSRewired — PS2</h3>
+          <p>Universal online setup for PS2 games using custom DNS.</p>
+          <p><strong>DNS:</strong> 67.222.156.250 • <a href="https://psrewired.com/guides/pcsx2" target="_blank" rel="noopener">Setup Guide</a></p>
+        </div>
 
-      <div class="card">
-        <h3>PSRewired — PS3</h3>
-        <p><strong>DNS:</strong> 67.222.156.250</p>
-        <p><a href="https://psrewired.com/" target="_blank" rel="noopener">Website</a> · <a href="https://psrewired.com/guides/ps3" target="_blank" rel="noopener">Guide</a></p>
-      </div>
-
-      <div class="card">
-        <h3>XLink Kai — PS3</h3>
-        <p>Network tunneling for PS3 (real hardware & emulator support).</p>
-        <p><a href="https://www.teamxlink.co.uk/" target="_blank" rel="noopener">Website</a> · <a href="https://discord.gg/team-xlink-official-521915206972997664" target="_blank" rel="noopener">Discord</a></p>
-        <p><a href="https://www.teamxlink.co.uk/wiki/RPCS3_XLink_Kai_Setup" target="_blank" rel="noopener">Emulator Guide</a> · <a href="https://www.teamxlink.co.uk/wiki/PlayStation_3_XLink_Kai_Setup" target="_blank" rel="noopener">Hardware Guide</a></p>
+        <div class="card">
+          <h3>OBSVR — Resident Evil Outbreak File #2</h3>
+          <p>Infrastructure connection method for Resident Evil Outbreak: File #2.</p>
+          <p><a href="https://obsrv.org/website" target="_blank" rel="noopener">Website</a> • <a href="https://discord.gg/88uVwczShn" target="_blank" rel="noopener">Discord</a> • <a href="https://youtu.be/Zv7o--OUQp8" target="_blank" rel="noopener">Setup Guide</a></p>
+        </div>
       </div>
 
-      <div class="card">
-        <h3>PSONE (PSX Revivals)</h3>
-        <p><strong>DNS:</strong> 185.194.142.4</p>
-        <p><a href="https://www.psone.online/getting-started#" target="_blank" rel="noopener">Website/Guide</a> · <a href="https://discord.com/invite/uhZuGX9" target="_blank" rel="noopener">Discord</a></p>
-      </div>
-    </div>
+      <!-- PS3 -->
+      <button class="collapsible" type="button">PS3 Connections</button>
+      <div class="content" aria-hidden="true">
+        <div class="card">
+          <h3>RPCS3</h3>
+          <p>PS3 emulator solution — community & guides.</p>
+          <p><a href="https://rpcs3.net/" target="_blank" rel="noopener">Website</a> • <a href="https://discord.com/invite/RPCS3" target="_blank" rel="noopener">Discord</a> • <a href="https://www.youtube.com/watch?v=JzaocFeV4po&t=35s" target="_blank" rel="noopener">Guide</a></p>
+        </div>
 
-    <!-- Arcade -->
-    <button class="collapsible" type="button">Arcade Connections</button>
-    <div class="content" aria-hidden="true">
-      <div class="card">
-        <h3>Arkadyzja</h3>
-        <p>Rollback-powered connection for PSX / Dreamcast / FBNeo / MAME.</p>
-        <p><a href="https://github.com/Arkadyzja/ArkadyzjaClient/releases" target="_blank" rel="noopener">GitHub</a> · <a href="https://discord.gg/qBVN2nqAHc" target="_blank" rel="noopener">Discord</a> · <a href="https://youtu.be/9_pGj-tnkJM?si=Zo0DFLljnnLgSk8z" target="_blank" rel="noopener">Video Guide</a></p>
-      </div>
+        <div class="card">
+          <h3>PSRewired — PS3</h3>
+          <p>Custom DNS & community tooling.</p>
+          <p><strong>DNS:</strong> 67.222.156.250 • <a href="https://psrewired.com/" target="_blank" rel="noopener">Website</a></p>
+        </div>
 
-      <div class="card">
-        <h3>Fightcade</h3>
-        <p>Online arcade multiplayer for classic fighters and cabinets.</p>
-        <p><a href="https://www.fightcade.com/" target="_blank" rel="noopener">Website/Download</a> · <a href="https://youtu.be/9fpeDgxGTEQ?si=6xqPugYz_t09tbnA" target="_blank" rel="noopener">Video Guide</a> · <a href="https://discord.gg/fightcade-official-160417191743848448" target="_blank" rel="noopener">Discord</a></p>
-      </div>
+        <div class="card">
+          <h3>XLink Kai — PS3</h3>
+          <p>Network tunneling for PS3 (hardware & emulator support).</p>
+          <p><a href="https://www.teamxlink.co.uk/" target="_blank" rel="noopener">Website</a> • <a href="https://discord.gg/team-xlink-official-521915206972997664" target="_blank" rel="noopener">Discord</a></p>
+        </div>
 
-      <div class="card">
-        <h3>RetroArch Netplay</h3>
-        <p>Netplay across various retro systems through RetroArch.</p>
-        <p><a href="https://www.retroarch.com/?page=platforms" target="_blank" rel="noopener">Website/Download</a> · <a href="https://youtu.be/wFE3S5TIawA?si=SzRurCi9KSoR_fbf" target="_blank" rel="noopener">Video Guide</a></p>
-      </div>
-
-      <div class="card">
-        <h3>Parsec</h3>
-        <p>Remote play / streaming for local multiplayer sessions.</p>
-        <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website</a> · <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank" rel="noopener">Video Guide</a></p>
-      </div>
-    </div>
-
-    <!-- PC -->
-    <button class="collapsible" type="button">PC Connections</button>
-    <div class="content" aria-hidden="true">
-      <div class="card">
-        <h3>Parsec</h3>
-        <p>Stream your PC games to friends & play online.</p>
-        <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website</a> · <a href="https://youtu.be/ut3Uaj5MFsM" target="_blank" rel="noopener">Guide</a></p>
+        <div class="card">
+          <h3>PSONE (PSX Revivals)</h3>
+          <p>Community revivals & DNS for PSX games.</p>
+          <p><strong>DNS:</strong> 185.194.142.4 • <a href="https://www.psone.online/getting-started#" target="_blank" rel="noopener">Guide</a></p>
+        </div>
       </div>
 
-      <div class="card">
-        <h3>Steam Remote Play</h3>
-        <p>Play Steam games with friends remotely.</p>
-        <p><a href="https://store.steampowered.com/remoteplay" target="_blank" rel="noopener">Guide</a></p>
+      <!-- Arcade -->
+      <button class="collapsible" type="button">Arcade Connections</button>
+      <div class="content" aria-hidden="true">
+        <div class="card">
+          <h3>Arkadyzja</h3>
+          <p>Rollback-powered connection for PSX / Dreamcast / FBNeo / MAME.</p>
+          <p><a href="https://github.com/Arkadyzja/ArkadyzjaClient/releases" target="_blank" rel="noopener">GitHub</a> • <a href="https://discord.gg/qBVN2nqAHc" target="_blank" rel="noopener">Discord</a> • <a href="https://youtu.be/9_pGj-tnkJM?si=Zo0DFLljnnLgSk8z" target="_blank" rel="noopener">Video Guide</a></p>
+        </div>
+
+        <div class="card">
+          <h3>Fightcade</h3>
+          <p>Online arcade multiplayer for classic fighters and cabinets.</p>
+          <p><a href="https://www.fightcade.com/" target="_blank" rel="noopener">Website/Download</a> • <a href="https://youtu.be/9fpeDgxGTEQ?si=6xqPugYz_t09tbnA" target="_blank" rel="noopener">Video Guide</a> • <a href="https://discord.gg/fightcade-official-160417191743848448" target="_blank" rel="noopener">Discord</a></p>
+        </div>
+
+        <div class="card">
+          <h3>RetroArch Netplay</h3>
+          <p>Netplay across various retro systems through RetroArch.</p>
+          <p><a href="https://www.retroarch.com/?page=platforms" target="_blank" rel="noopener">Download</a> • <a href="https://youtu.be/wFE3S5TIawA?si=SzRurCi9KSoR_fbf" target="_blank" rel="noopener">Video Guide</a></p>
+        </div>
+
+        <div class="card">
+          <h3>Parsec</h3>
+          <p>Remote play / streaming for local multiplayer sessions; works for PC hosts.</p>
+          <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website</a> • <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank" rel="noopener">Video Guide</a></p>
+        </div>
       </div>
+
+      <!-- PC -->
+      <button class="collapsible" type="button">PC Connections</button>
+      <div class="content" aria-hidden="true">
+        <div class="card">
+          <h3>Parsec</h3>
+          <p>Cloud-based remote play for local multiplayer retro games.</p>
+          <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website</a> • <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank" rel="noopener">Video Guide</a></p>
+        </div>
+
+        <div class="card">
+          <h3>RetroArch Netplay</h3>
+          <p>Netplay across many retro systems.</p>
+          <p><a href="https://www.retroarch.com/?page=platforms" target="_blank" rel="noopener">Website</a></p>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <section id="submitMethodSection">
+        <h2>Have a new connection method? Submit it here!</h2>
+        <p>Help expand the RetroOnlineMatchmaking network by submitting your own connection methods.</p>
+        <!-- The form opens in a new tab (preferred for GitHub Pages reliability). -->
+        <a class="button" id="openFormBtn" href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" rel="noopener">Submit New Method</a>
+      </section>
+
+      <footer class="site-footer">
+        © 2025 RetroOnlineMatchmaking — Built by the community
+      </footer>
     </div>
   </main>
 
-  <footer>
-    RetroOnlineMatchmaking © 2025 · All rights reserved
-  </footer>
-</div>
+  <!-- Google form modal kept (not auto-open) so you can enable embed if needed -->
+  <div id="formModal" class="modal" aria-hidden="true">
+    <span class="close-btn" id="closeModal" role="button" aria-label="Close form">&times;</span>
+    <div style="color:#0ff; font-weight:700; margin-bottom:10px;">Have new methods? Submit them here.</div>
+    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true" title="Submission Form">Loading…</iframe>
+  </div>
 
-<!-- Custom cursor -->
-<img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
+  <!-- Custom cursor image (fixed) -->
+  <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
-<!-- Audio -->
-<audio id="bgAudio" loop preload="auto" style="display:none">
-  <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
-</audio>
-
-<!-- Google Form Modal -->
-<div id="formModal" class="modal" aria-hidden="true">
-  <span class="close-btn" id="closeModal" role="button" aria-label="Close form">&times;</span>
-  <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true">Loading…</iframe>
-</div>
+  <!-- Audio (toggle) -->
+  <audio id="bgAudio" loop preload="auto" style="display:none">
+    <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
+  </audio>
 
 <script>
-/* ---------- Splash + Progress ---------- */
+/* ---------- Splash + progress (fixed) ---------- */
 window.addEventListener('load', function onLoad() {
+  // only run once
   window.removeEventListener('load', onLoad);
+
   const splash = document.getElementById('splash');
   const main = document.getElementById('mainContent');
   const progressBar = document.getElementById('progressBar');
   const bootText = document.getElementById('bootText');
+  const splashTitle = document.getElementById('splashTitle');
+
   let progress = 0;
   const messages = [
     "Checking Arcade Servers...",
     "Loading Multiplayer Modules...",
     "Initializing Retro Systems...",
     "Syncing Online Players...",
-    "Ready to Play!"
+    "Bringing Up Lobbies..."
   ];
   let idx = 0;
+
+  // subtle randomization so progress doesn't hang the same every time
   const interval = setInterval(() => {
-    progress += 2;
+    progress += Math.ceil(Math.random()*3); // variable step
     if (progress > 100) progress = 100;
     if (progressBar) progressBar.style.width = progress + '%';
-    if (progress % 20 === 0 && idx < messages.length) bootText.textContent = messages[idx++];
+
+    // show messages in sequence
+    if (progress >= (idx+1)*20 && idx < messages.length) {
+      if (bootText) bootText.textContent = messages[idx++];
+    }
+
+    // small visual title change at mid
+    if(progress >= 60 && splashTitle && !splashTitle.dataset.switched){
+      splashTitle.dataset.switched = '1';
+      splashTitle.textContent = "CHECKING CONNECTION...";
+    }
+
     if (progress >= 100) {
       clearInterval(interval);
-      splash.classList.add('fade');
+      // final message then fade
+      if (bootText) bootText.textContent = "ONLINE!";
       setTimeout(() => {
-        splash.style.display = 'none';
-        main.style.display = 'block';
-        main.setAttribute('aria-hidden','false');
-        initCursorAndCanvas();
-      }, 500);
+        splash.classList.add('fade');
+        setTimeout(()=> {
+          try { splash.remove(); } catch(e){ splash.style.display='none'; }
+          if (main) {
+            main.style.display = 'block';
+            main.setAttribute('aria-hidden', 'false');
+          }
+          // init visuals and interaction
+          initCursorAndCanvas();
+          initCollapsibles();
+          initFormControls();
+          initMusicToggle();
+        }, 480);
+      }, 420);
     }
   }, 70);
 });
 
-/* ---------- Collapsibles ---------- */
-document.addEventListener('click', function(e){
-  if(!e.target) return;
-  if(e.target.classList && e.target.classList.contains('collapsible')){
-    const btn = e.target;
-    btn.classList.toggle('active');
-    const content = btn.nextElementSibling;
-    if(!content) return;
-    if(content.style.maxHeight){
-      content.style.maxHeight = null;
-      content.setAttribute('aria-hidden','true');
+/* ---------- Collapsibles (separate initializer so it can be re-run) ---------- */
+function initCollapsibles(){
+  const coll = document.querySelectorAll('.collapsible');
+  coll.forEach(c=>{
+    // ensure listener not added multiple times
+    if(c.dataset.bound) return;
+    c.dataset.bound = '1';
+    c.addEventListener('click', function(){
+      this.classList.toggle('active');
+      const content = this.nextElementSibling;
+      if(!content) return;
+      if(content.style.maxHeight){
+        content.style.maxHeight = null;
+        content.setAttribute('aria-hidden','true');
+      } else {
+        // set exact height for smooth open
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.setAttribute('aria-hidden','false');
+      }
+    });
+  });
+}
+
+/* ---------- Form controls ---------- */
+function initFormControls(){
+  const openBtn = document.getElementById('openSubmitBtn');
+  const modal = document.getElementById('formModal');
+  const closeModal = document.getElementById('closeModal');
+
+  // open button opens new tab (preferred for GitHub Pages); keeps modal available if you want embed later
+  if(openBtn){
+    openBtn.addEventListener('click', function(e){
+      // open in new tab
+      const url = "https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform";
+      window.open(url, '_blank', 'noopener');
+    });
+  }
+
+  if(closeModal){
+    closeModal.addEventListener('click', ()=> modal.style.display='none');
+    window.addEventListener('click', (ev)=> { if(ev.target === modal) modal.style.display='none'; });
+  }
+}
+
+/* ---------- Music Toggle ---------- */
+function initMusicToggle(){
+  const musicBtn = document.getElementById('musicButton');
+  const bgAudio = document.getElementById('bgAudio');
+  let musicPlaying = false;
+  if(!musicBtn || !bgAudio) return;
+  musicBtn.addEventListener('click', () => {
+    if(!musicPlaying){
+      bgAudio.play().then(()=> {
+        musicPlaying = true;
+        musicBtn.classList.add('muted');
+        musicBtn.textContent = '⏸ Music';
+      }).catch(err=>{
+        console.warn('Playback blocked', err);
+        musicBtn.textContent = '▶ Play Music';
+      });
     } else {
-      content.style.maxHeight = content.scrollHeight + 'px';
-      content.setAttribute('aria-hidden','false');
+      bgAudio.pause();
+      musicPlaying = false;
+      musicBtn.classList.remove('muted');
+      musicBtn.textContent = '🔊 Music';
+    }
+  });
+}
+
+/* ---------- Cursor & Canvas background ---------- */
+function initCursorAndCanvas(){
+  // custom cursor (fixed so it lines up with pointer during scroll)
+  const cursor = document.getElementById('customCursor');
+  // ensure image loads properly; fallback to small dot if blocked
+  if(!cursor) {
+    console.warn('customCursor not found');
+  } else {
+    cursor.style.display = 'block';
+  }
+
+  // position using clientX/Y (fixed) to match viewport pointer always
+  document.addEventListener('mousemove', function(e){
+    if(!cursor) return;
+    cursor.style.left = (e.clientX) + 'px';
+    cursor.style.top = (e.clientY) + 'px';
+  });
+
+  // small trail drawn onto canvas for retro glow
+  const canvas = document.getElementById('retroCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  // star layers and particles
+  const starLayers = [
+    {count:80, speed:0.2, sizeRange:[1,2], stars:[]},
+    {count:50, speed:0.5, sizeRange:[0.7,1.4], stars:[]},
+    {count:25, speed:1.1, sizeRange:[0.6,1.2], stars:[]}
+  ];
+  starLayers.forEach(layer=>{
+    for(let i=0;i<layer.count;i++){
+      layer.stars.push({
+        x: Math.random()*canvas.width,
+        y: Math.random()*canvas.height,
+        size: Math.random()*(layer.sizeRange[1]-layer.sizeRange[0]) + layer.sizeRange[0],
+        col: `rgba(0,255,255,${Math.random()*0.6+0.2})`
+      });
+    }
+  });
+
+  const particles = [];
+  for(let i=0;i<40;i++){
+    particles.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      vx: (Math.random()-0.5)*0.4,
+      vy: (Math.random()-0.5)*0.4,
+      r: Math.random()*1.8+0.6,
+      a: Math.random()*0.6+0.2
+    });
+  }
+
+  const shooting = [];
+  function spawnShoot(){ shooting.push({
+    x: Math.random()*canvas.width,
+    y: -20,
+    vx: Math.random()*3+1.2,
+    vy: Math.random()*2+1.2,
+    len: Math.random()*80+30,
+    a: 1
+  }); }
+  setInterval(spawnShoot, 2600);
+
+  // cursor trail points
+  const trail = [];
+  const maxTrail = 14;
+  document.addEventListener('mousemove', e => {
+    trail.push({x:e.clientX, y:e.clientY, t:Date.now()});
+    if(trail.length>maxTrail) trail.shift();
+  });
+
+  // animation
+  function frame(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // ambient gradient
+    const g = ctx.createRadialGradient(canvas.width/2, canvas.height*0.12, 0, canvas.width/2, canvas.height/1.1, Math.max(canvas.width, canvas.height));
+    g.addColorStop(0, 'rgba(0,30,60,0.05)');
+    g.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // stars
+    starLayers.forEach(layer=>{
+      layer.stars.forEach(s=>{
+        s.y += layer.speed;
+        if(s.y > canvas.height) s.y = 0;
+        ctx.fillStyle = s.col;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+      });
+    });
+
+    // grid
+    ctx.strokeStyle = 'rgba(0,255,255,0.06)';
+    ctx.lineWidth = 1;
+    const spacing = Math.max(60, Math.floor(canvas.width/16));
+    let offset = (Date.now()/50) % spacing;
+    for(let x=0;x<canvas.width;x+=spacing){
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+    }
+    for(let y=0;y<canvas.height;y+=spacing){
+      ctx.beginPath(); ctx.moveTo(0,y+offset); ctx.lineTo(canvas.width,y+offset); ctx.stroke();
+    }
+
+    // particles
+    particles.forEach(p=>{
+      p.x += p.vx; p.y += p.vy;
+      if(p.x < 0) p.x = canvas.width;
+      if(p.x > canvas.width) p.x = 0;
+      if(p.y < 0) p.y = canvas.height;
+      if(p.y > canvas.height) p.y = 0;
+      ctx.beginPath(); ctx.fillStyle = `rgba(0,255,255,${p.a})`; ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    });
+
+    // shooting stars
+    for(let i=shooting.length-1;i>=0;i--){
+      const s = shooting[i];
+      s.x += s.vx; s.y += s.vy; s.a -= 0.01;
+      ctx.strokeStyle = `rgba(0,255,255,${s.a})`;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.len, s.y - s.len); ctx.stroke();
+      if(s.a <= 0) shooting.splice(i,1);
+    }
+
+    // cursor trail
+    for(let i=0;i<trail.length;i++){
+      const p = trail[i];
+      const alpha = (i+1)/trail.length * 0.9;
+      ctx.fillStyle = `rgba(0,200,255,${alpha*0.5})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2 + (i/maxTrail)*3, 0, Math.PI*2); ctx.fill();
+    }
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+/* ---------- Page init fallback for things that may run before splash removed ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  // populate star DOM fallback (small DOM stars) for older setups if desired
+  const starContainer = document.querySelector('.stars');
+  if(starContainer && starContainer.children.length === 0){
+    for(let i=0;i<40;i++){
+      const s = document.createElement('div');
+      s.className='star';
+      s.style.left = Math.random()*100+'%';
+      s.style.top = Math.random()*100+'%';
+      s.style.opacity = (0.2 + Math.random()*0.8).toString();
+      starContainer.appendChild(s);
     }
   }
 });
 
-/* ---------- Modal ---------- */
-const modal = document.getElementById('formModal');
-const closeBtn = document.getElementById('closeModal');
-const openForm = document.getElementById('openForm');
-if(closeBtn){
-  closeBtn.addEventListener('click', ()=> modal.style.display='none');
-  window.addEventListener('click', (ev)=> { if(ev.target === modal) modal.style.display='none'; });
-}
-if(openForm){
-  openForm.addEventListener('click', ()=> modal.style.display='flex');
-}
-
-/* ---------- Music Toggle ---------- */
-const musicBtn = document.getElementById('musicButton');
-const bgAudio = document.getElementById('bgAudio');
-let musicPlaying = false;
-if(musicBtn){
-  musicBtn.addEventListener('click', () => {
-    if(!bgAudio) return;
-    if(!musicPlaying){
-      bgAudio.play().then(()=>{musicPlaying=true;musicBtn.textContent='⏸ Music';})
-      .catch(err=>{musicBtn.textContent='▶ Play Music';});
-    } else { bgAudio.pause(); musicPlaying=false; musicBtn.textContent='🔊 Music'; }
+/* ---------- Accessibility: keyboard focus outlines ---------- */
+(function(){
+  const body = document.body;
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Tab') body.classList.add('show-focus');
   });
-}
-
-/* ---------- Cursor & Canvas ---------- */
-function initCursorAndCanvas(){
-  const cursor = document.getElementById('customCursor');
-  document.addEventListener('mousemove', e => {
-    if(cursor){ cursor.style.left=(e.clientX+window.scrollX)+'px'; cursor.style.top=(e.clientY+window.scrollY)+'px'; }
-  });
-  const canvas = document.createElement('canvas');
-  canvas.id='retroCanvas';
-  canvas.style.position='fixed'; canvas.style.left=0; canvas.style.top=0; canvas.style.width='100%'; canvas.style.height='100%'; canvas.style.zIndex='0';
-  document.body.insertBefore(canvas, document.body.firstChild);
-  const ctx = canvas.getContext('2d');
-  function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
-  resize(); window.addEventListener('resize', resize);
-
-  const stars=[], particles=[], shooting=[];
-  for(let i=0;i<120;i++) stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, s:Math.random()*2+0.5, v:Math.random()*0.6+0.1, a:Math.random()*0.8+0.2});
-  for(let i=0;i<40;i++) particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*2+0.4,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,a:Math.random()*0.6+0.2});
-  function spawnS(){ shooting.push({x:Math.random()*canvas.width,y:-10,vx:Math.random()*2+1,vy:Math.random()*1.5+1,len:Math.random()*80+40,a:1}); }
-  setInterval(spawnS,2600);
-
-  function draw(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    const g=ctx.createRadialGradient(canvas.width/2,canvas.height*0.12,0,canvas.width/2,canvas.height/1.2,Math.max(canvas.width,canvas.height));
-    g.addColorStop(0,'rgba(0,30,60,0.05)'); g.addColorStop(1,'rgba(0,0,0,0.6)');
-    ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    stars.forEach(st=>{st.y+=st.v;if(st.y>canvas.height)st.y=0;ctx.fillStyle=`rgba(0,255,255,${st.a})`;ctx.fillRect(st.x,st.y,st.s,st.s);});
-    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=canvas.width;if(p.x>canvas.width)p.x=0;if(p.y<0)p.y=canvas.height;if(p.y>canvas.height)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,255,255,${p.a})`;ctx.fill();});
-    shooting.forEach((s,i)=>{s.x+=s.vx;s.y+=s.vy;ctx.strokeStyle=`rgba(0,255,255,${s.a})`;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.len,s.y-s.len*0.3);ctx.stroke();s.a-=0.02;if(s.a<=0) shooting.splice(i,1);});
-
-    requestAnimationFrame(draw);
-  }
-  draw();
-}
+  window.addEventListener('mousedown', function(){ body.classList.remove('show-focus'); });
+})();
 </script>
 </body>
-  </html>
-  
+</html>
