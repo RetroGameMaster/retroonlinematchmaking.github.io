@@ -28,7 +28,7 @@ body, html {
 }
 @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
 
-/* --- Progress (keeps previous visual if used) --- */
+/* --- Progress --- */
 #progressContainer {
   width:70%; max-width:500px; height:12px; background:rgba(0,255,255,0.06); border:2px solid #0ff;
   border-radius:10px; margin-top:18px; overflow:hidden; display:block;
@@ -204,7 +204,7 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
       </div>
     </div>
 
-    <!-- PS3 (NEW) -->
+    <!-- PS3 -->
     <button class="collapsible" type="button">PS3 Connections</button>
     <div class="content" aria-hidden="true">
       <div class="card">
@@ -233,7 +233,7 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
       </div>
     </div>
 
-    <!-- Arcade (NEW) -->
+    <!-- Arcade -->
     <button class="collapsible" type="button">Arcade Connections</button>
     <div class="content" aria-hidden="true">
       <div class="card">
@@ -266,56 +266,45 @@ canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
     <div class="content" aria-hidden="true">
       <div class="card">
         <h3>Parsec</h3>
-        <p>Cloud-based remote play for local multiplayer retro games.</p>
-        <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website</a> · <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank" rel="noopener">Video Guide</a></p>
+        <p>Stream your PC games to friends & play online.</p>
+        <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website</a> · <a href="https://youtu.be/ut3Uaj5MFsM" target="_blank" rel="noopener">Guide</a></p>
       </div>
 
       <div class="card">
-        <h3>RetroArch Netplay</h3>
-        <p>Netplay across many retro systems.</p>
-        <p><a href="https://www.retroarch.com/?page=platforms" target="_blank" rel="noopener">Website</a></p>
+        <h3>Steam Remote Play</h3>
+        <p>Play Steam games with friends remotely.</p>
+        <p><a href="https://store.steampowered.com/remoteplay" target="_blank" rel="noopener">Guide</a></p>
       </div>
     </div>
-
-    <!-- Submit -->
-    <section id="submitMethodSection" style="margin:2rem auto;padding:18px;border-radius:12px;background:rgba(0,255,255,0.03);border:1px solid rgba(0,255,255,0.06);text-align:center;max-width:700px;">
-      <h2 style="color:#00ffff;margin:0 0 8px 0;">Have a new connection method? Submit it here!</h2>
-      <p style="color:#cfeff6;margin:0 0 12px 0;">Help expand the RetroOnlineMatchmaking network by submitting your own connection methods.</p>
-      <a class="button" id="openFormBtn" href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" rel="noopener">Submit New Method</a>
-    </section>
-
-    <footer style="margin-top:20px;">
-      <p style="color:#9fdfe8;">© 2025 RetroOnlineMatchmaking — Built by the community.</p>
-    </footer>
-
   </main>
+
+  <footer>
+    RetroOnlineMatchmaking © 2025 · All rights reserved
+  </footer>
 </div>
 
 <!-- Custom cursor -->
 <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
-<!-- Audio (toggle) -->
+<!-- Audio -->
 <audio id="bgAudio" loop preload="auto" style="display:none">
   <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
 </audio>
 
-<!-- Modal (keeps embed approach you had; if Google blocks embed, the Submit button opens form in new tab) -->
+<!-- Modal -->
 <div id="formModal" class="modal" aria-hidden="true">
   <span class="close-btn" id="closeModal" role="button" aria-label="Close form">&times;</span>
   <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform?embedded=true">Loading…</iframe>
 </div>
 
 <script>
-/* ---------- Splash + progress (fixed) ---------- */
+/* ---------- Splash + Progress ---------- */
 window.addEventListener('load', function onLoad() {
-  // ensure this only runs once
   window.removeEventListener('load', onLoad);
-
   const splash = document.getElementById('splash');
   const main = document.getElementById('mainContent');
   const progressBar = document.getElementById('progressBar');
   const bootText = document.getElementById('bootText');
-
   let progress = 0;
   const messages = [
     "Checking Arcade Servers...",
@@ -325,28 +314,20 @@ window.addEventListener('load', function onLoad() {
     "Ready to Play!"
   ];
   let idx = 0;
-
   const interval = setInterval(() => {
     progress += 2;
     if (progress > 100) progress = 100;
     if (progressBar) progressBar.style.width = progress + '%';
-
-    if (progress % 20 === 0 && idx < messages.length) {
-      if (bootText) bootText.textContent = messages[idx++];
-    }
-
+    if (progress % 20 === 0 && idx < messages.length) bootText.textContent = messages[idx++];
     if (progress >= 100) {
       clearInterval(interval);
-      // fade out and remove splash
       splash.classList.add('fade');
       setTimeout(() => {
-        try { splash.remove(); } catch(e){ splash.style.display='none'; }
-        if (main) {
-          main.style.display = 'block';
-          main.setAttribute('aria-hidden', 'false');
-        }
+        splash.style.display = 'none';
+        main.style.display = 'block';
+        main.setAttribute('aria-hidden','false');
         initCursorAndCanvas();
-      }, 480); // allow CSS transition
+      }, 500);
     }
   }, 70);
 });
@@ -369,17 +350,9 @@ document.addEventListener('click', function(e){
   }
 });
 
-/* ---------- Modal for Google Form ---------- */
+/* ---------- Modal ---------- */
 const modal = document.getElementById('formModal');
-const openBtn = document.getElementById('openFormBtn');
 const closeBtn = document.getElementById('closeModal');
-if(openBtn){
-  openBtn.addEventListener('click', function(e){
-    // open new tab (href already points to form); also open modal as optional embed
-    // We'll keep default behavior (opens new tab). If you want modal embedding instead, uncomment below.
-    // e.preventDefault(); modal.style.display='flex';
-  });
-}
 if(closeBtn){
   closeBtn.addEventListener('click', ()=> modal.style.display='none');
   window.addEventListener('click', (ev)=> { if(ev.target === modal) modal.style.display='none'; });
@@ -393,89 +366,47 @@ if(musicBtn){
   musicBtn.addEventListener('click', () => {
     if(!bgAudio) return;
     if(!musicPlaying){
-      bgAudio.play().then(()=> {
-        musicPlaying = true;
-        musicBtn.classList.add('muted');
-        musicBtn.textContent = '⏸ Music';
-      }).catch(err=>{
-        console.warn('Playback blocked', err);
-        musicBtn.textContent = '▶ Play Music';
-      });
-    } else {
-      bgAudio.pause();
-      musicPlaying = false;
-      musicBtn.classList.remove('muted');
-      musicBtn.textContent = '🔊 Music';
-    }
+      bgAudio.play().then(()=>{musicPlaying=true;musicBtn.textContent='⏸ Music';})
+      .catch(err=>{musicBtn.textContent='▶ Play Music';});
+    } else { bgAudio.pause(); musicPlaying=false; musicBtn.textContent='🔊 Music'; }
   });
 }
 
-/* ---------- Cursor & Canvas Background ---------- */
+/* ---------- Cursor & Canvas ---------- */
 function initCursorAndCanvas(){
-  // custom cursor
   const cursor = document.getElementById('customCursor');
   document.addEventListener('mousemove', e => {
-    if(cursor){
-      const x = e.clientX + (window.scrollX || window.pageXOffset);
-      const y = e.clientY + (window.scrollY || window.pageYOffset);
-      cursor.style.left = x + 'px';
-      cursor.style.top = y + 'px';
-    }
+    if(cursor){ cursor.style.left=(e.clientX+window.scrollX)+'px'; cursor.style.top=(e.clientY+window.scrollY)+'px'; }
   });
-
-  // canvas starfield + subtle grid
   const canvas = document.createElement('canvas');
-  canvas.id = 'retroCanvas';
-  canvas.style.position = 'fixed';
-  canvas.style.left = '0';
-  canvas.style.top = '0';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.zIndex = '0';
+  canvas.id='retroCanvas';
+  canvas.style.position='fixed'; canvas.style.left=0; canvas.style.top=0; canvas.style.width='100%'; canvas.style.height='100%'; canvas.style.zIndex='0';
   document.body.insertBefore(canvas, document.body.firstChild);
   const ctx = canvas.getContext('2d');
+  function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
 
-  function resize(){
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
+  const stars=[], particles=[], shooting=[];
+  for(let i=0;i<120;i++) stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, s:Math.random()*2+0.5, v:Math.random()*0.6+0.1, a:Math.random()*0.8+0.2});
+  for(let i=0;i<40;i++) particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*2+0.4,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,a:Math.random()*0.6+0.2});
+  function spawnS(){ shooting.push({x:Math.random()*canvas.width,y:-10,vx:Math.random()*2+1,vy:Math.random()*1.5+1,len:Math.random()*80+40,a:1}); }
+  setInterval(spawnS,2600);
 
-  const stars = [];
-  for(let i=0;i<120;i++){
-    stars.push({
-      x: Math.random()*canvas.width,
-      y: Math.random()*canvas.height,
-      s: Math.random()*2 + 0.5,
-      v: Math.random()*0.6 + 0.1,
-      a: Math.random()*0.8 + 0.2
-    });
-  }
-
-  const particles = [];
-  for(let i=0;i<40;i++){
-    particles.push({
-      x: Math.random()*canvas.width,
-      y: Math.random()*canvas.height,
-      r: Math.random()*2+0.4,
-      vx: (Math.random()-0.5)*0.4,
-      vy: (Math.random()-0.5)*0.4,
-      a: Math.random()*0.6+0.2
-    });
-  }
-
-  const shooting = [];
-  function spawnS(){ shooting.push({x:Math.random()*canvas.width, y:-10, vx:Math.random()*2+1, vy:Math.random()*1.5+1, len:Math.random()*80+40, a:1}); }
-  setInterval(spawnS, 2600);
-
-  let gridOffset = 0;
   function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
+    const g=ctx.createRadialGradient(canvas.width/2,canvas.height*0.12,0,canvas.width/2,canvas.height/1.2,Math.max(canvas.width,canvas.height));
+    g.addColorStop(0,'rgba(0,30,60,0.05)'); g.addColorStop(1,'rgba(0,0,0,0.6)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // ambient gradient
-    const g = ctx.createRadialGradient(canvas.width/2, canvas.height*0.12, 0, canvas.width/2, canvas.height/1.2, Math.max(canvas.width, canvas.height));
-    g.addColorStop(0, 'rgba(0,30,60,0.05)');
-    g.addColorStop(1, 'rgba(0,0,0,0.6)');
-    ctx.fillStyle = g;
-    ctx.fill
+    stars.forEach(st=>{st.y+=st.v;if(st.y>canvas.height)st.y=0;ctx.fillStyle=`rgba(0,255,255,${st.a})`;ctx.fillRect(st.x,st.y,st.s,st.s);});
+    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=canvas.width;if(p.x>canvas.width)p.x=0;if(p.y<0)p.y=canvas.height;if(p.y>canvas.height)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,255,255,${p.a})`;ctx.fill();});
+    shooting.forEach((s,i)=>{s.x+=s.vx;s.y+=s.vy;ctx.strokeStyle=`rgba(0,255,255,${s.a})`;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.len,s.y-s.len*0.3);ctx.stroke();s.a-=0.02;if(s.a<=0) shooting.splice(i,1);});
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+</script>
+</body>
+  </html>
+  
