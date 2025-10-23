@@ -50,6 +50,29 @@ body, html {
   opacity:0.12; z-index:2000;
 }
 
+/* --- CRT Scanline --- */
+.crt-scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(to bottom, 
+    transparent 0%, 
+    rgba(0, 255, 255, 0.15) 50%, 
+    transparent 100%);
+  animation: scanline 3.5s linear infinite;
+  pointer-events: none;
+  z-index: 2001;
+  mix-blend-mode: overlay;
+  opacity: 0.7;
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100vh); }
+  100% { transform: translateY(100vh); }
+}
+
 /* --- Header / layout --- */
 header{
   position:relative; z-index:20; padding:clamp(12px,3vw,28px);
@@ -70,8 +93,10 @@ header{
   background:linear-gradient(180deg,#00d7ff,#00a8bf); color:#001; font-weight:700; border:1px solid rgba(255,255,255,0.06);
   box-shadow:0 6px 20px rgba(0,224,255,0.06);
   text-decoration:none; cursor:pointer; user-select:none;
+  transition: transform 0.1s ease;
 }
 .button.muted{ background:linear-gradient(180deg,#ff33cc,#cc0099); color:#fff; }
+.button:hover { transform: translateY(-1px); }
 
 /* --- Main Content --- */
 #mainContent { display:none; min-height:100vh; position:relative; z-index:10; padding-bottom:4rem; }
@@ -179,6 +204,147 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
 .ping-poor { color: #ff6600 !important; text-shadow: 0 0 8px rgba(255, 102, 0, 0.4) !important; }
 .ping-bad { color: #ff3333 !important; text-shadow: 0 0 8px rgba(255, 51, 51, 0.4) !important; }
 
+/* --- Mobile Optimizations --- */
+@media (max-width: 768px) {
+  /* Header fixes */
+  header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+    padding: 15px 4vw;
+  }
+  
+  .site-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .button {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    min-width: auto;
+  }
+  
+  /* Status bar fixes */
+  .status-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 15px;
+    margin: 10px 4vw;
+    font-size: 0.8rem;
+  }
+  
+  .status-indicator {
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Collapsible fixes */
+  .collapsible {
+    width: 92%;
+    padding: 12px 15px;
+    font-size: 0.9rem;
+  }
+  
+  .collapsible::after {
+    right: 12px;
+    font-size: 1rem;
+  }
+  
+  /* Card fixes */
+  .card {
+    margin: 0.5rem auto;
+    padding: 10px;
+    width: 95%;
+  }
+  
+  .card h3 {
+    font-size: 1rem;
+  }
+  
+  .card p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  
+  /* Content area fixes */
+  .content {
+    padding: 0 0.5rem;
+  }
+  
+  /* Platform caption */
+  .platform-caption {
+    font-size: 0.9rem;
+    margin: 1rem 4vw;
+    line-height: 1.4;
+  }
+  
+  /* Submit section */
+  #submitMethodSection {
+    margin: 1.5rem 4vw;
+    padding: 15px;
+  }
+  
+  #submitMethodSection h2 {
+    font-size: 1.1rem;
+  }
+  
+  /* Cursor fixes for mobile */
+  #customCursor {
+    display: none !important; /* Hide custom cursor on mobile */
+  }
+  
+  body, html {
+    cursor: auto !important; /* Restore default cursor on mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small screen fixes */
+  .brand h1 {
+    font-size: 14px;
+  }
+  
+  .brand p {
+    font-size: 11px;
+  }
+  
+  .button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  
+  .status-bar {
+    font-size: 0.75rem;
+    padding: 10px 12px;
+  }
+  
+  .collapsible {
+    font-size: 0.85rem;
+    padding: 10px 12px;
+  }
+  
+  .card {
+    padding: 8px;
+  }
+  
+  .card h3 {
+    font-size: 0.95rem;
+  }
+  
+  .card p {
+    font-size: 0.85rem;
+  }
+  
+  /* Fix long text in cards */
+  .card a {
+    word-break: break-word;
+  }
+}
+
 /* --- Responsive tweaks --- */
 @media (max-width:820px){
   header{ padding:14px; align-items:flex-start; gap:10px; }
@@ -186,7 +352,6 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   #customCursor{ width:28px; height:28px }
   .collapsible{ width:94%; }
   #progressContainer{ width:86%; }
-  .status-bar { gap: 15px; font-size: 0.75rem; padding: 8px 15px; }
 }
 </style>
 </head>
@@ -207,6 +372,7 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   <div class="stars" aria-hidden="true"></div>
   <canvas id="retroCanvas" aria-hidden="true"></canvas>
   <div class="crt-overlay" aria-hidden="true"></div>
+  <div class="crt-scanline" aria-hidden="true"></div>
 
   <!-- Main content -->
   <main id="mainContent" style="display:none;">
@@ -488,6 +654,17 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
     <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
   </audio>
 
+  <!-- Sound Effects -->
+  <audio id="clickSound" preload="auto" style="display:none">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="hoverSound" preload="auto" style="display:none">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="expandSound" preload="auto" style="display:none">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3" type="audio/mpeg">
+  </audio>
+
 <script>
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
@@ -530,6 +707,7 @@ window.addEventListener('load', function onLoad() {
           initFormControls();
           initMusicToggle();
           initStatusBar();
+          initSoundEffects();
         }, 480);
       }, 420);
     }
@@ -663,15 +841,76 @@ function initStatusBar() {
   }
 }
 
+/* ---------- Sound Effects ---------- */
+function initSoundEffects() {
+  const clickSound = document.getElementById('clickSound');
+  const hoverSound = document.getElementById('hoverSound');
+  const expandSound = document.getElementById('expandSound');
+  
+  // Button hover sounds
+  const buttons = document.querySelectorAll('.button, .collapsible');
+  buttons.forEach(button => {
+    // Hover sound
+    button.addEventListener('mouseenter', () => {
+      if (hoverSound) {
+        hoverSound.currentTime = 0;
+        hoverSound.volume = 0.2;
+        hoverSound.play().catch(e => console.log('Audio play prevented'));
+      }
+    });
+    
+    // Click sound
+    button.addEventListener('click', () => {
+      if (clickSound) {
+        clickSound.currentTime = 0;
+        clickSound.volume = 0.3;
+        clickSound.play().catch(e => console.log('Audio play prevented'));
+      }
+    });
+  });
+  
+  // Special expand sound for collapsibles
+  const collapsibles = document.querySelectorAll('.collapsible');
+  collapsibles.forEach(collapsible => {
+    collapsible.addEventListener('click', function() {
+      // Wait a bit for the expand animation to start
+      setTimeout(() => {
+        if (expandSound && this.classList.contains('active')) {
+          expandSound.currentTime = 0;
+          expandSound.volume = 0.25;
+          expandSound.play().catch(e => console.log('Audio play prevented'));
+        }
+      }, 150);
+    });
+  });
+  
+  // Add sound to the music toggle button specifically
+  const musicButton = document.getElementById('musicButton');
+  if (musicButton) {
+    musicButton.addEventListener('click', () => {
+      if (clickSound) {
+        clickSound.currentTime = 0;
+        clickSound.volume = 0.4;
+        clickSound.play().catch(e => console.log('Audio play prevented'));
+      }
+    });
+  }
+}
+
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
   const cursor = document.getElementById('customCursor');
-  if(cursor) cursor.style.display = 'block';
-  document.addEventListener('mousemove', function(e){
-    if(!cursor) return;
-    cursor.style.left = e.clientX + 'px';
-    cursor.style.top = e.clientY + 'px';
-  });
+  // Hide cursor on mobile devices
+  if(cursor && window.innerWidth > 768) {
+    cursor.style.display = 'block';
+    document.addEventListener('mousemove', function(e){
+      cursor.style.left = e.clientX + 'px';
+      cursor.style.top = e.clientY + 'px';
+    });
+  } else if (cursor) {
+    cursor.style.display = 'none';
+  }
+  
   const canvas = document.getElementById('retroCanvas');
   const ctx = canvas.getContext('2d');
   function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -703,7 +942,10 @@ function initCursorAndCanvas(){
   setInterval(spawnShoot, 2600);
 
   const trail = []; const maxTrail=14;
-  document.addEventListener('mousemove', e => { trail.push({x:e.clientX, y:e.clientY, t:Date.now()}); if(trail.length>maxTrail) trail.shift(); });
+  // Only enable trail effect on desktop
+  if (window.innerWidth > 768) {
+    document.addEventListener('mousemove', e => { trail.push({x:e.clientX, y:e.clientY, t:Date.now()}); if(trail.length>maxTrail) trail.shift(); });
+  }
 
   function frame(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -721,8 +963,12 @@ function initCursorAndCanvas(){
 
     for(let i=shooting.length-1;i>=0;i--){ const s=shooting[i]; s.x+=s.vx; s.y+=s.vy; s.a-=0.01; ctx.strokeStyle=`rgba(0,255,255,${s.a})`; ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x-s.len,s.y-s.len); ctx.stroke(); if(s.a<=0) shooting.splice(i,1); }
 
-    for(let i=0;i<trail.length;i++){ const p=trail[i]; const alpha=(i+1)/trail.length*0.9; ctx.fillStyle=`rgba(0,200,255,${alpha*0.5})`; ctx.beginPath(); ctx.arc(p.x,p.y,2+(i/maxTrail)*3,0,Math.PI*2); ctx.fill(); }
-  requestAnimationFrame(frame);
+    // Only draw trail on desktop
+    if (window.innerWidth > 768) {
+      for(let i=0;i<trail.length;i++){ const p=trail[i]; const alpha=(i+1)/trail.length*0.9; ctx.fillStyle=`rgba(0,200,255,${alpha*0.5})`; ctx.beginPath(); ctx.arc(p.x,p.y,2+(i/maxTrail)*3,0,Math.PI*2); ctx.fill(); }
+    }
+    
+    requestAnimationFrame(frame);
   }
   frame();
 }
