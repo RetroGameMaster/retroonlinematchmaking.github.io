@@ -1632,7 +1632,7 @@ body.sega-theme .crt-overlay {
 
   <!-- Audio Elements -->
   <audio id="bgMusic" loop style="display: none;">
-    <source src="https://cdn.pixabay.com/download/audio/2022/11/02/audio_81a401b0a5.mp3?filename=8-bit-retro-funk-201180.mp3" type="audio/mpeg">
+    <source src="https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3" type="audio/mpeg">
   </audio>
   
   <audio id="clickSound" preload="auto" style="display:none">
@@ -1702,7 +1702,6 @@ function initAllSystems() {
   initCursorAndCanvas();
   initCollapsibles();
   initFormControls();
-  initMusicToggle();
   initStatusBar();
   initSoundEffects();
   initThemeSwitcher();
@@ -1724,11 +1723,11 @@ function initMusicPlayer() {
   
   let isPlaying = false;
   
-  // Retro game music tracks (you can add more)
+  // Working retro music tracks from FreeMusicArchive
   const musicTracks = [
-    'https://cdn.pixabay.com/download/audio/2022/11/02/audio_81a401b0a5.mp3?filename=8-bit-retro-funk-201180.mp3',
-    'https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bdc1a5c2c.mp3?filename=8-bit-detective-123264.mp3',
-    'https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bdc1a5c2c.mp3?filename=8-bit-detective-123264.mp3' // Placeholder for second track
+    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3',
+    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Yung_Kartz/Lead_The_Way/Yung_Kartz_-_05_-_Elevate.mp3',
+    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3'
   ];
   
   let currentTrack = 0;
@@ -1739,16 +1738,17 @@ function initMusicPlayer() {
         bgMusic.play().then(() => {
           isPlaying = true;
           playPauseBtn.textContent = '⏸️';
+          showMessage('Music started! 🎵', 'success');
         }).catch(e => {
           console.log('Audio play prevented:', e);
           showMessage('Click anywhere to enable music!', 'info');
-          // Enable audio on next user interaction
           document.addEventListener('click', enableAudio, { once: true });
         });
       } else {
         bgMusic.pause();
         isPlaying = false;
         playPauseBtn.textContent = '▶️';
+        showMessage('Music paused', 'info');
       }
     });
   }
@@ -1757,6 +1757,7 @@ function initMusicPlayer() {
     bgMusic.play().then(() => {
       isPlaying = true;
       playPauseBtn.textContent = '⏸️';
+      showMessage('Music enabled! 🎵', 'success');
     });
   }
   
@@ -1824,11 +1825,6 @@ function initFormControls(){
   }
 }
 
-/* ---------- Music Toggle ---------- */
-function initMusicToggle(){
-  // This is now handled by initMusicPlayer()
-}
-
 /* ---------- Live Status Bar ---------- */
 function initStatusBar() {
   const playerCount = document.getElementById('playerCount');
@@ -1838,7 +1834,6 @@ function initStatusBar() {
   
   let currentPlayers = 27;
   
-  // Player count fluctuations - slower, more realistic updates
   setInterval(() => {
     const changeType = Math.random();
     let fluctuation;
@@ -2254,6 +2249,7 @@ function initAccountSystem() {
       
       if (!currentUser) {
         showMessage('Please login first!', 'error');
+        loginModal.style.display = 'flex';
         return;
       }
       
@@ -2416,6 +2412,13 @@ function initLogoutHandler() {
   }
 }
 
+// FIXED: Added the missing function
+function highlightUserFavorites(favorites) {
+  // This function would highlight favorited cards
+  // For now, it's a placeholder to prevent the error
+  console.log('User favorites:', favorites);
+}
+
 function updateUIForUser(user) {
   updateFavoritesDisplay(user.favorites);
   highlightUserFavorites(user.favorites);
@@ -2540,6 +2543,13 @@ function initSocialHub() {
       socialModal.style.display = 'none';
     });
   }
+  
+  // Close modal when clicking outside
+  socialModal.addEventListener('click', (e) => {
+    if (e.target === socialModal) {
+      socialModal.style.display = 'none';
+    }
+  });
   
   initSocialTabs();
   initChatSystem();
