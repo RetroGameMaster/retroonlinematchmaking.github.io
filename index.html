@@ -898,12 +898,12 @@ body.windows95-theme .crt-overlay {
   display: none;
 }
 
-/* Sega Theme - Improved */
+/* Sega Saturn Theme - Completely reworked with grey, blue, and black */
 body.sega-theme {
-  --primary-color: #0033cc;
-  --secondary-color: #ffffff;
-  --accent-color: #cc0000;
-  background: linear-gradient(135deg, #000066 0%, #0033cc 50%, #000066 100%) !important;
+  --primary-color: #3a6ea5;
+  --secondary-color: #1a1a1a;
+  --accent-color: #d4d4d4;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%) !important;
   background-attachment: fixed !important;
 }
 
@@ -911,69 +911,117 @@ body.sega-theme .brand h1,
 body.sega-theme .platform-caption,
 body.sega-theme .collapsible,
 body.sega-theme .status-indicator {
-  color: #ffffff !important;
-  text-shadow: 2px 2px 0 #0033cc, 3px 3px 0 #cc0000 !important;
+  color: #d4d4d4 !important;
+  text-shadow: 1px 1px 0 #3a6ea5, 2px 2px 0 #1a1a1a !important;
 }
 
 body.sega-theme .brand .logo {
-  background: linear-gradient(135deg, #0033cc, #ffffff, #cc0000);
-  color: #000;
-  border: 2px solid #ffffff;
+  background: linear-gradient(135deg, #3a6ea5, #d4d4d4, #1a1a1a);
+  color: #1a1a1a;
+  border: 2px solid #d4d4d4;
 }
 
 body.sega-theme .button {
-  background: linear-gradient(180deg, #0033cc, #001166);
-  color: #ffffff;
-  border: 2px solid #ffffff;
-  box-shadow: 3px 3px 0 #cc0000;
+  background: linear-gradient(180deg, #3a6ea5, #2a4e75);
+  color: #d4d4d4;
+  border: 2px solid #d4d4d4;
+  box-shadow: 2px 2px 0 #1a1a1a;
+}
+
+body.sega-theme .button:hover {
+  background: linear-gradient(180deg, #4a7eb5, #3a5e85);
 }
 
 body.sega-theme .status-bar,
 body.sega-theme .theme-switcher {
-  border: 2px solid #ffffff;
-  background: rgba(0, 51, 204, 0.9);
-  box-shadow: 3px 3px 0 #cc0000;
-  color: #ffffff;
+  border: 2px solid #d4d4d4;
+  background: rgba(26, 26, 26, 0.9);
+  box-shadow: 2px 2px 0 #1a1a1a;
+  color: #d4d4d4;
 }
 
 body.sega-theme .status-indicator {
-  color: #ffffff !important;
+  color: #d4d4d4 !important;
 }
 
 body.sega-theme .collapsible {
-  background: rgba(0, 51, 204, 0.8);
-  color: #ffffff;
-  border: 2px solid #ffffff;
-  box-shadow: 3px 3px 0 #cc0000;
+  background: rgba(58, 110, 165, 0.8);
+  color: #d4d4d4;
+  border: 2px solid #d4d4d4;
+  box-shadow: 2px 2px 0 #1a1a1a;
 }
 
 body.sega-theme .card {
-  background: rgba(255, 255, 255, 0.95);
-  border: 2px solid #0033cc;
-  color: #000000;
-  box-shadow: 3px 3px 0 #cc0000;
+  background: rgba(212, 212, 212, 0.95);
+  border: 2px solid #3a6ea5;
+  color: #1a1a1a;
+  box-shadow: 2px 2px 0 #1a1a1a;
 }
 
 body.sega-theme .card h3 {
-  color: #cc0000;
-  text-shadow: 1px 1px 0 #000;
+  color: #3a6ea5;
+  text-shadow: 1px 1px 0 #d4d4d4;
 }
 
 body.sega-theme .card p {
-  color: #000000;
+  color: #1a1a1a;
 }
 
 body.sega-theme .card a {
-  color: #0033cc;
+  color: #3a6ea5;
   font-weight: bold;
 }
 
 body.sega-theme .crt-scanline {
-  background: linear-gradient(to bottom, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+  background: linear-gradient(to bottom, transparent 0%, rgba(212, 212, 212, 0.1) 50%, transparent 100%);
 }
 
 body.sega-theme .crt-overlay {
   opacity: 0.05;
+}
+
+body.sega-theme .search-bar {
+  border-color: #3a6ea5;
+  background: rgba(26, 26, 26, 0.8);
+  color: #d4d4d4;
+}
+
+body.sega-theme .search-bar::placeholder {
+  color: rgba(212, 212, 212, 0.6);
+}
+
+body.sega-theme .copy-btn {
+  border-color: #3a6ea5;
+  background: rgba(58, 110, 165, 0.1);
+  color: #3a6ea5;
+}
+
+body.sega-theme .copy-btn:hover {
+  background: rgba(58, 110, 165, 0.2);
+}
+
+body.sega-theme .copyable {
+  background: rgba(58, 110, 165, 0.05);
+  border: 1px solid rgba(58, 110, 165, 0.2);
+}
+
+body.sega-theme .music-player {
+  background: rgba(26, 26, 26, 0.9);
+  border: 1px solid #3a6ea5;
+}
+
+body.sega-theme .music-station {
+  color: #3a6ea5;
+}
+
+body.sega-theme .music-btn {
+  border-color: #3a6ea5;
+  background: rgba(58, 110, 165, 0.1);
+  color: #3a6ea5;
+}
+
+body.sega-theme .music-btn:hover {
+  background: rgba(58, 110, 165, 0.2);
 }
 
 /* --- Mobile Optimizations --- */
@@ -1164,7 +1212,7 @@ body.sega-theme .crt-overlay {
     <button class="theme-btn active" data-theme="cyberpunk">CYBERPUNK</button>
     <button class="theme-btn" data-theme="matrix">MATRIX</button>
     <button class="theme-btn" data-theme="windows95">WIN95</button>
-    <button class="theme-btn" data-theme="sega">SEGA</button>
+    <button class="theme-btn" data-theme="sega">SEGA SATURN</button>
   </div>
 
   <!-- Music Player -->
@@ -1446,8 +1494,12 @@ body.sega-theme .crt-overlay {
 <button class="collapsible" type="button">PC Connections</button>
 <div class="content" aria-hidden="true">
   <div class="card">
-    <h3>Parsec
-<div class="card">
+    <h3>Parsec</h3>
+    <p>Remote play and virtual LAN tool for low-latency multiplayer sessions.</p>
+    <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website/Download</a> • <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank" rel="noopener">Video Guide</a></p>
+  </div>
+  
+  <div class="card">
     <h3>RetroArch Netplay</h3>
     <p>Netplay across many retro systems.</p>
     <p><a href="https://www.retroarch.com/?page=platforms" target="_blank" rel="noopener">Website</a></p>
@@ -1714,7 +1766,7 @@ function initAllSystems() {
   initMusicPlayer();
 }
 
-/* ---------- Music Player ---------- */
+/* ---------- Music Player - FIXED ---------- */
 function initMusicPlayer() {
   const bgMusic = document.getElementById('bgMusic');
   const playPauseBtn = document.getElementById('playPause');
@@ -1722,6 +1774,7 @@ function initMusicPlayer() {
   const nextTrackBtn = document.getElementById('nextTrack');
   
   let isPlaying = false;
+  let audioEnabled = false;
   
   // Working retro music tracks from FreeMusicArchive
   const musicTracks = [
@@ -1732,8 +1785,33 @@ function initMusicPlayer() {
   
   let currentTrack = 0;
   
+  // Function to enable audio on user interaction
+  function enableAudio() {
+    if (audioEnabled) return;
+    
+    // Set volume to a reasonable level
+    bgMusic.volume = 0.3;
+    
+    // Try to play and pause to unlock audio
+    bgMusic.play().then(() => {
+      audioEnabled = true;
+      bgMusic.pause();
+      showMessage('Audio enabled! Click play to start music.', 'success');
+    }).catch(e => {
+      console.log('Audio enable failed:', e);
+    });
+  }
+  
+  // Enable audio on any user interaction
+  document.addEventListener('click', enableAudio, { once: true });
+  
   if (playPauseBtn) {
     playPauseBtn.addEventListener('click', function() {
+      if (!audioEnabled) {
+        enableAudio();
+        return;
+      }
+      
       if (!isPlaying) {
         bgMusic.play().then(() => {
           isPlaying = true;
@@ -1753,16 +1831,13 @@ function initMusicPlayer() {
     });
   }
   
-  function enableAudio() {
-    bgMusic.play().then(() => {
-      isPlaying = true;
-      playPauseBtn.textContent = '⏸️';
-      showMessage('Music enabled! 🎵', 'success');
-    });
-  }
-  
   if (nextTrackBtn) {
     nextTrackBtn.addEventListener('click', function() {
+      if (!audioEnabled) {
+        enableAudio();
+        return;
+      }
+      
       currentTrack = (currentTrack + 1) % musicTracks.length;
       bgMusic.src = musicTracks[currentTrack];
       if (isPlaying) {
@@ -1774,6 +1849,11 @@ function initMusicPlayer() {
   
   if (prevTrackBtn) {
     prevTrackBtn.addEventListener('click', function() {
+      if (!audioEnabled) {
+        enableAudio();
+        return;
+      }
+      
       currentTrack = (currentTrack - 1 + musicTracks.length) % musicTracks.length;
       bgMusic.src = musicTracks[currentTrack];
       if (isPlaying) {
@@ -1782,9 +1862,6 @@ function initMusicPlayer() {
       showMessage('Previous track loaded!', 'info');
     });
   }
-  
-  // Set volume
-  bgMusic.volume = 0.3;
 }
 
 /* ---------- Collapsibles ---------- */
