@@ -136,7 +136,116 @@ header{
   font-weight: bold;
 }
 
-/* --- Easter Egg Elements --- */
+/* --- Search System --- */
+.search-container {
+  max-width: 700px;
+  margin: 20px auto;
+  padding: 0 4vw;
+}
+
+.search-bar {
+  width: 100%;
+  padding: 12px 20px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 2px solid #00ffff;
+  border-radius: 10px;
+  color: #00ffff;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+.search-bar:focus {
+  outline: none;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+  border-color: #00e0ff;
+}
+
+.search-bar::placeholder {
+  color: rgba(0, 255, 255, 0.6);
+}
+
+.search-results {
+  text-align: center;
+  color: #00ffff;
+  margin: 10px 0;
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 20px;
+}
+
+.no-results {
+  color: #ff3366;
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* Copy Button Styles */
+.copy-btn {
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid #00ffff;
+  border-radius: 4px;
+  color: #00ffff;
+  padding: 4px 8px;
+  margin-left: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.copy-btn:hover {
+  background: rgba(0, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.copy-btn.copied {
+  background: #00ff00;
+  color: #000;
+  border-color: #00ff00;
+}
+
+.copyable {
+  background: rgba(0, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  font-family: 'Courier New', monospace;
+}
+
+/* Server Status Indicators */
+.server-status {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status-online {
+  background: #00ff00;
+  box-shadow: 0 0 8px #00ff00;
+}
+
+.status-offline {
+  background: #ff3333;
+  box-shadow: 0 0 8px #ff3333;
+}
+
+.status-checking {
+  background: #ffff00;
+  box-shadow: 0 0 8px #ffff00;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Easter Egg Elements */
 .flying-sprite {
   position: fixed;
   font-size: 24px;
@@ -211,6 +320,18 @@ header{
 }
 .collapsible.active::after{ transform:translateY(-50%) rotate(90deg); }
 .content { max-height:0; overflow:hidden; transition:max-height .35s ease; padding:0 1rem 0 1rem; }
+
+/* Hide sections when searching */
+.collapsible.hidden, .card.hidden {
+  display: none !important;
+}
+
+/* Highlight search terms */
+.highlight {
+  background: rgba(0, 255, 255, 0.3);
+  padding: 0 2px;
+  border-radius: 2px;
+}
 
 /* --- Cards --- */
 .card {
@@ -513,6 +634,16 @@ body.sega-theme .crt-overlay {
     font-size: 0.65rem;
   }
   
+  /* Search bar mobile */
+  .search-container {
+    padding: 0 4vw;
+  }
+  
+  .search-bar {
+    font-size: 0.9rem;
+    padding: 10px 16px;
+  }
+  
   /* Status bar fixes */
   .status-bar {
     flex-direction: column;
@@ -705,6 +836,12 @@ body.sega-theme .crt-overlay {
       <span class="status-indicator">📡 PING: <span id="pingTime">52ms</span></span>
     </div>
 
+    <!-- Search System -->
+    <div class="search-container">
+      <input type="text" class="search-bar" placeholder="🔍 Search for games, platforms, or connection methods..." id="searchInput">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+
     <div style="max-width:1100px; margin:1.2rem auto; padding:0 4vw;">
       <div class="platform-caption">Find your Player 2 — choose a platform</div>
 
@@ -758,13 +895,13 @@ body.sega-theme .crt-overlay {
   <div class="card">
     <h3>Jak X: Combat Racing — PS2</h3>
     <p>Multiplayer connection method for Jak X: Combat Racing on PS2.</p>
-    <p><strong>DNS:</strong> 45.7.228.197 • <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank" rel="noopener">Discord</a></p>
+    <p><strong>DNS:</strong> <span class="copyable">45.7.228.197</span> <button class="copy-btn" data-text="45.7.228.197">📋 Copy</button> • <a href="https://discord.com/invite/jak-x-online-multiplayer-752653132298977330" target="_blank" rel="noopener">Discord</a></p>
   </div>
 
   <div class="card">
     <h3>PSRewired — PS2</h3>
     <p>Universal online setup for PS2 games using custom DNS.</p>
-    <p><strong>DNS:</strong> 67.222.156.250 • <a href="https://psrewired.com/guides/pcsx2" target="_blank" rel="noopener">Setup Guide</a></p>
+    <p><strong>DNS:</strong> <span class="copyable">67.222.156.250</span> <button class="copy-btn" data-text="67.222.156.250">📋 Copy</button> • <a href="https://psrewired.com/guides/pcsx2" target="_blank" rel="noopener">Setup Guide</a></p>
   </div>
 
   <div class="card">
@@ -798,7 +935,7 @@ body.sega-theme .crt-overlay {
   <div class="card">
     <h3>PSRewired — PS3</h3>
     <p>Custom DNS & community tooling.</p>
-    <p><strong>DNS:</strong> 67.222.156.250 • <a href="https://psrewired.com/" target="_blank" rel="noopener">Website</a></p>
+    <p><strong>DNS:</strong> <span class="copyable">67.222.156.250</span> <button class="copy-btn" data-text="67.222.156.250">📋 Copy</button> • <a href="https://psrewired.com/" target="_blank" rel="noopener">Website</a></p>
   </div>
 
   <div class="card">
@@ -810,7 +947,7 @@ body.sega-theme .crt-overlay {
   <div class="card">
     <h3>PSONE (PSX Revivals)</h3>
     <p>Community revivals & DNS for PSX games.</p>
-    <p><strong>DNS:</strong> 185.194.142.4 • <a href="https://www.psone.online/getting-started#" target="_blank" rel="noopener">Guide</a></p>
+    <p><strong>DNS:</strong> <span class="copyable">185.194.142.4</span> <button class="copy-btn" data-text="185.194.142.4">📋 Copy</button> • <a href="https://www.psone.online/getting-started#" target="_blank" rel="noopener">Guide</a></p>
   </div>
 
   <div class="card">
@@ -863,14 +1000,14 @@ body.sega-theme .crt-overlay {
 
   <div class="card">
     <h3>Retroverse</h3>
-    <p>IP: 10.42.0.1</p>
+    <p>IP: <span class="copyable">10.42.0.1</span> <button class="copy-btn" data-text="10.42.0.1">📋 Copy</button></p>
     <p><a href="https://retroverze.my.id/" target="_blank" rel="noopener">Website</a> • <a href="https://discord.com/invite/dvspSEXQxa" target="_blank" rel="noopener">Discord</a></p>
   </div>
 
   <div class="card">
     <h3>AGRF</h3>
     <p><a href="https://agracingfoundation.org" target="_blank" rel="noopener">Website</a></p>
-    <p>DNS: 147.135.213.57</p>
+    <p>DNS: <span class="copyable">147.135.213.57</span> <button class="copy-btn" data-text="147.135.213.57">📋 Copy</button></p>
   </div>
 </div>
 
@@ -1022,6 +1159,8 @@ window.addEventListener('load', function onLoad() {
           initSoundEffects();
           initThemeSwitcher();
           initEasterEggs();
+          initSearchSystem();
+          initCopyButtons();
         }, 480);
       }, 420);
     }
@@ -1266,6 +1405,203 @@ function initThemeSwitcher() {
         clickSound.play().catch(e => console.log('Audio play prevented'));
       }
     });
+  });
+}
+
+/* ---------- Search System ---------- */
+function initSearchSystem() {
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  const collapsibles = document.querySelectorAll('.collapsible');
+  const cards = document.querySelectorAll('.card');
+  
+  if (!searchInput) return;
+  
+  searchInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length === 0) {
+      // Reset everything when search is empty
+      resetSearch();
+      searchResults.textContent = '';
+      return;
+    }
+    
+    let foundResults = false;
+    let visibleSections = 0;
+    
+    // Search through collapsible sections (platforms)
+    collapsibles.forEach(collapsible => {
+      const sectionText = collapsible.textContent.toLowerCase();
+      const sectionMatches = sectionText.includes(searchTerm);
+      
+      if (sectionMatches) {
+        collapsible.classList.remove('hidden');
+        collapsible.innerHTML = collapsible.textContent.replace(
+          new RegExp(searchTerm, 'gi'),
+          match => `<span class="highlight">${match}</span>`
+        );
+        // Re-add the arrow
+        const arrow = document.createElement('span');
+        arrow.innerHTML = ' &#9654;';
+        arrow.style.cssText = 'position:absolute; right:20px; top:50%; transform:translateY(-50%); transition:0.25s;';
+        if (collapsible.classList.contains('active')) {
+          arrow.style.transform = 'translateY(-50%) rotate(90deg)';
+        }
+        collapsible.appendChild(arrow);
+        visibleSections++;
+        foundResults = true;
+      } else {
+        collapsible.classList.add('hidden');
+      }
+    });
+    
+    // Search through individual cards
+    cards.forEach(card => {
+      const cardText = card.textContent.toLowerCase();
+      const cardMatches = cardText.includes(searchTerm);
+      
+      if (cardMatches) {
+        card.classList.remove('hidden');
+        // Ensure parent section is visible
+        const parentSection = card.closest('.content');
+        if (parentSection) {
+          const collapsible = parentSection.previousElementSibling;
+          if (collapsible && collapsible.classList.contains('collapsible')) {
+            collapsible.classList.remove('hidden');
+            // Auto-expand sections with matching cards
+            if (!collapsible.classList.contains('active')) {
+              collapsible.classList.add('active');
+              parentSection.style.maxHeight = parentSection.scrollHeight + 'px';
+              parentSection.setAttribute('aria-hidden', 'false');
+            }
+          }
+        }
+        foundResults = true;
+      } else {
+        card.classList.add('hidden');
+      }
+    });
+    
+    // Show search results message
+    if (foundResults) {
+      searchResults.textContent = `Found ${visibleSections} section(s) matching "${searchTerm}"`;
+      searchResults.style.color = '#00ffff';
+    } else {
+      searchResults.textContent = `No results found for "${searchTerm}"`;
+      searchResults.style.color = '#ff3366';
+    }
+  });
+  
+  function resetSearch() {
+    collapsibles.forEach(collapsible => {
+      collapsible.classList.remove('hidden');
+      // Reset highlighting
+      const text = collapsible.textContent.replace(/<\/?span[^>]*>/g, '');
+      collapsible.innerHTML = text;
+      // Re-add the arrow
+      const arrow = document.createElement('span');
+      arrow.innerHTML = ' &#9654;';
+      arrow.style.cssText = 'position:absolute; right:20px; top:50%; transform:translateY(-50%); transition:0.25s;';
+      if (collapsible.classList.contains('active')) {
+        arrow.style.transform = 'translateY(-50%) rotate(90deg)';
+      }
+      collapsible.appendChild(arrow);
+    });
+    
+    cards.forEach(card => {
+      card.classList.remove('hidden');
+    });
+  }
+}
+
+/* ---------- Copy DNS Buttons ---------- */
+function initCopyButtons() {
+  const copyButtons = document.querySelectorAll('.copy-btn');
+  
+  copyButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const textToCopy = this.getAttribute('data-text');
+      
+      // Use modern clipboard API
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        // Visual feedback
+        const originalText = this.innerHTML;
+        this.innerHTML = '✅ Copied!';
+        this.classList.add('copied');
+        
+        // Play copy sound if available
+        const clickSound = document.getElementById('clickSound');
+        if (clickSound) {
+          clickSound.currentTime = 0;
+          clickSound.volume = 0.3;
+          clickSound.play().catch(e => console.log('Audio play prevented'));
+        }
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+          this.innerHTML = originalText;
+          this.classList.remove('copied');
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        // Fallback for older browsers
+        fallbackCopyTextToClipboard(textToCopy, this);
+      });
+    });
+  });
+  
+  function fallbackCopyTextToClipboard(text, button) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '✅ Copied!';
+        button.classList.add('copied');
+        
+        setTimeout(() => {
+          button.innerHTML = originalText;
+          button.classList.remove('copied');
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Fallback copy failed: ', err);
+      button.innerHTML = '❌ Failed';
+      setTimeout(() => {
+        button.innerHTML = '📋 Copy';
+      }, 2000);
+    }
+    
+    document.body.removeChild(textArea);
+  }
+}
+
+/* ---------- Server Status Checking ---------- */
+function initServerStatus() {
+  // This is a simplified version - real implementation would need CORS-friendly endpoints
+  const statusElements = document.querySelectorAll('.server-status');
+  
+  statusElements.forEach(element => {
+    const url = element.getAttribute('data-url');
+    if (!url) return;
+    
+    // Set checking status
+    element.className = 'server-status status-checking';
+    
+    // Simulate status check (in real implementation, you'd ping actual servers)
+    setTimeout(() => {
+      // For demo purposes, randomly set status
+      const isOnline = Math.random() > 0.3; // 70% chance of online
+      element.className = `server-status ${isOnline ? 'status-online' : 'status-offline'}`;
+    }, 1500);
   });
 }
 
