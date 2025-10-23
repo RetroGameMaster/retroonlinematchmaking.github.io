@@ -98,10 +98,10 @@ header{
 .button.muted{ background:linear-gradient(180deg,#ff33cc,#cc0099); color:#fff; }
 .button:hover { transform: translateY(-1px); }
 
-/* --- Theme Switcher --- */
+/* --- Theme Switcher - MOVED TO BOTTOM --- */
 .theme-switcher {
   position: fixed;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
   z-index: 1000;
   display: flex;
@@ -586,6 +586,8 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .chat-message {
@@ -698,6 +700,46 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
 .status-dot.online { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
 .status-dot.offline { background: #ff3333; box-shadow: 0 0 8px #ff3333; }
 
+/* Music Player */
+.music-player {
+  position: fixed;
+  bottom: 80px;
+  left: 20px;
+  background: rgba(0, 20, 40, 0.9);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #00ffff;
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+}
+
+.music-station {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #00ffff;
+  font-size: 0.8rem;
+}
+
+.music-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.music-btn {
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid #00ffff;
+  border-radius: 4px;
+  color: #00ffff;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.music-btn:hover {
+  background: rgba(0, 255, 255, 0.2);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .social-hub-content {
@@ -726,6 +768,20 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   /* User section mobile */
   .user-dropdown {
     right: -10px;
+  }
+
+  /* Theme switcher mobile */
+  .theme-switcher {
+    bottom: 10px;
+    right: 10px;
+    flex-wrap: wrap;
+    max-width: 200px;
+  }
+
+  .music-player {
+    bottom: 70px;
+    left: 10px;
+    max-width: 180px;
   }
 }
 
@@ -942,21 +998,6 @@ body.sega-theme .crt-overlay {
     min-width: auto;
   }
   
-  /* Theme switcher mobile */
-  .theme-switcher {
-    position: relative;
-    top: auto;
-    right: auto;
-    justify-content: center;
-    margin: 10px auto;
-    width: 90%;
-  }
-  
-  .theme-btn {
-    padding: 6px 10px;
-    font-size: 0.65rem;
-  }
-  
   /* Search bar mobile */
   .search-container {
     padding: 0 4vw;
@@ -1118,12 +1159,24 @@ body.sega-theme .crt-overlay {
     </div>
   </div>
 
-  <!-- Theme Switcher -->
+  <!-- Theme Switcher - MOVED TO BOTTOM -->
   <div class="theme-switcher">
     <button class="theme-btn active" data-theme="cyberpunk">CYBERPUNK</button>
     <button class="theme-btn" data-theme="matrix">MATRIX</button>
     <button class="theme-btn" data-theme="windows95">WIN95</button>
     <button class="theme-btn" data-theme="sega">SEGA</button>
+  </div>
+
+  <!-- Music Player -->
+  <div class="music-player">
+    <div class="music-station">
+      <span>🎵 Retro Station</span>
+      <div class="music-controls">
+        <button class="music-btn" id="prevTrack">⏮</button>
+        <button class="music-btn" id="playPause">▶️</button>
+        <button class="music-btn" id="nextTrack">⏭</button>
+      </div>
+    </div>
   </div>
 
   <!-- Decorative backgrounds -->
@@ -1149,7 +1202,6 @@ body.sega-theme .crt-overlay {
         <a class="button" id="openSubmitBtn">Submit Method</a>
         <a class="button" href="https://retroonlinematchmaking.flarum.cloud/" target="_blank" rel="noopener">Forum</a>
         <a class="button" id="socialHubBtn">Social Hub</a>
-        <a class="button" id="musicButton" title="Toggle music (off by default)">🔊 Music</a>
         
         <!-- User Account Section -->
         <div class="user-section" style="display: none;">
@@ -1578,12 +1630,11 @@ body.sega-theme .crt-overlay {
   <!-- Custom cursor -->
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
-  <!-- Audio -->
-  <audio id="bgAudio" loop preload="auto" style="display:none">
-    <source src="https://cdn.jsdelivr.net/gh/retrogamemaster/retro-assets/8bit-loop.mp3" type="audio/mpeg">
+  <!-- Audio Elements -->
+  <audio id="bgMusic" loop style="display: none;">
+    <source src="https://cdn.pixabay.com/download/audio/2022/11/02/audio_81a401b0a5.mp3?filename=8-bit-retro-funk-201180.mp3" type="audio/mpeg">
   </audio>
-
-  <!-- Sound Effects -->
+  
   <audio id="clickSound" preload="auto" style="display:none">
     <source src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3" type="audio/mpeg">
   </audio>
@@ -1661,6 +1712,78 @@ function initAllSystems() {
   initAccountSystem();
   initUserFavorites();
   initSocialHub();
+  initMusicPlayer();
+}
+
+/* ---------- Music Player ---------- */
+function initMusicPlayer() {
+  const bgMusic = document.getElementById('bgMusic');
+  const playPauseBtn = document.getElementById('playPause');
+  const prevTrackBtn = document.getElementById('prevTrack');
+  const nextTrackBtn = document.getElementById('nextTrack');
+  
+  let isPlaying = false;
+  
+  // Retro game music tracks (you can add more)
+  const musicTracks = [
+    'https://cdn.pixabay.com/download/audio/2022/11/02/audio_81a401b0a5.mp3?filename=8-bit-retro-funk-201180.mp3',
+    'https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bdc1a5c2c.mp3?filename=8-bit-detective-123264.mp3',
+    'https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bdc1a5c2c.mp3?filename=8-bit-detective-123264.mp3' // Placeholder for second track
+  ];
+  
+  let currentTrack = 0;
+  
+  if (playPauseBtn) {
+    playPauseBtn.addEventListener('click', function() {
+      if (!isPlaying) {
+        bgMusic.play().then(() => {
+          isPlaying = true;
+          playPauseBtn.textContent = '⏸️';
+        }).catch(e => {
+          console.log('Audio play prevented:', e);
+          showMessage('Click anywhere to enable music!', 'info');
+          // Enable audio on next user interaction
+          document.addEventListener('click', enableAudio, { once: true });
+        });
+      } else {
+        bgMusic.pause();
+        isPlaying = false;
+        playPauseBtn.textContent = '▶️';
+      }
+    });
+  }
+  
+  function enableAudio() {
+    bgMusic.play().then(() => {
+      isPlaying = true;
+      playPauseBtn.textContent = '⏸️';
+    });
+  }
+  
+  if (nextTrackBtn) {
+    nextTrackBtn.addEventListener('click', function() {
+      currentTrack = (currentTrack + 1) % musicTracks.length;
+      bgMusic.src = musicTracks[currentTrack];
+      if (isPlaying) {
+        bgMusic.play();
+      }
+      showMessage('Next track loaded!', 'info');
+    });
+  }
+  
+  if (prevTrackBtn) {
+    prevTrackBtn.addEventListener('click', function() {
+      currentTrack = (currentTrack - 1 + musicTracks.length) % musicTracks.length;
+      bgMusic.src = musicTracks[currentTrack];
+      if (isPlaying) {
+        bgMusic.play();
+      }
+      showMessage('Previous track loaded!', 'info');
+    });
+  }
+  
+  // Set volume
+  bgMusic.volume = 0.3;
 }
 
 /* ---------- Collapsibles ---------- */
@@ -1703,27 +1826,7 @@ function initFormControls(){
 
 /* ---------- Music Toggle ---------- */
 function initMusicToggle(){
-  const musicBtn = document.getElementById('musicButton');
-  const bgAudio = document.getElementById('bgAudio');
-  let musicPlaying = false;
-  if(!musicBtn || !bgAudio) return;
-  musicBtn.addEventListener('click', () => {
-    if(!musicPlaying){
-      bgAudio.play().then(()=> {
-        musicPlaying = true;
-        musicBtn.classList.add('muted');
-        musicBtn.textContent = '⏸ Music';
-      }).catch(err=>{
-        console.warn('Playback blocked', err);
-        musicBtn.textContent = '▶ Play Music';
-      });
-    } else {
-      bgAudio.pause();
-      musicPlaying = false;
-      musicBtn.classList.remove('muted');
-      musicBtn.textContent = '🔊 Music';
-    }
-  });
+  // This is now handled by initMusicPlayer()
 }
 
 /* ---------- Live Status Bar ---------- */
@@ -1737,25 +1840,23 @@ function initStatusBar() {
   
   // Player count fluctuations - slower, more realistic updates
   setInterval(() => {
-    // More likely to have small changes, occasional bigger swings
     const changeType = Math.random();
     let fluctuation;
     
     if (changeType < 0.7) {
-      fluctuation = Math.floor(Math.random() * 7) - 3; // Small changes: -3 to +3
+      fluctuation = Math.floor(Math.random() * 7) - 3;
     } else if (changeType < 0.9) {
-      fluctuation = Math.floor(Math.random() * 13) - 6; // Medium changes: -6 to +6
+      fluctuation = Math.floor(Math.random() * 13) - 6;
     } else {
-      fluctuation = Math.floor(Math.random() * 21) - 10; // Big swings: -10 to +10
+      fluctuation = Math.floor(Math.random() * 21) - 10;
     }
     
-    currentPlayers = Math.max(15, currentPlayers + fluctuation); // Never below 15
-    currentPlayers = Math.min(85, currentPlayers); // Never above 85
+    currentPlayers = Math.max(15, currentPlayers + fluctuation);
+    currentPlayers = Math.min(85, currentPlayers);
     
     playerCount.textContent = currentPlayers;
-  }, 120000); // Update every 2 minutes (120,000 milliseconds)
+  }, 120000);
   
-  // Ping fluctuations with realistic patterns (keep this fast for visual interest)
   if (pingTime) {
     setInterval(() => {
       const basePing = 45;
@@ -1763,18 +1864,17 @@ function initStatusBar() {
       const pattern = Math.random();
       
       if (pattern < 0.7) {
-        fluctuation = Math.floor(Math.random() * 16) - 8; // Normal: 37-53ms
+        fluctuation = Math.floor(Math.random() * 16) - 8;
       } else if (pattern < 0.9) {
-        fluctuation = Math.floor(Math.random() * 25) - 5; // Spikes: 40-70ms
+        fluctuation = Math.floor(Math.random() * 25) - 5;
       } else {
-        fluctuation = Math.floor(Math.random() * 50) + 10; // Lag spike: 55-95ms
+        fluctuation = Math.floor(Math.random() * 50) + 10;
       }
       
       const currentPing = Math.max(25, basePing + fluctuation);
       pingTime.textContent = currentPing + 'ms';
       
-      // Update ping color based on quality
-      pingTime.className = ''; // Clear previous classes
+      pingTime.className = '';
       if (currentPing < 40) {
         pingTime.classList.add('ping-excellent');
       } else if (currentPing < 60) {
@@ -1786,7 +1886,7 @@ function initStatusBar() {
       } else {
         pingTime.classList.add('ping-bad');
       }
-    }, 2000); // Ping still updates every 2 seconds
+    }, 2000);
   }
 }
 
@@ -1798,15 +1898,13 @@ function initSoundEffects() {
   
   let soundsEnabled = false;
   
-  // Enable sounds after first user interaction
   function enableSounds() {
     if (soundsEnabled) return;
     soundsEnabled = true;
     
-    // Preload sounds by playing and immediately pausing
     [clickSound, hoverSound, expandSound].forEach(sound => {
       if (sound) {
-        sound.volume = 0.001; // Almost silent
+        sound.volume = 0.001;
         sound.play().then(() => {
           sound.pause();
           sound.currentTime = 0;
@@ -1814,19 +1912,15 @@ function initSoundEffects() {
       }
     });
     
-    // Remove this event listener after first interaction
     document.removeEventListener('click', enableSounds);
     document.removeEventListener('touchstart', enableSounds);
   }
   
-  // Enable sounds on any user interaction
   document.addEventListener('click', enableSounds);
   document.addEventListener('touchstart', enableSounds);
   
-  // Button hover sounds
   const buttons = document.querySelectorAll('.button, .collapsible');
   buttons.forEach(button => {
-    // Hover sound
     button.addEventListener('mouseenter', () => {
       if (hoverSound && soundsEnabled) {
         hoverSound.currentTime = 0;
@@ -1835,7 +1929,6 @@ function initSoundEffects() {
       }
     });
     
-    // Click sound
     button.addEventListener('click', () => {
       if (clickSound && soundsEnabled) {
         clickSound.currentTime = 0;
@@ -1845,7 +1938,6 @@ function initSoundEffects() {
     });
   });
   
-  // Special expand sound for collapsibles
   const collapsibles = document.querySelectorAll('.collapsible');
   collapsibles.forEach(collapsible => {
     collapsible.addEventListener('click', function() {
@@ -1858,18 +1950,6 @@ function initSoundEffects() {
       }, 150);
     });
   });
-  
-  // Add sound to the music toggle button specifically
-  const musicButton = document.getElementById('musicButton');
-  if (musicButton) {
-    musicButton.addEventListener('click', () => {
-      if (clickSound && soundsEnabled) {
-        clickSound.currentTime = 0;
-        clickSound.volume = 0.4;
-        clickSound.play().catch(e => console.log('Audio play prevented'));
-      }
-    });
-  }
 }
 
 /* ---------- Theme Switcher ---------- */
@@ -1881,19 +1961,15 @@ function initThemeSwitcher() {
     button.addEventListener('click', function() {
       const theme = this.getAttribute('data-theme');
       
-      // Remove all theme classes
       body.className = body.className.replace(/\b\w+-theme\b/g, '');
       
-      // Add selected theme class
       if (theme !== 'cyberpunk') {
         body.classList.add(theme + '-theme');
       }
       
-      // Update active button
       themeButtons.forEach(btn => btn.classList.remove('active'));
       this.classList.add('active');
       
-      // Play theme change sound
       const clickSound = document.getElementById('clickSound');
       if (clickSound) {
         clickSound.currentTime = 0;
@@ -1917,7 +1993,6 @@ function initSearchSystem() {
     const searchTerm = this.value.toLowerCase().trim();
     
     if (searchTerm.length === 0) {
-      // Reset everything when search is empty
       resetSearch();
       searchResults.textContent = '';
       return;
@@ -1926,7 +2001,6 @@ function initSearchSystem() {
     let foundResults = false;
     let visibleSections = 0;
     
-    // Search through collapsible sections (platforms)
     collapsibles.forEach(collapsible => {
       const sectionText = collapsible.textContent.toLowerCase();
       const sectionMatches = sectionText.includes(searchTerm);
@@ -1937,7 +2011,6 @@ function initSearchSystem() {
           new RegExp(searchTerm, 'gi'),
           match => `<span class="highlight">${match}</span>`
         );
-        // Re-add the arrow
         const arrow = document.createElement('span');
         arrow.innerHTML = ' &#9654;';
         arrow.style.cssText = 'position:absolute; right:20px; top:50%; transform:translateY(-50%); transition:0.25s;';
@@ -1952,20 +2025,17 @@ function initSearchSystem() {
       }
     });
     
-    // Search through individual cards
     cards.forEach(card => {
       const cardText = card.textContent.toLowerCase();
       const cardMatches = cardText.includes(searchTerm);
       
       if (cardMatches) {
         card.classList.remove('hidden');
-        // Ensure parent section is visible
         const parentSection = card.closest('.content');
         if (parentSection) {
           const collapsible = parentSection.previousElementSibling;
           if (collapsible && collapsible.classList.contains('collapsible')) {
             collapsible.classList.remove('hidden');
-            // Auto-expand sections with matching cards
             if (!collapsible.classList.contains('active')) {
               collapsible.classList.add('active');
               parentSection.style.maxHeight = parentSection.scrollHeight + 'px';
@@ -1979,7 +2049,6 @@ function initSearchSystem() {
       }
     });
     
-    // Show search results message
     if (foundResults) {
       searchResults.textContent = `Found ${visibleSections} section(s) matching "${searchTerm}"`;
       searchResults.style.color = '#00ffff';
@@ -1992,10 +2061,8 @@ function initSearchSystem() {
   function resetSearch() {
     collapsibles.forEach(collapsible => {
       collapsible.classList.remove('hidden');
-      // Reset highlighting
       const text = collapsible.textContent.replace(/<\/?span[^>]*>/g, '');
       collapsible.innerHTML = text;
-      // Re-add the arrow
       const arrow = document.createElement('span');
       arrow.innerHTML = ' &#9654;';
       arrow.style.cssText = 'position:absolute; right:20px; top:50%; transform:translateY(-50%); transition:0.25s;';
@@ -2019,14 +2086,11 @@ function initCopyButtons() {
     button.addEventListener('click', function() {
       const textToCopy = this.getAttribute('data-text');
       
-      // Use modern clipboard API
       navigator.clipboard.writeText(textToCopy).then(() => {
-        // Visual feedback
         const originalText = this.innerHTML;
         this.innerHTML = '✅ Copied!';
         this.classList.add('copied');
         
-        // Play copy sound if available
         const clickSound = document.getElementById('clickSound');
         if (clickSound) {
           clickSound.currentTime = 0;
@@ -2034,14 +2098,12 @@ function initCopyButtons() {
           clickSound.play().catch(e => console.log('Audio play prevented'));
         }
         
-        // Reset button after 2 seconds
         setTimeout(() => {
           this.innerHTML = originalText;
           this.classList.remove('copied');
         }, 2000);
       }).catch(err => {
         console.error('Failed to copy text: ', err);
-        // Fallback for older browsers
         fallbackCopyTextToClipboard(textToCopy, this);
       });
     });
@@ -2082,21 +2144,17 @@ function initCopyButtons() {
 
 /* ---------- Easter Eggs ---------- */
 function initEasterEggs() {
-  // Konami Code: ↑↑↓↓←→←→BA
   const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
   let konamiIndex = 0;
   
   document.addEventListener('keydown', (e) => {
-    // Check if the pressed key matches the next key in the Konami code
     if (e.code === konamiCode[konamiIndex]) {
       konamiIndex++;
       if (konamiIndex === konamiCode.length) {
-        // Code completed - activate the easter egg!
         activateKonamiEgg();
         konamiIndex = 0;
       }
     } else {
-      // Reset if wrong key is pressed
       konamiIndex = 0;
     }
   });
@@ -2105,7 +2163,6 @@ function initEasterEggs() {
 function activateKonamiEgg() {
   console.log('KONAMI CODE ACTIVATED! 🎮');
   
-  // Play victory sound
   const victorySound = document.getElementById('victorySound');
   if (victorySound) {
     victorySound.currentTime = 0;
@@ -2113,7 +2170,6 @@ function activateKonamiEgg() {
     victorySound.play().catch(e => console.log('Audio play prevented'));
   }
   
-  // Create flying sprites
   const sprites = ['👾', '🕹️', '🎮', '⭐', '🔥', '💎', '🚀', '👑', '🎯', '🏆'];
   for (let i = 0; i < 25; i++) {
     setTimeout(() => {
@@ -2121,12 +2177,10 @@ function activateKonamiEgg() {
     }, i * 100);
   }
   
-  // Show secret message
   setTimeout(() => {
     showSecretMessage("+30 LIVES UNLOCKED! 🎉\n\nFull power activated!\nRetro mode engaged!");
   }, 500);
   
-  // Play coin sounds for extra effect
   const coinSound = document.getElementById('coinSound');
   if (coinSound) {
     for (let i = 0; i < 5; i++) {
@@ -2150,7 +2204,6 @@ function createFlyingSprite(sprite) {
   
   document.body.appendChild(flyingSprite);
   
-  // Remove sprite after animation completes
   setTimeout(() => {
     if (flyingSprite.parentNode) {
       flyingSprite.parentNode.removeChild(flyingSprite);
@@ -2165,7 +2218,6 @@ function showSecretMessage(message) {
   
   document.body.appendChild(secretMessage);
   
-  // Remove message after 5 seconds
   setTimeout(() => {
     if (secretMessage.parentNode) {
       secretMessage.parentNode.removeChild(secretMessage);
@@ -2178,11 +2230,10 @@ function initAccountSystem() {
   const loginBtn = document.getElementById('loginBtn');
   const loginModal = document.getElementById('loginModal');
   const closeLogin = document.getElementById('closeLogin');
+  const profileBtn = document.getElementById('profileBtn');
   
-  // Check if user is already logged in
   checkLoginStatus();
   
-  // Login modal handlers
   if (loginBtn) {
     loginBtn.addEventListener('click', () => {
       loginModal.style.display = 'flex';
@@ -2195,13 +2246,36 @@ function initAccountSystem() {
     });
   }
   
-  // Tab switching
+  // Profile button - go to profile tab in social hub
+  if (profileBtn) {
+    profileBtn.addEventListener('click', () => {
+      const socialModal = document.getElementById('socialHubModal');
+      const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+      
+      if (!currentUser) {
+        showMessage('Please login first!', 'error');
+        return;
+      }
+      
+      // Close login modal if open
+      loginModal.style.display = 'none';
+      
+      // Open social hub and switch to profile tab
+      socialModal.style.display = 'flex';
+      
+      // Switch to profile tab
+      document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector('[data-tab="my-profile"]').classList.add('active');
+      
+      document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+      document.getElementById('my-profile').classList.add('active');
+      
+      loadUserProfile();
+    });
+  }
+  
   initLoginTabs();
-  
-  // Form submissions
   initAuthForms();
-  
-  // Logout functionality
   initLogoutHandler();
 }
 
@@ -2212,15 +2286,11 @@ function checkLoginStatus() {
   const userDisplayName = document.getElementById('userDisplayName');
   
   if (currentUser && currentUser.username) {
-    // User is logged in
     loginBtn.style.display = 'none';
     userSection.style.display = 'flex';
     userDisplayName.textContent = currentUser.username;
-    
-    // Update UI for logged-in state
     updateUIForUser(currentUser);
   } else {
-    // User is not logged in
     loginBtn.style.display = 'flex';
     userSection.style.display = 'none';
   }
@@ -2233,11 +2303,9 @@ function initLoginTabs() {
   
   tabBtns.forEach(btn => {
     btn.addEventListener('click', function() {
-      // Update active tab
       tabBtns.forEach(b => b.classList.remove('active'));
       this.classList.add('active');
       
-      // Show corresponding form
       const tab = this.getAttribute('data-tab');
       if (tab === 'login') {
         loginForm.style.display = 'block';
@@ -2254,7 +2322,6 @@ function initAuthForms() {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
   
-  // Login form
   if (loginForm) {
     loginForm.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -2264,13 +2331,13 @@ function initAuthForms() {
       if (loginUser(username, password)) {
         document.getElementById('loginModal').style.display = 'none';
         this.reset();
+        showMessage(`Welcome back, ${username}!`, 'success');
       } else {
         showMessage('Invalid username or password!', 'error');
       }
     });
   }
   
-  // Register form
   if (registerForm) {
     registerForm.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -2281,9 +2348,9 @@ function initAuthForms() {
       if (registerUser(username, password, email)) {
         document.getElementById('loginModal').style.display = 'none';
         this.reset();
-        showMessage('Account created successfully!', 'success');
+        showMessage('Account created successfully! Welcome!', 'success');
       } else {
-        showMessage('Username already exists!', 'error');
+        showMessage('Username already exists! Please choose another.', 'error');
       }
     });
   }
@@ -2293,7 +2360,6 @@ function loginUser(username, password) {
   const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
   
   if (users[username] && users[username].password === btoa(password)) {
-    // Successful login
     const userData = {
       username: username,
       email: users[username].email,
@@ -2303,7 +2369,6 @@ function loginUser(username, password) {
     
     localStorage.setItem('rom-current-user', JSON.stringify(userData));
     checkLoginStatus();
-    showMessage(`Welcome back, ${username}!`, 'success');
     return true;
   }
   
@@ -2313,14 +2378,12 @@ function loginUser(username, password) {
 function registerUser(username, password, email) {
   const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
   
-  // Check if username already exists
   if (users[username]) {
     return false;
   }
   
-  // Create new user
   users[username] = {
-    password: btoa(password), // Simple "encryption"
+    password: btoa(password),
     email: email,
     joined: new Date().toISOString(),
     favorites: []
@@ -2328,7 +2391,6 @@ function registerUser(username, password, email) {
   
   localStorage.setItem('rom-users', JSON.stringify(users));
   
-  // Auto-login after registration
   const userData = {
     username: username,
     email: email,
@@ -2355,15 +2417,11 @@ function initLogoutHandler() {
 }
 
 function updateUIForUser(user) {
-  // Update favorites display
   updateFavoritesDisplay(user.favorites);
-  
-  // Add user badge to cards they've favorited
   highlightUserFavorites(user.favorites);
 }
 
 function updateFavoritesDisplay(favorites) {
-  // Create favorites section if it doesn't exist
   let favoritesSection = document.getElementById('favoritesSection');
   
   if (!favoritesSection && favorites.length > 0) {
@@ -2373,16 +2431,8 @@ function updateFavoritesDisplay(favorites) {
       <div class="platform-caption">⭐ My Favorite Methods</div>
     `;
     
-    // Insert after search
     const searchContainer = document.querySelector('.search-container');
     searchContainer.parentNode.insertBefore(favoritesSection, searchContainer.nextSibling);
-  }
-  
-  // Populate favorites
-  if (favoritesSection && favorites.length > 0) {
-    favorites.forEach(fav => {
-      // Add favorite cards to the section
-    });
   }
 }
 
@@ -2428,7 +2478,6 @@ function initUserFavorites() {
     
     const cardId = card.querySelector('h3').textContent.trim();
     
-    // Check if already favorited
     if (currentUser && currentUser.favorites && currentUser.favorites.includes(cardId)) {
       favBtn.innerHTML = '★';
     }
@@ -2444,25 +2493,20 @@ function initUserFavorites() {
       const userFavorites = users[currentUser.username].favorites || [];
       
       if (userFavorites.includes(cardId)) {
-        // Remove from favorites
         users[currentUser.username].favorites = userFavorites.filter(fav => fav !== cardId);
         this.innerHTML = '☆';
         showMessage('Removed from favorites', 'info');
       } else {
-        // Add to favorites
         users[currentUser.username].favorites.push(cardId);
         this.innerHTML = '★';
         showMessage('Added to favorites!', 'success');
       }
       
-      // Update storage
       localStorage.setItem('rom-users', JSON.stringify(users));
       
-      // Update current user data
       currentUser.favorites = users[currentUser.username].favorites;
       localStorage.setItem('rom-current-user', JSON.stringify(currentUser));
       
-      // Update UI
       updateFavoritesDisplay(currentUser.favorites);
     });
     
@@ -2477,7 +2521,6 @@ function initSocialHub() {
   const socialModal = document.getElementById('socialHubModal');
   const closeSocial = document.getElementById('closeSocialHub');
   
-  // Social hub modal
   if (socialBtn) {
     socialBtn.addEventListener('click', () => {
       const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
@@ -2498,13 +2541,8 @@ function initSocialHub() {
     });
   }
   
-  // Tab navigation
   initSocialTabs();
-  
-  // Chat system
   initChatSystem();
-  
-  // Profile system
   initProfileSystem();
 }
 
@@ -2513,18 +2551,15 @@ function initSocialTabs() {
   
   tabBtns.forEach(btn => {
     btn.addEventListener('click', function() {
-      // Update active tab button
       tabBtns.forEach(b => b.classList.remove('active'));
       this.classList.add('active');
       
-      // Show corresponding tab
       const tabId = this.getAttribute('data-tab');
       document.querySelectorAll('.social-tab').forEach(tab => {
         tab.classList.remove('active');
       });
       document.getElementById(tabId).classList.add('active');
       
-      // Load tab content
       loadTabContent(tabId);
     });
   });
@@ -2566,7 +2601,6 @@ function sendChatMessage() {
     return;
   }
   
-  // Create message object
   const messageObj = {
     id: Date.now(),
     username: currentUser.username,
@@ -2575,24 +2609,17 @@ function sendChatMessage() {
     type: 'global'
   };
   
-  // Save to storage
   const chatData = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
   chatData.push(messageObj);
   
-  // Keep only last 100 messages
   if (chatData.length > 100) {
     chatData.splice(0, chatData.length - 100);
   }
   
   localStorage.setItem('rom-chat-messages', JSON.stringify(chatData));
   
-  // Update UI
   appendChatMessage(messageObj);
-  
-  // Clear input
   chatInput.value = '';
-  
-  // Play sound
   playChatSound();
 }
 
@@ -2606,7 +2633,6 @@ function loadChatMessages() {
     appendChatMessage(msg);
   });
   
-  // Scroll to bottom
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
@@ -2628,8 +2654,6 @@ function appendChatMessage(message) {
   `;
   
   chatMessages.appendChild(messageDiv);
-  
-  // Auto-scroll
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
@@ -2646,14 +2670,12 @@ function loadUserProfile() {
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   if (!currentUser) return;
   
-  // Update profile info
   document.getElementById('profileUsername').textContent = currentUser.username;
   document.getElementById('profileAvatarText').textContent = currentUser.username.charAt(0).toUpperCase();
   
   const joinDate = new Date(currentUser.joined).toLocaleDateString();
   document.getElementById('profileJoinDate').textContent = `Joined: ${joinDate}`;
   
-  // Load wall posts
   loadWallPosts();
 }
 
@@ -2667,7 +2689,6 @@ function postToWall() {
     return;
   }
   
-  // Create post object
   const post = {
     id: Date.now(),
     author: currentUser.username,
@@ -2677,20 +2698,15 @@ function postToWall() {
     comments: []
   };
   
-  // Save to storage
   const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
-  wallPosts.unshift(post); // Add to beginning
+  wallPosts.unshift(post);
   
   localStorage.setItem('rom-wall-posts', JSON.stringify(wallPosts));
   
-  // Update UI
   appendWallPost(post);
-  
-  // Clear input
   document.getElementById('wallPostText').value = '';
-  
-  // Update stats
   updateUserStats();
+  showMessage('Posted to your wall!', 'success');
 }
 
 function loadWallPosts() {
@@ -2700,7 +2716,6 @@ function loadWallPosts() {
   
   wallPostsContainer.innerHTML = '';
   
-  // Filter to show only current user's posts
   const userPosts = wallPosts.filter(post => post.author === currentUser.username);
   
   userPosts.forEach(post => {
@@ -2736,29 +2751,24 @@ function updateOnlineUsers() {
   const onlineList = document.getElementById('onlineUsersList');
   const onlineCount = document.getElementById('onlineCount');
   
-  // Get all users who have been active recently (last 15 minutes)
   const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   
   const now = Date.now();
   const onlineUsers = [];
   
-  // For demo, we'll simulate online users
   const demoUsers = ['RetroGamer', 'PixelPusher', 'ArcadeMaster', 'NESFan', 'PSXPro'];
   
-  // Add current user
   if (currentUser) {
     onlineUsers.push(currentUser.username);
   }
   
-  // Add some demo users
   demoUsers.forEach(user => {
     if (user !== currentUser?.username) {
       onlineUsers.push(user);
     }
   });
   
-  // Update UI
   onlineList.innerHTML = '';
   onlineUsers.forEach(username => {
     const userDiv = document.createElement('div');
@@ -2783,16 +2793,13 @@ function updateUserStats() {
   const userData = users[currentUser.username];
   
   if (userData) {
-    // Favorites count
     const favoritesCount = userData.favorites ? userData.favorites.length : 0;
     document.getElementById('favoritesCount').textContent = favoritesCount;
     
-    // Posts count
     const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
     const userPosts = wallPosts.filter(post => post.author === currentUser.username).length;
     document.getElementById('postsCount').textContent = userPosts;
     
-    // Messages count
     const chatMessages = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
     const userMessages = chatMessages.filter(msg => msg.username === currentUser.username).length;
     document.getElementById('messagesCount').textContent = userMessages;
@@ -2809,13 +2816,10 @@ function loadTabContent(tabId) {
       updateUserStats();
       break;
     case 'lobby-chat':
-      // Load lobby chat
       break;
     case 'find-players':
-      // Load player search
       break;
     case 'recent-activity':
-      // Load activity feed
       break;
   }
 }
@@ -2839,12 +2843,11 @@ function escapeHtml(unsafe) {
 }
 
 // Update online users periodically
-setInterval(updateOnlineUsers, 30000); // Every 30 seconds
+setInterval(updateOnlineUsers, 30000);
 
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
   const cursor = document.getElementById('customCursor');
-  // Hide cursor on mobile devices
   if(cursor && window.innerWidth > 768) {
     cursor.style.display = 'block';
     document.addEventListener('mousemove', function(e){
@@ -2861,7 +2864,6 @@ function initCursorAndCanvas(){
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
 
-  // star & particle layers
   const starLayers = [
     {count:80, speed:0.2, sizeRange:[1,2], stars:[]},
     {count:50, speed:0.5, sizeRange:[0.7,1.4], stars:[]},
@@ -2886,7 +2888,6 @@ function initCursorAndCanvas(){
   setInterval(spawnShoot, 2600);
 
   const trail = []; const maxTrail=14;
-  // Only enable trail effect on desktop
   if (window.innerWidth > 768) {
     document.addEventListener('mousemove', e => { trail.push({x:e.clientX, y:e.clientY, t:Date.now()}); if(trail.length>maxTrail) trail.shift(); });
   }
@@ -2907,7 +2908,6 @@ function initCursorAndCanvas(){
 
     for(let i=shooting.length-1;i>=0;i--){ const s=shooting[i]; s.x+=s.vx; s.y+=s.vy; s.a-=0.01; ctx.strokeStyle=`rgba(0,255,255,${s.a})`; ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x-s.len,s.y-s.len); ctx.stroke(); if(s.a<=0) shooting.splice(i,1); }
 
-    // Only draw trail on desktop
     if (window.innerWidth > 768) {
       for(let i=0;i<trail.length;i++){ const p=trail[i]; const alpha=(i+1)/trail.length*0.9; ctx.fillStyle=`rgba(0,200,255,${alpha*0.5})`; ctx.beginPath(); ctx.arc(p.x,p.y,2+(i/maxTrail)*3,0,Math.PI*2); ctx.fill(); }
     }
