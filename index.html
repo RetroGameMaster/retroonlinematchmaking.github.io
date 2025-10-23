@@ -136,6 +136,49 @@ header{
   font-weight: bold;
 }
 
+/* --- Easter Egg Elements --- */
+.flying-sprite {
+  position: fixed;
+  font-size: 24px;
+  z-index: 9999;
+  pointer-events: none;
+  animation: flyAcross 3s linear forwards;
+}
+
+@keyframes flyAcross {
+  0% {
+    transform: translateX(-100px) translateY(0px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(100vw + 100px)) translateY(calc(var(--random-y) * 100px)) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.secret-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #00ff00;
+  padding: 20px 40px;
+  border: 3px solid #00ff00;
+  border-radius: 10px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1.2rem;
+  text-align: center;
+  z-index: 10000;
+  animation: messagePulse 2s ease-in-out;
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+}
+
+@keyframes messagePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+}
+
 /* --- Main Content --- */
 #mainContent { display:none; min-height:100vh; position:relative; z-index:10; padding-bottom:4rem; }
 
@@ -926,6 +969,14 @@ body.sega-theme .crt-overlay {
     <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3" type="audio/mpeg">
   </audio>
 
+  <!-- Easter Egg Sounds -->
+  <audio id="victorySound" preload="auto" style="display:none">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-explosion-1699.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="coinSound" preload="auto" style="display:none">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-coins-2859.mp3" type="audio/mpeg">
+  </audio>
+
 <script>
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
@@ -970,6 +1021,7 @@ window.addEventListener('load', function onLoad() {
           initStatusBar();
           initSoundEffects();
           initThemeSwitcher();
+          initEasterEggs();
         }, 480);
       }, 420);
     }
@@ -1215,6 +1267,99 @@ function initThemeSwitcher() {
       }
     });
   });
+}
+
+/* ---------- Easter Eggs ---------- */
+function initEasterEggs() {
+  // Konami Code: ↑↑↓↓←→←→BA
+  const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+  let konamiIndex = 0;
+  
+  document.addEventListener('keydown', (e) => {
+    // Check if the pressed key matches the next key in the Konami code
+    if (e.code === konamiCode[konamiIndex]) {
+      konamiIndex++;
+      if (konamiIndex === konamiCode.length) {
+        // Code completed - activate the easter egg!
+        activateKonamiEgg();
+        konamiIndex = 0;
+      }
+    } else {
+      // Reset if wrong key is pressed
+      konamiIndex = 0;
+    }
+  });
+}
+
+function activateKonamiEgg() {
+  console.log('KONAMI CODE ACTIVATED! 🎮');
+  
+  // Play victory sound
+  const victorySound = document.getElementById('victorySound');
+  if (victorySound) {
+    victorySound.currentTime = 0;
+    victorySound.volume = 0.5;
+    victorySound.play().catch(e => console.log('Audio play prevented'));
+  }
+  
+  // Create flying sprites
+  const sprites = ['👾', '🕹️', '🎮', '⭐', '🔥', '💎', '🚀', '👑', '🎯', '🏆'];
+  for (let i = 0; i < 25; i++) {
+    setTimeout(() => {
+      createFlyingSprite(sprites[Math.floor(Math.random() * sprites.length)]);
+    }, i * 100);
+  }
+  
+  // Show secret message
+  setTimeout(() => {
+    showSecretMessage("+30 LIVES UNLOCKED! 🎉\n\nFull power activated!\nRetro mode engaged!");
+  }, 500);
+  
+  // Play coin sounds for extra effect
+  const coinSound = document.getElementById('coinSound');
+  if (coinSound) {
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => {
+        coinSound.currentTime = 0;
+        coinSound.volume = 0.3;
+        coinSound.play().catch(e => console.log('Audio play prevented'));
+      }, i * 200);
+    }
+  }
+}
+
+function createFlyingSprite(sprite) {
+  const flyingSprite = document.createElement('div');
+  flyingSprite.className = 'flying-sprite';
+  flyingSprite.textContent = sprite;
+  flyingSprite.style.left = '-100px';
+  flyingSprite.style.top = Math.random() * window.innerHeight + 'px';
+  flyingSprite.style.setProperty('--random-y', (Math.random() - 0.5) * 2);
+  flyingSprite.style.fontSize = (Math.random() * 20 + 20) + 'px';
+  
+  document.body.appendChild(flyingSprite);
+  
+  // Remove sprite after animation completes
+  setTimeout(() => {
+    if (flyingSprite.parentNode) {
+      flyingSprite.parentNode.removeChild(flyingSprite);
+    }
+  }, 3000);
+}
+
+function showSecretMessage(message) {
+  const secretMessage = document.createElement('div');
+  secretMessage.className = 'secret-message';
+  secretMessage.textContent = message;
+  
+  document.body.appendChild(secretMessage);
+  
+  // Remove message after 5 seconds
+  setTimeout(() => {
+    if (secretMessage.parentNode) {
+      secretMessage.parentNode.removeChild(secretMessage);
+    }
+  }, 5000);
 }
 
 /* ---------- Cursor & Canvas background ---------- */
