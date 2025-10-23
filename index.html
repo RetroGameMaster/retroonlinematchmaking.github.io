@@ -355,52 +355,69 @@ body.windows95-theme .crt-overlay {
   display: none;
 }
 
-/* Sega Theme */
+/* Sega Theme - Improved */
 body.sega-theme {
   --primary-color: #0033cc;
   --secondary-color: #ffffff;
   --accent-color: #cc0000;
-  background: linear-gradient(45deg, #0033cc, #ffffff, #cc0000) !important;
-  background-size: 400% 400% !important;
-  animation: segaBackground 10s ease infinite !important;
-}
-
-@keyframes segaBackground {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  background: linear-gradient(135deg, #000066 0%, #0033cc 50%, #000066 100%) !important;
+  background-attachment: fixed !important;
 }
 
 body.sega-theme .brand h1,
 body.sega-theme .platform-caption,
 body.sega-theme .collapsible,
 body.sega-theme .status-indicator {
-  color: #0033cc !important;
-  text-shadow: 2px 2px 0 #ffffff, 4px 4px 0 #cc0000 !important;
+  color: #ffffff !important;
+  text-shadow: 2px 2px 0 #0033cc, 3px 3px 0 #cc0000 !important;
 }
 
 body.sega-theme .brand .logo {
   background: linear-gradient(135deg, #0033cc, #ffffff, #cc0000);
   color: #000;
+  border: 2px solid #ffffff;
 }
 
 body.sega-theme .button {
-  background: linear-gradient(180deg, #0033cc, #000066);
+  background: linear-gradient(180deg, #0033cc, #001166);
   color: #ffffff;
-  border: 3px solid #ffffff;
-  box-shadow: 4px 4px 0 #cc0000;
+  border: 2px solid #ffffff;
+  box-shadow: 3px 3px 0 #cc0000;
 }
 
 body.sega-theme .status-bar,
 body.sega-theme .theme-switcher {
-  border: 3px solid #ffffff;
+  border: 2px solid #ffffff;
   background: rgba(0, 51, 204, 0.9);
-  box-shadow: 4px 4px 0 #cc0000;
+  box-shadow: 3px 3px 0 #cc0000;
+  color: #ffffff;
+}
+
+body.sega-theme .status-indicator {
+  color: #ffffff !important;
+}
+
+body.sega-theme .collapsible {
+  background: rgba(0, 51, 204, 0.8);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 3px 3px 0 #cc0000;
+}
+
+body.sega-theme .card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #0033cc;
+  color: #000000;
+  box-shadow: 3px 3px 0 #cc0000;
 }
 
 body.sega-theme .card h3 {
   color: #cc0000;
   text-shadow: 1px 1px 0 #000;
+}
+
+body.sega-theme .card p {
+  color: #000000;
 }
 
 body.sega-theme .card a {
@@ -409,7 +426,11 @@ body.sega-theme .card a {
 }
 
 body.sega-theme .crt-scanline {
-  background: linear-gradient(to bottom, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  background: linear-gradient(to bottom, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+}
+
+body.sega-theme .crt-overlay {
+  opacity: 0.05;
 }
 
 /* --- Mobile Optimizations --- */
