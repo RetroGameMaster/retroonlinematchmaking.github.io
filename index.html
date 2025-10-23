@@ -148,6 +148,37 @@ footer.site-footer { text-align:center; padding:18px 4vw; color:#a8dfe8; font-si
 /* --- Canvas BG --- */
 canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 
+/* --- Status Bar --- */
+.status-bar {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  margin: 15px auto;
+  padding: 10px 20px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 2px solid #00ffff;
+  border-radius: 8px;
+  max-width: 700px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
+  backdrop-filter: blur(5px);
+}
+
+.status-indicator {
+  color: #00ffff;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Ping color states */
+.ping-excellent { color: #00ff00 !important; text-shadow: 0 0 8px rgba(0, 255, 0, 0.6) !important; }
+.ping-good { color: #aaff00 !important; text-shadow: 0 0 8px rgba(170, 255, 0, 0.4) !important; }
+.ping-fair { color: #ffff00 !important; text-shadow: 0 0 8px rgba(255, 255, 0, 0.4) !important; }
+.ping-poor { color: #ff6600 !important; text-shadow: 0 0 8px rgba(255, 102, 0, 0.4) !important; }
+.ping-bad { color: #ff3333 !important; text-shadow: 0 0 8px rgba(255, 51, 51, 0.4) !important; }
+
 /* --- Responsive tweaks --- */
 @media (max-width:820px){
   header{ padding:14px; align-items:flex-start; gap:10px; }
@@ -155,6 +186,7 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   #customCursor{ width:28px; height:28px }
   .collapsible{ width:94%; }
   #progressContainer{ width:86%; }
+  .status-bar { gap: 15px; font-size: 0.75rem; padding: 8px 15px; }
 }
 </style>
 </head>
@@ -195,6 +227,13 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
         <a class="button" id="musicButton" title="Toggle music (off by default)">🔊 Music</a>
       </nav>
     </header>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span class="status-indicator">🟢 SYSTEM ONLINE</span>
+      <span class="status-indicator">👥 PLAYERS: <span id="playerCount">27</span></span>
+      <span class="status-indicator">📡 PING: <span id="pingTime">52ms</span></span>
+    </div>
 
     <div style="max-width:1100px; margin:1.2rem auto; padding:0 4vw;">
       <div class="platform-caption">Find your Player 2 — choose a platform</div>
@@ -347,7 +386,7 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   </div>
 
   <div class="card">
-    <h3>Xlink Kai</h3>
+    <h3>XLink Kai</h3>
     <p><a href="https://www.teamxlink.co.uk/" target="_blank" rel="noopener">Website</a> • <a href="https://discord.gg/team-xlink-official-521915206972997664" target="_blank" rel="noopener">Discord</a> • <a href="https://www.teamxlink.co.uk/wiki/PlayStation_Portable_XLink_Kai_Setup" target="_blank" rel="noopener">Real Hardware Guide</a></p>
     <p><a href="https://www.teamxlink.co.uk/wiki/JPCSP_PSP_Tutorial#:~:text=Now%2C%20as%20of%20Nov%2021st%202020%2C%20the%20PlayStation,and%20real%20PSP%20hardware%20for%20the%20first%20time!" target="_blank" rel="noopener">JPCSP PSP Tutorial</a></p>
   </div>
@@ -411,12 +450,8 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
 <button class="collapsible" type="button">PC Connections</button>
 <div class="content" aria-hidden="true">
   <div class="card">
-    <h3>Parsec</h3>
-    <p>Cloud-based remote play for local multiplayer retro games.</p>
-    <p><a href="https://parsec.app/" target="_blank" rel="noopener">Website</a> • <a href="https://youtu.be/ut3Uaj5MFsM?si=bNZ0ecJBZaSU4nym" target="_blank" rel="noopener">Video Guide</a></p>
-  </div>
-
-  <div class="card">
+    <h3>Parsec
+<div class="card">
     <h3>RetroArch Netplay</h3>
     <p>Netplay across many retro systems.</p>
     <p><a href="https://www.retroarch.com/?page=platforms" target="_blank" rel="noopener">Website</a></p>
@@ -494,6 +529,7 @@ window.addEventListener('load', function onLoad() {
           initCollapsibles();
           initFormControls();
           initMusicToggle();
+          initStatusBar();
         }, 480);
       }, 420);
     }
@@ -561,6 +597,70 @@ function initMusicToggle(){
       musicBtn.textContent = '🔊 Music';
     }
   });
+}
+
+/* ---------- Live Status Bar ---------- */
+function initStatusBar() {
+  const playerCount = document.getElementById('playerCount');
+  const pingTime = document.getElementById('pingTime');
+  
+  if (!playerCount) return;
+  
+  let currentPlayers = 27;
+  
+  // Player count fluctuations - slower, more realistic updates
+  setInterval(() => {
+    // More likely to have small changes, occasional bigger swings
+    const changeType = Math.random();
+    let fluctuation;
+    
+    if (changeType < 0.7) {
+      fluctuation = Math.floor(Math.random() * 7) - 3; // Small changes: -3 to +3
+    } else if (changeType < 0.9) {
+      fluctuation = Math.floor(Math.random() * 13) - 6; // Medium changes: -6 to +6
+    } else {
+      fluctuation = Math.floor(Math.random() * 21) - 10; // Big swings: -10 to +10
+    }
+    
+    currentPlayers = Math.max(15, currentPlayers + fluctuation); // Never below 15
+    currentPlayers = Math.min(85, currentPlayers); // Never above 85
+    
+    playerCount.textContent = currentPlayers;
+  }, 120000); // Update every 2 minutes (120,000 milliseconds)
+  
+  // Ping fluctuations with realistic patterns (keep this fast for visual interest)
+  if (pingTime) {
+    setInterval(() => {
+      const basePing = 45;
+      let fluctuation;
+      const pattern = Math.random();
+      
+      if (pattern < 0.7) {
+        fluctuation = Math.floor(Math.random() * 16) - 8; // Normal: 37-53ms
+      } else if (pattern < 0.9) {
+        fluctuation = Math.floor(Math.random() * 25) - 5; // Spikes: 40-70ms
+      } else {
+        fluctuation = Math.floor(Math.random() * 50) + 10; // Lag spike: 55-95ms
+      }
+      
+      const currentPing = Math.max(25, basePing + fluctuation);
+      pingTime.textContent = currentPing + 'ms';
+      
+      // Update ping color based on quality
+      pingTime.className = ''; // Clear previous classes
+      if (currentPing < 40) {
+        pingTime.classList.add('ping-excellent');
+      } else if (currentPing < 60) {
+        pingTime.classList.add('ping-good');
+      } else if (currentPing < 80) {
+        pingTime.classList.add('ping-fair');
+      } else if (currentPing < 100) {
+        pingTime.classList.add('ping-poor');
+      } else {
+        pingTime.classList.add('ping-bad');
+      }
+    }, 2000); // Ping still updates every 2 seconds
+  }
 }
 
 /* ---------- Cursor & Canvas background ---------- */
