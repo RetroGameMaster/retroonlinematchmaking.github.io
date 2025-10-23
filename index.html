@@ -98,6 +98,44 @@ header{
 .button.muted{ background:linear-gradient(180deg,#ff33cc,#cc0099); color:#fff; }
 .button:hover { transform: translateY(-1px); }
 
+/* --- Theme Switcher --- */
+.theme-switcher {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 20, 40, 0.9);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #00ffff;
+  backdrop-filter: blur(10px);
+}
+
+.theme-btn {
+  padding: 8px 12px;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  color: #00ffff;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-btn:hover {
+  background: rgba(0, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.theme-btn.active {
+  background: #00ffff;
+  color: #000;
+  font-weight: bold;
+}
+
 /* --- Main Content --- */
 #mainContent { display:none; min-height:100vh; position:relative; z-index:10; padding-bottom:4rem; }
 
@@ -204,6 +242,176 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
 .ping-poor { color: #ff6600 !important; text-shadow: 0 0 8px rgba(255, 102, 0, 0.4) !important; }
 .ping-bad { color: #ff3333 !important; text-shadow: 0 0 8px rgba(255, 51, 51, 0.4) !important; }
 
+/* --- Theme Styles --- */
+
+/* Matrix Theme */
+body.matrix-theme {
+  --primary-color: #00ff00;
+  --secondary-color: #003300;
+  --accent-color: #00cc00;
+}
+
+body.matrix-theme .brand h1,
+body.matrix-theme .platform-caption,
+body.matrix-theme .collapsible,
+body.matrix-theme .status-indicator {
+  color: #00ff00 !important;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.7) !important;
+}
+
+body.matrix-theme .brand .logo {
+  background: linear-gradient(135deg, #00ff00, #003300);
+}
+
+body.matrix-theme .button {
+  background: linear-gradient(180deg, #00ff00, #006600);
+  color: #000;
+}
+
+body.matrix-theme .status-bar,
+body.matrix-theme .theme-switcher {
+  border-color: #00ff00;
+  background: rgba(0, 30, 0, 0.8);
+}
+
+body.matrix-theme .card h3 {
+  color: #00ff00;
+}
+
+body.matrix-theme .card a {
+  color: #00ff00;
+}
+
+body.matrix-theme .crt-scanline {
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 255, 0, 0.15) 50%, transparent 100%);
+}
+
+/* Windows 95 Theme */
+body.windows95-theme {
+  --primary-color: #c0c0c0;
+  --secondary-color: #000080;
+  --accent-color: #808080;
+  background: #008080 !important;
+}
+
+body.windows95-theme .brand h1,
+body.windows95-theme .platform-caption,
+body.windows95-theme .collapsible,
+body.windows95-theme .status-indicator {
+  color: #000080 !important;
+  text-shadow: none !important;
+}
+
+body.windows95-theme .brand .logo {
+  background: linear-gradient(135deg, #c0c0c0, #808080);
+  color: #000;
+  box-shadow: inset -2px -2px 0px #000, inset 2px 2px 0px #fff;
+}
+
+body.windows95-theme .button {
+  background: #c0c0c0;
+  color: #000;
+  border: 2px outset #c0c0c0;
+  box-shadow: none;
+}
+
+body.windows95-theme .button:hover {
+  background: #d0d0d0;
+}
+
+body.windows95-theme .status-bar,
+body.windows95-theme .theme-switcher {
+  border: 2px outset #c0c0c0;
+  background: #c0c0c0;
+  color: #000;
+}
+
+body.windows95-theme .status-indicator {
+  color: #000 !important;
+}
+
+body.windows95-theme .collapsible {
+  background: #c0c0c0;
+  color: #000;
+  border: 2px outset #c0c0c0;
+}
+
+body.windows95-theme .card {
+  background: #c0c0c0;
+  border: 2px inset #c0c0c0;
+  color: #000;
+}
+
+body.windows95-theme .card h3 {
+  color: #000080;
+}
+
+body.windows95-theme .card a {
+  color: #000080;
+}
+
+body.windows95-theme .crt-scanline,
+body.windows95-theme .crt-overlay {
+  display: none;
+}
+
+/* Sega Theme */
+body.sega-theme {
+  --primary-color: #0033cc;
+  --secondary-color: #ffffff;
+  --accent-color: #cc0000;
+  background: linear-gradient(45deg, #0033cc, #ffffff, #cc0000) !important;
+  background-size: 400% 400% !important;
+  animation: segaBackground 10s ease infinite !important;
+}
+
+@keyframes segaBackground {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+body.sega-theme .brand h1,
+body.sega-theme .platform-caption,
+body.sega-theme .collapsible,
+body.sega-theme .status-indicator {
+  color: #0033cc !important;
+  text-shadow: 2px 2px 0 #ffffff, 4px 4px 0 #cc0000 !important;
+}
+
+body.sega-theme .brand .logo {
+  background: linear-gradient(135deg, #0033cc, #ffffff, #cc0000);
+  color: #000;
+}
+
+body.sega-theme .button {
+  background: linear-gradient(180deg, #0033cc, #000066);
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  box-shadow: 4px 4px 0 #cc0000;
+}
+
+body.sega-theme .status-bar,
+body.sega-theme .theme-switcher {
+  border: 3px solid #ffffff;
+  background: rgba(0, 51, 204, 0.9);
+  box-shadow: 4px 4px 0 #cc0000;
+}
+
+body.sega-theme .card h3 {
+  color: #cc0000;
+  text-shadow: 1px 1px 0 #000;
+}
+
+body.sega-theme .card a {
+  color: #0033cc;
+  font-weight: bold;
+}
+
+body.sega-theme .crt-scanline {
+  background: linear-gradient(to bottom, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+}
+
 /* --- Mobile Optimizations --- */
 @media (max-width: 768px) {
   /* Header fixes */
@@ -224,6 +432,21 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
     padding: 8px 12px;
     font-size: 0.85rem;
     min-width: auto;
+  }
+  
+  /* Theme switcher mobile */
+  .theme-switcher {
+    position: relative;
+    top: auto;
+    right: auto;
+    justify-content: center;
+    margin: 10px auto;
+    width: 90%;
+  }
+  
+  .theme-btn {
+    padding: 6px 10px;
+    font-size: 0.65rem;
   }
   
   /* Status bar fixes */
@@ -294,11 +517,11 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   
   /* Cursor fixes for mobile */
   #customCursor {
-    display: none !important; /* Hide custom cursor on mobile */
+    display: none !important;
   }
   
   body, html {
-    cursor: auto !important; /* Restore default cursor on mobile */
+    cursor: auto !important;
   }
 }
 
@@ -315,6 +538,15 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   .button {
     padding: 6px 10px;
     font-size: 0.8rem;
+  }
+  
+  .theme-switcher {
+    flex-wrap: wrap;
+  }
+  
+  .theme-btn {
+    flex: 1;
+    min-width: 60px;
   }
   
   .status-bar {
@@ -366,6 +598,14 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
       <p id="bootText">RetroOnlineMatchmaking — Initializing v1.0</p>
       <div id="progressContainer" aria-hidden="true"><div id="progressBar"></div></div>
     </div>
+  </div>
+
+  <!-- Theme Switcher -->
+  <div class="theme-switcher">
+    <button class="theme-btn active" data-theme="cyberpunk">CYBERPUNK</button>
+    <button class="theme-btn" data-theme="matrix">MATRIX</button>
+    <button class="theme-btn" data-theme="windows95">WIN95</button>
+    <button class="theme-btn" data-theme="sega">SEGA</button>
   </div>
 
   <!-- Decorative backgrounds -->
@@ -708,6 +948,7 @@ window.addEventListener('load', function onLoad() {
           initMusicToggle();
           initStatusBar();
           initSoundEffects();
+          initThemeSwitcher();
         }, 480);
       }, 420);
     }
@@ -847,12 +1088,39 @@ function initSoundEffects() {
   const hoverSound = document.getElementById('hoverSound');
   const expandSound = document.getElementById('expandSound');
   
+  let soundsEnabled = false;
+  
+  // Enable sounds after first user interaction
+  function enableSounds() {
+    if (soundsEnabled) return;
+    soundsEnabled = true;
+    
+    // Preload sounds by playing and immediately pausing
+    [clickSound, hoverSound, expandSound].forEach(sound => {
+      if (sound) {
+        sound.volume = 0.001; // Almost silent
+        sound.play().then(() => {
+          sound.pause();
+          sound.currentTime = 0;
+        }).catch(e => console.log('Sound preload failed'));
+      }
+    });
+    
+    // Remove this event listener after first interaction
+    document.removeEventListener('click', enableSounds);
+    document.removeEventListener('touchstart', enableSounds);
+  }
+  
+  // Enable sounds on any user interaction
+  document.addEventListener('click', enableSounds);
+  document.addEventListener('touchstart', enableSounds);
+  
   // Button hover sounds
   const buttons = document.querySelectorAll('.button, .collapsible');
   buttons.forEach(button => {
     // Hover sound
     button.addEventListener('mouseenter', () => {
-      if (hoverSound) {
+      if (hoverSound && soundsEnabled) {
         hoverSound.currentTime = 0;
         hoverSound.volume = 0.2;
         hoverSound.play().catch(e => console.log('Audio play prevented'));
@@ -861,7 +1129,7 @@ function initSoundEffects() {
     
     // Click sound
     button.addEventListener('click', () => {
-      if (clickSound) {
+      if (clickSound && soundsEnabled) {
         clickSound.currentTime = 0;
         clickSound.volume = 0.3;
         clickSound.play().catch(e => console.log('Audio play prevented'));
@@ -873,9 +1141,8 @@ function initSoundEffects() {
   const collapsibles = document.querySelectorAll('.collapsible');
   collapsibles.forEach(collapsible => {
     collapsible.addEventListener('click', function() {
-      // Wait a bit for the expand animation to start
       setTimeout(() => {
-        if (expandSound && this.classList.contains('active')) {
+        if (expandSound && this.classList.contains('active') && soundsEnabled) {
           expandSound.currentTime = 0;
           expandSound.volume = 0.25;
           expandSound.play().catch(e => console.log('Audio play prevented'));
@@ -888,13 +1155,45 @@ function initSoundEffects() {
   const musicButton = document.getElementById('musicButton');
   if (musicButton) {
     musicButton.addEventListener('click', () => {
-      if (clickSound) {
+      if (clickSound && soundsEnabled) {
         clickSound.currentTime = 0;
         clickSound.volume = 0.4;
         clickSound.play().catch(e => console.log('Audio play prevented'));
       }
     });
   }
+}
+
+/* ---------- Theme Switcher ---------- */
+function initThemeSwitcher() {
+  const themeButtons = document.querySelectorAll('.theme-btn');
+  const body = document.body;
+  
+  themeButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const theme = this.getAttribute('data-theme');
+      
+      // Remove all theme classes
+      body.className = body.className.replace(/\b\w+-theme\b/g, '');
+      
+      // Add selected theme class
+      if (theme !== 'cyberpunk') {
+        body.classList.add(theme + '-theme');
+      }
+      
+      // Update active button
+      themeButtons.forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+      
+      // Play theme change sound
+      const clickSound = document.getElementById('clickSound');
+      if (clickSound) {
+        clickSound.currentTime = 0;
+        clickSound.volume = 0.3;
+        clickSound.play().catch(e => console.log('Audio play prevented'));
+      }
+    });
+  });
 }
 
 /* ---------- Cursor & Canvas background ---------- */
