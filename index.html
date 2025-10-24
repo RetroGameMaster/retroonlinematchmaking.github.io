@@ -2235,11 +2235,15 @@ function loadUserProfile(username) {
     return users[username] || null;
 }
 
-// Profile Picture System with compression
+// FIXED Profile Picture System with proper saving
 function initProfilePictureSystem() {
     const uploadInput = document.getElementById('profilePicUpload');
     const preview = document.getElementById('profilePicPreview');
-    const previewText = document.getElementById('profilePicText');
+    
+    if (!uploadInput || !preview) {
+        console.log('Profile picture elements not found');
+        return;
+    }
     
     uploadInput.addEventListener('change', handleProfilePicUpload);
     
@@ -2250,7 +2254,31 @@ function initProfilePictureSystem() {
         if (profile && profile.profilePic) {
             preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
         } else {
+            // Create text element if it doesn't exist
+            let previewText = document.getElementById('profilePicText');
+            if (!previewText) {
+                previewText = document.createElement('span');
+                previewText.id = 'profilePicText';
+                preview.appendChild(previewText);
+            }
             previewText.textContent = currentUser.username.charAt(0).toUpperCase();
+        }
+        
+        // Also update the profile header avatar
+        updateProfileAvatar(currentUser.username, profile);
+    }
+}
+
+function updateProfileAvatar(username, profile) {
+    const avatarLarge = document.querySelector('.profile-avatar-large');
+    if (avatarLarge) {
+        if (profile && profile.profilePic) {
+            avatarLarge.innerHTML = `<img src="${profile.profilePic}" alt="${username}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+            const avatarText = avatarLarge.querySelector('#profileAvatarText');
+            if (avatarText) {
+                avatarText.textContent = username.charAt(0).toUpperCase();
+            }
         }
     }
 }
@@ -2271,15 +2299,20 @@ function handleProfilePicUpload(event) {
             const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
             
             if (currentUser) {
+                // Save to user profile
                 saveUserProfile(currentUser.username, {
                     profilePic: compressedImage,
                     avatarType: 'custom'
                 });
                 
+                // Update preview
                 const preview = document.getElementById('profilePicPreview');
                 preview.innerHTML = `<img src="${compressedImage}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
                 
-                showQuickStatus('Profile picture updated!', 'success');
+                // Update profile header avatar
+                updateProfileAvatar(currentUser.username, { profilePic: compressedImage });
+                
+                showQuickStatus('Profile picture saved!', 'success');
                 updateStorageInfo();
             }
         });
@@ -2630,28 +2663,54 @@ function initAllSystems() {
 // Update the existing loadUserProfile function in Social Hub
 function loadUserProfile() {
     const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.log('No user logged in');
+        return;
+    }
     
     const profile = loadUserProfile(currentUser.username);
     
-    document.getElementById('profileUsername').textContent = currentUser.username;
-    document.getElementById('profileAvatarText').textContent = currentUser.username.charAt(0).toUpperCase();
+    // Update basic profile info
+    const usernameElement = document.getElementById('profileUsername');
+    const avatarTextElement = document.getElementById('profileAvatarText');
+    const joinDateElement = document.getElementById('profileJoinDate');
     
-    const joinDate = new Date(currentUser.joined).toLocaleDateString();
-    document.getElementById('profileJoinDate').textContent = `Joined: ${joinDate}`;
+    if (usernameElement) usernameElement.textContent = currentUser.username;
+    if (avatarTextElement) avatarTextElement.textContent = currentUser.username.charAt(0).toUpperCase();
+    
+    const joinDate = currentUser.joined ? new Date(currentUser.joined).toLocaleDateString() : new Date().toLocaleDateString();
+    if (joinDateElement) joinDateElement.textContent = `Joined: ${joinDate}`;
     
     // Load customization data
     if (profile) {
-        if (profile.signature) {
-            document.getElementById('userSignature').value = profile.signature;
-            document.getElementById('signatureCount').textContent = profile.signature.length;
+        // Update profile picture
+        if (profile.profilePic) {
+            const preview = document.getElementById('profilePicPreview');
+            if (preview) {
+                preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+            }
+            updateProfileAvatar(currentUser.username, profile);
         }
+        
+        // Update signature
+        if (profile.signature) {
+            const signatureInput = document.getElementById('userSignature');
+            const signatureCount = document.getElementById('signatureCount');
+            if (signatureInput) signatureInput.value = profile.signature;
+            if (signatureCount) signatureCount.textContent = profile.signature.length;
+        }
+        
+        // Update status
         if (profile.status) {
-            document.getElementById('userStatus').value = profile.status;
+            const statusSelector = document.getElementById('userStatus');
+            if (statusSelector) statusSelector.value = profile.status;
         }
     }
     
+    // Update online users list with real data
+    updateOnlineUsers();
     loadWallPosts();
+    updateUserStats();
     updateStorageInfo();
 }
 
@@ -4206,36 +4265,58 @@ function appendWallPost(post) {
   wallPostsContainer.appendChild(postDiv);
 }
 
-// Online Users System
+// FIXED Online Users System - Shows real user data
 function updateOnlineUsers() {
   const onlineList = document.getElementById('onlineUsersList');
   const onlineCount = document.getElementById('onlineCount');
+  
+  if (!onlineList) return;
   
   const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   
   const now = Date.now();
+  const fifteenMinutes = 15 * 60 * 1000;
   const onlineUsers = [];
   
-  const demoUsers = ['RetroGamer', 'PixelPusher', 'ArcadeMaster', 'NESFan', 'PSXPro'];
-  
-  if (currentUser) {
-    onlineUsers.push(currentUser.username);
-  }
-  
-  demoUsers.forEach(user => {
-    if (user !== currentUser?.username) {
-      onlineUsers.push(user);
+  // Get real users who have been active recently
+  Object.keys(users).forEach(username => {
+    const userData = users[username];
+    const lastActive = userData.lastActive || userData.joined || now;
+    
+    // Consider user online if active in last 15 minutes
+    if (now - new Date(lastActive).getTime() < fifteenMinutes) {
+      onlineUsers.push({
+        username: username,
+        profile: userData,
+        status: userData.status || '💻 Online'
+      });
     }
   });
   
+  // Add demo users if no real users online (for testing)
+  if (onlineUsers.length <= 1) {
+    const demoUsers = [
+      { username: 'RetroGamer', status: '🎮 Gaming' },
+      { username: 'PixelPusher', status: '💻 Online' },
+      { username: 'ArcadeMaster', status: '🤝 Looking to Play' }
+    ];
+    
+    demoUsers.forEach(demoUser => {
+      if (!onlineUsers.find(u => u.username === demoUser.username)) {
+        onlineUsers.push(demoUser);
+      }
+    });
+  }
+  
   onlineList.innerHTML = '';
-  onlineUsers.forEach(username => {
+  onlineUsers.forEach(user => {
     const userDiv = document.createElement('div');
     userDiv.className = 'online-user';
     userDiv.innerHTML = `
       <span class="online-indicator"></span>
-      <span>${username}</span>
+      <span style="font-weight: bold; color: #00ffff;">${user.username}</span>
+      <small style="color: #a8dfe8; margin-left: auto;">${user.status}</small>
     `;
     onlineList.appendChild(userDiv);
   });
@@ -4244,7 +4325,6 @@ function updateOnlineUsers() {
     onlineCount.textContent = `${onlineUsers.length} users online`;
   }
 }
-
 function updateUserStats() {
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   if (!currentUser) return;
@@ -4308,15 +4388,21 @@ function escapeHtml(unsafe) {
 setInterval(updateOnlineUsers, 30000);
 /* ---------- Clip of the Week System ---------- */
 function initClipOfWeek() {
-  // You can update this data manually or fetch from an API
-  const currentClip = {
-    videoId: 'rfFrGxlRMj0', // Using your video ID from the HTML
-    title: 'This Week\'s Featured Gameplay',
-    description: 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!',
-    author: 'Community',
-    date: 'This week',
-    game: 'Retro Gaming'
-  };
+  // Load clip data from localStorage or use defaults
+  let currentClip = JSON.parse(localStorage.getItem('rom-current-clip'));
+  
+  if (!currentClip) {
+    // Default clip data
+    currentClip = {
+      videoId: 'rfFrGxlRMj0',
+      title: 'This Week\'s Featured Gameplay',
+      description: 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!',
+      author: 'FlatoutOutAnakin898',
+      date: 'Oct.18th',
+      game: 'Gran Turismo PSP'
+    };
+    localStorage.setItem('rom-current-clip', JSON.stringify(currentClip));
+  }
   
   // Update the video embed
   const iframe = document.querySelector('.video-container iframe');
@@ -4324,15 +4410,32 @@ function initClipOfWeek() {
     iframe.src = `https://www.youtube.com/embed/${currentClip.videoId}`;
   }
   
-  // Update clip info
+  // Update clip info with ACTUAL data from storage
   const clipDate = document.getElementById('clipDate');
   const clipAuthor = document.getElementById('clipAuthor');
   
   if (clipDate) clipDate.textContent = currentClip.date;
   if (clipAuthor) clipAuthor.textContent = currentClip.author;
   
+  // Function to update clip (you can call this from console or admin panel)
+  window.updateClipOfWeek = function(newClipData) {
+    const updatedClip = {
+      ...currentClip,
+      ...newClipData
+    };
+    localStorage.setItem('rom-current-clip', JSON.stringify(updatedClip));
+    initClipOfWeek(); // Reload the clip
+    showQuickStatus('Clip of the Week updated!', 'success');
+  };
+  
   // Optional: Auto-update every week
   updateClipWeekly();
+}
+
+function updateClipWeekly() {
+  // This would automatically rotate clips weekly
+  // For now, it's manual via updateClipOfWeek function
+  console.log('📹 Clip of the Week system ready - use updateClipOfWeek() to change clips');
 }
 
 function updateClipWeekly() {
