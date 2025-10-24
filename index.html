@@ -2036,52 +2036,68 @@ function initAllSystems() {
   initEngagementFeatures();
 }
 
-/* ---------- NEW: Live Player Count System ---------- */
+/* ---------- NEW: Real User Count System ---------- */
 function initLivePlayerCount() {
   const playerCountElement = document.getElementById('playerCount');
   if (!playerCountElement) return;
   
-  // Initial count
-  let currentPlayers = 27;
-  
-  // Function to update player count with realistic fluctuations
-  function updatePlayerCount() {
-    // Simulate realistic player count changes
-    const changeType = Math.random();
-    let fluctuation;
+  function updateRealPlayerCount() {
+    // Get all registered users
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const userCount = Object.keys(users).length;
     
-    if (changeType < 0.7) {
-      // Small fluctuations (most common)
-      fluctuation = Math.floor(Math.random() * 7) - 3;
-    } else if (changeType < 0.9) {
-      // Medium fluctuations (less common)
-      fluctuation = Math.floor(Math.random() * 13) - 6;
-    } else {
-      // Large fluctuations (rare)
-      fluctuation = Math.floor(Math.random() * 21) - 10;
-    }
+    // Get currently online users (users who have been active recently)
+    const onlineUsers = getOnlineUsers();
+    const onlineCount = onlineUsers.length;
     
-    // Apply fluctuation with bounds
-    currentPlayers = Math.max(15, currentPlayers + fluctuation);
-    currentPlayers = Math.min(85, currentPlayers);
+    // Update display - show online/total format
+    playerCountElement.textContent = `${onlineCount}/${userCount}`;
     
-    // Update display with animation
-    animatePlayerCount(currentPlayers, playerCountElement);
+    console.log(`📊 User Stats: ${onlineCount} online / ${userCount} total registered`);
   }
   
-  // Update every 2 minutes with some randomness
-  setInterval(updatePlayerCount, 120000);
+  function getOnlineUsers() {
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const onlineUsers = [];
+    const now = Date.now();
+    const fifteenMinutes = 15 * 60 * 1000; // 15 minutes
+    
+    // Check each user's last activity
+    Object.keys(users).forEach(username => {
+      const userData = users[username];
+      const lastActive = userData.lastActive || userData.joined || now;
+      
+      // Consider user online if active in last 15 minutes
+      if (now - new Date(lastActive).getTime() < fifteenMinutes) {
+        onlineUsers.push(username);
+      }
+    });
+    
+    return onlineUsers;
+  }
   
-  // Also update on page visibility changes (simulating users coming/going)
-  document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-      // Simulate player count increase when page becomes visible
-      setTimeout(() => {
-        currentPlayers = Math.min(85, currentPlayers + Math.floor(Math.random() * 5) + 1);
-        animatePlayerCount(currentPlayers, playerCountElement);
-      }, 1000);
+  // Update user's last active timestamp
+  function updateUserActivity() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (currentUser && currentUser.username) {
+      const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+      if (users[currentUser.username]) {
+        users[currentUser.username].lastActive = new Date().toISOString();
+        localStorage.setItem('rom-users', JSON.stringify(users));
+      }
     }
-  });
+  }
+  
+  // Update count every 30 seconds
+  setInterval(updateRealPlayerCount, 30000);
+  
+  // Update on user interactions
+  document.addEventListener('click', updateUserActivity);
+  document.addEventListener('keydown', updateUserActivity);
+  
+  // Initial update
+  updateRealPlayerCount();
+  updateUserActivity();
 }
 
 /* ---------- NEW: Engagement Features ---------- */
@@ -2990,6 +3006,10 @@ function loginUser(username, password) {
   const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
   
   if (users[username] && users[username].password === btoa(password)) {
+    // Update last active time
+    users[username].lastActive = new Date().toISOString(); // ADD THIS LINE
+    localStorage.setItem('rom-users', JSON.stringify(users));
+    
     const userData = {
       username: username,
       email: users[username].email,
@@ -3016,6 +3036,7 @@ function registerUser(username, password, email) {
     password: btoa(password),
     email: email,
     joined: new Date().toISOString(),
+    lastActive: new Date().toISOString(), // ADD THIS LINE
     favorites: []
   };
   
