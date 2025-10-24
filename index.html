@@ -1338,25 +1338,16 @@ body.sega-theme .music-btn:hover {
     <div style="max-width:1100px; margin:1.2rem auto; padding:0 4vw;">
       <div class="platform-caption">Find your Player 2 — choose a platform</div>
 
-      <!-- Supporter Hall of Fame -->
-      <section class="supporter-section">
-        <h2>Supporter Hall of Fame</h2>
-        <p>Thank you to our amazing supporters who help keep RetroOnlineMatchmaking running!</p>
-        <div class="supporter-list">
-          <div class="supporter-card">
-            <div class="supporter-name">RetroGameMaster</div>
-          </div>
-          <div class="supporter-card">
-            <div class="supporter-name">PixelPioneer</div>
-          </div>
-          <div class="supporter-card">
-            <div class="supporter-name">ArcadeAce</div>
-          </div>
-          <div class="supporter-card">
-            <div class="supporter-name">NESNinja</div>
-          </div>
-        </div>
-      </section>
+     <!-- Supporter Hall of Fame -->
+<section class="supporter-section">
+  <h2>Supporter Hall of Fame</h2>
+  <p>Thank you to our amazing supporters who help keep RetroOnlineMatchmaking running!</p>
+  <div class="supporter-list">
+    <div class="supporter-card">
+      <div class="supporter-name">RetroGameMaster</div>
+    </div>
+  </div>
+</section>
 
        <!-- Arcade -->
 <button class="collapsible" type="button">Arcade Connections</button>
@@ -1842,7 +1833,7 @@ function initAllSystems() {
   initMusicPlayer();
 }
 
-/* ---------- Music Player - COMPLETELY REWRITTEN ---------- */
+/* ---------- Music Player - SIMPLIFIED & FIXED ---------- */
 function initMusicPlayer() {
   const bgMusic = document.getElementById('bgMusic');
   const playPauseBtn = document.getElementById('playPause');
@@ -1850,77 +1841,55 @@ function initMusicPlayer() {
   const nextTrackBtn = document.getElementById('nextTrack');
   
   let isPlaying = false;
-  let audioContextInitialized = false;
+  let audioEnabled = false;
   
-  // Working retro music tracks from FreeMusicArchive
+  // Simple music tracks that should work
   const musicTracks = [
-    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3',
-    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Yung_Kartz/Lead_The_Way/Yung_Kartz_-_05_-_Elevate.mp3',
-    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3'
+    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3'
   ];
   
   let currentTrack = 0;
   
-  // Function to initialize audio context
-  function initializeAudio() {
-    if (audioContextInitialized) return;
+  // Simple function to enable audio
+  function enableAudio() {
+    if (audioEnabled) return;
     
-    // Create a silent audio context to unlock audio
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      const audioContext = new AudioContext();
-      
-      // Create a silent buffer and play it
-      const buffer = audioContext.createBuffer(1, 1, 22050);
-      const source = audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioContext.destination);
-      source.start();
-      
-      // Resume the audio context
-      if (audioContext.state !== 'running') {
-        audioContext.resume();
-      }
-    }
-    
-    // Set volume and preload the first track
+    // Set volume and load the first track
     bgMusic.volume = 0.3;
-    bgMusic.preload = 'auto';
+    bgMusic.load(); // Force reload
     
-    audioContextInitialized = true;
-    console.log('Audio context initialized');
+    audioEnabled = true;
+    console.log('Audio enabled');
+    
+    // Show message that audio is ready
+    showMessage('Audio enabled! Click play to start music.', 'success');
   }
   
-  // Initialize audio on any user interaction
-  document.addEventListener('click', initializeAudio, { once: true });
-  document.addEventListener('touchstart', initializeAudio, { once: true });
+  // Enable audio on any user interaction
+  document.addEventListener('click', enableAudio, { once: true });
   
-  // Play/Pause functionality
+  // Play/Pause functionality - SIMPLIFIED
   if (playPauseBtn) {
     playPauseBtn.addEventListener('click', function() {
-      initializeAudio();
+      if (!audioEnabled) {
+        enableAudio();
+        return;
+      }
       
       if (!isPlaying) {
-        bgMusic.play().then(() => {
-          isPlaying = true;
-          playPauseBtn.textContent = '⏸️';
-          showMessage('Music started! 🎵', 'success');
-        }).catch(e => {
-          console.log('Audio play failed:', e);
-          showMessage('Click anywhere to enable music!', 'info');
-          // Reset the audio element
-          bgMusic.load();
-          document.addEventListener('click', function retryAudio() {
-            bgMusic.play().then(() => {
-              isPlaying = true;
-              playPauseBtn.textContent = '⏸️';
-              showMessage('Music started! 🎵', 'success');
-              document.removeEventListener('click', retryAudio);
-            }).catch(err => {
-              console.log('Retry failed:', err);
-            });
-          }, { once: true });
-        });
+        // Simple play with error handling
+        const playPromise = bgMusic.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            isPlaying = true;
+            playPauseBtn.textContent = '⏸️';
+            showMessage('Music started! 🎵', 'success');
+          }).catch(error => {
+            console.log('Play failed:', error);
+            showMessage('Click the play button again to start music!', 'info');
+          });
+        }
       } else {
         bgMusic.pause();
         isPlaying = false;
@@ -1933,12 +1902,16 @@ function initMusicPlayer() {
   // Next track functionality
   if (nextTrackBtn) {
     nextTrackBtn.addEventListener('click', function() {
-      initializeAudio();
+      if (!audioEnabled) {
+        enableAudio();
+        return;
+      }
       
       currentTrack = (currentTrack + 1) % musicTracks.length;
       bgMusic.src = musicTracks[currentTrack];
+      bgMusic.load();
       if (isPlaying) {
-        bgMusic.play().catch(e => console.log('Track change play failed:', e));
+        bgMusic.play().catch(e => console.log('Track change failed:', e));
       }
       showMessage('Next track loaded!', 'info');
     });
@@ -1947,12 +1920,16 @@ function initMusicPlayer() {
   // Previous track functionality
   if (prevTrackBtn) {
     prevTrackBtn.addEventListener('click', function() {
-      initializeAudio();
+      if (!audioEnabled) {
+        enableAudio();
+        return;
+      }
       
       currentTrack = (currentTrack - 1 + musicTracks.length) % musicTracks.length;
       bgMusic.src = musicTracks[currentTrack];
+      bgMusic.load();
       if (isPlaying) {
-        bgMusic.play().catch(e => console.log('Track change play failed:', e));
+        bgMusic.play().catch(e => console.log('Track change failed:', e));
       }
       showMessage('Previous track loaded!', 'info');
     });
@@ -1962,10 +1939,14 @@ function initMusicPlayer() {
   bgMusic.addEventListener('ended', function() {
     currentTrack = (currentTrack + 1) % musicTracks.length;
     bgMusic.src = musicTracks[currentTrack];
+    bgMusic.load();
     if (isPlaying) {
-      bgMusic.play().catch(e => console.log('Auto-advance play failed:', e));
+      bgMusic.play().catch(e => console.log('Auto-advance failed:', e));
     }
   });
+  
+  // Set initial volume
+  bgMusic.volume = 0.3;
 }
 
 /* ---------- Collapsibles ---------- */
