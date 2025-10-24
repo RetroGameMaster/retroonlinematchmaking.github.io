@@ -2251,8 +2251,11 @@ function initProfilePictureSystem() {
     const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
     if (currentUser) {
         const profile = loadUserProfile(currentUser.username);
+        console.log('Loading profile for:', currentUser.username, profile);
+        
         if (profile && profile.profilePic) {
             preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+            console.log('Profile picture loaded from storage');
         } else {
             // Create text element if it doesn't exist
             let previewText = document.getElementById('profilePicText');
@@ -2262,6 +2265,7 @@ function initProfilePictureSystem() {
                 preview.appendChild(previewText);
             }
             previewText.textContent = currentUser.username.charAt(0).toUpperCase();
+            console.log('Using default avatar');
         }
         
         // Also update the profile header avatar
@@ -2287,6 +2291,8 @@ function handleProfilePicUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
+    console.log('File selected:', file.name, file.size);
+    
     // Check file size (max 500KB)
     if (file.size > 500 * 1024) {
         showQuickStatus('Image too large! Max 500KB.', 'error');
@@ -2295,28 +2301,85 @@ function handleProfilePicUpload(event) {
     
     const reader = new FileReader();
     reader.onload = function(e) {
-        compressImage(e.target.result, 50, function(compressedImage) {
+        console.log('File read successfully, compressing...');
+        
+        // Use simpler compression that actually works
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Resize to max 150x150
+            let width = img.width;
+            let height = img.height;
+            const maxDimension = 150;
+            
+            if (width > height && width > maxDimension) {
+                height = (height * maxDimension) / width;
+                width = maxDimension;
+            } else if (height > maxDimension) {
+                width = (width * maxDimension) / height;
+                height = maxDimension;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convert to data URL
+            const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
+            console.log('Image compressed, size:', Math.round(compressedImage.length / 1024), 'KB');
+            
             const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
             
             if (currentUser) {
-                // Save to user profile
-                saveUserProfile(currentUser.username, {
-                    profilePic: compressedImage,
-                    avatarType: 'custom'
-                });
+                console.log('Saving profile picture for:', currentUser.username);
                 
-                // Update preview
+                // Get current profile data first
+                const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+                const currentProfile = users[currentUser.username] || {};
+                
+                // Update with new profile pic
+                const updatedProfile = {
+                    ...currentProfile,
+                    profilePic: compressedImage,
+                    avatarType: 'custom',
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                // Save to users object
+                users[currentUser.username] = updatedProfile;
+                localStorage.setItem('rom-users', JSON.stringify(users));
+                
+                console.log('Profile picture saved to localStorage');
+                
+                // Update preview immediately
                 const preview = document.getElementById('profilePicPreview');
-                preview.innerHTML = `<img src="${compressedImage}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+                if (preview) {
+                    preview.innerHTML = `<img src="${compressedImage}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+                }
                 
                 // Update profile header avatar
                 updateProfileAvatar(currentUser.username, { profilePic: compressedImage });
                 
-                showQuickStatus('Profile picture saved!', 'success');
+                showQuickStatus('Profile picture saved successfully!', 'success');
                 updateStorageInfo();
+                
+                // Verify it was saved
+                setTimeout(() => {
+                    const verifyProfile = loadUserProfile(currentUser.username);
+                    console.log('Verification - loaded profile:', verifyProfile ? 'Has profilePic:' + !!verifyProfile.profilePic : 'No profile found');
+                }, 100);
             }
-        });
+        };
+        img.src = e.target.result;
     };
+    
+    reader.onerror = function() {
+        console.error('Error reading file');
+        showQuickStatus('Error reading image file', 'error');
+    };
+    
     reader.readAsDataURL(file);
 }
 
@@ -2668,50 +2731,85 @@ function loadUserProfile() {
         return;
     }
     
-    const profile = loadUserProfile(currentUser.username);
+    console.log('Loading profile for user:', currentUser.username);
     
-    // Update basic profile info
+    const profile = loadUserProfile(currentUser.username);
+    console.log('Loaded profile data:', profile);
+    
+    // Update basic profile info - FIXED: Use actual data, not "Loading..."
     const usernameElement = document.getElementById('profileUsername');
-    const avatarTextElement = document.getElementById('profileAvatarText');
     const joinDateElement = document.getElementById('profileJoinDate');
     
-    if (usernameElement) usernameElement.textContent = currentUser.username;
-    if (avatarTextElement) avatarTextElement.textContent = currentUser.username.charAt(0).toUpperCase();
+    if (usernameElement) {
+        usernameElement.textContent = currentUser.username;
+        console.log('Set username to:', currentUser.username);
+    }
     
-    const joinDate = currentUser.joined ? new Date(currentUser.joined).toLocaleDateString() : new Date().toLocaleDateString();
-    if (joinDateElement) joinDateElement.textContent = `Joined: ${joinDate}`;
+    if (joinDateElement) {
+        // Use the actual join date from user data
+        const joinDate = currentUser.joined ? new Date(currentUser.joined).toLocaleDateString() : new Date().toLocaleDateString();
+        joinDateElement.textContent = `Joined: ${joinDate}`;
+        console.log('Set join date to:', joinDate);
+    }
+    
+    // Update profile avatar in header
+    const avatarTextElement = document.getElementById('profileAvatarText');
+    if (avatarTextElement) {
+        if (profile && profile.profilePic) {
+            // Use profile picture
+            const avatarContainer = avatarTextElement.closest('.profile-avatar-large');
+            if (avatarContainer) {
+                avatarContainer.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            }
+        } else {
+            // Use initial
+            avatarTextElement.textContent = currentUser.username.charAt(0).toUpperCase();
+        }
+    }
     
     // Load customization data
     if (profile) {
-        // Update profile picture
+        console.log('Loading customization data from profile');
+        
+        // Update profile picture in preview
         if (profile.profilePic) {
             const preview = document.getElementById('profilePicPreview');
             if (preview) {
                 preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+                console.log('Set profile picture in preview');
             }
-            updateProfileAvatar(currentUser.username, profile);
         }
         
         // Update signature
         if (profile.signature) {
             const signatureInput = document.getElementById('userSignature');
             const signatureCount = document.getElementById('signatureCount');
-            if (signatureInput) signatureInput.value = profile.signature;
+            if (signatureInput) {
+                signatureInput.value = profile.signature;
+                console.log('Set signature to:', profile.signature);
+            }
             if (signatureCount) signatureCount.textContent = profile.signature.length;
         }
         
         // Update status
         if (profile.status) {
             const statusSelector = document.getElementById('userStatus');
-            if (statusSelector) statusSelector.value = profile.status;
+            if (statusSelector) {
+                statusSelector.value = profile.status;
+                console.log('Set status to:', profile.status);
+            }
         }
+    } else {
+        console.log('No profile data found for user');
     }
     
-    // Update online users list with real data
+    // Update other sections
     updateOnlineUsers();
     loadWallPosts();
     updateUserStats();
     updateStorageInfo();
+    
+    console.log('Profile loading complete');
 }
 
 // Update the existing checkLoginStatus to initialize customization
