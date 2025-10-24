@@ -2220,16 +2220,76 @@ body.sega-theme .music-btn:hover {
 
 // Enhanced user profiles with customization
 function saveUserProfile(username, profileData) {
+    console.log('Saving profile for:', username, 'Data:', profileData);
+    
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    
+    // Make sure we don't lose existing data
+    const existingData = users[username] || {};
+    
     users[username] = {
-        ...users[username],
-        ...profileData,
+        ...existingData, // Keep existing data
+        ...profileData,  // Add new data
         lastUpdated: new Date().toISOString()
     };
+    
     localStorage.setItem('rom-users', JSON.stringify(users));
+    
+    // Verify it was saved
+    const verifyUsers = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const verifyData = verifyUsers[username];
+    console.log('Profile saved. Verification:', {
+        hasProfilePic: !!(verifyData && verifyData.profilePic),
+        hasSignature: !!(verifyData && verifyData.signature),
+        hasStatus: !!(verifyData && verifyData.status)
+    });
+    
     updateStorageInfo();
+    return true;
+}
+// Function to fix existing users who might have missing data
+function fixUserData() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) return;
+    
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const userData = users[currentUser.username];
+    
+    if (userData) {
+        // Fix missing join date
+        if (!userData.joined) {
+            userData.joined = new Date().toISOString();
+            console.log('Fixed missing join date for user:', currentUser.username);
+        }
+        
+        // Fix missing profile fields
+        const requiredFields = ['profilePic', 'signature', 'status', 'avatarType'];
+        let needsFix = false;
+        
+        requiredFields.forEach(field => {
+            if (userData[field] === undefined) {
+                userData[field] = field === 'avatarType' ? 'generated' : '';
+                needsFix = true;
+                console.log('Fixed missing field:', field, 'for user:', currentUser.username);
+            }
+        });
+        
+        if (needsFix) {
+            localStorage.setItem('rom-users', JSON.stringify(users));
+            console.log('User data fixed and saved');
+        }
+        
+        // Also update current-user join date if missing
+        if (!currentUser.joined && userData.joined) {
+            currentUser.joined = userData.joined;
+            localStorage.setItem('rom-current-user', JSON.stringify(currentUser));
+            console.log('Fixed current-user join date');
+        }
+    }
 }
 
+// Call this on page load
+setTimeout(fixUserData, 1000);
 function loadUserProfile(username) {
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
     return users[username] || null;
@@ -3973,26 +4033,35 @@ function registerUser(username, password, email) {
     return false;
   }
   
+  // Create proper user data with ALL required fields
+  const joinDate = new Date().toISOString();
   users[username] = {
     password: btoa(password),
     email: email,
-    joined: new Date().toISOString(),
-    lastActive: new Date().toISOString(), // ADD THIS LINE
-    favorites: []
+    joined: joinDate,
+    lastActive: joinDate,
+    favorites: [],
+    // Add profile customization fields
+    profilePic: null,
+    signature: '',
+    status: '',
+    avatarType: 'generated'
   };
   
   localStorage.setItem('rom-users', JSON.stringify(users));
   
+  // Also save to current user with ALL data
   const userData = {
     username: username,
     email: email,
-    joined: users[username].joined,
+    joined: joinDate, // Make sure this is saved
     favorites: []
   };
   
   localStorage.setItem('rom-current-user', JSON.stringify(userData));
   checkLoginStatus();
   
+  console.log('User registered:', username, 'Join date:', joinDate);
   return true;
 }
 
@@ -4270,30 +4339,102 @@ function initProfileSystem() {
 }
 
 function loadUserProfile() {
-  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-  if (!currentUser) return;
-  
-  const profile = loadUserProfile(currentUser.username);
-  
-  document.getElementById('profileUsername').textContent = currentUser.username;
-  document.getElementById('profileAvatarText').textContent = currentUser.username.charAt(0).toUpperCase();
-  
-  const joinDate = new Date(currentUser.joined).toLocaleDateString();
-  document.getElementById('profileJoinDate').textContent = `Joined: ${joinDate}`;
-  
-  // Load customization data
-  if (profile) {
-    if (profile.signature) {
-      document.getElementById('userSignature').value = profile.signature;
-      document.getElementById('signatureCount').textContent = profile.signature.length;
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) {
+        console.log('No user logged in');
+        return;
     }
-    if (profile.status) {
-      document.getElementById('userStatus').value = profile.status;
+    
+    console.log('=== LOADING USER PROFILE ===');
+    console.log('Current user:', currentUser);
+    
+    // Get the FULL user data from rom-users, not just current-user
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const fullUserData = users[currentUser.username];
+    
+    console.log('Full user data from storage:', fullUserData);
+    
+    // Update basic profile info
+    const usernameElement = document.getElementById('profileUsername');
+    const joinDateElement = document.getElementById('profileJoinDate');
+    
+    if (usernameElement) {
+        usernameElement.textContent = currentUser.username;
     }
-  }
-  
-  loadWallPosts();
-  updateStorageInfo();
+    
+    if (joinDateElement) {
+        // Get join date from FULL user data, not current-user
+        const joinDate = fullUserData && fullUserData.joined ? 
+            new Date(fullUserData.joined).toLocaleDateString() : 
+            (currentUser.joined ? new Date(currentUser.joined).toLocaleDateString() : 'Recently');
+        
+        joinDateElement.textContent = `Joined: ${joinDate}`;
+        console.log('Join date set to:', joinDate);
+    }
+    
+    // Update profile avatar in header
+    const avatarContainer = document.querySelector('.profile-avatar-large');
+    if (avatarContainer) {
+        if (fullUserData && fullUserData.profilePic) {
+            avatarContainer.innerHTML = `<img src="${fullUserData.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            console.log('Profile picture loaded in header');
+        } else {
+            const avatarText = avatarContainer.querySelector('#profileAvatarText');
+            if (avatarText) {
+                avatarText.textContent = currentUser.username.charAt(0).toUpperCase();
+            }
+        }
+    }
+    
+    // Load customization data in the form
+    if (fullUserData) {
+        console.log('Loading customization data:', fullUserData);
+        
+        // Update profile picture in preview
+        const preview = document.getElementById('profilePicPreview');
+        if (preview) {
+            if (fullUserData.profilePic) {
+                preview.innerHTML = `<img src="${fullUserData.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+                console.log('Profile picture loaded in preview');
+            } else {
+                let previewText = document.getElementById('profilePicText');
+                if (!previewText) {
+                    previewText = document.createElement('span');
+                    previewText.id = 'profilePicText';
+                    preview.appendChild(previewText);
+                }
+                previewText.textContent = currentUser.username.charAt(0).toUpperCase();
+            }
+        }
+        
+        // Update signature
+        const signatureInput = document.getElementById('userSignature');
+        const signatureCount = document.getElementById('signatureCount');
+        if (signatureInput) {
+            signatureInput.value = fullUserData.signature || '';
+            console.log('Signature set to:', fullUserData.signature || '(empty)');
+        }
+        if (signatureCount) {
+            signatureCount.textContent = (fullUserData.signature || '').length;
+        }
+        
+        // Update status
+        const statusSelector = document.getElementById('userStatus');
+        if (statusSelector) {
+            statusSelector.value = fullUserData.status || '';
+            console.log('Status set to:', fullUserData.status || '(empty)');
+        }
+    } else {
+        console.log('No full user data found - user might need to re-register');
+    }
+    
+    // Update other sections
+    updateOnlineUsers();
+    loadWallPosts();
+    updateUserStats();
+    updateStorageInfo();
+    
+    console.log('=== PROFILE LOADING COMPLETE ===');
 }
 
 function postToWall() {
