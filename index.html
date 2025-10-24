@@ -1830,7 +1830,7 @@ function initAllSystems() {
   initTypingEffect();
 }
 
-/* ---------- Music Player - RELIABLE TRACKS ---------- */
+/* ---------- Music Player - REAL RETRO GAME MUSIC ---------- */
 function initMusicPlayer() {
   const playPauseBtn = document.getElementById('playPause');
   const prevTrackBtn = document.getElementById('prevTrack');
@@ -1840,46 +1840,119 @@ function initMusicPlayer() {
   let isPlaying = false;
   let currentTrack = 0;
   let audioElement = null;
-  
-  // 100% RELIABLE music sources - all from Mixkit
+  let userInteracted = false;
+
+  // ACTUAL CLASSIC VIDEO GAME MUSIC
   const musicTracks = [
-    'https://assets.mixkit.co/music/preview/mixkit-game-show-suspense-waiting-667.mp3',
-    'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3', 
-    'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3',
-    'https://assets.mixkit.co/music/preview/mixkit-the-intro-1124.mp3',
-    'https://assets.mixkit.co/music/preview/mixkit-hazy-after-hours-132.mp3',
-    'https://assets.mixkit.co/music/preview/mixkit-sun-and-happiness-87.mp3'
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smb/smb_overworld.wav',
+      name: 'Super Mario Bros - Overworld'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smb/smb_underworld.wav',
+      name: 'Super Mario Bros - Underworld'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smb/smb_starman.wav',
+      name: 'Super Mario Bros - Starman'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smb/smb_gameover.wav',
+      name: 'Super Mario Bros - Game Over'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smb/smb_castle.wav',
+      name: 'Super Mario Bros - Castle'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smb2/smb2_overworld.wav',
+      name: 'Super Mario Bros 2 - Overworld'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smb3/smb3_overworld.wav',
+      name: 'Super Mario Bros 3 - Overworld'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smw/smw_overworld.wav',
+      name: 'Super Mario World - Overworld'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smw/smw_athletic.wav',
+      name: 'Super Mario World - Athletic'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/smw/smw_ghosthouse.wav',
+      name: 'Super Mario World - Ghost House'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/zelda/zelda_overworld.wav',
+      name: 'Zelda - Overworld'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/zelda/zelda_dungeon.wav',
+      name: 'Zelda - Dungeon'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/zelda/zelda_triforce.wav',
+      name: 'Zelda - Triforce'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/metroid/metroid_brinstar.wav',
+      name: 'Metroid - Brinstar'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/metroid/metroid_kraidslair.wav',
+      name: 'Metroid - Kraid\'s Lair'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/megaman/mm2_airman.wav',
+      name: 'Mega Man 2 - Air Man'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/megaman/mm2_flashman.wav',
+      name: 'Mega Man 2 - Flash Man'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/megaman/mm2_woodman.wav',
+      name: 'Mega Man 2 - Wood Man'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/megaman/mm2_dr_wily.wav',
+      name: 'Mega Man 2 - Dr. Wily'
+    },
+    {
+      url: 'https://themushroomkingdom.net/sounds/wav/donkeykong/dkc_jungle_hijinks.wav',
+      name: 'Donkey Kong Country - Jungle Hijinks'
+    }
   ];
-  
-  const trackNames = ['Game Suspense', 'Tech Vibes', 'Driving Beat', 'Intro Theme', 'Hazy Hours', 'Sunshine'];
 
   function loadTrack(trackIndex) {
-    console.log('Loading track:', trackIndex + 1, musicTracks[trackIndex]);
+    console.log('Loading:', musicTracks[trackIndex].name);
     
     if (audioElement) {
       audioElement.pause();
+      audioElement.onended = null;
       audioElement = null;
     }
     
     currentTrack = trackIndex;
-    audioElement = new Audio(musicTracks[trackIndex]);
-    audioElement.volume = 0.3;
+    audioElement = new Audio(musicTracks[trackIndex].url);
+    audioElement.volume = 0.5;
     
-    // Set up event listeners for this track
-    audioElement.addEventListener('canplaythrough', () => {
-      console.log('Track', trackIndex + 1, 'is ready to play');
-    });
+    audioElement.oncanplaythrough = () => {
+      console.log('✅ Ready:', musicTracks[trackIndex].name);
+    };
     
-    audioElement.addEventListener('error', (e) => {
-      console.error('Track error:', trackIndex + 1, e);
-      // Skip to next track if this one fails
-      setTimeout(() => nextTrack(), 1000);
-    });
+    audioElement.onerror = () => {
+      console.log('❌ Failed:', musicTracks[trackIndex].name);
+      showQuickStatus(`Skipping: ${musicTracks[trackIndex].name}`, 'error');
+      setTimeout(() => nextTrack(), 500);
+    };
     
-    audioElement.addEventListener('ended', () => {
-      console.log('Track ended, playing next');
+    audioElement.onended = () => {
+      console.log('🎵 Track ended');
       nextTrack();
-    });
+    };
     
     updateTrackInfo();
   }
@@ -1887,27 +1960,30 @@ function initMusicPlayer() {
   function updateTrackInfo() {
     if (trackInfo) {
       trackInfo.textContent = `${currentTrack + 1}/${musicTracks.length}`;
-      trackInfo.title = trackNames[currentTrack];
+      trackInfo.title = musicTracks[currentTrack].name;
     }
   }
 
   function playCurrentTrack() {
+    if (!userInteracted) {
+      showQuickStatus('Click anywhere on the page first!', 'info');
+      return;
+    }
+    
     if (!audioElement) {
       loadTrack(currentTrack);
     }
     
-    console.log('Attempting to play track:', currentTrack + 1);
+    console.log('▶️ Playing:', musicTracks[currentTrack].name);
     audioElement.play().then(() => {
       isPlaying = true;
       if (playPauseBtn) playPauseBtn.textContent = '⏸️';
-      console.log('✅ Now playing:', trackNames[currentTrack]);
-      showQuickStatus(`Now playing: ${trackNames[currentTrack]}`, 'success');
+      showQuickStatus(`Now playing: ${musicTracks[currentTrack].name}`, 'success');
     }).catch(error => {
       console.log('❌ Play failed:', error);
+      showQuickStatus('Click play again!', 'error');
       isPlaying = false;
       if (playPauseBtn) playPauseBtn.textContent = '▶️';
-      // Try next track if this one fails
-      setTimeout(() => nextTrack(), 1000);
     });
   }
 
@@ -1924,12 +2000,9 @@ function initMusicPlayer() {
     let next = currentTrack + 1;
     if (next >= musicTracks.length) next = 0;
     
-    console.log('Switching to next track:', next + 1);
     loadTrack(next);
     if (isPlaying) {
-      playCurrentTrack();
-    } else {
-      updateTrackInfo();
+      setTimeout(() => playCurrentTrack(), 100);
     }
   }
 
@@ -1937,19 +2010,16 @@ function initMusicPlayer() {
     let prev = currentTrack - 1;
     if (prev < 0) prev = musicTracks.length - 1;
     
-    console.log('Switching to previous track:', prev + 1);
     loadTrack(prev);
     if (isPlaying) {
-      playCurrentTrack();
-    } else {
-      updateTrackInfo();
+      setTimeout(() => playCurrentTrack(), 100);
     }
   }
 
   // Button event listeners
   if (playPauseBtn) {
     playPauseBtn.addEventListener('click', () => {
-      console.log('Play/Pause clicked');
+      userInteracted = true;
       if (!isPlaying) {
         playCurrentTrack();
       } else {
@@ -1960,26 +2030,27 @@ function initMusicPlayer() {
 
   if (nextTrackBtn) {
     nextTrackBtn.addEventListener('click', () => {
-      console.log('Next track clicked');
+      userInteracted = true;
       nextTrack();
     });
   }
 
   if (prevTrackBtn) {
     prevTrackBtn.addEventListener('click', () => {
-      console.log('Previous track clicked');
+      userInteracted = true;
       prevTrack();
     });
   }
 
   // Load first track
   loadTrack(0);
-  console.log('🎵 Music player initialized with', musicTracks.length, 'tracks');
   
-  // Auto-enable after user interaction
+  // Enable audio on any click
   document.addEventListener('click', () => {
-    console.log('User interacted, audio should work now');
+    userInteracted = true;
   }, { once: true });
+
+  console.log('🎮 Retro Game Music Player Ready!', musicTracks.length, 'classic tracks');
 }
 /* ---------- Sound Effects - FIXED VERSION ---------- */
 function initSoundEffects() {
