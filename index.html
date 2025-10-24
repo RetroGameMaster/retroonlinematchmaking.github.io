@@ -3593,7 +3593,7 @@ setInterval(updateOnlineUsers, 30000);
 function initClipOfWeek() {
   // You can update this data manually or fetch from an API
   const currentClip = {
-    videoId: 'YOUR_VIDEO_ID_HERE', // Replace with actual YouTube video ID
+    videoId: 'rfFrGxlRMj0', // Using your video ID from the HTML
     title: 'This Week\'s Featured Gameplay',
     description: 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!',
     author: 'Community',
@@ -3613,6 +3613,16 @@ function initClipOfWeek() {
   
   if (clipDate) clipDate.textContent = currentClip.date;
   if (clipAuthor) clipAuthor.textContent = currentClip.author;
+  
+  // Optional: Auto-update every week
+  updateClipWeekly();
+}
+
+function updateClipWeekly() {
+  // This would be where you fetch new clip data from your server
+  // For now, it's manual, but you can set up automatic rotation
+  console.log('📹 Clip of the Week system ready - update videoId manually each week');
+}
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
   const cursor = document.getElementById('customCursor');
