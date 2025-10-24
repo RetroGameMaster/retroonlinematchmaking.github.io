@@ -1833,7 +1833,7 @@ function initAllSystems() {
   initMusicPlayer();
 }
 
-/* ---------- Music Player - COMPLETE REWRITE ---------- */
+/* ---------- Music Player - FIXED VERSION ---------- */
 function initMusicPlayer() {
   const playPauseBtn = document.getElementById('playPause');
   const prevTrackBtn = document.getElementById('prevTrack');
@@ -1842,16 +1842,15 @@ function initMusicPlayer() {
   let isPlaying = false;
   let audioElement = null;
   
-  // Use different music sources that should work
+  // NEW: Better music sources that should work
   const musicTracks = [
-    'https://assets.mixkit.co/music/preview/mixkit-game-show-suspense-waiting-667.mp3',
-    'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-    'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3'
+    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3',
+    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3',
+    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3'
   ];
   
   let currentTrack = 0;
   
-  // Create a new audio element dynamically
   function createAudioElement() {
     if (audioElement) {
       audioElement.pause();
@@ -1863,16 +1862,15 @@ function initMusicPlayer() {
     audioElement.volume = 0.3;
     audioElement.loop = false;
     
-    // Handle when track ends
-    audioElement.addEventListener('ended', function() {
+    // NEW: Better error handling
+    audioElement.addEventListener('error', function(e) {
+      console.log('Audio error, trying next track...');
+      // Silently move to next track without showing error message
       currentTrack = (currentTrack + 1) % musicTracks.length;
       loadAndPlayTrack();
     });
     
-    // Handle errors
-    audioElement.addEventListener('error', function(e) {
-      console.log('Audio error:', e);
-      showMessage('Music track failed to load. Trying next track...', 'error');
+    audioElement.addEventListener('ended', function() {
       currentTrack = (currentTrack + 1) % musicTracks.length;
       loadAndPlayTrack();
     });
@@ -1880,22 +1878,16 @@ function initMusicPlayer() {
     return audioElement;
   }
   
-  // Load and play current track
   function loadAndPlayTrack() {
     createAudioElement();
-    
-    // Preload the audio
-    audioElement.load();
     
     if (isPlaying) {
       const playPromise = audioElement.play();
       
       if (playPromise !== undefined) {
-        playPromise.then(() => {
-          showMessage(`Now playing track ${currentTrack + 1}`, 'success');
-        }).catch(error => {
-          console.log('Play failed:', error);
-          showMessage('Click play again to start music!', 'info');
+        playPromise.catch(error => {
+          console.log('Auto-play prevented, waiting for user interaction');
+          // Don't show error message to user
           isPlaying = false;
           playPauseBtn.textContent = '▶️';
         });
@@ -1911,55 +1903,50 @@ function initMusicPlayer() {
       }
       
       if (!isPlaying) {
-        // Try to play
         const playPromise = audioElement.play();
         
         if (playPromise !== undefined) {
           playPromise.then(() => {
             isPlaying = true;
             playPauseBtn.textContent = '⏸️';
-            showMessage('Music started! 🎵', 'success');
           }).catch(error => {
-            console.log('Play failed:', error);
-            showMessage('Could not play music. Click again or try a different track.', 'error');
+            console.log('Play failed, user interaction needed');
+            // Show helpful message instead of error
+            showMessage('Click play again to start music!', 'info');
           });
         }
       } else {
-        // Pause
         audioElement.pause();
         isPlaying = false;
         playPauseBtn.textContent = '▶️';
-        showMessage('Music paused', 'info');
       }
     });
   }
   
-  // Next track functionality
+  // Next track
   if (nextTrackBtn) {
     nextTrackBtn.addEventListener('click', function() {
       currentTrack = (currentTrack + 1) % musicTracks.length;
-      isPlaying = true; // Keep playing if we were playing
+      isPlaying = true;
       loadAndPlayTrack();
       playPauseBtn.textContent = '⏸️';
-      showMessage('Next track loaded!', 'info');
     });
   }
   
-  // Previous track functionality
+  // Previous track
   if (prevTrackBtn) {
     prevTrackBtn.addEventListener('click', function() {
       currentTrack = (currentTrack - 1 + musicTracks.length) % musicTracks.length;
-      isPlaying = true; // Keep playing if we were playing
+      isPlaying = true;
       loadAndPlayTrack();
       playPauseBtn.textContent = '⏸️';
-      showMessage('Previous track loaded!', 'info');
     });
   }
   
   // Initialize with first track
   createAudioElement();
   
-  // Enable audio on any click (browser autoplay policy)
+  // Enable audio on any click
   document.addEventListener('click', function initAudio() {
     if (!audioElement) {
       createAudioElement();
