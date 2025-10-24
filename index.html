@@ -1830,7 +1830,7 @@ function initAllSystems() {
   initTypingEffect();
 }
 
-/* ---------- Music Player - WORKING MUSIC SOURCES ---------- */
+/* ---------- Music Player - YOUTUBE RADIO STATION ---------- */
 function initMusicPlayer() {
   const playPauseBtn = document.getElementById('playPause');
   const prevTrackBtn = document.getElementById('prevTrack');
@@ -1839,62 +1839,120 @@ function initMusicPlayer() {
   
   let isPlaying = false;
   let currentTrack = 0;
-  let audioElement = null;
+  let youtubePlayer = null;
   let userInteracted = false;
 
-  // WORKING music sources - using preview URLs instead of download
+  // Ad-free YouTube music streams and playlists
   const musicTracks = [
     {
-      url: 'https://assets.mixkit.co/music/preview/mixkit-game-show-suspense-waiting-667.mp3',
-      name: 'Arcade Suspense'
+      id: '5qap5aO4i9A', // Lofi Girl (24/7 lofi hip hop radio)
+      name: '🎵 Lofi Hip Hop Radio'
     },
     {
-      url: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-      name: '8-Bit Adventure' 
+      id: 'jfKfPfyJRdk', // Lofi Girl backup
+      name: '💤 Chill Lofi Beats'
     },
     {
-      url: 'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3',
-      name: 'Retro Racing'
+      id: '4xDzrJKXOOY', // Synthwave Radio
+      name: '🌃 Synthwave Retro Radio'
     },
     {
-      url: 'https://assets.mixkit.co/music/preview/mixkit-the-intro-1124.mp3',
-      name: 'Game Intro'
+      id: 'MCkTebktHVc', // 80s Retro Wave
+      name: '📻 80s Retro Wave'
+    },
+    {
+      id: 'Dx5qFachd3A', // Video Game Music Mix
+      name: '🎮 Video Game Music Mix'
+    },
+    {
+      id: 'rWc0L-NpAzc', // Classic Video Game Music
+      name: '🕹️ Classic Game Music'
     }
   ];
 
-  function loadTrack(trackIndex) {
-    console.log('🔄 Loading track:', trackIndex + 1, musicTracks[trackIndex].url);
-    
-    // Clean up previous audio
-    if (audioElement) {
-      audioElement.pause();
-      audioElement = null;
+  function loadYouTubeAPI() {
+    // Load YouTube IFrame API if not already loaded
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     }
-    
-    currentTrack = trackIndex;
-    audioElement = new Audio(musicTracks[trackIndex].url);
-    audioElement.volume = 0.4;
-    
-    audioElement.addEventListener('canplaythrough', () => {
-      console.log('✅ Track ready to play:', musicTracks[trackIndex].name);
-    });
-    
-    audioElement.addEventListener('error', (e) => {
-      console.log('❌ Load error:', musicTracks[trackIndex].name, e);
-      showQuickStatus(`Failed: ${musicTracks[trackIndex].name}`, 'error');
-    });
-    
-    updateTrackInfo();
-    
-    // Return a promise that resolves when the track is loaded
-    return new Promise((resolve) => {
-      if (audioElement.readyState >= 3) { // HAVE_FUTURE_DATA
-        resolve(true);
-      } else {
-        audioElement.addEventListener('canplaythrough', () => resolve(true), { once: true });
-        audioElement.addEventListener('error', () => resolve(false), { once: true });
+  }
+
+  function createYouTubePlayer() {
+    if (youtubePlayer) {
+      youtubePlayer.destroy();
+    }
+
+    // Create invisible YouTube player
+    const playerDiv = document.createElement('div');
+    playerDiv.id = 'youtube-player';
+    playerDiv.style.cssText = 'position: fixed; top: -1000px; left: -1000px; width: 1px; height: 1px;';
+    document.body.appendChild(playerDiv);
+
+    youtubePlayer = new YT.Player('youtube-player', {
+      height: '1',
+      width: '1',
+      videoId: musicTracks[currentTrack].id,
+      playerVars: {
+        'autoplay': 0,
+        'controls': 0,
+        'disablekb': 1,
+        'fs': 0,
+        'iv_load_policy': 3,
+        'modestbranding': 1,
+        'playsinline': 1,
+        'rel': 0,
+        'showinfo': 0
+      },
+      events: {
+        'onReady': onPlayerReady,
+        'onStateChange': onPlayerStateChange,
+        'onError': onPlayerError
       }
     });
+  }
+
+  function onPlayerReady(event) {
+    console.log('✅ YouTube Player Ready');
+    updateTrackInfo();
+  }
+
+  function onPlayerStateChange(event) {
+    // Player states: -1=unstarted, 0=ended, 1=playing, 2=paused, 3=buffering, 5=video cued
+    if (event.data === YT.PlayerState.ENDED) {
+      console.log('🎵 Track ended, playing next');
+      nextTrack();
+    } else if (event.data === YT.PlayerState.PLAYING) {
+      isPlaying = true;
+      if (playPauseBtn) playPauseBtn.textContent = '⏸️';
+      console.log('🎶 Now playing:', musicTracks[currentTrack].name);
+      showQuickStatus(`Now playing: ${musicTracks[currentTrack].name}`, 'success');
+    } else if (event.data === YT.PlayerState.PAUSED) {
+      isPlaying = false;
+      if (playPauseBtn) playPauseBtn.textContent = '▶️';
+    }
+  }
+
+  function onPlayerError(event) {
+    console.log('❌ YouTube error:', event.data);
+    showQuickStatus('Stream error, trying next station...', 'error');
+    setTimeout(() => nextTrack(), 2000);
+  }
+
+  function loadTrack(trackIndex) {
+    console.log('🔄 Loading station:', trackIndex + 1, musicTracks[trackIndex].name);
+    
+    currentTrack = trackIndex;
+    
+    if (youtubePlayer) {
+      youtubePlayer.loadVideoById(musicTracks[trackIndex].id);
+    } else {
+      createYouTubePlayer();
+    }
+    
+    updateTrackInfo();
   }
 
   function updateTrackInfo() {
@@ -1904,70 +1962,50 @@ function initMusicPlayer() {
     }
   }
 
-  async function playCurrentTrack() {
+  function playCurrentTrack() {
     if (!userInteracted) {
       showQuickStatus('⚠️ Click anywhere on the page first!', 'info');
       return;
     }
     
-    console.log('▶️ Attempting to play track:', currentTrack + 1);
-    
-    // Load the track and wait for it to be ready
-    const loaded = await loadTrack(currentTrack);
-    
-    if (!loaded) {
-      showQuickStatus('❌ Failed to load track', 'error');
+    if (!youtubePlayer) {
+      loadTrack(currentTrack);
       return;
     }
     
-    try {
-      await audioElement.play();
-      isPlaying = true;
-      if (playPauseBtn) playPauseBtn.textContent = '⏸️';
-      console.log('🎶 NOW PLAYING:', musicTracks[currentTrack].name);
-      showQuickStatus(`Now playing: ${musicTracks[currentTrack].name}`, 'success');
-      
-      // Set ended listener only after successful play
-      audioElement.onended = () => {
-        console.log('🎵 Track finished, playing next');
-        let next = currentTrack + 1;
-        if (next >= musicTracks.length) next = 0;
-        currentTrack = next;
-        playCurrentTrack();
-      };
-      
-    } catch (error) {
-      console.log('❌ Play failed:', error);
-      isPlaying = false;
-      if (playPauseBtn) playPauseBtn.textContent = '▶️';
-      showQuickStatus('❌ Click play again!', 'error');
-    }
+    console.log('▶️ Playing:', musicTracks[currentTrack].name);
+    youtubePlayer.playVideo();
   }
 
   function pauseCurrentTrack() {
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.onended = null;
+    if (youtubePlayer) {
+      youtubePlayer.pauseVideo();
       isPlaying = false;
       if (playPauseBtn) playPauseBtn.textContent = '▶️';
-      showQuickStatus('⏸️ Music paused', 'info');
+      showQuickStatus('⏸️ Radio paused', 'info');
     }
   }
 
   function nextTrack() {
-    console.log('⏭️ Next track requested');
+    console.log('⏭️ Next station');
     let next = currentTrack + 1;
     if (next >= musicTracks.length) next = 0;
-    currentTrack = next;
-    playCurrentTrack();
+    loadTrack(next);
+    
+    if (isPlaying) {
+      setTimeout(() => playCurrentTrack(), 1000);
+    }
   }
 
   function prevTrack() {
-    console.log('⏮️ Previous track requested');
+    console.log('⏮️ Previous station');
     let prev = currentTrack - 1;
     if (prev < 0) prev = musicTracks.length - 1;
-    currentTrack = prev;
-    playCurrentTrack();
+    loadTrack(prev);
+    
+    if (isPlaying) {
+      setTimeout(() => playCurrentTrack(), 1000);
+    }
   }
 
   // Button event listeners
@@ -1999,13 +2037,27 @@ function initMusicPlayer() {
     });
   }
 
-  // Load first track but DON'T auto-play
-  loadTrack(0);
-  console.log('🎵 Music player initialized. Tracks:', musicTracks.length);
+  // Initialize
+  loadYouTubeAPI();
   
-  // Enable audio on any click
+  // Wait for YouTube API to load
+  window.onYouTubeIframeAPIReady = function() {
+    console.log('📻 YouTube API Ready - Loading first station');
+    loadTrack(0);
+  };
+
+  // If API takes too long, load directly
+  setTimeout(() => {
+    if (!youtubePlayer && window.YT) {
+      loadTrack(0);
+    }
+  }, 3000);
+
+  console.log('📻 YouTube Radio initialized with', musicTracks.length, 'stations');
+  
+  // Enable on any click
   document.addEventListener('click', () => {
-    console.log('👆 User interacted - audio should work now');
+    console.log('👆 User interacted');
     userInteracted = true;
   }, { once: true });
 }
