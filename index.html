@@ -795,6 +795,22 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   background: rgba(0, 255, 255, 0.2);
 }
 
+/* NEW: Enhanced animations */
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 5px rgba(0,255,255,0.5); }
+  50% { box-shadow: 0 0 20px rgba(0,255,255,0.8); }
+  100% { box-shadow: 0 0 5px rgba(0,255,255,0.5); }
+}
+
+.new-content {
+  animation: pulse-glow 2s ease-in-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .social-hub-content {
@@ -1278,6 +1294,7 @@ body.sega-theme .music-btn:hover {
         <button class="music-btn" id="prevTrack">⏮</button>
         <button class="music-btn" id="playPause">▶️</button>
         <button class="music-btn" id="nextTrack">⏭</button>
+        <span id="trackInfo" style="font-size:0.7rem; margin-left:5px;">1/6</span>
       </div>
     </div>
   </div>
@@ -1327,6 +1344,7 @@ body.sega-theme .music-btn:hover {
       <span class="status-indicator">🟢 SYSTEM ONLINE</span>
       <span class="status-indicator">👥 PLAYERS: <span id="playerCount">27</span></span>
       <span class="status-indicator">📡 PING: <span id="pingTime">52ms</span></span>
+      <span class="status-indicator">🕐 <span id="liveClock">--:--:--</span></span>
     </div>
 
     <!-- Search System -->
@@ -1749,29 +1767,6 @@ body.sega-theme .music-btn:hover {
   <!-- Custom cursor -->
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
-  <!-- Audio Elements -->
-  <audio id="bgMusic" loop style="display: none;">
-    <source src="https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3" type="audio/mpeg">
-  </audio>
-  
-  <audio id="clickSound" preload="auto" style="display:none">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3" type="audio/mpeg">
-  </audio>
-  <audio id="hoverSound" preload="auto" style="display:none">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" type="audio/mpeg">
-  </audio>
-  <audio id="expandSound" preload="auto" style="display:none">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3" type="audio/mpeg">
-  </audio>
-
-  <!-- Easter Egg Sounds -->
-  <audio id="victorySound" preload="auto" style="display:none">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-explosion-1699.mp3" type="audio/mpeg">
-  </audio>
-  <audio id="coinSound" preload="auto" style="display:none">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-coins-2859.mp3" type="audio/mpeg">
-  </audio>
-
 <script>
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
@@ -1831,22 +1826,46 @@ function initAllSystems() {
   initUserFavorites();
   initSocialHub();
   initMusicPlayer();
+  initLiveClock();
+  initTypingEffect();
 }
 
-/* ---------- Music Player - FIXED VERSION ---------- */
+/* ---------- Music Player - ENHANCED WITH RETRO GAME MUSIC ---------- */
 function initMusicPlayer() {
   const playPauseBtn = document.getElementById('playPause');
   const prevTrackBtn = document.getElementById('prevTrack');
   const nextTrackBtn = document.getElementById('nextTrack');
+  const trackInfo = document.getElementById('trackInfo');
   
   let isPlaying = false;
   let audioElement = null;
   
-  // NEW: Better music sources that should work
+  // Retro Game Music Playlist - All from reliable sources
   const musicTracks = [
-    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3',
-    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3',
-    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3'
+    {
+      url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3',
+      name: 'Retro Arcade'
+    },
+    {
+      url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3',
+      name: '8-Bit Adventure'
+    },
+    {
+      url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3',
+      name: 'Pixel Dreams'
+    },
+    {
+      url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Yung_Kartz/Spring_2020/Yung_Kartz_-_09_-_Elevator.mp3',
+      name: 'Cyber City'
+    },
+    {
+      url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Scott_Holmes/Back_to_School/Scott_Holmes_-_04_-_Upbeat_Party.mp3',
+      name: 'Game Over?'
+    },
+    {
+      url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Scott_Holmes/Back_to_School/Scott_Holmes_-_02_-_Positive_Fun.mp3',
+      name: 'Level Up!'
+    }
   ];
   
   let currentTrack = 0;
@@ -1858,14 +1877,12 @@ function initMusicPlayer() {
     }
     
     audioElement = new Audio();
-    audioElement.src = musicTracks[currentTrack];
+    audioElement.src = musicTracks[currentTrack].url;
     audioElement.volume = 0.3;
     audioElement.loop = false;
     
-    // NEW: Better error handling
     audioElement.addEventListener('error', function(e) {
       console.log('Audio error, trying next track...');
-      // Silently move to next track without showing error message
       currentTrack = (currentTrack + 1) % musicTracks.length;
       loadAndPlayTrack();
     });
@@ -1875,7 +1892,15 @@ function initMusicPlayer() {
       loadAndPlayTrack();
     });
     
+    updateTrackInfo();
     return audioElement;
+  }
+  
+  function updateTrackInfo() {
+    if (trackInfo) {
+      trackInfo.textContent = `${currentTrack + 1}/${musicTracks.length}`;
+      trackInfo.title = musicTracks[currentTrack].name;
+    }
   }
   
   function loadAndPlayTrack() {
@@ -1886,13 +1911,13 @@ function initMusicPlayer() {
       
       if (playPromise !== undefined) {
         playPromise.catch(error => {
-          console.log('Auto-play prevented, waiting for user interaction');
-          // Don't show error message to user
+          console.log('Auto-play prevented');
           isPlaying = false;
           playPauseBtn.textContent = '▶️';
         });
       }
     }
+    updateTrackInfo();
   }
   
   // Play/Pause functionality
@@ -1909,16 +1934,16 @@ function initMusicPlayer() {
           playPromise.then(() => {
             isPlaying = true;
             playPauseBtn.textContent = '⏸️';
+            showQuickStatus(`Now playing: ${musicTracks[currentTrack].name}`, 'info');
           }).catch(error => {
-            console.log('Play failed, user interaction needed');
-            // Show helpful message instead of error
-            showMessage('Click play again to start music!', 'info');
+            showQuickStatus('Click play again to start music!', 'info');
           });
         }
       } else {
         audioElement.pause();
         isPlaying = false;
         playPauseBtn.textContent = '▶️';
+        showQuickStatus('Music paused', 'info');
       }
     });
   }
@@ -1930,6 +1955,7 @@ function initMusicPlayer() {
       isPlaying = true;
       loadAndPlayTrack();
       playPauseBtn.textContent = '⏸️';
+      showQuickStatus(`Next: ${musicTracks[currentTrack].name}`, 'info');
     });
   }
   
@@ -1940,6 +1966,7 @@ function initMusicPlayer() {
       isPlaying = true;
       loadAndPlayTrack();
       playPauseBtn.textContent = '⏸️';
+      showQuickStatus(`Previous: ${musicTracks[currentTrack].name}`, 'info');
     });
   }
   
@@ -1954,6 +1981,257 @@ function initMusicPlayer() {
     document.removeEventListener('click', initAudio);
   }, { once: true });
 }
+
+/* ---------- Sound Effects - FIXED VERSION ---------- */
+function initSoundEffects() {
+  // Create audio elements dynamically
+  const clickSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3');
+  const hoverSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3');
+  const expandSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3');
+  
+  // Set volume
+  clickSound.volume = 0.3;
+  hoverSound.volume = 0.2;
+  expandSound.volume = 0.25;
+  
+  let soundsEnabled = false;
+
+  function enableSounds() {
+    if (soundsEnabled) return;
+    soundsEnabled = true;
+    
+    // Preload sounds by playing and immediately pausing
+    [clickSound, hoverSound, expandSound].forEach(sound => {
+      sound.play().then(() => {
+        sound.pause();
+        sound.currentTime = 0;
+      }).catch(e => console.log('Sound preload failed'));
+    });
+  }
+
+  // Enable on first user interaction
+  document.addEventListener('click', enableSounds, { once: true });
+  document.addEventListener('touchstart', enableSounds, { once: true });
+
+  // Button hover sounds
+  const buttons = document.querySelectorAll('.button, .collapsible, .theme-btn, .copy-btn, .music-btn');
+  buttons.forEach(button => {
+    button.addEventListener('mouseenter', () => {
+      if (soundsEnabled && hoverSound) {
+        hoverSound.currentTime = 0;
+        hoverSound.play().catch(e => console.log('Hover sound blocked'));
+      }
+    });
+    
+    button.addEventListener('click', () => {
+      if (soundsEnabled && clickSound) {
+        clickSound.currentTime = 0;
+        clickSound.play().catch(e => console.log('Click sound blocked'));
+      }
+    });
+  });
+
+  // Collapsible expand sounds
+  const collapsibles = document.querySelectorAll('.collapsible');
+  collapsibles.forEach(collapsible => {
+    collapsible.addEventListener('click', function() {
+      setTimeout(() => {
+        if (expandSound && this.classList.contains('active') && soundsEnabled) {
+          expandSound.currentTime = 0;
+          expandSound.play().catch(e => console.log('Expand sound blocked'));
+        }
+      }, 150);
+    });
+  });
+}
+
+/* ---------- Live Clock ---------- */
+function initLiveClock() {
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('liveClock').textContent = 
+      now.toLocaleTimeString([], {hour12: false});
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+}
+
+/* ---------- Typing Effect ---------- */
+function initTypingEffect() {
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  
+  let typingTimer;
+  searchInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length > 0) {
+      searchResults.style.color = '#ffff00';
+      searchResults.textContent = 'Searching...';
+      
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => {
+        // Existing search logic will handle the actual search
+      }, 500);
+    }
+  });
+}
+
+/* ---------- Quick Status Notifications ---------- */
+function showQuickStatus(message, type = 'info') {
+  const status = document.createElement('div');
+  status.textContent = message;
+  status.style.cssText = `
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === 'error' ? 'rgba(255,0,0,0.9)' : 'rgba(0,255,255,0.9)'};
+    color: #000;
+    padding: 10px 20px;
+    border-radius: 20px;
+    z-index: 10000;
+    font-weight: bold;
+    animation: slideUp 0.3s ease;
+    backdrop-filter: blur(10px);
+    border: 1px solid #00ffff;
+  `;
+  
+  document.body.appendChild(status);
+  
+  setTimeout(() => {
+    status.style.animation = 'slideOut 0.3s ease';
+    setTimeout(() => {
+      if (status.parentNode) {
+        status.parentNode.removeChild(status);
+      }
+    }, 300);
+  }, 3000);
+}
+
+/* ---------- Enhanced Player Count Animation ---------- */
+function animatePlayerCount(newCount, element) {
+  const current = parseInt(element.textContent);
+  const diff = newCount - current;
+  const steps = 10;
+  const step = diff / steps;
+  
+  let currentStep = 0;
+  const timer = setInterval(() => {
+    currentStep++;
+    element.textContent = Math.round(current + (step * currentStep));
+    
+    if (currentStep >= steps) {
+      element.textContent = newCount;
+      clearInterval(timer);
+    }
+  }, 50);
+}
+
+/* ---------- Enhanced Easter Eggs ---------- */
+function initEasterEggs() {
+  const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+  let konamiIndex = 0;
+  
+  const secretCodes = {
+    'iddqd': () => showSecretMessage("GOD MODE ACTIVATED! 🔥\nInvincibility enabled!"),
+    'rosebud': () => showSecretMessage("💰 INFINITE MONEY! 💰\nSims reference detected!"),
+    'updownleftrightab': () => {
+      showSecretMessage("CONTRA CODE!\n+30 Lives unlocked! 🎮");
+      createFlyingSprite('💀');
+      createFlyingSprite('🔫');
+    }
+  };
+  
+  let currentCode = '';
+  
+  document.addEventListener('keydown', (e) => {
+    // Konami Code
+    if (e.code === konamiCode[konamiIndex]) {
+      konamiIndex++;
+      if (konamiIndex === konamiCode.length) {
+        activateKonamiEgg();
+        konamiIndex = 0;
+      }
+    } else {
+      konamiIndex = 0;
+    }
+    
+    // Secret codes
+    currentCode += e.key.toLowerCase();
+    
+    Object.keys(secretCodes).forEach(code => {
+      if (currentCode.includes(code)) {
+        secretCodes[code]();
+        currentCode = '';
+      }
+    });
+    
+    // Reset if too long
+    if (currentCode.length > 20) currentCode = '';
+  });
+}
+
+function activateKonamiEgg() {
+  console.log('KONAMI CODE ACTIVATED! 🎮');
+  
+  const victorySound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-explosion-1699.mp3');
+  victorySound.volume = 0.5;
+  victorySound.play().catch(e => console.log('Audio play prevented'));
+  
+  const sprites = ['👾', '🕹️', '🎮', '⭐', '🔥', '💎', '🚀', '👑', '🎯', '🏆'];
+  for (let i = 0; i < 25; i++) {
+    setTimeout(() => {
+      createFlyingSprite(sprites[Math.floor(Math.random() * sprites.length)]);
+    }, i * 100);
+  }
+  
+  setTimeout(() => {
+    showSecretMessage("+30 LIVES UNLOCKED! 🎉\n\nFull power activated!\nRetro mode engaged!");
+  }, 500);
+  
+  const coinSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-coins-2859.mp3');
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+      coinSound.currentTime = 0;
+      coinSound.volume = 0.3;
+      coinSound.play().catch(e => console.log('Audio play prevented'));
+    }, i * 200);
+  }
+}
+
+function createFlyingSprite(sprite) {
+  const flyingSprite = document.createElement('div');
+  flyingSprite.className = 'flying-sprite';
+  flyingSprite.textContent = sprite;
+  flyingSprite.style.left = '-100px';
+  flyingSprite.style.top = Math.random() * window.innerHeight + 'px';
+  flyingSprite.style.setProperty('--random-y', (Math.random() - 0.5) * 2);
+  flyingSprite.style.fontSize = (Math.random() * 20 + 20) + 'px';
+  
+  document.body.appendChild(flyingSprite);
+  
+  setTimeout(() => {
+    if (flyingSprite.parentNode) {
+      flyingSprite.parentNode.removeChild(flyingSprite);
+    }
+  }, 3000);
+}
+
+function showSecretMessage(message) {
+  const secretMessage = document.createElement('div');
+  secretMessage.className = 'secret-message';
+  secretMessage.textContent = message;
+  
+  document.body.appendChild(secretMessage);
+  
+  setTimeout(() => {
+    if (secretMessage.parentNode) {
+      secretMessage.parentNode.removeChild(secretMessage);
+    }
+  }, 5000);
+}
+
 /* ---------- Collapsibles ---------- */
 function initCollapsibles(){
   const coll = document.querySelectorAll('.collapsible');
@@ -2016,7 +2294,8 @@ function initStatusBar() {
     currentPlayers = Math.max(15, currentPlayers + fluctuation);
     currentPlayers = Math.min(85, currentPlayers);
     
-    playerCount.textContent = currentPlayers;
+    // Use animation for smooth count changes
+    animatePlayerCount(currentPlayers, playerCount);
   }, 120000);
   
   if (pingTime) {
@@ -2052,68 +2331,6 @@ function initStatusBar() {
   }
 }
 
-/* ---------- Sound Effects ---------- */
-function initSoundEffects() {
-  const clickSound = document.getElementById('clickSound');
-  const hoverSound = document.getElementById('hoverSound');
-  const expandSound = document.getElementById('expandSound');
-  
-  let soundsEnabled = false;
-  
-  function enableSounds() {
-    if (soundsEnabled) return;
-    soundsEnabled = true;
-    
-    [clickSound, hoverSound, expandSound].forEach(sound => {
-      if (sound) {
-        sound.volume = 0.001;
-        sound.play().then(() => {
-          sound.pause();
-          sound.currentTime = 0;
-        }).catch(e => console.log('Sound preload failed'));
-      }
-    });
-    
-    document.removeEventListener('click', enableSounds);
-    document.removeEventListener('touchstart', enableSounds);
-  }
-  
-  document.addEventListener('click', enableSounds);
-  document.addEventListener('touchstart', enableSounds);
-  
-  const buttons = document.querySelectorAll('.button, .collapsible');
-  buttons.forEach(button => {
-    button.addEventListener('mouseenter', () => {
-      if (hoverSound && soundsEnabled) {
-        hoverSound.currentTime = 0;
-        hoverSound.volume = 0.2;
-        hoverSound.play().catch(e => console.log('Audio play prevented'));
-      }
-    });
-    
-    button.addEventListener('click', () => {
-      if (clickSound && soundsEnabled) {
-        clickSound.currentTime = 0;
-        clickSound.volume = 0.3;
-        clickSound.play().catch(e => console.log('Audio play prevented'));
-      }
-    });
-  });
-  
-  const collapsibles = document.querySelectorAll('.collapsible');
-  collapsibles.forEach(collapsible => {
-    collapsible.addEventListener('click', function() {
-      setTimeout(() => {
-        if (expandSound && this.classList.contains('active') && soundsEnabled) {
-          expandSound.currentTime = 0;
-          expandSound.volume = 0.25;
-          expandSound.play().catch(e => console.log('Audio play prevented'));
-        }
-      }, 150);
-    });
-  });
-}
-
 /* ---------- Theme Switcher ---------- */
 function initThemeSwitcher() {
   const themeButtons = document.querySelectorAll('.theme-btn');
@@ -2132,12 +2349,7 @@ function initThemeSwitcher() {
       themeButtons.forEach(btn => btn.classList.remove('active'));
       this.classList.add('active');
       
-      const clickSound = document.getElementById('clickSound');
-      if (clickSound) {
-        clickSound.currentTime = 0;
-        clickSound.volume = 0.3;
-        clickSound.play().catch(e => console.log('Audio play prevented'));
-      }
+      showQuickStatus(`Theme: ${theme.toUpperCase()} activated!`, 'info');
     });
   });
 }
@@ -2253,12 +2465,7 @@ function initCopyButtons() {
         this.innerHTML = '✅ Copied!';
         this.classList.add('copied');
         
-        const clickSound = document.getElementById('clickSound');
-        if (clickSound) {
-          clickSound.currentTime = 0;
-          clickSound.volume = 0.3;
-          clickSound.play().catch(e => console.log('Audio play prevented'));
-        }
+        showQuickStatus('DNS copied to clipboard!', 'success');
         
         setTimeout(() => {
           this.innerHTML = originalText;
@@ -2304,89 +2511,6 @@ function initCopyButtons() {
   }
 }
 
-/* ---------- Easter Eggs ---------- */
-function initEasterEggs() {
-  const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
-  let konamiIndex = 0;
-  
-  document.addEventListener('keydown', (e) => {
-    if (e.code === konamiCode[konamiIndex]) {
-      konamiIndex++;
-      if (konamiIndex === konamiCode.length) {
-        activateKonamiEgg();
-        konamiIndex = 0;
-      }
-    } else {
-      konamiIndex = 0;
-    }
-  });
-}
-
-function activateKonamiEgg() {
-  console.log('KONAMI CODE ACTIVATED! 🎮');
-  
-  const victorySound = document.getElementById('victorySound');
-  if (victorySound) {
-    victorySound.currentTime = 0;
-    victorySound.volume = 0.5;
-    victorySound.play().catch(e => console.log('Audio play prevented'));
-  }
-  
-  const sprites = ['👾', '🕹️', '🎮', '⭐', '🔥', '💎', '🚀', '👑', '🎯', '🏆'];
-  for (let i = 0; i < 25; i++) {
-    setTimeout(() => {
-      createFlyingSprite(sprites[Math.floor(Math.random() * sprites.length)]);
-    }, i * 100);
-  }
-  
-  setTimeout(() => {
-    showSecretMessage("+30 LIVES UNLOCKED! 🎉\n\nFull power activated!\nRetro mode engaged!");
-  }, 500);
-  
-  const coinSound = document.getElementById('coinSound');
-  if (coinSound) {
-    for (let i = 0; i < 5; i++) {
-      setTimeout(() => {
-        coinSound.currentTime = 0;
-        coinSound.volume = 0.3;
-        coinSound.play().catch(e => console.log('Audio play prevented'));
-      }, i * 200);
-    }
-  }
-}
-
-function createFlyingSprite(sprite) {
-  const flyingSprite = document.createElement('div');
-  flyingSprite.className = 'flying-sprite';
-  flyingSprite.textContent = sprite;
-  flyingSprite.style.left = '-100px';
-  flyingSprite.style.top = Math.random() * window.innerHeight + 'px';
-  flyingSprite.style.setProperty('--random-y', (Math.random() - 0.5) * 2);
-  flyingSprite.style.fontSize = (Math.random() * 20 + 20) + 'px';
-  
-  document.body.appendChild(flyingSprite);
-  
-  setTimeout(() => {
-    if (flyingSprite.parentNode) {
-      flyingSprite.parentNode.removeChild(flyingSprite);
-    }
-  }, 3000);
-}
-
-function showSecretMessage(message) {
-  const secretMessage = document.createElement('div');
-  secretMessage.className = 'secret-message';
-  secretMessage.textContent = message;
-  
-  document.body.appendChild(secretMessage);
-  
-  setTimeout(() => {
-    if (secretMessage.parentNode) {
-      secretMessage.parentNode.removeChild(secretMessage);
-    }
-  }, 5000);
-}
-
 /* ---------- ACCOUNT SYSTEM ---------- */
 function initAccountSystem() {
   const loginBtn = document.getElementById('loginBtn');
@@ -2415,7 +2539,7 @@ function initAccountSystem() {
       const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
       
       if (!currentUser) {
-        showMessage('Please login first!', 'error');
+        showQuickStatus('Please login first!', 'error');
         loginModal.style.display = 'flex';
         return;
       }
@@ -2494,9 +2618,9 @@ function initAuthForms() {
       if (loginUser(username, password)) {
         document.getElementById('loginModal').style.display = 'none';
         this.reset();
-        showMessage(`Welcome back, ${username}!`, 'success');
+        showQuickStatus(`Welcome back, ${username}!`, 'success');
       } else {
-        showMessage('Invalid username or password!', 'error');
+        showQuickStatus('Invalid username or password!', 'error');
       }
     });
   }
@@ -2511,9 +2635,9 @@ function initAuthForms() {
       if (registerUser(username, password, email)) {
         document.getElementById('loginModal').style.display = 'none';
         this.reset();
-        showMessage('Account created successfully! Welcome!', 'success');
+        showQuickStatus('Account created successfully! Welcome!', 'success');
       } else {
-        showMessage('Username already exists! Please choose another.', 'error');
+        showQuickStatus('Username already exists! Please choose another.', 'error');
       }
     });
   }
@@ -2574,15 +2698,12 @@ function initLogoutHandler() {
     logoutBtn.addEventListener('click', function() {
       localStorage.removeItem('rom-current-user');
       checkLoginStatus();
-      showMessage('Logged out successfully!', 'info');
+      showQuickStatus('Logged out successfully!', 'info');
     });
   }
 }
 
-// FIXED: Added the missing function
 function highlightUserFavorites(favorites) {
-  // This function would highlight favorited cards
-  // For now, it's a placeholder to prevent the error
   console.log('User favorites:', favorites);
 }
 
@@ -2654,7 +2775,7 @@ function initUserFavorites() {
     
     favBtn.addEventListener('click', function() {
       if (!currentUser) {
-        showMessage('Please login to save favorites!', 'error');
+        showQuickStatus('Please login to save favorites!', 'error');
         document.getElementById('loginModal').style.display = 'flex';
         return;
       }
@@ -2665,11 +2786,11 @@ function initUserFavorites() {
       if (userFavorites.includes(cardId)) {
         users[currentUser.username].favorites = userFavorites.filter(fav => fav !== cardId);
         this.innerHTML = '☆';
-        showMessage('Removed from favorites', 'info');
+        showQuickStatus('Removed from favorites', 'info');
       } else {
         users[currentUser.username].favorites.push(cardId);
         this.innerHTML = '★';
-        showMessage('Added to favorites!', 'success');
+        showQuickStatus('Added to favorites!', 'success');
       }
       
       localStorage.setItem('rom-users', JSON.stringify(users));
@@ -2695,7 +2816,7 @@ function initSocialHub() {
     socialBtn.addEventListener('click', () => {
       const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
       if (!currentUser) {
-        showMessage('Please login to access the Social Hub!', 'error');
+        showQuickStatus('Please login to access the Social Hub!', 'error');
         document.getElementById('loginModal').style.display = 'flex';
         return;
       }
@@ -2774,7 +2895,7 @@ function sendChatMessage() {
   
   if (!message) return;
   if (!currentUser) {
-    showMessage('Please login to chat!', 'error');
+    showQuickStatus('Please login to chat!', 'error');
     return;
   }
   
@@ -2862,7 +2983,7 @@ function postToWall() {
   
   if (!postText) return;
   if (!currentUser) {
-    showMessage('Please login to post!', 'error');
+    showQuickStatus('Please login to post!', 'error');
     return;
   }
   
@@ -2883,7 +3004,7 @@ function postToWall() {
   appendWallPost(post);
   document.getElementById('wallPostText').value = '';
   updateUserStats();
-  showMessage('Posted to your wall!', 'success');
+  showQuickStatus('Posted to your wall!', 'success');
 }
 
 function loadWallPosts() {
@@ -3002,12 +3123,9 @@ function loadTabContent(tabId) {
 }
 
 function playChatSound() {
-  const clickSound = document.getElementById('clickSound');
-  if (clickSound) {
-    clickSound.currentTime = 0;
-    clickSound.volume = 0.2;
-    clickSound.play().catch(e => console.log('Audio play prevented'));
-  }
+  const clickSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3');
+  clickSound.volume = 0.2;
+  clickSound.play().catch(e => console.log('Audio play prevented'));
 }
 
 function escapeHtml(unsafe) {
