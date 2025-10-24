@@ -1001,6 +1001,113 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   font-size: 0.8rem;
   color: #a8dfe8;
 }
+
+/* NEW: User Customization Styles */
+.profile-customization {
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0, 30, 60, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.profile-pic-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.profile-pic-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid #00ffff;
+  overflow: hidden;
+  background: linear-gradient(135deg, #00e0ff, #ff33cc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.profile-pic-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.signature-input {
+  width: 100%;
+  min-height: 60px;
+  padding: 10px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  color: #00ffff;
+  font-family: 'Orbitron', Arial, sans-serif;
+  resize: vertical;
+}
+
+.signature-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.status-selector {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  color: #00ffff;
+  margin-bottom: 10px;
+}
+
+.storage-warning {
+  background: rgba(255, 100, 100, 0.2);
+  border: 1px solid #ff3333;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 10px 0;
+  color: #ff9999;
+  font-size: 0.8rem;
+}
+
+.storage-info {
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 5px 0;
+  color: #a8dfe8;
+  font-size: 0.8rem;
+}
+
+.user-card {
+  background: rgba(0, 30, 60, 0.7);
+  border-radius: 8px;
+  padding: 15px;
+  margin: 10px 0;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.user-signature {
+  font-size: 0.8em;
+  color: #a8dfe8;
+  font-style: italic;
+  margin-top: 5px;
+  border-top: 1px solid rgba(0,255,255,0.3);
+  padding-top: 5px;
+}
+
+.data-management {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(0, 255, 255, 0.2);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .social-hub-content {
@@ -1050,6 +1157,11 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
     flex-direction: column;
     gap: 10px;
     padding: 12px 15px;
+  }
+
+  .profile-pic-container {
+    flex-direction: column;
+    text-align: center;
   }
 }
 
@@ -1542,6 +1654,7 @@ body.sega-theme .music-btn:hover {
             <div class="user-dropdown">
               <button id="profileBtn">Profile</button>
               <button id="favoritesBtn">My Favorites</button>
+              <button id="dataManagementBtn">Data Management</button>
               <button id="logoutBtn">Logout</button>
             </div>
           </div>
@@ -1751,8 +1864,8 @@ body.sega-theme .music-btn:hover {
   </div>
 
   <div class="card">
-    <h3>PSONE (PSX Revivals)</h3>
-    <p>Community revivals & DNS for PSX games.</p>
+    <h3>PSONE (PS3 Revivals)</h3>
+    <p>Community revivals & DNS for PS3 games.</p>
     <p><strong>DNS:</strong> <span class="copyable">185.194.142.4</span> <button class="copy-btn" data-text="185.194.142.4">📋 Copy</button> • <a href="https://www.psone.online/getting-started#" target="_blank" rel="noopener">Guide</a></p>
   </div>
 
@@ -1986,8 +2099,59 @@ body.sega-theme .music-btn:hover {
           </div>
           
           <div class="profile-content" style="padding: 20px; flex: 1; overflow-y: auto;">
+            <!-- Profile Customization Section -->
+            <div class="profile-customization">
+              <h3 style="color: #00ffff; margin-bottom: 15px;">Profile Customization</h3>
+              
+              <!-- Profile Picture Upload -->
+              <div class="profile-pic-container">
+                <div class="profile-pic-preview" id="profilePicPreview">
+                  <span id="profilePicText">U</span>
+                </div>
+                <div style="flex: 1;">
+                  <input type="file" id="profilePicUpload" accept="image/*" style="display: none;">
+                  <button onclick="document.getElementById('profilePicUpload').click()" class="button" style="margin-bottom: 10px;">Upload Profile Picture</button>
+                  <p style="color: #a8dfe8; font-size: 0.8rem; margin: 5px 0;">Max 50KB • JPG/PNG recommended</p>
+                </div>
+              </div>
+              
+              <!-- Status Selector -->
+              <select class="status-selector" id="userStatus">
+                <option value="">Select Status...</option>
+                <option value="🎮 Gaming">🎮 Gaming</option>
+                <option value="💻 Online">💻 Online</option>
+                <option value="🟡 Away">🟡 Away</option>
+                <option value="🚫 Do Not Disturb">🚫 Do Not Disturb</option>
+                <option value="🤝 Looking to Play">🤝 Looking to Play</option>
+                <option value="🎯 Competitive">🎯 Competitive</option>
+                <option value="😎 Chilling">😎 Chilling</option>
+              </select>
+              
+              <!-- Signature Input -->
+              <textarea class="signature-input" id="userSignature" placeholder="Your custom signature... (Max 140 characters)" maxlength="140"></textarea>
+              <div style="text-align: right; color: #a8dfe8; font-size: 0.8rem; margin-top: 5px;">
+                <span id="signatureCount">0</span>/140
+              </div>
+              
+              <!-- Storage Info -->
+              <div class="storage-info" id="storageInfo">
+                📦 Storage: Calculating...
+              </div>
+            </div>
+            
+            <!-- Data Management -->
+            <div class="data-management">
+              <h4 style="color: #00ffff; margin-bottom: 10px;">Data Management</h4>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="button" onclick="exportProfile()" style="flex: 1; min-width: 120px;">Export Profile</button>
+                <button class="button" onclick="document.getElementById('importProfile').click()" style="flex: 1; min-width: 120px;">Import Profile</button>
+                <input type="file" id="importProfile" accept=".json" style="display: none;">
+                <button class="button muted" onclick="clearProfileData()" style="flex: 1; min-width: 120px;">Clear Data</button>
+              </div>
+            </div>
+            
             <!-- Profile Wall -->
-            <div class="profile-wall">
+            <div class="profile-wall" style="margin-top: 30px;">
               <h3 style="color: #00ffff; margin-bottom: 15px;">Profile Wall</h3>
               <div class="wall-post-input" style="margin-bottom: 20px;">
                 <textarea id="wallPostText" placeholder="Write something on your wall..." 
@@ -2052,6 +2216,559 @@ body.sega-theme .music-btn:hover {
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
 <script>
+/* ---------- USER CUSTOMIZATION SYSTEM ---------- */
+
+// Enhanced user profiles with customization
+function saveUserProfile(username, profileData) {
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    users[username] = {
+        ...users[username],
+        ...profileData,
+        lastUpdated: new Date().toISOString()
+    };
+    localStorage.setItem('rom-users', JSON.stringify(users));
+    updateStorageInfo();
+}
+
+function loadUserProfile(username) {
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    return users[username] || null;
+}
+
+// Profile Picture System with compression
+function initProfilePictureSystem() {
+    const uploadInput = document.getElementById('profilePicUpload');
+    const preview = document.getElementById('profilePicPreview');
+    const previewText = document.getElementById('profilePicText');
+    
+    uploadInput.addEventListener('change', handleProfilePicUpload);
+    
+    // Load current user's profile pic
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (currentUser) {
+        const profile = loadUserProfile(currentUser.username);
+        if (profile && profile.profilePic) {
+            preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+        } else {
+            previewText.textContent = currentUser.username.charAt(0).toUpperCase();
+        }
+    }
+}
+
+function handleProfilePicUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Check file size (max 500KB)
+    if (file.size > 500 * 1024) {
+        showQuickStatus('Image too large! Max 500KB.', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        compressImage(e.target.result, 50, function(compressedImage) {
+            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+            
+            if (currentUser) {
+                saveUserProfile(currentUser.username, {
+                    profilePic: compressedImage,
+                    avatarType: 'custom'
+                });
+                
+                const preview = document.getElementById('profilePicPreview');
+                preview.innerHTML = `<img src="${compressedImage}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+                
+                showQuickStatus('Profile picture updated!', 'success');
+                updateStorageInfo();
+            }
+        });
+    };
+    reader.readAsDataURL(file);
+}
+
+// Image compression function
+function compressImage(dataUrl, maxSizeKB, callback) {
+    const img = new Image();
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Calculate new dimensions (max 150x150 for profile pics)
+        let width = img.width;
+        let height = img.height;
+        const maxDimension = 150;
+        
+        if (width > height && width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+        } else if (height > maxDimension) {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Get compressed image (quality 0.7 for good balance)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        
+        // Check if we need further compression
+        const sizeKB = (compressedDataUrl.length * 0.75) / 1024;
+        if (sizeKB > maxSizeKB) {
+            // Recursively compress with lower quality
+            compressImage(compressedDataUrl, maxSizeKB, callback);
+        } else {
+            callback(compressedDataUrl);
+        }
+    };
+    img.src = dataUrl;
+}
+
+// Signature System
+function initSignatureSystem() {
+    const signatureInput = document.getElementById('userSignature');
+    const signatureCount = document.getElementById('signatureCount');
+    
+    signatureInput.addEventListener('input', function() {
+        const currentLength = this.value.length;
+        signatureCount.textContent = currentLength;
+        
+        // Update character count color
+        if (currentLength > 130) {
+            signatureCount.style.color = '#ff3333';
+        } else if (currentLength > 110) {
+            signatureCount.style.color = '#ffff00';
+        } else {
+            signatureCount.style.color = '#a8dfe8';
+        }
+        
+        const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+        if (currentUser) {
+            saveUserProfile(currentUser.username, {
+                signature: this.value
+            });
+        }
+    });
+    
+    // Load current signature
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (currentUser) {
+        const profile = loadUserProfile(currentUser.username);
+        if (profile && profile.signature) {
+            signatureInput.value = profile.signature;
+            signatureCount.textContent = profile.signature.length;
+        }
+    }
+}
+
+// Status System
+function initStatusSystem() {
+    const statusSelector = document.getElementById('userStatus');
+    
+    statusSelector.addEventListener('change', function() {
+        const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+        if (currentUser) {
+            saveUserProfile(currentUser.username, {
+                status: this.value,
+                statusSince: new Date().toISOString()
+            });
+            updateOnlineUsers();
+            showQuickStatus(`Status updated: ${this.value}`, 'success');
+        }
+    });
+    
+    // Load current status
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (currentUser) {
+        const profile = loadUserProfile(currentUser.username);
+        if (profile && profile.status) {
+            statusSelector.value = profile.status;
+        }
+    }
+}
+
+// Storage Management
+function updateStorageInfo() {
+    const storageInfo = document.getElementById('storageInfo');
+    if (!storageInfo) return;
+    
+    try {
+        let totalSize = 0;
+        
+        // Calculate total storage used
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                totalSize += localStorage[key].length * 2; // UTF-16 characters use 2 bytes
+            }
+        }
+        
+        const totalSizeKB = Math.round(totalSize / 1024);
+        const maxSizeKB = 5120; // 5MB in KB
+        
+        storageInfo.innerHTML = `📦 Storage: ${totalSizeKB}KB / ${maxSizeKB}KB`;
+        
+        // Add warning if approaching limit
+        if (totalSizeKB > maxSizeKB * 0.8) {
+            storageInfo.classList.add('storage-warning');
+            storageInfo.style.background = 'rgba(255, 100, 100, 0.2)';
+            storageInfo.style.borderColor = '#ff3333';
+            storageInfo.innerHTML += ' ⚠️ Storage almost full!';
+        } else if (totalSizeKB > maxSizeKB * 0.6) {
+            storageInfo.style.background = 'rgba(255, 200, 100, 0.2)';
+            storageInfo.style.borderColor = '#ffff00';
+        } else {
+            storageInfo.classList.remove('storage-warning');
+            storageInfo.style.background = 'rgba(0, 255, 255, 0.1)';
+            storageInfo.style.borderColor = '#00ffff';
+        }
+    } catch (e) {
+        storageInfo.innerHTML = '📦 Storage: Unable to calculate';
+    }
+}
+
+// Export/Import Profiles
+function exportProfile() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) {
+        showQuickStatus('Please login first!', 'error');
+        return;
+    }
+    
+    const profile = loadUserProfile(currentUser.username);
+    if (!profile) {
+        showQuickStatus('No profile data to export!', 'error');
+        return;
+    }
+    
+    const dataStr = JSON.stringify(profile, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `rom-profile-${currentUser.username}.json`;
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    showQuickStatus('Profile exported successfully!', 'success');
+}
+
+function initImportSystem() {
+    const importInput = document.getElementById('importProfile');
+    importInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const profileData = JSON.parse(e.target.result);
+                const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+                
+                if (currentUser) {
+                    saveUserProfile(currentUser.username, profileData);
+                    updateProfileDisplay();
+                    showQuickStatus('Profile imported successfully!', 'success');
+                    
+                    // Reload all customization
+                    initProfilePictureSystem();
+                    initSignatureSystem();
+                    initStatusSystem();
+                }
+            } catch (error) {
+                showQuickStatus('Invalid profile file!', 'error');
+                console.error('Import error:', error);
+            }
+        };
+        reader.readAsText(file);
+        
+        // Reset input
+        event.target.value = '';
+    });
+}
+
+function clearProfileData() {
+    if (!confirm('Are you sure you want to clear all your profile data? This cannot be undone!')) {
+        return;
+    }
+    
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (currentUser) {
+        // Keep basic account info, clear customization
+        saveUserProfile(currentUser.username, {
+            profilePic: null,
+            signature: '',
+            status: '',
+            avatarType: 'generated'
+        });
+        
+        // Reset UI
+        const preview = document.getElementById('profilePicPreview');
+        const previewText = document.getElementById('profilePicText');
+        preview.innerHTML = '';
+        previewText.textContent = currentUser.username.charAt(0).toUpperCase();
+        preview.appendChild(previewText);
+        
+        document.getElementById('userSignature').value = '';
+        document.getElementById('userStatus').value = '';
+        document.getElementById('signatureCount').textContent = '0';
+        
+        showQuickStatus('Profile data cleared!', 'success');
+        updateStorageInfo();
+    }
+}
+
+// Enhanced Profile Display
+function updateProfileDisplay() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) return;
+    
+    const profile = loadUserProfile(currentUser.username);
+    const profileHeader = document.querySelector('.profile-header');
+    
+    if (profileHeader && profile) {
+        // Update profile picture in header
+        const avatarContainer = profileHeader.querySelector('.profile-avatar-large');
+        if (avatarContainer) {
+            if (profile.profilePic) {
+                avatarContainer.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            } else {
+                const avatarText = avatarContainer.querySelector('#profileAvatarText');
+                if (avatarText) {
+                    avatarText.textContent = currentUser.username.charAt(0).toUpperCase();
+                }
+            }
+        }
+    }
+}
+
+// Enhanced User Cards for chat
+function createEnhancedUserCard(username, profile) {
+    const status = profile.status || '💻 Online';
+    const signature = profile.signature || '';
+    
+    return `
+        <div class="user-card">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                ${profile.profilePic ? 
+                    `<img src="${profile.profilePic}" alt="${username}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` :
+                    `<div class="user-avatar">${username.charAt(0).toUpperCase()}</div>`
+                }
+                <div style="flex: 1;">
+                    <div style="color: #00ffff; font-weight: bold;">${username}</div>
+                    <div style="color: #a8dfe8; font-size: 0.8em;">${status}</div>
+                    ${signature ? `<div class="user-signature">${signature}</div>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Enhanced Chat Messages with signatures
+function appendEnhancedChatMessage(message) {
+    const chatMessages = document.getElementById('chatMessages');
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${message.username === currentUser.username ? 'message-own' : 'message-other'}`;
+    
+    const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // Get user profile for signature
+    const userProfile = loadUserProfile(message.username);
+    const signature = userProfile ? userProfile.signature : '';
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-username">${message.username}</span>
+            <span class="message-time">${time}</span>
+        </div>
+        <div class="message-text">${escapeHtml(message.text)}</div>
+        ${signature ? `<div class="user-signature">${signature}</div>` : ''}
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+/* ---------- INITIALIZE CUSTOMIZATION SYSTEMS ---------- */
+function initCustomizationSystems() {
+    initProfilePictureSystem();
+    initSignatureSystem();
+    initStatusSystem();
+    initImportSystem();
+    updateStorageInfo();
+    
+    // Update storage info every 30 seconds
+    setInterval(updateStorageInfo, 30000);
+}
+
+// Update the existing initAllSystems function
+function initAllSystems() {
+    initCursorAndCanvas();
+    initCollapsibles();
+    initFormControls();
+    initStatusBar();
+    initSoundEffects();
+    initThemeSwitcher();
+    initEasterEggs();
+    initSearchSystem();
+    initCopyButtons();
+    initAccountSystem();
+    initUserFavorites();
+    initSocialHub();
+    initMusicPlayer();
+    initLiveClock();
+    initTypingEffect();
+    initLivePlayerCount();
+    initEngagementFeatures();
+    initClipOfWeek();
+    initCustomizationSystems(); // ADD THIS LINE
+}
+
+// Update the existing loadUserProfile function in Social Hub
+function loadUserProfile() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) return;
+    
+    const profile = loadUserProfile(currentUser.username);
+    
+    document.getElementById('profileUsername').textContent = currentUser.username;
+    document.getElementById('profileAvatarText').textContent = currentUser.username.charAt(0).toUpperCase();
+    
+    const joinDate = new Date(currentUser.joined).toLocaleDateString();
+    document.getElementById('profileJoinDate').textContent = `Joined: ${joinDate}`;
+    
+    // Load customization data
+    if (profile) {
+        if (profile.signature) {
+            document.getElementById('userSignature').value = profile.signature;
+            document.getElementById('signatureCount').textContent = profile.signature.length;
+        }
+        if (profile.status) {
+            document.getElementById('userStatus').value = profile.status;
+        }
+    }
+    
+    loadWallPosts();
+    updateStorageInfo();
+}
+
+// Update the existing checkLoginStatus to initialize customization
+function checkLoginStatus() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    const loginBtn = document.getElementById('loginBtn');
+    const userSection = document.querySelector('.user-section');
+    const userDisplayName = document.getElementById('userDisplayName');
+    
+    if (currentUser && currentUser.username) {
+        loginBtn.style.display = 'none';
+        userSection.style.display = 'flex';
+        userDisplayName.textContent = currentUser.username;
+        updateUIForUser(currentUser);
+        
+        // Initialize customization systems when user is logged in
+        setTimeout(() => {
+            initCustomizationSystems();
+        }, 1000);
+    } else {
+        loginBtn.style.display = 'flex';
+        userSection.style.display = 'none';
+    }
+}
+
+// Update data management button in user dropdown
+function initDataManagementHandler() {
+    const dataManagementBtn = document.getElementById('dataManagementBtn');
+    if (dataManagementBtn) {
+        dataManagementBtn.addEventListener('click', function() {
+            const socialModal = document.getElementById('socialHubModal');
+            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+            
+            if (!currentUser) {
+                showQuickStatus('Please login first!', 'error');
+                document.getElementById('loginModal').style.display = 'flex';
+                return;
+            }
+            
+            // Close login modal if open
+            document.getElementById('loginModal').style.display = 'none';
+            
+            // Open social hub and switch to profile tab
+            socialModal.style.display = 'flex';
+            
+            // Switch to profile tab
+            document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="my-profile"]').classList.add('active');
+            
+            document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('my-profile').classList.add('active');
+            
+            loadUserProfile();
+            updateStorageInfo();
+        });
+    }
+}
+
+// Add this to your existing initAccountSystem function
+function initAccountSystem() {
+    const loginBtn = document.getElementById('loginBtn');
+    const loginModal = document.getElementById('loginModal');
+    const closeLogin = document.getElementById('closeLogin');
+    const profileBtn = document.getElementById('profileBtn');
+    
+    checkLoginStatus();
+    
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            loginModal.style.display = 'flex';
+        });
+    }
+    
+    if (closeLogin) {
+        closeLogin.addEventListener('click', () => {
+            loginModal.style.display = 'none';
+        });
+    }
+    
+    // Profile button - go to profile tab in social hub
+    if (profileBtn) {
+        profileBtn.addEventListener('click', () => {
+            const socialModal = document.getElementById('socialHubModal');
+            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+            
+            if (!currentUser) {
+                showQuickStatus('Please login first!', 'error');
+                loginModal.style.display = 'flex';
+                return;
+            }
+            
+            // Close login modal if open
+            loginModal.style.display = 'none';
+            
+            // Open social hub and switch to profile tab
+            socialModal.style.display = 'flex';
+            
+            // Switch to profile tab
+            document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="my-profile"]').classList.add('active');
+            
+            document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('my-profile').classList.add('active');
+            
+            loadUserProfile();
+        });
+    }
+    
+    initLoginTabs();
+    initAuthForms();
+    initLogoutHandler();
+    initDataManagementHandler(); // ADD THIS LINE
+}
+
+/* ---------- REMAINING EXISTING CODE (keep all your existing functions below) ---------- */
+
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
   window.removeEventListener('load', onLoad);
@@ -2095,27 +2812,12 @@ window.addEventListener('load', function onLoad() {
   }, 70);
 });
 
-/* ---------- Main Initialization ---------- */
-function initAllSystems() {
-  initCursorAndCanvas();
-  initCollapsibles();
-  initFormControls();
-  initStatusBar();
-  initSoundEffects();
-  initThemeSwitcher();
-  initEasterEggs();
-  initSearchSystem();
-  initCopyButtons();
-  initAccountSystem();
-  initUserFavorites();
-  initSocialHub();
-  initMusicPlayer();
-  initLiveClock();
-  initTypingEffect();
-  initLivePlayerCount();
-  initEngagementFeatures();
-  initClipOfWeek();
-}
+// ... (KEEP ALL YOUR EXISTING CODE BELOW EXACTLY AS IT WAS)
+// This includes: initCursorAndCanvas, initCollapsibles, initFormControls, 
+// initStatusBar, initSoundEffects, initThemeSwitcher, initEasterEggs,
+// initSearchSystem, initCopyButtons, initUserFavorites, initSocialHub,
+// initMusicPlayer, initLiveClock, initTypingEffect, initLivePlayerCount,
+// initEngagementFeatures, initClipOfWeek, and all their helper functions
 
 /* ---------- NEW: Real User Count System ---------- */
 function initLivePlayerCount() {
@@ -3004,6 +3706,7 @@ function initAccountSystem() {
   initLoginTabs();
   initAuthForms();
   initLogoutHandler();
+  initDataManagementHandler();
 }
 
 function checkLoginStatus() {
@@ -3361,7 +4064,7 @@ function sendChatMessage() {
   
   localStorage.setItem('rom-chat-messages', JSON.stringify(chatData));
   
-  appendChatMessage(messageObj);
+  appendEnhancedChatMessage(messageObj); // Use enhanced version
   chatInput.value = '';
   playChatSound();
 }
@@ -3373,7 +4076,7 @@ function loadChatMessages() {
   chatMessages.innerHTML = '';
   
   chatData.forEach(msg => {
-    appendChatMessage(msg);
+    appendEnhancedChatMessage(msg); // Use enhanced version
   });
   
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -3413,13 +4116,27 @@ function loadUserProfile() {
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   if (!currentUser) return;
   
+  const profile = loadUserProfile(currentUser.username);
+  
   document.getElementById('profileUsername').textContent = currentUser.username;
   document.getElementById('profileAvatarText').textContent = currentUser.username.charAt(0).toUpperCase();
   
   const joinDate = new Date(currentUser.joined).toLocaleDateString();
   document.getElementById('profileJoinDate').textContent = `Joined: ${joinDate}`;
   
+  // Load customization data
+  if (profile) {
+    if (profile.signature) {
+      document.getElementById('userSignature').value = profile.signature;
+      document.getElementById('signatureCount').textContent = profile.signature.length;
+    }
+    if (profile.status) {
+      document.getElementById('userStatus').value = profile.status;
+    }
+  }
+  
   loadWallPosts();
+  updateStorageInfo();
 }
 
 function postToWall() {
