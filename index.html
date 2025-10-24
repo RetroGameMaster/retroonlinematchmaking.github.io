@@ -1833,52 +1833,86 @@ function initAllSystems() {
   initMusicPlayer();
 }
 
-/* ---------- Music Player - SIMPLIFIED & FIXED ---------- */
+/* ---------- Music Player - COMPLETE REWRITE ---------- */
 function initMusicPlayer() {
-  const bgMusic = document.getElementById('bgMusic');
   const playPauseBtn = document.getElementById('playPause');
   const prevTrackBtn = document.getElementById('prevTrack');
   const nextTrackBtn = document.getElementById('nextTrack');
   
   let isPlaying = false;
-  let audioEnabled = false;
+  let audioElement = null;
   
-  // Simple music tracks that should work
+  // Use different music sources that should work
   const musicTracks = [
-    'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3'
+    'https://assets.mixkit.co/music/preview/mixkit-game-show-suspense-waiting-667.mp3',
+    'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
+    'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3'
   ];
   
   let currentTrack = 0;
   
-  // Simple function to enable audio
-  function enableAudio() {
-    if (audioEnabled) return;
+  // Create a new audio element dynamically
+  function createAudioElement() {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement = null;
+    }
     
-    // Set volume and load the first track
-    bgMusic.volume = 0.3;
-    bgMusic.load(); // Force reload
+    audioElement = new Audio();
+    audioElement.src = musicTracks[currentTrack];
+    audioElement.volume = 0.3;
+    audioElement.loop = false;
     
-    audioEnabled = true;
-    console.log('Audio enabled');
+    // Handle when track ends
+    audioElement.addEventListener('ended', function() {
+      currentTrack = (currentTrack + 1) % musicTracks.length;
+      loadAndPlayTrack();
+    });
     
-    // Show message that audio is ready
-    showMessage('Audio enabled! Click play to start music.', 'success');
+    // Handle errors
+    audioElement.addEventListener('error', function(e) {
+      console.log('Audio error:', e);
+      showMessage('Music track failed to load. Trying next track...', 'error');
+      currentTrack = (currentTrack + 1) % musicTracks.length;
+      loadAndPlayTrack();
+    });
+    
+    return audioElement;
   }
   
-  // Enable audio on any user interaction
-  document.addEventListener('click', enableAudio, { once: true });
+  // Load and play current track
+  function loadAndPlayTrack() {
+    createAudioElement();
+    
+    // Preload the audio
+    audioElement.load();
+    
+    if (isPlaying) {
+      const playPromise = audioElement.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          showMessage(`Now playing track ${currentTrack + 1}`, 'success');
+        }).catch(error => {
+          console.log('Play failed:', error);
+          showMessage('Click play again to start music!', 'info');
+          isPlaying = false;
+          playPauseBtn.textContent = '▶️';
+        });
+      }
+    }
+  }
   
-  // Play/Pause functionality - SIMPLIFIED
+  // Play/Pause functionality
   if (playPauseBtn) {
     playPauseBtn.addEventListener('click', function() {
-      if (!audioEnabled) {
-        enableAudio();
-        return;
+      if (!audioElement) {
+        createAudioElement();
       }
       
       if (!isPlaying) {
-        // Simple play with error handling
-        const playPromise = bgMusic.play();
+        // Try to play
+        const playPromise = audioElement.play();
         
         if (playPromise !== undefined) {
           playPromise.then(() => {
@@ -1887,11 +1921,12 @@ function initMusicPlayer() {
             showMessage('Music started! 🎵', 'success');
           }).catch(error => {
             console.log('Play failed:', error);
-            showMessage('Click the play button again to start music!', 'info');
+            showMessage('Could not play music. Click again or try a different track.', 'error');
           });
         }
       } else {
-        bgMusic.pause();
+        // Pause
+        audioElement.pause();
         isPlaying = false;
         playPauseBtn.textContent = '▶️';
         showMessage('Music paused', 'info');
@@ -1902,17 +1937,10 @@ function initMusicPlayer() {
   // Next track functionality
   if (nextTrackBtn) {
     nextTrackBtn.addEventListener('click', function() {
-      if (!audioEnabled) {
-        enableAudio();
-        return;
-      }
-      
       currentTrack = (currentTrack + 1) % musicTracks.length;
-      bgMusic.src = musicTracks[currentTrack];
-      bgMusic.load();
-      if (isPlaying) {
-        bgMusic.play().catch(e => console.log('Track change failed:', e));
-      }
+      isPlaying = true; // Keep playing if we were playing
+      loadAndPlayTrack();
+      playPauseBtn.textContent = '⏸️';
       showMessage('Next track loaded!', 'info');
     });
   }
@@ -1920,35 +1948,25 @@ function initMusicPlayer() {
   // Previous track functionality
   if (prevTrackBtn) {
     prevTrackBtn.addEventListener('click', function() {
-      if (!audioEnabled) {
-        enableAudio();
-        return;
-      }
-      
       currentTrack = (currentTrack - 1 + musicTracks.length) % musicTracks.length;
-      bgMusic.src = musicTracks[currentTrack];
-      bgMusic.load();
-      if (isPlaying) {
-        bgMusic.play().catch(e => console.log('Track change failed:', e));
-      }
+      isPlaying = true; // Keep playing if we were playing
+      loadAndPlayTrack();
+      playPauseBtn.textContent = '⏸️';
       showMessage('Previous track loaded!', 'info');
     });
   }
   
-  // Handle audio ending
-  bgMusic.addEventListener('ended', function() {
-    currentTrack = (currentTrack + 1) % musicTracks.length;
-    bgMusic.src = musicTracks[currentTrack];
-    bgMusic.load();
-    if (isPlaying) {
-      bgMusic.play().catch(e => console.log('Auto-advance failed:', e));
-    }
-  });
+  // Initialize with first track
+  createAudioElement();
   
-  // Set initial volume
-  bgMusic.volume = 0.3;
+  // Enable audio on any click (browser autoplay policy)
+  document.addEventListener('click', function initAudio() {
+    if (!audioElement) {
+      createAudioElement();
+    }
+    document.removeEventListener('click', initAudio);
+  }, { once: true });
 }
-
 /* ---------- Collapsibles ---------- */
 function initCollapsibles(){
   const coll = document.querySelectorAll('.collapsible');
