@@ -1830,7 +1830,7 @@ function initAllSystems() {
   initTypingEffect();
 }
 
-/* ---------- Music Player - COMPLETELY FIXED ---------- */
+/* ---------- Music Player - SIMPLE & WORKING ---------- */
 function initMusicPlayer() {
   const playPauseBtn = document.getElementById('playPause');
   const prevTrackBtn = document.getElementById('prevTrack');
@@ -1838,101 +1838,60 @@ function initMusicPlayer() {
   const trackInfo = document.getElementById('trackInfo');
   
   let isPlaying = false;
+  let currentTrack = 0;
   let audioElement = null;
-  let userInteracted = false;
   
-  // Simple, reliable music sources
+  // Simple reliable tracks
   const musicTracks = [
     'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tristan_Lohengrin/Welcome/Tristan_Lohengrin_-_01_-_Inspiring_Optimistic_Upbeat_Electronic.mp3',
     'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3',
     'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Broke_For_Free/Directionless_EP/Broke_For_Free_-_01_-_Night_Owl.mp3'
   ];
   
-  const trackNames = ['Retro Arcade', '8-Bit Adventure', 'Pixel Dreams'];
-  let currentTrack = 0;
+  const trackNames = ['Track 1', 'Track 2', 'Track 3'];
 
-  function createAudioElement() {
+  function loadTrack(trackIndex) {
     if (audioElement) {
       audioElement.pause();
       audioElement = null;
     }
     
-    audioElement = new Audio();
-    audioElement.src = musicTracks[currentTrack];
+    currentTrack = trackIndex;
+    audioElement = new Audio(musicTracks[trackIndex]);
     audioElement.volume = 0.3;
     
-    // Set up event listeners
-    audioElement.addEventListener('ended', function() {
-      console.log('Track ended, moving to next');
-      currentTrack = (currentTrack + 1) % musicTracks.length;
-      loadAndPlayTrack();
-    });
-    
-    audioElement.addEventListener('error', function(e) {
-      console.log('Audio error:', e);
-      // Skip to next track on error
-      currentTrack = (currentTrack + 1) % musicTracks.length;
-      setTimeout(() => loadAndPlayTrack(), 1000);
-    });
-    
-    audioElement.addEventListener('canplaythrough', function() {
-      console.log('Audio can play through');
+    // When track ends, go to next one
+    audioElement.addEventListener('ended', () => {
+      console.log('Track ended, playing next');
+      nextTrack();
     });
     
     updateTrackInfo();
-    return audioElement;
   }
 
   function updateTrackInfo() {
     if (trackInfo) {
       trackInfo.textContent = `${currentTrack + 1}/${musicTracks.length}`;
-      trackInfo.title = trackNames[currentTrack];
     }
   }
 
-  function loadAndPlayTrack() {
-    console.log('Loading track:', currentTrack);
-    createAudioElement();
-    updateTrackInfo();
-    
-    if (isPlaying && userInteracted) {
-      const playPromise = audioElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.log('Play failed, waiting for interaction');
-          isPlaying = false;
-          if (playPauseBtn) playPauseBtn.textContent = '▶️';
-        });
-      }
-    }
-  }
-
-  function playMusic() {
-    if (!userInteracted) {
-      showQuickStatus('Click play to start music!', 'info');
-      return;
-    }
-    
+  function playCurrentTrack() {
     if (!audioElement) {
-      createAudioElement();
+      loadTrack(currentTrack);
     }
     
-    const playPromise = audioElement.play();
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        isPlaying = true;
-        if (playPauseBtn) playPauseBtn.textContent = '⏸️';
-        showQuickStatus(`Now playing: ${trackNames[currentTrack]}`, 'info');
-      }).catch(error => {
-        console.log('Play failed:', error);
-        isPlaying = false;
-        if (playPauseBtn) playPauseBtn.textContent = '▶️';
-        showQuickStatus('Click play to start music', 'info');
-      });
-    }
+    audioElement.play().then(() => {
+      isPlaying = true;
+      if (playPauseBtn) playPauseBtn.textContent = '⏸️';
+      console.log('Now playing track:', currentTrack + 1);
+    }).catch(error => {
+      console.log('Play failed:', error);
+      isPlaying = false;
+      if (playPauseBtn) playPauseBtn.textContent = '▶️';
+    });
   }
 
-  function pauseMusic() {
+  function pauseCurrentTrack() {
     if (audioElement) {
       audioElement.pause();
       isPlaying = false;
@@ -1940,130 +1899,131 @@ function initMusicPlayer() {
     }
   }
 
-  // Play/Pause button
+  function nextTrack() {
+    let next = currentTrack + 1;
+    if (next >= musicTracks.length) next = 0;
+    
+    loadTrack(next);
+    if (isPlaying) {
+      playCurrentTrack();
+    }
+    console.log('Switched to track:', next + 1);
+  }
+
+  function prevTrack() {
+    let prev = currentTrack - 1;
+    if (prev < 0) prev = musicTracks.length - 1;
+    
+    loadTrack(prev);
+    if (isPlaying) {
+      playCurrentTrack();
+    }
+    console.log('Switched to track:', prev + 1);
+  }
+
+  // Button event listeners
   if (playPauseBtn) {
-    playPauseBtn.addEventListener('click', function() {
-      userInteracted = true;
-      
+    playPauseBtn.addEventListener('click', () => {
       if (!isPlaying) {
-        playMusic();
+        playCurrentTrack();
       } else {
-        pauseMusic();
+        pauseCurrentTrack();
       }
     });
   }
 
-  // Next track button
   if (nextTrackBtn) {
-    nextTrackBtn.addEventListener('click', function() {
-      userInteracted = true;
-      currentTrack = (currentTrack + 1) % musicTracks.length;
-      isPlaying = true;
-      loadAndPlayTrack();
-      if (playPauseBtn) playPauseBtn.textContent = '⏸️';
-      showQuickStatus(`Next: ${trackNames[currentTrack]}`, 'info');
-    });
+    nextTrackBtn.addEventListener('click', nextTrack);
   }
 
-  // Previous track button
   if (prevTrackBtn) {
-    prevTrackBtn.addEventListener('click', function() {
-      userInteracted = true;
-      currentTrack = (currentTrack - 1 + musicTracks.length) % musicTracks.length;
-      isPlaying = true;
-      loadAndPlayTrack();
-      if (playPauseBtn) playPauseBtn.textContent = '⏸️';
-      showQuickStatus(`Previous: ${trackNames[currentTrack]}`, 'info');
-    });
+    prevTrackBtn.addEventListener('click', prevTrack);
   }
 
-  // Initialize with first track (but don't auto-play)
-  createAudioElement();
-  
-  // Mark as interacted when user clicks anywhere on page
-  document.addEventListener('click', function() {
-    userInteracted = true;
-  }, { once: true });
+  // Load first track
+  loadTrack(0);
+  console.log('Music player initialized');
 }
-
 /* ---------- Sound Effects - FIXED VERSION ---------- */
 function initSoundEffects() {
   let soundsEnabled = false;
 
-  // Function to create and play sounds
-  function playSound(url, volume = 0.3) {
+  // Create a single function to play any sound
+  function playSound(type) {
     if (!soundsEnabled) return;
     
-    try {
-      const audio = new Audio(url);
-      audio.volume = volume;
-      audio.play().catch(e => {
-        // Silent fail - don't show errors to user
-      });
-    } catch (error) {
-      // Silent fail
+    let url, volume;
+    
+    switch(type) {
+      case 'click':
+        url = 'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3';
+        volume = 0.3;
+        break;
+      case 'hover':
+        url = 'https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3';
+        volume = 0.2;
+        break;
+      case 'expand':
+        url = 'https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3';
+        volume = 0.25;
+        break;
+      default:
+        return;
     }
+    
+    // Create fresh audio element every time
+    const audio = new Audio();
+    audio.src = url;
+    audio.volume = volume;
+    
+    // Play and ignore any errors
+    audio.play().catch(() => {});
   }
 
-  // Enable sounds on first user interaction
-  function enableSounds() {
+  // Enable sounds on ANY user interaction
+  function enableAllSounds() {
     if (soundsEnabled) return;
     soundsEnabled = true;
-    
-    // Preload by creating silent audio instances
-    const preloadUrls = [
-      'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3',
-      'https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3',
-      'https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3'
-    ];
-    
-    preloadUrls.forEach(url => {
-      const audio = new Audio();
-      audio.src = url;
-      audio.volume = 0.001;
-      audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      }).catch(() => {});
-    });
+    console.log('Sounds enabled!');
   }
 
-  // Enable on any user interaction
-  document.addEventListener('click', enableSounds, { once: true });
-  document.addEventListener('keydown', enableSounds, { once: true });
-  document.addEventListener('touchstart', enableSounds, { once: true });
+  // Listen for ANY user interaction
+  document.addEventListener('click', enableAllSounds, { once: true });
+  document.addEventListener('keydown', enableAllSounds, { once: true });
+  document.addEventListener('touchstart', enableAllSounds, { once: true });
+  document.addEventListener('mousedown', enableAllSounds, { once: true });
 
-  // Button hover sounds
-  const buttons = document.querySelectorAll('.button, .collapsible, .theme-btn, .copy-btn, .music-btn');
-  buttons.forEach(button => {
-    button.addEventListener('mouseenter', () => {
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3', 0.2);
+  // Apply to ALL interactive elements
+  const allInteractiveElements = document.querySelectorAll(
+    'button, .button, .collapsible, .theme-btn, .copy-btn, .music-btn, a, input, textarea'
+  );
+
+  allInteractiveElements.forEach(element => {
+    // Click sounds
+    element.addEventListener('click', (e) => {
+      e.stopPropagation();
+      playSound('click');
     });
     
-    button.addEventListener('click', () => {
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3', 0.3);
+    // Hover sounds
+    element.addEventListener('mouseenter', () => {
+      playSound('hover');
     });
   });
 
-  // Collapsible expand sounds
-  const collapsibles = document.querySelectorAll('.collapsible');
-  collapsibles.forEach(collapsible => {
+  // Special handling for collapsibles
+  document.querySelectorAll('.collapsible').forEach(collapsible => {
     collapsible.addEventListener('click', function() {
       setTimeout(() => {
         if (this.classList.contains('active')) {
-          playSound('https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-changing-tab-206.mp3', 0.25);
+          playSound('expand');
         }
       }, 150);
     });
   });
 
-  // Copy button sounds
-  const copyButtons = document.querySelectorAll('.copy-btn');
-  copyButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      playSound('https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3', 0.3);
-    });
-  });
+  // Force enable after 2 seconds as fallback
+  setTimeout(enableAllSounds, 2000);
 }
 /* ---------- Live Clock ---------- */
 function initLiveClock() {
@@ -3143,14 +3103,13 @@ function loadTabContent(tabId) {
 }
 
 function playChatSound() {
-  if (!soundsEnabled) return;
-  
+  // Simple direct approach
   try {
     const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3');
     audio.volume = 0.2;
     audio.play().catch(() => {});
-  } catch (error) {
-    // Silent fail
+  } catch (e) {
+    // Ignore errors
   }
 }
 
