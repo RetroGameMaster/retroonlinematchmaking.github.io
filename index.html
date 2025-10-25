@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RetroOnlineMatchmaking</title>
+  <!-- Supabase Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* --- Base Styling --- */
 body, html {
@@ -2393,33 +2395,74 @@ body.sega-theme .music-btn:hover {
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
 <script>
+  /* ---------- SUPABASE SETUP ---------- */
+
+// Base64 encoded Supabase config (safer for public code)
+const encodedConfig = {
+    url: aHR0cHM6Ly9sYXB5eGhvdGhhemFsc3NyYmltYi5zdXBhYmFzZS5jbw,  // Will replace this
+    key: ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW14aGNIbDRhRzkwYUdGNllXeHpjM0ppYVcxaUlpd2ljbTlzWlNJNkltRnViMjRpTENKcFlYUWlPakUzTmpFek5qZzBORFVzSW1WNGNDSTZNakEzTmprME5EUTBOWDAuaXNmaDc1bEFiSm90Y3R1NmRrZF9hQVlLLTJZTnlZTTRvLWpxS0ZCNXRWQQ  // Will replace this
+};
+
+// Decode at runtime
+const SUPABASE_URL = atob(encodedConfig.url);
+const SUPABASE_ANON_KEY = atob(encodedConfig.key);
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Test connection
+async function testSupabaseConnection() {
+    try {
+        const { data, error } = await supabase.from('users').select('count');
+        if (error) {
+            console.log('Supabase connected but no users table yet (this is normal)');
+        } else {
+            console.log('✅ Supabase connected successfully!');
+        }
+    } catch (error) {
+        console.log('❌ Supabase connection failed:', error);
+    }
+}
+
+// Call this when your app starts
+testSupabaseConnection();
+
 /* ---------- USER CUSTOMIZATION SYSTEM ---------- */
 
-// Enhanced user profiles with customization
-function saveUserProfile(username, profileData) {
+// Enhanced user profiles with customization - NOW WITH SUPABASE SYNC!
+async function saveUserProfile(username, profileData) {
     console.log('Saving profile for:', username, 'Data:', profileData);
     
+    // 1. Save to localStorage (immediate, for offline use)
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    
-    // Make sure we don't lose existing data
     const existingData = users[username] || {};
     
     users[username] = {
-        ...existingData, // Keep existing data
-        ...profileData,  // Add new data
+        ...existingData,
+        ...profileData,
         lastUpdated: new Date().toISOString()
     };
     
     localStorage.setItem('rom-users', JSON.stringify(users));
     
-    // Verify it was saved
-    const verifyUsers = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    const verifyData = verifyUsers[username];
-    console.log('Profile saved. Verification:', {
-        hasProfilePic: !!(verifyData && verifyData.profilePic),
-        hasSignature: !!(verifyData && verifyData.signature),
-        hasStatus: !!(verifyData && verifyData.status)
-    });
+    // 2. Try to sync to Supabase (for cross-device)
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .upsert({
+                id: username,
+                username: username,
+                ...profileData,
+                last_updated: new Date().toISOString()
+            });
+            
+        if (error) {
+            console.log('❌ Supabase sync failed (will use localStorage):', error);
+        } else {
+            console.log('✅ Profile synced to Supabase!');
+        }
+    } catch (error) {
+        console.log('❌ Supabase sync error (offline?):', error);
+    }
     
     updateStorageInfo();
     return true;
@@ -2469,7 +2512,30 @@ function fixUserData() {
 // Call this on page load
 setTimeout(fixUserData, 1000);
 
-function loadUserProfile(username) {
+async function loadUserProfile(username) {
+    // First try Supabase (for cross-device data)
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .single();
+            
+        if (!error && data) {
+            console.log('✅ Loaded profile from Supabase:', data);
+            
+            // Also save to localStorage for offline use
+            const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+            users[username] = data;
+            localStorage.setItem('rom-users', JSON.stringify(users));
+            
+            return data;
+        }
+    } catch (error) {
+        console.log('❌ Supabase load failed, using localStorage:', error);
+    }
+    
+    // Fallback to localStorage
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
     return users[username] || null;
 }
@@ -3064,11 +3130,11 @@ function initDataManagementHandler() {
             document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
             document.getElementById('my-profile').classList.add('active');
             
-            loadUserProfile();
-            updateStorageInfo();
-        });
-    }
-}
+     // Make sure this is an async function call
+loadUserProfile().then(profile => {
+    // Profile loading is complete
+    console.log('Profile load finished');
+});
 
 // Add this to your existing initAccountSystem function
 function initAccountSystem() {
