@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RetroOnlineMatchmaking</title>
+  <!-- Supabase Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* --- Base Styling --- */
 body, html {
@@ -2044,7 +2046,7 @@ body.sega-theme .music-btn:hover {
 
   <div class="card">
     <h3>Socom.cc</h3>
-    <p><a href="https://discord.gg/SmDJSyZQsb" target="_blank" rel="noopener">Discord</a> • <a href="https://www.socom.cc/status.xml" target="_blank" rel="noopener">Website</a> • <a href="https://github.com/hrydgard/ppsspp/wiki/How-to-play-multiplayer-games-with-PPSSPP" target="_blank" rel="noopener">Guide</a></p>
+    <p><a href="https://discord.gg/SmDJSyZQsb" target="_blank" rel="noopener">Discord</a> • <a href="https://www.socom.cc/status.xml" target="_blank" rel="noopener">Website</a> • <a href="https://github.com/hrydgard/ppsspp/wiki/How-to-play-multiplayer-games-with-PPSSpp" target="_blank" rel="noopener">Guide</a></p>
   </div>
 
   <div class="card">
@@ -2393,33 +2395,101 @@ body.sega-theme .music-btn:hover {
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
 <script>
+/* ---------- SUPABASE SETUP ---------- */
+
+// Base64 encoded Supabase config (FIXED VERSION)
+const encodedConfig = {
+    url: "aHR0cHM6Ly9sYXB5eGhvdGhhemFsc3NyYmltYi5zdXBhYmFzZS5jbw==",
+    key: "ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW14aGNIbDRhRzkwYUdGNllXeHpjM0ppYVcxaUlpd2ljbTlzWlNJNkltRnViMjRpTENKcFlYUWlPakUzTmpFek5qZzBORFVzSW1WNGNDSTZNakEzTmprME5EUTBOWDAuaXNmaDc1bEFiSm90Y3R1NmRrZF9hQVlLLTJZTnlZTTRvLWpxS0ZCNXRWQQ=="
+};
+
+// Decode at runtime with error handling
+let SUPABASE_URL, SUPABASE_ANON_KEY;
+try {
+    SUPABASE_URL = atob(encodedConfig.url);
+    SUPABASE_ANON_KEY = atob(encodedConfig.key);
+    console.log('✅ Supabase config decoded successfully');
+} catch (error) {
+    console.error('❌ Supabase config decoding failed:', error);
+    // Fallback values
+    SUPABASE_URL = 'https://lapyxhothazalssrbimb.supabase.co';
+    SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhcHl4aG90aGF6YWxzc3JiaW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjgxNzY0MDksImV4cCI6MjA0Mzc1MjQwOX0.isfh75lAbJotctu6dkd_aAYK-2YNyYM4o-jqKFB5tVA';
+}
+
+// Initialize Supabase with proper error handling
+let supabase;
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('✅ Supabase client initialized successfully');
+} catch (error) {
+    console.error('❌ Supabase client creation failed:', error);
+    // Create fallback to prevent crashes
+    supabase = {
+        from: () => ({
+            select: () => Promise.resolve({ data: [], error: 'Supabase not available' }),
+            upsert: () => Promise.resolve({ data: null, error: 'Supabase not available' }),
+            eq: () => ({ single: () => Promise.resolve({ data: null, error: 'Supabase not available' }) })
+        })
+    };
+}
+
+// Test connection (NON-BLOCKING VERSION)
+async function testSupabaseConnection() {
+    try {
+        console.log('🔄 Testing Supabase connection...');
+        const { data, error } = await supabase.from('users').select('count').limit(1);
+        if (error) {
+            console.log('ℹ️ Supabase connected but no users table yet (normal for new projects)');
+        } else {
+            console.log('✅ Supabase connected successfully!');
+        }
+    } catch (error) {
+        console.log('❌ Supabase connection test failed (using fallback mode):', error);
+    }
+}
+
+// Call this but don't wait for it - make it non-blocking
+setTimeout(testSupabaseConnection, 1000);
+
 /* ---------- USER CUSTOMIZATION SYSTEM ---------- */
 
-// Enhanced user profiles with customization
-function saveUserProfile(username, profileData) {
+// Enhanced user profiles with customization - NOW WITH SUPABASE SYNC!
+async function saveUserProfile(username, profileData) {
     console.log('Saving profile for:', username, 'Data:', profileData);
     
+    // 1. Save to localStorage (immediate, for offline use)
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    
-    // Make sure we don't lose existing data
     const existingData = users[username] || {};
     
     users[username] = {
-        ...existingData, // Keep existing data
-        ...profileData,  // Add new data
+        ...existingData,
+        ...profileData,
         lastUpdated: new Date().toISOString()
     };
     
     localStorage.setItem('rom-users', JSON.stringify(users));
     
-    // Verify it was saved
-    const verifyUsers = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    const verifyData = verifyUsers[username];
-    console.log('Profile saved. Verification:', {
-        hasProfilePic: !!(verifyData && verifyData.profilePic),
-        hasSignature: !!(verifyData && verifyData.signature),
-        hasStatus: !!(verifyData && verifyData.status)
-    });
+    // 2. Try to sync to Supabase in background (non-blocking)
+    setTimeout(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .upsert({
+                    id: username,
+                    username: username,
+                    ...profileData,
+                    last_updated: new Date().toISOString()
+                });
+                
+            if (error) {
+                console.log('❌ Supabase sync failed (will use localStorage):', error);
+            } else {
+                console.log('✅ Profile synced to Supabase!');
+            }
+        } catch (error) {
+            console.log('❌ Supabase sync error (offline?):', error);
+        }
+    }, 0);
     
     updateStorageInfo();
     return true;
@@ -2469,9 +2539,32 @@ function fixUserData() {
 // Call this on page load
 setTimeout(fixUserData, 1000);
 
-function loadUserProfile(username) {
+async function loadUserProfile(username) {
+    // First try localStorage (immediate response)
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    return users[username] || null;
+    const localData = users[username];
+    
+    // Then try Supabase in background (non-blocking)
+    setTimeout(async () => {
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('username', username)
+                .single();
+                
+            if (!error && data) {
+                console.log('✅ Background sync from Supabase');
+                // Update localStorage with fresh data
+                users[username] = data;
+                localStorage.setItem('rom-users', JSON.stringify(users));
+            }
+        } catch (error) {
+            console.log('❌ Background sync failed (offline mode):', error);
+        }
+    }, 0);
+    
+    return localData || null;
 }
 
 // FIXED Profile Picture System with proper saving
@@ -3065,65 +3158,8 @@ function initDataManagementHandler() {
             document.getElementById('my-profile').classList.add('active');
             
             loadUserProfile();
-            updateStorageInfo();
         });
     }
-}
-
-// Add this to your existing initAccountSystem function
-function initAccountSystem() {
-    const loginBtn = document.getElementById('loginBtn');
-    const loginModal = document.getElementById('loginModal');
-    const closeLogin = document.getElementById('closeLogin');
-    const profileBtn = document.getElementById('profileBtn');
-    
-    checkLoginStatus();
-    
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            loginModal.style.display = 'flex';
-        });
-    }
-    
-    if (closeLogin) {
-        closeLogin.addEventListener('click', () => {
-            loginModal.style.display = 'none';
-        });
-    }
-    
-    // Profile button - go to profile tab in social hub
-    if (profileBtn) {
-        profileBtn.addEventListener('click', () => {
-            const socialModal = document.getElementById('socialHubModal');
-            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-            
-            if (!currentUser) {
-                showQuickStatus('Please login first!', 'error');
-                loginModal.style.display = 'flex';
-                return;
-            }
-            
-            // Close login modal if open
-            loginModal.style.display = 'none';
-            
-            // Open social hub and switch to profile tab
-            socialModal.style.display = 'flex';
-            
-            // Switch to profile tab
-            document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector('[data-tab="my-profile"]').classList.add('active');
-            
-            document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
-            document.getElementById('my-profile').classList.add('active');
-            
-            loadUserProfile();
-        });
-    }
-    
-    initLoginTabs();
-    initAuthForms();
-    initLogoutHandler();
-    initDataManagementHandler(); // ADD THIS LINE
 }
 
 /* ---------- FRIEND SYSTEM ---------- */
@@ -3496,6 +3532,7 @@ function joinLobby(lobbyId) {
   showQuickStatus(`Joined ${lobby.game} lobby!`, 'success');
   loadActiveLobbies();
 }
+
 function closeLobby(lobbyId) {
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   if (!currentUser) {
@@ -4490,7 +4527,7 @@ function loginUser(username, password) {
   
   if (users[username] && users[username].password === btoa(password)) {
     // Update last active time
-    users[username].lastActive = new Date().toISOString(); // ADD THIS LINE
+    users[username].lastActive = new Date().toISOString();
     localStorage.setItem('rom-users', JSON.stringify(users));
     
     const userData = {
@@ -4536,7 +4573,7 @@ function registerUser(username, password, email) {
   const userData = {
     username: username,
     email: email,
-    joined: joinDate, // Make sure this is saved
+    joined: joinDate,
     favorites: []
   };
   
@@ -4724,8 +4761,8 @@ function loadSocialHub() {
   loadChatMessages();
   loadUserProfile();
   updateUserStats();
-  loadFriendSystem(); // Load friend system
-  loadActiveLobbies(); // Load game lobbies
+  loadFriendSystem();
+  loadActiveLobbies();
 }
 
 // Chat System
@@ -4774,7 +4811,7 @@ function sendChatMessage() {
   
   localStorage.setItem('rom-chat-messages', JSON.stringify(chatData));
   
-  appendEnhancedChatMessage(messageObj); // Use enhanced version
+  appendEnhancedChatMessage(messageObj);
   chatInput.value = '';
   playChatSound();
 }
@@ -4786,7 +4823,7 @@ function loadChatMessages() {
   chatMessages.innerHTML = '';
   
   chatData.forEach(msg => {
-    appendEnhancedChatMessage(msg); // Use enhanced version
+    appendEnhancedChatMessage(msg);
   });
   
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -5153,7 +5190,7 @@ function initClipOfWeek() {
       ...newClipData
     };
     localStorage.setItem('rom-current-clip', JSON.stringify(updatedClip));
-    initClipOfWeek(); // Reload the clip
+    initClipOfWeek();
     showQuickStatus('Clip of the Week updated!', 'success');
   };
   
