@@ -1108,6 +1108,44 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   border-top: 1px solid rgba(0, 255, 255, 0.2);
 }
 
+/* Stat Card Styles */
+.stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(0, 255, 255, 0.1);
+  position: relative;
+  cursor: help;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.1);
+  border-color: rgba(0, 255, 255, 0.3);
+}
+
+/* Tooltip styles */
+.stat-card::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 30, 60, 0.95);
+  color: #a8dfe8;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  border: 1px solid #00ffff;
+  z-index: 1000;
+}
+
+.stat-card:hover::after {
+  opacity: 1;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .social-hub-content {
@@ -1162,6 +1200,44 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   .profile-pic-container {
     flex-direction: column;
     text-align: center;
+  }
+
+  /* Mobile login fixes */
+  .login-modal .modal-content {
+    width: 90% !important;
+    margin: 10% auto !important;
+    padding: 20px !important;
+  }
+  
+  .auth-form input {
+    font-size: 16px !important;
+    padding: 14px !important;
+  }
+  
+  .tab-btn {
+    padding: 12px 8px !important;
+    font-size: 14px !important;
+  }
+
+  /* Social hub mobile fixes */
+  .social-hub-content {
+    flex-direction: column !important;
+    height: 95vh !important;
+  }
+  
+  .social-sidebar {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 40vh !important;
+    overflow-y: auto !important;
+  }
+  
+  .social-main {
+    height: 60vh !important;
+  }
+  
+  .chat-messages {
+    max-height: 45vh !important;
   }
 }
 
@@ -2053,6 +2129,7 @@ body.sega-theme .music-btn:hover {
           <button class="social-nav-btn active" data-tab="global-chat">🌐 Global Chat</button>
           <button class="social-nav-btn" data-tab="lobby-chat">🎮 Game Lobbies</button>
           <button class="social-nav-btn" data-tab="my-profile">👤 My Profile</button>
+          <button class="social-nav-btn" data-tab="friends">👥 Friends</button>
           <button class="social-nav-btn" data-tab="find-players">🔍 Find Players</button>
           <button class="social-nav-btn" data-tab="recent-activity">📊 Activity</button>
         </nav>
@@ -2139,6 +2216,31 @@ body.sega-theme .music-btn:hover {
               </div>
             </div>
             
+            <!-- User Stats with Clear Labels -->
+            <div class="user-stats" style="margin-top: 30px;">
+              <h3 style="color: #00ffff; margin-bottom: 15px;">My Stats</h3>
+              <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div class="stat-card" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; text-align: center;" 
+                     title="Connection methods you've favorited for quick access">
+                  <div style="color: #00ffff; font-size: 1.5rem; font-weight: bold;" id="favoritesCount">0</div>
+                  <div style="color: #a8dfe8; font-size: 0.9rem;">⭐ Favorites</div>
+                  <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 5px;">Connection Methods</div>
+                </div>
+                <div class="stat-card" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; text-align: center;" 
+                     title="Posts you've made on your profile wall">
+                  <div style="color: #00ffff; font-size: 1.5rem; font-weight: bold;" id="postsCount">0</div>
+                  <div style="color: #a8dfe8; font-size: 0.9rem;">📝 Posts</div>
+                  <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 5px;">Wall Activity</div>
+                </div>
+                <div class="stat-card" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; text-align: center;" 
+                     title="Messages you've sent in global chat">
+                  <div style="color: #00ffff; font-size: 1.5rem; font-weight: bold;" id="messagesCount">0</div>
+                  <div style="color: #a8dfe8; font-size: 0.9rem;">💬 Messages</div>
+                  <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 5px;">Global Chat</div>
+                </div>
+              </div>
+            </div>
+            
             <!-- Data Management -->
             <div class="data-management">
               <h4 style="color: #00ffff; margin-bottom: 10px;">Data Management</h4>
@@ -2162,34 +2264,44 @@ body.sega-theme .music-btn:hover {
                 <!-- Wall posts will appear here -->
               </div>
             </div>
-            
-            <!-- User Stats -->
-            <div class="user-stats" style="margin-top: 30px;">
-              <h3 style="color: #00ffff; margin-bottom: 15px;">My Stats</h3>
-              <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-                <div class="stat-card" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; text-align: center;">
-                  <div style="color: #00ffff; font-size: 1.5rem; font-weight: bold;" id="favoritesCount">0</div>
-                  <div style="color: #a8dfe8; font-size: 0.9rem;">Favorites</div>
-                </div>
-                <div class="stat-card" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; text-align: center;">
-                  <div style="color: #00ffff; font-size: 1.5rem; font-weight: bold;" id="postsCount">0</div>
-                  <div style="color: #a8dfe8; font-size: 0.9rem;">Posts</div>
-                </div>
-                <div class="stat-card" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; text-align: center;">
-                  <div style="color: #00ffff; font-size: 1.5rem; font-weight: bold;" id="messagesCount">0</div>
-                  <div style="color: #a8dfe8; font-size: 0.9rem;">Messages</div>
-                </div>
-              </div>
+          </div>
+        </div>
+        
+        <!-- Friends Tab -->
+        <div id="friends" class="social-tab">
+          <div style="padding: 20px;">
+            <h3 style="color: #00ffff;">Friends System</h3>
+            <div class="friend-requests" style="margin-bottom: 20px;">
+              <h4>Friend Requests</h4>
+              <div id="friendRequestsList"></div>
+            </div>
+            <div class="friends-list" style="margin-bottom: 20px;">
+              <h4>Your Friends</h4>
+              <div id="friendsList"></div>
+            </div>
+            <div class="find-friends">
+              <h4>Find Friends</h4>
+              <input type="text" id="searchFriends" placeholder="Search users..." style="width: 100%; padding: 10px; margin-bottom: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+              <div id="searchFriendsResults"></div>
             </div>
           </div>
         </div>
         
-        <!-- Other tabs would go here -->
+        <!-- Game Lobbies Tab -->
         <div id="lobby-chat" class="social-tab">
-          <div style="padding: 20px; text-align: center; color: #a8dfe8;">
+          <div style="padding: 20px;">
             <h3 style="color: #00ffff;">Game Lobbies</h3>
-            <p>Join platform-specific chat rooms</p>
-            <!-- Lobby selection would go here -->
+            <div class="lobby-list">
+              <div class="lobby-category">
+                <h4>🎮 Active Lobbies</h4>
+                <div class="lobby-grid" id="activeLobbies" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                  <!-- Lobbies will be populated here -->
+                </div>
+              </div>
+              <div class="lobby-actions">
+                <button class="button" id="createLobbyBtn">Create New Lobby</button>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -2247,6 +2359,7 @@ function saveUserProfile(username, profileData) {
     updateStorageInfo();
     return true;
 }
+
 // Function to fix existing users who might have missing data
 function fixUserData() {
     const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
@@ -2290,6 +2403,7 @@ function fixUserData() {
 
 // Call this on page load
 setTimeout(fixUserData, 1000);
+
 function loadUserProfile(username) {
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
     return users[username] || null;
@@ -2441,45 +2555,6 @@ function handleProfilePicUpload(event) {
     };
     
     reader.readAsDataURL(file);
-}
-
-// Image compression function
-function compressImage(dataUrl, maxSizeKB, callback) {
-    const img = new Image();
-    img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Calculate new dimensions (max 150x150 for profile pics)
-        let width = img.width;
-        let height = img.height;
-        const maxDimension = 150;
-        
-        if (width > height && width > maxDimension) {
-            height = (height * maxDimension) / width;
-            width = maxDimension;
-        } else if (height > maxDimension) {
-            width = (width * maxDimension) / height;
-            height = maxDimension;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Get compressed image (quality 0.7 for good balance)
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-        
-        // Check if we need further compression
-        const sizeKB = (compressedDataUrl.length * 0.75) / 1024;
-        if (sizeKB > maxSizeKB) {
-            // Recursively compress with lower quality
-            compressImage(compressedDataUrl, maxSizeKB, callback);
-        } else {
-            callback(compressedDataUrl);
-        }
-    };
-    img.src = dataUrl;
 }
 
 // Signature System
@@ -2781,6 +2856,8 @@ function initAllSystems() {
     initEngagementFeatures();
     initClipOfWeek();
     initCustomizationSystems(); // ADD THIS LINE
+    initFriendSystem(); // ADD FRIEND SYSTEM
+    initGameLobbies(); // ADD GAME LOBBIES
 }
 
 // Update the existing loadUserProfile function in Social Hub
@@ -2984,7 +3061,360 @@ function initAccountSystem() {
     initDataManagementHandler(); // ADD THIS LINE
 }
 
-/* ---------- REMAINING EXISTING CODE (keep all your existing functions below) ---------- */
+/* ---------- FRIEND SYSTEM ---------- */
+function initFriendSystem() {
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (!currentUser) return;
+
+  // Add friend request button to user cards
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('add-friend-btn')) {
+      const username = e.target.dataset.username;
+      sendFriendRequest(username);
+    }
+  });
+
+  // Load friend system in social hub
+  loadFriendSystem();
+}
+
+function loadFriendSystem() {
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (!currentUser) return;
+
+  const friendsData = JSON.parse(localStorage.getItem(`rom-friends-${currentUser.username}`) || '{}');
+  
+  // Load friend requests
+  loadFriendRequests(friendsData.requests || []);
+  
+  // Load friends list
+  loadFriendsList(friendsData.friends || []);
+  
+  // Initialize friend search
+  initFriendSearch();
+}
+
+function sendFriendRequest(username) {
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (!currentUser) {
+    showQuickStatus('Please login to send friend requests!', 'error');
+    return;
+  }
+
+  if (username === currentUser.username) {
+    showQuickStatus('You cannot add yourself as a friend!', 'error');
+    return;
+  }
+
+  // Get target user's friend data
+  const targetFriends = JSON.parse(localStorage.getItem(`rom-friends-${username}`) || '{}');
+  const requests = targetFriends.requests || [];
+  
+  // Check if request already exists
+  if (requests.includes(currentUser.username)) {
+    showQuickStatus('Friend request already sent!', 'info');
+    return;
+  }
+
+  // Add request
+  requests.push(currentUser.username);
+  targetFriends.requests = requests;
+  localStorage.setItem(`rom-friends-${username}`, JSON.stringify(targetFriends));
+  
+  showQuickStatus(`Friend request sent to ${username}!`, 'success');
+}
+
+function loadFriendRequests(requests) {
+  const requestsList = document.getElementById('friendRequestsList');
+  if (!requestsList) return;
+
+  if (requests.length === 0) {
+    requestsList.innerHTML = '<p style="color: #a8dfe8; text-align: center;">No pending requests</p>';
+    return;
+  }
+
+  requestsList.innerHTML = requests.map(username => `
+    <div class="friend-request" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(0, 30, 60, 0.6); border-radius: 6px; margin-bottom: 10px;">
+      <span style="color: #00ffff;">${username}</span>
+      <div>
+        <button class="button accept-friend-btn" data-username="${username}" style="margin-right: 5px;">Accept</button>
+        <button class="button muted reject-friend-btn" data-username="${username}">Reject</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Add event listeners
+  document.querySelectorAll('.accept-friend-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      acceptFriendRequest(this.dataset.username);
+    });
+  });
+
+  document.querySelectorAll('.reject-friend-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      rejectFriendRequest(this.dataset.username);
+    });
+  });
+}
+
+function loadFriendsList(friends) {
+  const friendsList = document.getElementById('friendsList');
+  if (!friendsList) return;
+
+  if (friends.length === 0) {
+    friendsList.innerHTML = '<p style="color: #a8dfe8; text-align: center;">No friends yet. Start adding some!</p>';
+    return;
+  }
+
+  friendsList.innerHTML = friends.map(username => `
+    <div class="friend-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(0, 30, 60, 0.6); border-radius: 6px; margin-bottom: 10px;">
+      <span style="color: #00ffff;">${username}</span>
+      <button class="button muted remove-friend-btn" data-username="${username}">Remove</button>
+    </div>
+  `).join('');
+
+  // Add event listeners
+  document.querySelectorAll('.remove-friend-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      removeFriend(this.dataset.username);
+    });
+  });
+}
+
+function initFriendSearch() {
+  const searchInput = document.getElementById('searchFriends');
+  if (!searchInput) return;
+
+  searchInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    if (searchTerm.length === 0) {
+      document.getElementById('searchFriendsResults').innerHTML = '';
+      return;
+    }
+
+    // Search through all users
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    const friendsData = JSON.parse(localStorage.getItem(`rom-friends-${currentUser.username}`) || '{}');
+    const friends = friendsData.friends || [];
+    const pendingRequests = friendsData.requests || [];
+
+    const results = Object.keys(users).filter(username => 
+      username.toLowerCase().includes(searchTerm) && 
+      username !== currentUser.username &&
+      !friends.includes(username)
+    );
+
+    const resultsContainer = document.getElementById('searchFriendsResults');
+    if (results.length === 0) {
+      resultsContainer.innerHTML = '<p style="color: #a8dfe8; text-align: center;">No users found</p>';
+      return;
+    }
+
+    resultsContainer.innerHTML = results.map(username => {
+      const isPending = pendingRequests.includes(username);
+      return `
+        <div class="search-result" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(0, 30, 60, 0.6); border-radius: 6px; margin-bottom: 10px;">
+          <span style="color: #00ffff;">${username}</span>
+          <button class="button add-friend-btn" data-username="${username}" ${isPending ? 'disabled' : ''}>
+            ${isPending ? 'Request Sent' : 'Add Friend'}
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Add event listeners to new buttons
+    document.querySelectorAll('.add-friend-btn:not([disabled])').forEach(btn => {
+      btn.addEventListener('click', function() {
+        sendFriendRequest(this.dataset.username);
+        this.textContent = 'Request Sent';
+        this.disabled = true;
+      });
+    });
+  });
+}
+
+function acceptFriendRequest(username) {
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (!currentUser) return;
+
+  // Remove from requests
+  const friendsData = JSON.parse(localStorage.getItem(`rom-friends-${currentUser.username}`) || '{}');
+  const requests = friendsData.requests || [];
+  friendsData.requests = requests.filter(req => req !== username);
+  
+  // Add to friends
+  const friends = friendsData.friends || [];
+  if (!friends.includes(username)) {
+    friends.push(username);
+  }
+  friendsData.friends = friends;
+  
+  localStorage.setItem(`rom-friends-${currentUser.username}`, JSON.stringify(friendsData));
+  
+  // Also add current user to the other user's friends list
+  const otherFriendsData = JSON.parse(localStorage.getItem(`rom-friends-${username}`) || '{}');
+  const otherFriends = otherFriendsData.friends || [];
+  if (!otherFriends.includes(currentUser.username)) {
+    otherFriends.push(currentUser.username);
+  }
+  otherFriendsData.friends = otherFriends;
+  localStorage.setItem(`rom-friends-${username}`, JSON.stringify(otherFriendsData));
+  
+  showQuickStatus(`Accepted friend request from ${username}!`, 'success');
+  loadFriendSystem(); // Reload the friend system
+}
+
+function rejectFriendRequest(username) {
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (!currentUser) return;
+
+  const friendsData = JSON.parse(localStorage.getItem(`rom-friends-${currentUser.username}`) || '{}');
+  const requests = friendsData.requests || [];
+  friendsData.requests = requests.filter(req => req !== username);
+  
+  localStorage.setItem(`rom-friends-${currentUser.username}`, JSON.stringify(friendsData));
+  
+  showQuickStatus(`Rejected friend request from ${username}`, 'info');
+  loadFriendSystem(); // Reload the friend system
+}
+
+function removeFriend(username) {
+  if (!confirm(`Are you sure you want to remove ${username} from your friends?`)) {
+    return;
+  }
+
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (!currentUser) return;
+
+  // Remove from current user's friends
+  const friendsData = JSON.parse(localStorage.getItem(`rom-friends-${currentUser.username}`) || '{}');
+  const friends = friendsData.friends || [];
+  friendsData.friends = friends.filter(friend => friend !== username);
+  localStorage.setItem(`rom-friends-${currentUser.username}`, JSON.stringify(friendsData));
+  
+  // Remove current user from other user's friends
+  const otherFriendsData = JSON.parse(localStorage.getItem(`rom-friends-${username}`) || '{}');
+  const otherFriends = otherFriendsData.friends || [];
+  otherFriendsData.friends = otherFriends.filter(friend => friend !== currentUser.username);
+  localStorage.setItem(`rom-friends-${username}`, JSON.stringify(otherFriendsData));
+  
+  showQuickStatus(`Removed ${username} from friends`, 'info');
+  loadFriendSystem(); // Reload the friend system
+}
+
+/* ---------- GAME LOBBIES SYSTEM ---------- */
+function initGameLobbies() {
+  // Add game-specific lobbies with actual functionality
+  const lobbyChat = document.getElementById('lobby-chat');
+  if (lobbyChat) {
+    loadActiveLobbies();
+    initLobbyCreation();
+  }
+}
+
+function loadActiveLobbies() {
+  const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+  const activeLobbies = document.getElementById('activeLobbies');
+  
+  if (!activeLobbies) return;
+  
+  if (lobbies.length === 0) {
+    activeLobbies.innerHTML = '<p style="color: #a8dfe8; text-align: center; grid-column: 1 / -1;">No active lobbies. Create one!</p>';
+    return;
+  }
+
+  activeLobbies.innerHTML = lobbies.map(lobby => `
+    <div class="lobby-card" style="background: rgba(0, 30, 60, 0.7); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 15px;">
+      <div class="lobby-header" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <span class="lobby-game" style="color: #ff33cc; font-weight: bold;">${lobby.game}</span>
+        <span class="lobby-players" style="color: #00ffff;">${lobby.players.length}/${lobby.maxPlayers}</span>
+      </div>
+      <div class="lobby-info" style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem;">
+        <span class="lobby-host" style="color: #a8dfe8;">Host: ${lobby.host}</span>
+        <span class="lobby-status" style="color: #00ff00;">${lobby.status}</span>
+      </div>
+      <button class="button join-lobby-btn" data-lobby="${lobby.id}" style="width: 100%;">Join Lobby</button>
+    </div>
+  `).join('');
+
+  // Add event listeners to join buttons
+  document.querySelectorAll('.join-lobby-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      joinLobby(this.dataset.lobby);
+    });
+  });
+}
+
+function initLobbyCreation() {
+  const createBtn = document.getElementById('createLobbyBtn');
+  if (!createBtn) return;
+
+  createBtn.addEventListener('click', function() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) {
+      showQuickStatus('Please login to create a lobby!', 'error');
+      return;
+    }
+
+    // Simple lobby creation - you can expand this with a form
+    const game = prompt('Enter game name:');
+    if (!game) return;
+
+    const maxPlayers = parseInt(prompt('Maximum players (2-8):', '4')) || 4;
+    
+    const newLobby = {
+      id: Date.now().toString(),
+      game: game,
+      host: currentUser.username,
+      maxPlayers: Math.max(2, Math.min(8, maxPlayers)),
+      players: [currentUser.username],
+      status: 'Waiting for players',
+      created: new Date().toISOString()
+    };
+
+    const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+    lobbies.push(newLobby);
+    localStorage.setItem('rom-game-lobbies', JSON.stringify(lobbies));
+    
+    showQuickStatus(`Lobby created for ${game}!`, 'success');
+    loadActiveLobbies();
+  });
+}
+
+function joinLobby(lobbyId) {
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (!currentUser) {
+    showQuickStatus('Please login to join a lobby!', 'error');
+    return;
+  }
+
+  const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+  const lobby = lobbies.find(l => l.id === lobbyId);
+  
+  if (!lobby) {
+    showQuickStatus('Lobby not found!', 'error');
+    return;
+  }
+
+  if (lobby.players.includes(currentUser.username)) {
+    showQuickStatus('You are already in this lobby!', 'info');
+    return;
+  }
+
+  if (lobby.players.length >= lobby.maxPlayers) {
+    showQuickStatus('Lobby is full!', 'error');
+    return;
+  }
+
+  lobby.players.push(currentUser.username);
+  localStorage.setItem('rom-game-lobbies', JSON.stringify(lobbies));
+  
+  showQuickStatus(`Joined ${lobby.game} lobby!`, 'success');
+  loadActiveLobbies();
+}
+
+/* ---------- REMAINING EXISTING CODE ---------- */
 
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
@@ -3028,13 +3458,6 @@ window.addEventListener('load', function onLoad() {
     }
   }, 70);
 });
-
-// ... (KEEP ALL YOUR EXISTING CODE BELOW EXACTLY AS IT WAS)
-// This includes: initCursorAndCanvas, initCollapsibles, initFormControls, 
-// initStatusBar, initSoundEffects, initThemeSwitcher, initEasterEggs,
-// initSearchSystem, initCopyButtons, initUserFavorites, initSocialHub,
-// initMusicPlayer, initLiveClock, initTypingEffect, initLivePlayerCount,
-// initEngagementFeatures, initClipOfWeek, and all their helper functions
 
 /* ---------- NEW: Real User Count System ---------- */
 function initLivePlayerCount() {
@@ -3870,62 +4293,6 @@ function initCopyButtons() {
   }
 }
 
-/* ---------- ACCOUNT SYSTEM ---------- */
-function initAccountSystem() {
-  const loginBtn = document.getElementById('loginBtn');
-  const loginModal = document.getElementById('loginModal');
-  const closeLogin = document.getElementById('closeLogin');
-  const profileBtn = document.getElementById('profileBtn');
-  
-  checkLoginStatus();
-  
-  if (loginBtn) {
-    loginBtn.addEventListener('click', () => {
-      loginModal.style.display = 'flex';
-    });
-  }
-  
-  if (closeLogin) {
-    closeLogin.addEventListener('click', () => {
-      loginModal.style.display = 'none';
-    });
-  }
-  
-  // Profile button - go to profile tab in social hub
-  if (profileBtn) {
-    profileBtn.addEventListener('click', () => {
-      const socialModal = document.getElementById('socialHubModal');
-      const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-      
-      if (!currentUser) {
-        showQuickStatus('Please login first!', 'error');
-        loginModal.style.display = 'flex';
-        return;
-      }
-      
-      // Close login modal if open
-      loginModal.style.display = 'none';
-      
-      // Open social hub and switch to profile tab
-      socialModal.style.display = 'flex';
-      
-      // Switch to profile tab
-      document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelector('[data-tab="my-profile"]').classList.add('active');
-      
-      document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
-      document.getElementById('my-profile').classList.add('active');
-      
-      loadUserProfile();
-    });
-  }
-  
-  initLoginTabs();
-  initAuthForms();
-  initLogoutHandler();
-  initDataManagementHandler();
-}
-
 function checkLoginStatus() {
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   const loginBtn = document.getElementById('loginBtn');
@@ -4242,6 +4609,8 @@ function loadSocialHub() {
   loadChatMessages();
   loadUserProfile();
   updateUserStats();
+  loadFriendSystem(); // Load friend system
+  loadActiveLobbies(); // Load game lobbies
 }
 
 // Chat System
@@ -4564,6 +4933,7 @@ function updateOnlineUsers() {
     onlineCount.textContent = `${onlineUsers.length} users online`;
   }
 }
+
 function updateUserStats() {
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   if (!currentUser) return;
@@ -4594,7 +4964,11 @@ function loadTabContent(tabId) {
       loadUserProfile();
       updateUserStats();
       break;
+    case 'friends':
+      loadFriendSystem();
+      break;
     case 'lobby-chat':
+      loadActiveLobbies();
       break;
     case 'find-players':
       break;
@@ -4625,6 +4999,7 @@ function escapeHtml(unsafe) {
 
 // Update online users periodically
 setInterval(updateOnlineUsers, 30000);
+
 /* ---------- Clip of the Week System ---------- */
 function initClipOfWeek() {
   // Load clip data from localStorage or use defaults
@@ -4677,11 +5052,6 @@ function updateClipWeekly() {
   console.log('📹 Clip of the Week system ready - use updateClipOfWeek() to change clips');
 }
 
-function updateClipWeekly() {
-  // This would be where you fetch new clip data from your server
-  // For now, it's manual, but you can set up automatic rotation
-  console.log('📹 Clip of the Week system ready - update videoId manually each week');
-}
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
   const cursor = document.getElementById('customCursor');
