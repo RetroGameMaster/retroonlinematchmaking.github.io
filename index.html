@@ -5708,19 +5708,24 @@ function initAllSystems() {
     initLivePlayerCount();
     initEngagementFeatures();
     initClipOfWeek();
+    initCustomizationSystems();
+    initFriendSystem();
+    initGameLobbies();
+    initPlayerSearchSystem();
    
-    // DELAY Supabase-dependent systems to prevent splash screen issues
-    setTimeout(() => {
-        initCustomizationSystems();
-        initFriendSystem();
-        initGameLobbies();
-        initPlayerSearchSystem();
-        console.log('✅ All systems initialized (including Supabase)');
-    }, 1000); // 1 second delay after splash screen
-}
-  
     console.log('✅ All systems initialized');
 }
+  // Emergency splash screen fix
+setTimeout(() => {
+    const splash = document.getElementById('splash');
+    const main = document.getElementById('mainContent');
+    if (splash && main && splash.style.display !== 'none') {
+        console.log('🆘 Emergency splash screen cleanup');
+        splash.style.display = 'none';
+        main.style.display = 'block';
+        initAllSystems();
+    }
+}, 5000); // 5 second timeout
 </script>
 </body>
 </html>
