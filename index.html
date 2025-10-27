@@ -2907,39 +2907,51 @@ function updateUserStats() {
 async function saveUserProfile(username, profileData) {
     console.log('Saving profile for:', username, 'Data:', profileData);
     
-    // 1. Save to localStorage (immediate, for offline use)
-    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    const existingData = users[username] || {};
+    async function saveUserProfile(username, profileData) {
+    console.log('Saving profile for:', username, 'Data:', profileData);
     
-    users[username] = {
-        ...existingData,
-        ...profileData,
-        lastUpdated: new Date().toISOString()
-    };
-    
-    localStorage.setItem('rom-users', JSON.stringify(users));
-    
-    // 2. Try to sync to Supabase in background (non-blocking)
-    setTimeout(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('users')
-                .upsert({
-                    id: username,
-                    username: username,
-                    ...profileData,
-                    last_updated: new Date().toISOString()
-                });
-                
-            if (error) {
-                console.log('❌ Supabase sync failed (will use localStorage):', error);
-            } else {
-                console.log('✅ Profile synced to Supabase!');
-            }
-        } catch (error) {
-            console.log('❌ Supabase sync error (offline?):', error);
-        }
-    }, 0);
+    try {
+        // 1. Save to Supabase first
+        const { data, error } = await supabase
+            .from('Users')
+            .upsert({
+                username: username,
+                ...profileData,
+                last_updated: new Date().toISOString(),
+                last_active: new Date().toISOString()
+            }, {
+                onConflict: 'username'
+            });
+            
+        if (error) throw error;
+        console.log('✅ Profile saved to Supabase');
+        
+        // 2. Also save to localStorage for offline use
+        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+        const existingData = users[username] || {};
+        
+        users[username] = {
+            ...existingData,
+            ...profileData,
+            lastUpdated: new Date().toISOString()
+        };
+        
+        localStorage.setItem('rom-users', JSON.stringify(users));
+        
+    } catch (error) {
+        console.error('❌ Supabase save failed, using localStorage only:', error);
+        // Fallback to localStorage only
+        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+        const existingData = users[username] || {};
+        
+        users[username] = {
+            ...existingData,
+            ...profileData,
+            lastUpdated: new Date().toISOString()
+        };
+        
+        localStorage.setItem('rom-users', JSON.stringify(users));
+    }
     
     updateStorageInfo();
     return true;
@@ -2990,33 +3002,121 @@ function fixUserData() {
 setTimeout(fixUserData, 1000);
 
 async function loadUserProfile(username) {
-    // First try localStorage (immediate response)
-    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    const localData = users[username];
-    
-    // Then try Supabase in background (non-blocking)
-    setTimeout(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('username', username)
-                .single();
-                
-            if (!error && data) {
-                console.log('✅ Background sync from Supabase');
-                // Update localStorage with fresh data
-                users[username] = data;
-                localStorage.setItem('rom-users', JSON.stringify(users));
-            }
-        } catch (error) {
-            console.log('❌ Background sync failed (offline mode):', error);
+    try {
+        // 1. Try Supabase first
+        const { data, error } = await supabase
+            .from('Users')
+            .select('*')
+            .eq('username', username)
+            .single();
+            
+        if (!error && data) {
+            console.log('✅ Profile loaded from Supabase');
+            // Update localStorage with fresh data
+            const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+            users[username] = data;
+            localStorage.setItem('rom-users', JSON.stringify(users));
+            return data;
+        } else {
+            throw new Error('No data from Supabase');
         }
-    }, 0);
-    
-    return localData || null;
+    } catch (error) {
+        console.log('❌ Supabase load failed, using localStorage:', error);
+        // Fallback to localStorage
+        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+        return users[username] || null;
+    }
+}
+/* ---------- SUPABASE DATABASE FUNCTIONS ---------- */
+
+// Save chat messages to Supabase
+async function saveChatMessage(messageObj) {
+    try {
+        const { data, error } = await supabase
+            .from('ChatMessages')
+            .insert([
+                {
+                    username: messageObj.username,
+                    message_text: messageObj.text,
+                    message_type: messageObj.type || 'global',
+                    timestamp: messageObj.timestamp
+                }
+            ]);
+            
+        if (error) throw error;
+        console.log('✅ Chat message saved to Supabase');
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to save chat message:', error);
+        return false;
+    }
 }
 
+// Load chat messages from Supabase
+async function loadChatMessages() {
+    try {
+        const { data, error } = await supabase
+            .from('ChatMessages')
+            .select('*')
+            .order('timestamp', { ascending: true })
+            .limit(100);
+            
+        if (error) throw error;
+        console.log('✅ Chat messages loaded from Supabase');
+        return data || [];
+    } catch (error) {
+        console.error('❌ Failed to load chat messages:', error);
+        return JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
+    }
+}
+
+// Save wall post to Supabase
+async function saveWallPost(post) {
+    try {
+        const { data, error } = await supabase
+            .from('WallPosts')
+            .insert([
+                {
+                    author: post.author,
+                    content: post.content,
+                    likes: post.likes || 0,
+                    timestamp: post.timestamp
+                }
+            ]);
+            
+        if (error) throw error;
+        console.log('✅ Wall post saved to Supabase');
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to save wall post:', error);
+        return false;
+    }
+}
+
+// Load wall posts from Supabase
+async function loadWallPosts(username = null) {
+    try {
+        let query = supabase
+            .from('WallPosts')
+            .select('*')
+            .order('timestamp', { ascending: false })
+            .limit(50);
+            
+        if (username) {
+            query = query.eq('author', username);
+        }
+            
+        const { data, error } = await query;
+            
+        if (error) throw error;
+        console.log('✅ Wall posts loaded from Supabase');
+        return data || [];
+    } catch (error) {
+        console.error('❌ Failed to load wall posts:', error);
+        return JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+    }
+}
+  
 // FIXED Profile Picture System with proper saving
 function initProfilePictureSystem() {
   const uploadInput = document.getElementById('profilePicUpload');
@@ -5126,7 +5226,7 @@ function initChatSystem() {
   }
 }
 
-function sendChatMessage() {
+async function sendChatMessage() {
   const chatInput = document.getElementById('chatInput');
   const message = chatInput.value.trim();
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
@@ -5145,6 +5245,10 @@ function sendChatMessage() {
     type: 'global'
   };
   
+  // Save to Supabase
+  await saveChatMessage(messageObj);
+  
+  // Also save to localStorage for offline fallback
   const chatData = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
   chatData.push(messageObj);
   
@@ -5159,9 +5263,11 @@ function sendChatMessage() {
   playChatSound();
 }
 
-function loadChatMessages() {
+async function loadChatMessages() {
   const chatMessages = document.getElementById('chatMessages');
-  const chatData = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
+  
+  // Load from Supabase first, fallback to localStorage
+  const chatData = await loadChatMessagesFromDB();
   
   chatMessages.innerHTML = '';
   
