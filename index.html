@@ -2463,39 +2463,22 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 console.log('✅ Supabase config loaded');
 
-// Initialize Supabase with better error handling
+// Initialize Supabase
 let supabase;
-function initializeSupabase() {
-    try {
-        if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('✅ Supabase client initialized successfully');
-            return true;
-        } else {
-            throw new Error('Supabase dependencies not available');
-        }
-    } catch (error) {
-        console.error('❌ Supabase client creation failed:', error);
-        // Create a mock supabase client that won't break the app
-        supabase = {
-            from: () => ({
-                select: () => Promise.resolve({ data: [], error: null }),
-                insert: () => Promise.resolve({ data: null, error: null }),
-                upsert: () => Promise.resolve({ data: null, error: null }),
-                update: () => Promise.resolve({ data: null, error: null }),
-                delete: () => Promise.resolve({ data: null, error: null }),
-                eq: () => ({ 
-                    single: () => Promise.resolve({ data: null, error: null }),
-                    limit: () => Promise.resolve({ data: [], error: null })
-                })
-            })
-        };
-        return false;
-    }
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('✅ Supabase client initialized successfully');
+} catch (error) {
+    console.error('❌ Supabase client creation failed:', error);
+    // Fallback to prevent crashes
+    supabase = {
+        from: () => ({
+            select: () => Promise.resolve({ data: [], error: 'Supabase not available' }),
+            upsert: () => Promise.resolve({ data: null, error: 'Supabase not available' }),
+            eq: () => ({ single: () => Promise.resolve({ data: null, error: 'Supabase not available' }) })
+        })
+    };
 }
-
-// Initialize Supabase but don't block the app if it fails
-setTimeout(initializeSupabase, 500);
 
 /* ---------- FIXED ACCOUNT SYSTEM ---------- */
 
@@ -5712,20 +5695,9 @@ function initAllSystems() {
     initFriendSystem();
     initGameLobbies();
     initPlayerSearchSystem();
-   
+  
     console.log('✅ All systems initialized');
 }
-  // Emergency splash screen fix
-setTimeout(() => {
-    const splash = document.getElementById('splash');
-    const main = document.getElementById('mainContent');
-    if (splash && main && splash.style.display !== 'none') {
-        console.log('🆘 Emergency splash screen cleanup');
-        splash.style.display = 'none';
-        main.style.display = 'block';
-        initAllSystems();
-    }
-}, 5000); // 5 second timeout
 </script>
 </body>
 </html>
