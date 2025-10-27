@@ -1238,6 +1238,7 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
     max-width: 200px;
   }
 
+  /* Music player mobile */
   .music-player {
     bottom: 70px;
     left: 10px;
@@ -2488,6 +2489,7 @@ try {
         console.warn('Could not read supabase session', e);
     }
 })();
+
 /* ---------- FIXED ACCOUNT SYSTEM ---------- */
 
 function initAccountSystem() {
@@ -2897,6 +2899,7 @@ function initDataManagementHandler() {
         });
     }
 }
+
 // FIXED Profile Loading
 function loadUserProfileForDisplay() {
     const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
@@ -2989,7 +2992,7 @@ function updateUserStats() {
 
 // Enhanced user profiles with customization - NOW WITH SUPABASE SYNC!
 async function saveUserProfile(username, profileData) {
-    console.log('Saving profile for:', username, 'Data:', profileData);
+    console.log('💾 Saving profile for:', username, 'Data:', profileData);
     
     // 1. Save to localStorage (immediate, for offline use)
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
@@ -3003,40 +3006,43 @@ async function saveUserProfile(username, profileData) {
     
     localStorage.setItem('rom-users', JSON.stringify(users));
     
-  // 2. Try to sync to Supabase in background (non-blocking)
-setTimeout(async () => {
+    // 2. Sync to Supabase with better error handling
     try {
-        // Get current supabase session and user id if available
-        const sessionRes = await supabase.auth.getSession();
-        const userId = sessionRes?.data?.session?.user?.id || null;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        
+        if (!session) {
+            console.log('🔐 No Supabase session, storing locally only');
+            return true;
+        }
 
         const payload = {
-            // Prefer UUID from Supabase auth when available
-            id: userId || username,
             username: username,
-            ...profileData,
-            last_updated: new Date().toISOString()
+            profile_data: profileData,
+            last_updated: new Date().toISOString(),
+            // Include user_id from auth session for proper linking
+            user_id: session.user.id
         };
 
         const { data, error } = await supabase
-            .from('users')
-            .upsert(payload);
+            .from('user_profiles')
+            .upsert(payload, { 
+                onConflict: 'username',
+                ignoreDuplicates: false 
+            });
 
         if (error) {
-            console.error('❌ Supabase sync failed (will use localStorage):', error);
-            showQuickStatus('Server sync failed: ' + (error.message || JSON.stringify(error)), 'error');
-        } else {
-            console.log('✅ Profile synced to Supabase!', data);
-            showQuickStatus('Profile synced to server', 'success');
+            console.error('❌ Supabase sync failed:', error);
+            // Don't show error to user for background sync
+            return true; // Still return true since local save worked
         }
+        
+        console.log('✅ Profile synced to Supabase!', data);
+        return true;
     } catch (err) {
         console.error('❌ Supabase sync error (offline?):', err);
-        showQuickStatus('Sync error: ' + (err.message || String(err)), 'error');
+        return true; // Local save still worked
     }
-}, 0);
-    
-    updateStorageInfo();
-    return true;
 }
 
 // Function to fix existing users who might have missing data
@@ -3083,44 +3089,54 @@ function fixUserData() {
 // Call this on page load
 setTimeout(fixUserData, 1000);
 
+// FIXED: Better data loading with cross-device support
 async function loadUserProfile(username) {
     console.log('🔄 Loading profile for:', username);
     
     try {
-        // NEW APPROACH: Try different query methods
-        
-        // Method 1: Try without .single() first
+        // Try to load from Supabase first
         const { data, error } = await supabase
-            .from('users')
+            .from('user_profiles')
             .select('*')
             .eq('username', username);
             
         if (error) {
-            console.error('❌ Method 1 failed:', error);
+            console.error('❌ Supabase load error:', error);
             throw error;
         }
         
-        if (!data || data.length === 0) {
-            console.log('📭 No user found in Supabase, using localStorage');
-            throw new Error('User not found in Supabase');
+        if (data && data.length > 0) {
+            console.log('✅ Profile loaded from Supabase:', data[0]);
+            const supabaseProfile = data[0];
+            
+            // Merge with local data
+            const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+            const localProfile = users[username] || {};
+            
+            // Prefer Supabase data but keep local favorites
+            const mergedProfile = {
+                ...localProfile,
+                ...supabaseProfile.profile_data,
+                // Keep local favorites if they exist
+                favorites: localProfile.favorites || supabaseProfile.profile_data?.favorites || []
+            };
+            
+            users[username] = mergedProfile;
+            localStorage.setItem('rom-users', JSON.stringify(users));
+            
+            return mergedProfile;
         }
         
-        console.log('✅ Profile loaded from Supabase:', data[0]);
-        
-        // Update localStorage with fresh data
-        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-        users[username] = { ...users[username], ...data[0] };
-        localStorage.setItem('rom-users', JSON.stringify(users));
-        
-        return data[0];
+        throw new Error('User not found in Supabase');
         
     } catch (error) {
-        console.log('📋 Falling back to localStorage due to:', error.message);
+        console.log('📋 Falling back to localStorage:', error.message);
         // Fallback to localStorage
         const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
         return users[username] || null;
     }
 }
+
 // FIXED Profile Picture System with proper saving
 function initProfilePictureSystem() {
   const uploadInput = document.getElementById('profilePicUpload');
@@ -3548,6 +3564,343 @@ function initCustomizationSystems() {
     setInterval(updateStorageInfo, 30000);
 }
 
+/* ---------- FIXED WALL SYSTEM ---------- */
+
+// FIXED: Enhanced wall system for posting on other users' profiles
+function initWallSystem() {
+    const postBtn = document.getElementById('postToWall');
+    
+    if (postBtn) {
+        postBtn.addEventListener('click', postToWall);
+    }
+    
+    // Load wall posts when viewing any profile
+    loadWallPostsForUser();
+}
+
+// FIXED: Post to current user's wall or viewed user's wall
+function postToWall() {
+    const postText = document.getElementById('wallPostText').value.trim();
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    
+    if (!postText) return;
+    if (!currentUser) {
+        showQuickStatus('Please login to post!', 'error');
+        return;
+    }
+    
+    // Determine which user's wall we're posting on
+    const profileUsername = document.getElementById('profileUsername')?.textContent || currentUser.username;
+    
+    const post = {
+        id: Date.now().toString(),
+        author: currentUser.username,
+        targetUser: profileUsername, // Who's wall this is posted on
+        content: postText,
+        timestamp: new Date().toISOString(),
+        likes: 0,
+        comments: []
+    };
+    
+    // Save to Supabase for cross-device sync
+    saveWallPostToSupabase(post);
+    
+    // Also save locally
+    const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+    wallPosts.unshift(post);
+    localStorage.setItem('rom-wall-posts', JSON.stringify(wallPosts));
+    
+    appendWallPost(post);
+    document.getElementById('wallPostText').value = '';
+    updateUserStats();
+    showQuickStatus(`Posted to ${profileUsername === currentUser.username ? 'your' : profileUsername + "'s"} wall!`, 'success');
+}
+
+// FIXED: Save wall posts to Supabase
+async function saveWallPostToSupabase(post) {
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        
+        if (!session) {
+            console.log('No session for Supabase wall post');
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('wall_posts')
+            .insert([{
+                author: post.author,
+                target_user: post.targetUser,
+                content: post.content,
+                likes: post.likes,
+                created_at: post.timestamp
+            }]);
+
+        if (error) {
+            console.error('❌ Supabase wall post failed:', error);
+        } else {
+            console.log('✅ Wall post saved to Supabase!', data);
+        }
+    } catch (err) {
+        console.error('❌ Wall post sync error:', err);
+    }
+}
+
+// FIXED: Load wall posts for the currently viewed user
+async function loadWallPostsForUser(userToView = null) {
+    const wallPostsContainer = document.getElementById('wallPosts');
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    
+    if (!wallPostsContainer) return;
+    
+    // Determine which user's wall we're viewing
+    const viewingUsername = userToView || 
+                           document.getElementById('profileUsername')?.textContent || 
+                           currentUser?.username;
+    
+    if (!viewingUsername) return;
+    
+    wallPostsContainer.innerHTML = '<div style="color: #a8dfe8; text-align: center; padding: 20px;">Loading posts...</div>';
+    
+    try {
+        // Try to load from Supabase first
+        const { data: supabasePosts, error } = await supabase
+            .from('wall_posts')
+            .select('*')
+            .eq('target_user', viewingUsername)
+            .order('created_at', { ascending: false });
+        
+        let allPosts = [];
+        
+        if (!error && supabasePosts) {
+            // Convert Supabase format to our app format
+            allPosts = supabasePosts.map(post => ({
+                id: post.id.toString(),
+                author: post.author,
+                targetUser: post.target_user,
+                content: post.content,
+                timestamp: post.created_at,
+                likes: post.likes || 0,
+                comments: post.comments || []
+            }));
+            console.log(`✅ Loaded ${allPosts.length} posts from Supabase for ${viewingUsername}`);
+        } else {
+            // Fallback to localStorage
+            const localPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+            allPosts = localPosts.filter(post => post.targetUser === viewingUsername);
+            console.log(`📋 Loaded ${allPosts.length} posts from localStorage for ${viewingUsername}`);
+        }
+        
+        // Display posts
+        wallPostsContainer.innerHTML = '';
+        
+        if (allPosts.length === 0) {
+            wallPostsContainer.innerHTML = `
+                <div style="color: #a8dfe8; text-align: center; padding: 20px;">
+                    No posts yet. Be the first to write something!
+                </div>
+            `;
+            return;
+        }
+        
+        allPosts.forEach(post => {
+            appendWallPost(post);
+        });
+        
+    } catch (err) {
+        console.error('Error loading wall posts:', err);
+        wallPostsContainer.innerHTML = '<div style="color: #ff3333; text-align: center; padding: 20px;">Error loading posts</div>';
+    }
+}
+
+// FIXED: Enhanced wall post display
+function appendWallPost(post) {
+    const wallPostsContainer = document.getElementById('wallPosts');
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    
+    const postDiv = document.createElement('div');
+    postDiv.className = 'wall-post';
+    postDiv.dataset.postId = post.id;
+    
+    const time = new Date(post.timestamp).toLocaleString();
+    const isOwnPost = post.author === currentUser?.username;
+    
+    postDiv.innerHTML = `
+        <div class="wall-post-header">
+            <span class="wall-post-author" style="color: ${isOwnPost ? '#00ffff' : '#ff33cc'};">${post.author}</span>
+            <span class="wall-post-time">${time}</span>
+        </div>
+        <div class="wall-post-content">${escapeHtml(post.content)}</div>
+        <div class="wall-post-actions" style="margin-top: 10px; display: flex; gap: 15px; font-size: 0.8rem;">
+            <button class="like-btn" data-post="${post.id}" style="background: none; border: none; color: #a8dfe8; cursor: pointer;">
+                ❤️ ${post.likes || 0}
+            </button>
+            ${isOwnPost ? `
+                <button class="delete-post-btn" data-post="${post.id}" style="background: none; border: none; color: #ff3333; cursor: pointer;">
+                    🗑️ Delete
+                </button>
+            ` : ''}
+        </div>
+    `;
+    
+    wallPostsContainer.appendChild(postDiv);
+    
+    // Add event listeners
+    const likeBtn = postDiv.querySelector('.like-btn');
+    const deleteBtn = postDiv.querySelector('.delete-post-btn');
+    
+    if (likeBtn) {
+        likeBtn.addEventListener('click', function() {
+            likeWallPost(post.id);
+        });
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            deleteWallPost(post.id);
+        });
+    }
+}
+
+function likeWallPost(postId) {
+    // Implement like functionality here
+    showQuickStatus('Like functionality coming soon!', 'info');
+}
+
+function deleteWallPost(postId) {
+    if (!confirm('Are you sure you want to delete this post?')) {
+        return;
+    }
+    
+    // Remove from localStorage
+    const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+    const updatedPosts = wallPosts.filter(post => post.id !== postId);
+    localStorage.setItem('rom-wall-posts', JSON.stringify(updatedPosts));
+    
+    // Remove from display
+    const postElement = document.querySelector(`[data-post-id="${postId}"]`);
+    if (postElement) {
+        postElement.remove();
+    }
+    
+    showQuickStatus('Post deleted!', 'success');
+    updateUserStats();
+}
+
+/* ---------- VIEW OTHER USERS PROFILES ---------- */
+
+// NEW: Function to view other users' profiles
+function viewUserProfile(username) {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    
+    if (!currentUser) {
+        showQuickStatus('Please login to view profiles!', 'error');
+        return;
+    }
+    
+    // Open social hub
+    const socialModal = document.getElementById('socialHubModal');
+    if (socialModal) {
+        socialModal.style.display = 'flex';
+        
+        // Switch to profile tab
+        document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+        const profileNavBtn = document.querySelector('[data-tab="my-profile"]');
+        if (profileNavBtn) profileNavBtn.classList.add('active');
+        
+        document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+        const profileTab = document.getElementById('my-profile');
+        if (profileTab) profileTab.classList.add('active');
+        
+        // Load the target user's profile
+        loadOtherUserProfile(username);
+    }
+}
+
+// NEW: Load another user's profile
+async function loadOtherUserProfile(username) {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    
+    // Update profile header to show we're viewing someone else's profile
+    const profileHeader = document.querySelector('.profile-header h2');
+    if (profileHeader) {
+        profileHeader.textContent = `${username}'s Profile`;
+        if (username !== currentUser.username) {
+            profileHeader.innerHTML += ` <span style="color: #a8dfe8; font-size: 0.8em;">(Viewing)</span>`;
+        }
+    }
+    
+    // Load the user's profile data
+    const userProfile = await loadUserProfile(username);
+    
+    if (userProfile) {
+        // Update profile display
+        const usernameElement = document.getElementById('profileUsername');
+        const joinDateElement = document.getElementById('profileJoinDate');
+        
+        if (usernameElement) usernameElement.textContent = username;
+        if (joinDateElement) {
+            const joinDate = userProfile.joined ? new Date(userProfile.joined).toLocaleDateString() : 'Unknown';
+            joinDateElement.textContent = `Joined: ${joinDate}`;
+        }
+        
+        // Update profile picture
+        const preview = document.getElementById('profilePicPreview');
+        if (preview) {
+            if (userProfile.profilePic) {
+                preview.innerHTML = `<img src="${userProfile.profilePic}" alt="${username}" style="width:100%;height:100%;object-fit:cover;">`;
+            } else {
+                let previewText = document.getElementById('profilePicText');
+                if (!previewText) {
+                    previewText = document.createElement('span');
+                    previewText.id = 'profilePicText';
+                    preview.appendChild(previewText);
+                }
+                previewText.textContent = username.charAt(0).toUpperCase();
+            }
+        }
+        
+        // Update status and signature (read-only when viewing others)
+        const statusElement = document.createElement('div');
+        statusElement.style.color = '#a8dfe8';
+        statusElement.style.marginBottom = '10px';
+        statusElement.innerHTML = `<strong>Status:</strong> ${userProfile.status || 'Not set'}`;
+        
+        const signatureElement = document.createElement('div');
+        signatureElement.style.color = '#a8dfe8';
+        signatureElement.style.fontStyle = 'italic';
+        signatureElement.textContent = userProfile.signature || '';
+        
+        // Replace customization section with view-only info
+        const customizationSection = document.querySelector('.profile-customization');
+        if (customizationSection) {
+            if (username !== currentUser.username) {
+                customizationSection.innerHTML = `
+                    <h3 style="color: #00ffff; margin-bottom: 15px;">Profile Info</h3>
+                    <div style="color: #a8dfe8;">
+                        <div style="margin-bottom: 10px;"><strong>Status:</strong> ${userProfile.status || 'Not set'}</div>
+                        ${userProfile.signature ? `<div style="font-style: italic; border-left: 2px solid #00ffff; padding-left: 10px; margin-top: 10px;">"${userProfile.signature}"</div>` : ''}
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button class="button" onclick="sendFriendRequest('${username}')" style="margin-right: 10px;">Add Friend</button>
+                        <button class="button" onclick="startPrivateChat('${username}')">Send Message</button>
+                    </div>
+                `;
+            } else {
+                // It's our own profile, show customization
+                initCustomizationSystems();
+            }
+        }
+        
+        // Load this user's wall posts
+        loadWallPostsForUser(username);
+        
+    } else {
+        showQuickStatus('User profile not found!', 'error');
+    }
+}
+
 /* ---------- FRIEND SYSTEM ---------- */
 function initFriendSystem() {
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
@@ -3955,6 +4308,7 @@ function closeLobby(lobbyId) {
   showQuickStatus('Lobby closed successfully!', 'success');
   loadActiveLobbies();
 }
+
 /* ---------- PLAYER SEARCH SYSTEM ---------- */
 
 function initPlayerSearchSystem() {
@@ -4155,6 +4509,7 @@ function startPrivateChat(username) {
   showQuickStatus(`Private chat with ${username} coming soon!`, 'info');
   // You can implement private messaging here
 }
+
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
   window.removeEventListener('load', onLoad);
@@ -5695,6 +6050,7 @@ function initAllSystems() {
     initFriendSystem();
     initGameLobbies();
     initPlayerSearchSystem();
+    initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
   
     console.log('✅ All systems initialized');
 }
