@@ -2375,13 +2375,71 @@ body.sega-theme .music-btn:hover {
           </div>
         </div>
         
-        <div id="find-players" class="social-tab">
-          <div style="padding: 20px; text-align: center; color: #a8dfe8;">
-            <h3 style="color: #00ffff;">Find Players</h3>
-            <p>Search for players by game or platform</p>
-            <!-- Player search would go here -->
-          </div>
+       <div id="find-players" class="social-tab">
+  <div style="padding: 20px;">
+    <h3 style="color: #00ffff; text-align: center; margin-bottom: 20px;">🔍 Find Players</h3>
+    
+    <!-- Search Filters -->
+    <div class="search-filters" style="margin-bottom: 20px; background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label style="color: #00ffff; display: block; margin-bottom: 5px;">🎮 Game</label>
+          <select id="gameFilter" style="width: 100%; padding: 8px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+            <option value="">All Games</option>
+            <option value="Street Fighter II">Street Fighter II</option>
+            <option value="Gran Turismo PSP">Gran Turismo PSP</option>
+            <option value="Resident Evil Outbreak">Resident Evil Outbreak</option>
+            <option value="Tekken 3">Tekken 3</option>
+            <option value="Jak X: Combat Racing">Jak X: Combat Racing</option>
+            <option value="Mod Nation Racers">Mod Nation Racers</option>
+          </select>
         </div>
+        <div>
+          <label style="color: #00ffff; display: block; margin-bottom: 5px;">🕹️ Platform</label>
+          <select id="platformFilter" style="width: 100%; padding: 8px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+            <option value="">All Platforms</option>
+            <option value="PS1">PS1</option>
+            <option value="PS2">PS2</option>
+            <option value="PS3">PS3</option>
+            <option value="PSP">PSP</option>
+            <option value="Arcade">Arcade</option>
+            <option value="PC">PC</option>
+          </select>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
+        <div>
+          <label style="color: #00ffff; display: block; margin-bottom: 5px;">👤 Search Players</label>
+          <input type="text" id="playerSearchInput" placeholder="Enter username or game..." 
+                 style="width: 100%; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+        </div>
+        <div style="display: flex; align-items: end;">
+          <button id="searchPlayersBtn" class="button" style="height: 40px;">Search</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="search-results-container">
+      <h4 style="color: #00ffff; margin-bottom: 15px;">🎯 Search Results</h4>
+      <div id="playerSearchResults" style="min-height: 200px;">
+        <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+          <p>Use the filters above to find players</p>
+          <p style="font-size: 0.9rem; opacity: 0.7;">Search by game, platform, or username</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recently Active Players -->
+    <div class="recent-players" style="margin-top: 30px;">
+      <h4 style="color: #00ffff; margin-bottom: 15px;">🔥 Recently Active</h4>
+      <div id="recentPlayersList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+        <!-- Will be populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+</div>
         
         <div id="recent-activity" class="social-tab">
           <div style="padding: 20px; text-align: center; color: #a8dfe8;">
@@ -3791,7 +3849,206 @@ function closeLobby(lobbyId) {
   showQuickStatus('Lobby closed successfully!', 'success');
   loadActiveLobbies();
 }
+/* ---------- PLAYER SEARCH SYSTEM ---------- */
 
+function initPlayerSearchSystem() {
+  const searchBtn = document.getElementById('searchPlayersBtn');
+  const searchInput = document.getElementById('playerSearchInput');
+  const gameFilter = document.getElementById('gameFilter');
+  const platformFilter = document.getElementById('platformFilter');
+
+  if (searchBtn) {
+    searchBtn.addEventListener('click', performPlayerSearch);
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        performPlayerSearch();
+      }
+    });
+  }
+
+  // Auto-search when filters change
+  if (gameFilter) {
+    gameFilter.addEventListener('change', performPlayerSearch);
+  }
+
+  if (platformFilter) {
+    platformFilter.addEventListener('change', performPlayerSearch);
+  }
+
+  // Load recently active players on tab open
+  loadRecentlyActivePlayers();
+}
+
+function performPlayerSearch() {
+  const searchTerm = document.getElementById('playerSearchInput').value.toLowerCase().trim();
+  const gameFilter = document.getElementById('gameFilter').value;
+  const platformFilter = document.getElementById('platformFilter').value;
+
+  const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  const resultsContainer = document.getElementById('playerSearchResults');
+
+  if (!resultsContainer) return;
+
+  // Get all users except current user
+  const allUsers = Object.keys(users)
+    .filter(username => username !== (currentUser?.username || ''))
+    .map(username => ({
+      username,
+      ...users[username],
+      lastActive: users[username].lastActive || users[username].joined
+    }));
+
+  let filteredUsers = allUsers;
+
+  // Apply search term filter
+  if (searchTerm) {
+    filteredUsers = filteredUsers.filter(user => 
+      user.username.toLowerCase().includes(searchTerm) ||
+      (user.status && user.status.toLowerCase().includes(searchTerm)) ||
+      (user.signature && user.signature.toLowerCase().includes(searchTerm))
+    );
+  }
+
+  // Apply game filter (simulated - you can enhance this with real game data)
+  if (gameFilter) {
+    filteredUsers = filteredUsers.filter(user => 
+      (user.status && user.status.includes(gameFilter)) ||
+      (user.signature && user.signature.includes(gameFilter))
+    );
+  }
+
+  // Apply platform filter (simulated - you can enhance this with real platform data)
+  if (platformFilter) {
+    filteredUsers = filteredUsers.filter(user => 
+      (user.status && user.status.includes(platformFilter)) ||
+      (user.signature && user.signature.includes(platformFilter))
+    );
+  }
+
+  displaySearchResults(filteredUsers, resultsContainer);
+}
+
+function displaySearchResults(users, container) {
+  if (users.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+        <p>No players found matching your criteria</p>
+        <p style="font-size: 0.9rem; opacity: 0.7;">Try adjusting your search filters</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Sort by last active (most recent first)
+  users.sort((a, b) => new Date(b.lastActive) - new Date(a.lastActive));
+
+  container.innerHTML = users.map(user => `
+    <div class="player-result-card" style="background: rgba(0, 30, 60, 0.7); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+        ${user.profilePic ? 
+          `<img src="${user.profilePic}" alt="${user.username}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
+          `<div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">${user.username.charAt(0).toUpperCase()}</div>`
+        }
+        <div style="flex: 1;">
+          <div style="color: #00ffff; font-weight: bold; font-size: 1.1rem;">${user.username}</div>
+          <div style="color: #a8dfe8; font-size: 0.9rem;">${user.status || '💻 Online'}</div>
+          ${user.signature ? `<div style="color: #a8dfe8; font-size: 0.8rem; font-style: italic; margin-top: 4px;">"${user.signature}"</div>` : ''}
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #a8dfe8;">
+        <span>Last active: ${formatLastActive(user.lastActive)}</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="button add-friend-btn" data-username="${user.username}" style="padding: 6px 12px; font-size: 0.8rem;">Add Friend</button>
+          <button class="button muted send-message-btn" data-username="${user.username}" style="padding: 6px 12px; font-size: 0.8rem;">Message</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // Add event listeners to new buttons
+  container.querySelectorAll('.add-friend-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      sendFriendRequest(this.dataset.username);
+    });
+  });
+
+  container.querySelectorAll('.send-message-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      startPrivateChat(this.dataset.username);
+    });
+  });
+}
+
+function loadRecentlyActivePlayers() {
+  const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  const container = document.getElementById('recentPlayersList');
+
+  if (!container) return;
+
+  // Get recently active users (last 24 hours)
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+  const recentUsers = Object.keys(users)
+    .filter(username => username !== (currentUser?.username || ''))
+    .map(username => ({
+      username,
+      ...users[username],
+      lastActive: users[username].lastActive || users[username].joined
+    }))
+    .filter(user => new Date(user.lastActive) > twentyFourHoursAgo)
+    .sort((a, b) => new Date(b.lastActive) - new Date(a.lastActive))
+    .slice(0, 6); // Show top 6 most recent
+
+  if (recentUsers.length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: #a8dfe8; grid-column: 1 / -1;">No recent activity</div>';
+    return;
+  }
+
+  container.innerHTML = recentUsers.map(user => `
+    <div class="recent-player-card" style="background: rgba(0, 30, 60, 0.6); border: 1px solid rgba(0,255,255,0.1); border-radius: 8px; padding: 12px; text-align: center;">
+      ${user.profilePic ? 
+        `<img src="${user.profilePic}" alt="${user.username}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 0 auto 8px;">` :
+        `<div class="user-avatar" style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.4rem; margin: 0 auto 8px;">${user.username.charAt(0).toUpperCase()}</div>`
+      }
+      <div style="color: #00ffff; font-weight: bold; margin-bottom: 4px;">${user.username}</div>
+      <div style="color: #a8dfe8; font-size: 0.8rem; margin-bottom: 8px;">${user.status || '💻 Online'}</div>
+      <button class="button add-friend-btn" data-username="${user.username}" style="padding: 4px 8px; font-size: 0.7rem; width: 100%;">Add Friend</button>
+    </div>
+  `).join('');
+
+  // Add event listeners
+  container.querySelectorAll('.add-friend-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      sendFriendRequest(this.dataset.username);
+    });
+  });
+}
+
+function formatLastActive(timestamp) {
+  const now = new Date();
+  const lastActive = new Date(timestamp);
+  const diffMs = now - lastActive;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return lastActive.toLocaleDateString();
+}
+
+function startPrivateChat(username) {
+  showQuickStatus(`Private chat with ${username} coming soon!`, 'info');
+  // You can implement private messaging here
+}
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
   window.removeEventListener('load', onLoad);
@@ -5109,7 +5366,8 @@ function loadTabContent(tabId) {
     case 'lobby-chat':
       loadActiveLobbies();
       break;
-    case 'find-players':
+        case 'find-players':
+      initPlayerSearchSystem();
       break;
     case 'recent-activity':
       break;
@@ -5330,7 +5588,8 @@ function initAllSystems() {
     initCustomizationSystems();
     initFriendSystem();
     initGameLobbies();
-    
+    initPlayerSearchSystem();
+  
     console.log('✅ All systems initialized');
 }
 </script>
