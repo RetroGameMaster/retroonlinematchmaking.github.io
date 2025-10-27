@@ -2235,7 +2235,7 @@ body.sega-theme .music-btn:hover {
         <div id="my-profile" class="social-tab">
           <div class="profile-header" style="padding: 20px; background: rgba(0, 40, 80, 0.6); border-bottom: 1px solid #00ffff;">
             <div style="display: flex; align-items: center; gap: 15px;">
-              <div class="profile-avatar-large" style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold;">
+              <div class="profile-avatar-large" style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content:center; font-size: 2rem; font-weight: bold;">
                 <span id="profileAvatarText">U</span>
               </div>
               <div>
@@ -2403,7 +2403,7 @@ body.sega-theme .music-btn:hover {
 const SUPABASE_URL = 'https://lapyxhothazalssrbimb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhcHl4aG90aGF6YWxzc3JiaW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNjg0NDUsImV4cCI6MjA3Njk0NDQ0NX0.isfh75lAbJotctu6dkd_aAYK-2YNyYM4o-jqKFB5tVA';
 
-console.log('✅ Supabase config loaded directly');
+console.log('✅ Supabase config loaded');
 
 // Initialize Supabase
 let supabase;
@@ -2421,6 +2421,340 @@ try {
         })
     };
 }
+
+/* ---------- FIXED ACCOUNT SYSTEM ---------- */
+
+function initAccountSystem() {
+    console.log('🔄 Initializing account system...');
+    initLoginModal();
+    initAuthForms();
+    initLoginTabs();
+    initLogoutHandler();
+    initDataManagementHandler();
+    checkLoginStatus();
+}
+
+function initLoginModal() {
+    const loginBtn = document.getElementById('loginBtn');
+    const loginModal = document.getElementById('loginModal');
+    const closeLogin = document.getElementById('closeLogin');
+    
+    if (loginBtn && loginModal) {
+        loginBtn.addEventListener('click', function() {
+            loginModal.style.display = 'flex';
+        });
+    }
+    
+    if (closeLogin && loginModal) {
+        closeLogin.addEventListener('click', function() {
+            loginModal.style.display = 'none';
+        });
+    }
+    
+    // Close modal when clicking outside
+    if (loginModal) {
+        loginModal.addEventListener('click', function(e) {
+            if (e.target === loginModal) {
+                loginModal.style.display = 'none';
+            }
+        });
+    }
+}
+
+function initLoginTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const tab = this.getAttribute('data-tab');
+            if (tab === 'login') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+            }
+        });
+    });
+}
+
+function initAuthForms() {
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!username || !password) {
+                showQuickStatus('Please fill in all fields!', 'error');
+                return;
+            }
+            
+            if (loginUser(username, password)) {
+                document.getElementById('loginModal').style.display = 'none';
+                this.reset();
+                showQuickStatus(`Welcome back, ${username}!`, 'success');
+            } else {
+                showQuickStatus('Invalid username or password!', 'error');
+            }
+        });
+    }
+    
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const email = document.getElementById('registerEmail').value.trim();
+            
+            if (!username || !password) {
+                showQuickStatus('Username and password are required!', 'error');
+                return;
+            }
+            
+            if (username.length < 3) {
+                showQuickStatus('Username must be at least 3 characters!', 'error');
+                return;
+            }
+            
+            if (password.length < 4) {
+                showQuickStatus('Password must be at least 4 characters!', 'error');
+                return;
+            }
+            
+            if (registerUser(username, password, email)) {
+                document.getElementById('loginModal').style.display = 'none';
+                this.reset();
+                showQuickStatus('Account created successfully! Welcome!', 'success');
+            } else {
+                showQuickStatus('Username already exists! Please choose another.', 'error');
+            }
+        });
+    }
+}
+
+// FIXED USER MANAGEMENT FUNCTIONS
+function loginUser(username, password) {
+    console.log('🔐 Attempting login for:', username);
+    
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    console.log('Available users:', Object.keys(users));
+    
+    if (users[username] && users[username].password === btoa(password)) {
+        console.log('✅ Login successful for:', username);
+        
+        // Update last active time
+        users[username].lastActive = new Date().toISOString();
+        localStorage.setItem('rom-users', JSON.stringify(users));
+        
+        // Create current user session
+        const userData = {
+            username: username,
+            email: users[username].email,
+            joined: users[username].joined,
+            favorites: users[username].favorites || [],
+            lastActive: users[username].lastActive
+        };
+        
+        localStorage.setItem('rom-current-user', JSON.stringify(userData));
+        checkLoginStatus();
+        
+        // Initialize user systems
+        setTimeout(() => {
+            initUserFavorites();
+            initCustomizationSystems();
+        }, 100);
+        
+        return true;
+    }
+    
+    console.log('❌ Login failed for:', username);
+    return false;
+}
+
+function registerUser(username, password, email) {
+    console.log('📝 Attempting registration for:', username);
+    
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    
+    if (users[username]) {
+        console.log('❌ Username already exists:', username);
+        return false;
+    }
+    
+    // Create proper user data with ALL required fields
+    const joinDate = new Date().toISOString();
+    users[username] = {
+        password: btoa(password),
+        email: email,
+        joined: joinDate,
+        lastActive: joinDate,
+        favorites: [],
+        // Profile customization fields
+        profilePic: null,
+        signature: '',
+        status: '',
+        avatarType: 'generated',
+        posts: 0,
+        messages: 0
+    };
+    
+    localStorage.setItem('rom-users', JSON.stringify(users));
+    console.log('✅ User registered:', username);
+    
+    // Create current user session
+    const userData = {
+        username: username,
+        email: email,
+        joined: joinDate,
+        favorites: []
+    };
+    
+    localStorage.setItem('rom-current-user', JSON.stringify(userData));
+    checkLoginStatus();
+    
+    // Initialize user systems
+    setTimeout(() => {
+        initUserFavorites();
+        initCustomizationSystems();
+    }, 100);
+    
+    return true;
+}
+
+function checkLoginStatus() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    const loginBtn = document.getElementById('loginBtn');
+    const userSection = document.querySelector('.user-section');
+    const userDisplayName = document.getElementById('userDisplayName');
+    
+    console.log('🔍 Checking login status:', currentUser);
+    
+    if (currentUser && currentUser.username) {
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (userSection) userSection.style.display = 'flex';
+        if (userDisplayName) userDisplayName.textContent = currentUser.username;
+        console.log('✅ User logged in:', currentUser.username);
+    } else {
+        if (loginBtn) loginBtn.style.display = 'flex';
+        if (userSection) userSection.style.display = 'none';
+        console.log('❌ No user logged in');
+    }
+}
+
+function initLogoutHandler() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('rom-current-user');
+                checkLoginStatus();
+                showQuickStatus('Logged out successfully!', 'info');
+                
+                // Refresh the page to reset everything
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        });
+    }
+}
+
+function initDataManagementHandler() {
+    const dataManagementBtn = document.getElementById('dataManagementBtn');
+    if (dataManagementBtn) {
+        dataManagementBtn.addEventListener('click', function() {
+            const socialModal = document.getElementById('socialHubModal');
+            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+            
+            if (!currentUser) {
+                showQuickStatus('Please login first!', 'error');
+                document.getElementById('loginModal').style.display = 'flex';
+                return;
+            }
+            
+            // Close login modal if open
+            document.getElementById('loginModal').style.display = 'none';
+            
+            // Open social hub and switch to profile tab
+            if (socialModal) {
+                socialModal.style.display = 'flex';
+                
+                // Switch to profile tab
+                document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+                const profileBtn = document.querySelector('[data-tab="my-profile"]');
+                if (profileBtn) profileBtn.classList.add('active');
+                
+                document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+                const profileTab = document.getElementById('my-profile');
+                if (profileTab) profileTab.classList.add('active');
+                
+                loadUserProfileForDisplay();
+            }
+        });
+    }
+}
+
+// SIMPLIFIED Profile Loading
+function loadUserProfileForDisplay() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) {
+        console.log('No user logged in for profile display');
+        return;
+    }
+    
+    console.log('Loading profile for:', currentUser.username);
+    
+    // Get user data
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const userData = users[currentUser.username];
+    
+    if (!userData) {
+        console.log('No user data found for:', currentUser.username);
+        return;
+    }
+    
+    // Update basic profile info
+    const usernameElement = document.getElementById('profileUsername');
+    const joinDateElement = document.getElementById('profileJoinDate');
+    
+    if (usernameElement) usernameElement.textContent = currentUser.username;
+    if (joinDateElement) {
+        const joinDate = userData.joined ? new Date(userData.joined).toLocaleDateString() : 'Recently';
+        joinDateElement.textContent = `Joined: ${joinDate}`;
+    }
+    
+    // Update stats
+    updateUserStats();
+    console.log('Profile display updated for:', currentUser.username);
+}
+
+function updateUserStats() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) return;
+    
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const userData = users[currentUser.username];
+    
+    if (userData) {
+        const favoritesCount = userData.favorites ? userData.favorites.length : 0;
+        const favoritesElement = document.getElementById('favoritesCount');
+        if (favoritesElement) favoritesElement.textContent = favoritesCount;
+        
+        // You can add more stats here as needed
+        console.log('User stats updated - Favorites:', favoritesCount);
+    }
+}
+
 /* ---------- USER CUSTOMIZATION SYSTEM ---------- */
 
 // Enhanced user profiles with customization - NOW WITH SUPABASE SYNC!
@@ -2961,175 +3295,6 @@ function initCustomizationSystems() {
     
     // Update storage info every 30 seconds
     setInterval(updateStorageInfo, 30000);
-}
-
-// Update the existing initAllSystems function
-function initAllSystems() {
-    initCursorAndCanvas();
-    initCollapsibles();
-    initFormControls();
-    initStatusBar();
-    initSoundEffects();
-    initThemeSwitcher();
-    initEasterEggs();
-    initSearchSystem();
-    initCopyButtons();
-    initAccountSystem();
-    initUserFavorites();
-    initSocialHub();
-    initMusicPlayer();
-    initLiveClock();
-    initTypingEffect();
-    initLivePlayerCount();
-    initEngagementFeatures();
-    initClipOfWeek();
-    initCustomizationSystems(); // ADD THIS LINE
-    initFriendSystem(); // ADD FRIEND SYSTEM
-    initGameLobbies(); // ADD GAME LOBBIES
-}
-
-// Update the existing loadUserProfile function in Social Hub
-function loadUserProfileForDisplay() {
-    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-    if (!currentUser) {
-        console.log('No user logged in');
-        return;
-    }
-    
-    console.log('Loading profile for user:', currentUser.username);
-    
-    const profile = loadUserProfile(currentUser.username);
-    console.log('Loaded profile data:', profile);
-    
-    // Update basic profile info - FIXED: Use actual data, not "Loading..."
-    const usernameElement = document.getElementById('profileUsername');
-    const joinDateElement = document.getElementById('profileJoinDate');
-    
-    if (usernameElement) {
-        usernameElement.textContent = currentUser.username;
-        console.log('Set username to:', currentUser.username);
-    }
-    
-    if (joinDateElement) {
-        // Use the actual join date from user data
-        const joinDate = currentUser.joined ? new Date(currentUser.joined).toLocaleDateString() : new Date().toLocaleDateString();
-        joinDateElement.textContent = `Joined: ${joinDate}`;
-        console.log('Set join date to:', joinDate);
-    }
-    
-    // Update profile avatar in header
-    const avatarTextElement = document.getElementById('profileAvatarText');
-    if (avatarTextElement) {
-        if (profile && profile.profilePic) {
-            // Use profile picture
-            const avatarContainer = avatarTextElement.closest('.profile-avatar-large');
-            if (avatarContainer) {
-                avatarContainer.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-            }
-        } else {
-            // Use initial
-            avatarTextElement.textContent = currentUser.username.charAt(0).toUpperCase();
-        }
-    }
-    
-    // Load customization data
-    if (profile) {
-        console.log('Loading customization data from profile');
-        
-        // Update profile picture in preview
-        if (profile.profilePic) {
-            const preview = document.getElementById('profilePicPreview');
-            if (preview) {
-                preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
-                console.log('Set profile picture in preview');
-            }
-        }
-        
-        // Update signature
-        if (profile.signature) {
-            const signatureInput = document.getElementById('userSignature');
-            const signatureCount = document.getElementById('signatureCount');
-            if (signatureInput) {
-                signatureInput.value = profile.signature;
-                console.log('Set signature to:', profile.signature);
-            }
-            if (signatureCount) signatureCount.textContent = profile.signature.length;
-        }
-        
-        // Update status
-        if (profile.status) {
-            const statusSelector = document.getElementById('userStatus');
-            if (statusSelector) {
-                statusSelector.value = profile.status;
-                console.log('Set status to:', profile.status);
-            }
-        }
-    } else {
-        console.log('No profile data found for user');
-    }
-    
-    // Update other sections
-    updateOnlineUsers();
-    loadWallPosts();
-    updateUserStats();
-    updateStorageInfo();
-    
-    console.log('Profile loading complete');
-}
-
-// Update the existing checkLoginStatus to initialize customization
-function checkLoginStatus() {
-    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-    const loginBtn = document.getElementById('loginBtn');
-    const userSection = document.querySelector('.user-section');
-    const userDisplayName = document.getElementById('userDisplayName');
-    
-    if (currentUser && currentUser.username) {
-        loginBtn.style.display = 'none';
-        userSection.style.display = 'flex';
-        userDisplayName.textContent = currentUser.username;
-        updateUIForUser(currentUser);
-        
-        // Initialize customization systems when user is logged in
-        setTimeout(() => {
-            initCustomizationSystems();
-        }, 1000);
-    } else {
-        loginBtn.style.display = 'flex';
-        userSection.style.display = 'none';
-    }
-}
-
-// Update data management button in user dropdown
-function initDataManagementHandler() {
-    const dataManagementBtn = document.getElementById('dataManagementBtn');
-    if (dataManagementBtn) {
-        dataManagementBtn.addEventListener('click', function() {
-            const socialModal = document.getElementById('socialHubModal');
-            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-            
-            if (!currentUser) {
-                showQuickStatus('Please login first!', 'error');
-                document.getElementById('loginModal').style.display = 'flex';
-                return;
-            }
-            
-            // Close login modal if open
-            document.getElementById('loginModal').style.display = 'none';
-            
-            // Open social hub and switch to profile tab
-            socialModal.style.display = 'flex';
-            
-            // Switch to profile tab
-            document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector('[data-tab="my-profile"]').classList.add('active');
-            
-            document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
-            document.getElementById('my-profile').classList.add('active');
-            
-            loadUserProfileForDisplay();
-        });
-    }
 }
 
 /* ---------- FRIEND SYSTEM ---------- */
@@ -4415,181 +4580,6 @@ function initCopyButtons() {
   }
 }
 
-function checkLoginStatus() {
-  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-  const loginBtn = document.getElementById('loginBtn');
-  const userSection = document.querySelector('.user-section');
-  const userDisplayName = document.getElementById('userDisplayName');
-  
-  if (currentUser && currentUser.username) {
-    loginBtn.style.display = 'none';
-    userSection.style.display = 'flex';
-    userDisplayName.textContent = currentUser.username;
-    updateUIForUser(currentUser);
-  } else {
-    loginBtn.style.display = 'flex';
-    userSection.style.display = 'none';
-  }
-}
-
-function initLoginTabs() {
-  const tabBtns = document.querySelectorAll('.tab-btn');
-  const loginForm = document.getElementById('loginForm');
-  const registerForm = document.getElementById('registerForm');
-  
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      
-      const tab = this.getAttribute('data-tab');
-      if (tab === 'login') {
-        loginForm.style.display = 'block';
-        registerForm.style.display = 'none';
-      } else {
-        loginForm.style.display = 'none';
-        registerForm.style.display = 'block';
-      }
-    });
-  });
-}
-
-function initAuthForms() {
-  const loginForm = document.getElementById('loginForm');
-  const registerForm = document.getElementById('registerForm');
-  
-  if (loginForm) {
-    loginForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const username = document.getElementById('loginUsername').value;
-      const password = document.getElementById('loginPassword').value;
-      
-      if (loginUser(username, password)) {
-        document.getElementById('loginModal').style.display = 'none';
-        this.reset();
-        showQuickStatus(`Welcome back, ${username}!`, 'success');
-      } else {
-        showQuickStatus('Invalid username or password!', 'error');
-      }
-    });
-  }
-  
-  if (registerForm) {
-    registerForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const username = document.getElementById('registerUsername').value;
-      const password = document.getElementById('registerPassword').value;
-      const email = document.getElementById('registerEmail').value;
-      
-      if (registerUser(username, password, email)) {
-        document.getElementById('loginModal').style.display = 'none';
-        this.reset();
-        showQuickStatus('Account created successfully! Welcome!', 'success');
-      } else {
-        showQuickStatus('Username already exists! Please choose another.', 'error');
-      }
-    });
-  }
-}
-
-function loginUser(username, password) {
-  const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-  
-  if (users[username] && users[username].password === btoa(password)) {
-    // Update last active time
-    users[username].lastActive = new Date().toISOString();
-    localStorage.setItem('rom-users', JSON.stringify(users));
-    
-    const userData = {
-      username: username,
-      email: users[username].email,
-      joined: users[username].joined,
-      favorites: users[username].favorites || []
-    };
-    
-    localStorage.setItem('rom-current-user', JSON.stringify(userData));
-    checkLoginStatus();
-    return true;
-  }
-  
-  return false;
-}
-
-function registerUser(username, password, email) {
-  const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-  
-  if (users[username]) {
-    return false;
-  }
-  
-  // Create proper user data with ALL required fields
-  const joinDate = new Date().toISOString();
-  users[username] = {
-    password: btoa(password),
-    email: email,
-    joined: joinDate,
-    lastActive: joinDate,
-    favorites: [],
-    // Add profile customization fields
-    profilePic: null,
-    signature: '',
-    status: '',
-    avatarType: 'generated'
-  };
-  
-  localStorage.setItem('rom-users', JSON.stringify(users));
-  
-  // Also save to current user with ALL data
-  const userData = {
-    username: username,
-    email: email,
-    joined: joinDate,
-    favorites: []
-  };
-  
-  localStorage.setItem('rom-current-user', JSON.stringify(userData));
-  checkLoginStatus();
-  
-  console.log('User registered:', username, 'Join date:', joinDate);
-  return true;
-}
-
-function initLogoutHandler() {
-  const logoutBtn = document.getElementById('logoutBtn');
-  
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function() {
-      localStorage.removeItem('rom-current-user');
-      checkLoginStatus();
-      showQuickStatus('Logged out successfully!', 'info');
-    });
-  }
-}
-
-function highlightUserFavorites(favorites) {
-  console.log('User favorites:', favorites);
-}
-
-function updateUIForUser(user) {
-  updateFavoritesDisplay(user.favorites);
-  highlightUserFavorites(user.favorites);
-}
-
-function updateFavoritesDisplay(favorites) {
-  let favoritesSection = document.getElementById('favoritesSection');
-  
-  if (!favoritesSection && favorites.length > 0) {
-    favoritesSection = document.createElement('section');
-    favoritesSection.id = 'favoritesSection';
-    favoritesSection.innerHTML = `
-      <div class="platform-caption">⭐ My Favorite Methods</div>
-    `;
-    
-    const searchContainer = document.querySelector('.search-container');
-    searchContainer.parentNode.insertBefore(favoritesSection, searchContainer.nextSibling);
-  }
-}
-
 // Message system
 function showMessage(text, type = 'info') {
   const message = document.createElement('div');
@@ -4755,7 +4745,7 @@ function initSocialTabs() {
       document.getElementById(tabId).classList.add('active');
       
       if (tabId === 'my-profile') {
-        loadUserProfileForDisplay(); // Use the corrected function name
+        loadUserProfileForDisplay();
       } else {
         loadTabContent(tabId);
       }
@@ -4864,105 +4854,6 @@ function initProfileSystem() {
   if (postBtn) {
     postBtn.addEventListener('click', postToWall);
   }
-}
-
-function loadUserProfileForDisplay() {
-    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-    if (!currentUser) {
-        console.log('No user logged in');
-        return;
-    }
-    
-    console.log('=== LOADING USER PROFILE ===');
-    console.log('Current user:', currentUser);
-    
-    // Get the FULL user data from rom-users, not just current-user
-    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    const fullUserData = users[currentUser.username];
-    
-    console.log('Full user data from storage:', fullUserData);
-    
-    // Update basic profile info
-    const usernameElement = document.getElementById('profileUsername');
-    const joinDateElement = document.getElementById('profileJoinDate');
-    
-    if (usernameElement) {
-        usernameElement.textContent = currentUser.username;
-    }
-    
-    if (joinDateElement) {
-        // Get join date from FULL user data, not current-user
-        const joinDate = fullUserData && fullUserData.joined ? 
-            new Date(fullUserData.joined).toLocaleDateString() : 
-            (currentUser.joined ? new Date(currentUser.joined).toLocaleDateString() : 'Recently');
-        
-        joinDateElement.textContent = `Joined: ${joinDate}`;
-        console.log('Join date set to:', joinDate);
-    }
-    
-    // Update profile avatar in header
-    const avatarContainer = document.querySelector('.profile-avatar-large');
-    if (avatarContainer) {
-        if (fullUserData && fullUserData.profilePic) {
-            avatarContainer.innerHTML = `<img src="${fullUserData.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-            console.log('Profile picture loaded in header');
-        } else {
-            const avatarText = avatarContainer.querySelector('#profileAvatarText');
-            if (avatarText) {
-                avatarText.textContent = currentUser.username.charAt(0).toUpperCase();
-            }
-        }
-    }
-    
-    // Load customization data in the form
-    if (fullUserData) {
-        console.log('Loading customization data:', fullUserData);
-        
-        // Update profile picture in preview
-        const preview = document.getElementById('profilePicPreview');
-        if (preview) {
-            if (fullUserData.profilePic) {
-                preview.innerHTML = `<img src="${fullUserData.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
-                console.log('Profile picture loaded in preview');
-            } else {
-                let previewText = document.getElementById('profilePicText');
-                if (!previewText) {
-                    previewText = document.createElement('span');
-                    previewText.id = 'profilePicText';
-                    preview.appendChild(previewText);
-                }
-                previewText.textContent = currentUser.username.charAt(0).toUpperCase();
-            }
-        }
-        
-        // Update signature
-        const signatureInput = document.getElementById('userSignature');
-        const signatureCount = document.getElementById('signatureCount');
-        if (signatureInput) {
-            signatureInput.value = fullUserData.signature || '';
-            console.log('Signature set to:', fullUserData.signature || '(empty)');
-        }
-        if (signatureCount) {
-            signatureCount.textContent = (fullUserData.signature || '').length;
-        }
-        
-        // Update status
-        const statusSelector = document.getElementById('userStatus');
-        if (statusSelector) {
-            statusSelector.value = fullUserData.status || '';
-            console.log('Status set to:', fullUserData.status || '(empty)');
-        }
-    } else {
-        console.log('No full user data found - user might need to re-register');
-    }
-    
-    // Update other sections
-    updateOnlineUsers();
-    loadWallPosts();
-    updateUserStats();
-    updateStorageInfo();
-    
-    console.log('=== PROFILE LOADING COMPLETE ===');
 }
 
 function postToWall() {
@@ -5082,7 +4973,7 @@ function updateOnlineUsers() {
     userDiv.className = 'online-user';
     userDiv.innerHTML = `
       <span class="online-indicator"></span>
-      <span style="font-weight: bold; color: #00ffff;">${user.username}</span>
+      <span style="font-weight: bold; color: #00ffff;">${username}</span>
       <small style="color: #a8dfe8; margin-left: auto;">${user.status}</small>
     `;
     onlineList.appendChild(userDiv);
@@ -5325,6 +5216,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+/* ---------- INITIALIZE ALL SYSTEMS ---------- */
+function initAllSystems() {
+    console.log('🚀 Initializing all systems...');
+    initCursorAndCanvas();
+    initCollapsibles();
+    initFormControls();
+    initStatusBar();
+    initSoundEffects();
+    initThemeSwitcher();
+    initEasterEggs();
+    initSearchSystem();
+    initCopyButtons();
+    initAccountSystem(); // ✅ FIXED ACCOUNT SYSTEM
+    initUserFavorites();
+    initSocialHub();
+    initMusicPlayer();
+    initLiveClock();
+    initTypingEffect();
+    initLivePlayerCount();
+    initEngagementFeatures();
+    initClipOfWeek();
+    initCustomizationSystems();
+    initFriendSystem();
+    initGameLobbies();
+    
+    console.log('✅ All systems initialized');
+}
 </script>
 </body>
 </html>
