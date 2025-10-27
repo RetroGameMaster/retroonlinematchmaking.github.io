@@ -2649,96 +2649,39 @@ function initAuthForms() {
                 return;
             }
             
-           (async () => {
-        try {
-            console.log('🔄 Starting registration for:', username);
-            
-            if (!username || !password) {
-                showQuickStatus('Username and password are required!', 'error');
-                return;
-            }
+            (async () => {
+    try {
+        // Supabase requires an email — if user didn't provide one, synthesize a throwaway
+        const signupEmail = email || `${username}@local.invalid`;
 
-            if (username.length < 3) {
-                showQuickStatus('Username must be at least 3 characters!', 'error');
-                return;
-            }
+        const { data, error } = await supabase.auth.signUp({
+            email: signupEmail,
+            password
+        }, {
+            data: { username }
+        });
 
-            if (password.length < 4) {
-                showQuickStatus('Password must be at least 4 characters!', 'error');
-                return;
-            }
-
-            // 1. First, register in localStorage
-            console.log('📝 Step 1: Registering in localStorage...');
-            if (!registerUser(username, password, email)) {
-                console.log('❌ LocalStorage registration failed - username exists');
-                showQuickStatus('Username already exists! Please choose another.', 'error');
-                return;
-            }
-            console.log('✅ LocalStorage registration successful');
-
-            // 2. Close modal and show success
-            document.getElementById('loginModal').style.display = 'none';
-            registerForm.reset();
-            showQuickStatus('Account created successfully! Welcome!', 'success');
-
-            // 3. Save to Supabase with proper error handling
-            console.log('💾 Step 2: Saving to Supabase...');
-            setTimeout(async () => {
-                try {
-                    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-                    const userData = users[username];
-                    
-                    if (!userData) {
-                        console.error('❌ No user data found in localStorage after registration');
-                        return;
-                    }
-
-                    console.log('📦 User data found:', userData);
-
-                    const supabaseData = {
-                        username: username,
-                        email: email || `${username}@retroonlinematchmaking.com`,
-                        profile_pic: userData.profilePic || null,
-                        signature: userData.signature || '',
-                        status: userData.status || '',
-                        favorites: userData.favorites || [],
-                        avatar_type: userData.avatarType || 'generated',
-                        posts_count: userData.posts || 0,
-                        messages_count: userData.messages || 0,
-                        joined: userData.joined || new Date().toISOString(),
-                        last_active: userData.lastActive || new Date().toISOString(),
-                        last_updated: new Date().toISOString()
-                    };
-
-                    console.log('📤 Supabase payload:', supabaseData);
-
-                    const { data, error } = await supabase
-                        .from('users')
-                        .upsert(supabaseData, { 
-                            onConflict: 'username',
-                            ignoreDuplicates: false 
-                        })
-                        .select();
-
-                    if (error) {
-                        console.error('❌ Supabase save failed:', error);
-                        console.log('💡 Error details:', JSON.stringify(error, null, 2));
-                    } else {
-                        console.log('✅ Supabase save successful! Data:', data);
-                        showQuickStatus('Profile synced to cloud!', 'success');
-                    }
-
-                } catch (err) {
-                    console.error('❌ Error in Supabase save process:', err);
-                }
-            }, 500); // Reduced delay
-
-        } catch (err) {
-            console.error('❌ Registration process error:', err);
-            showQuickStatus('Registration error occurred', 'error');
+        if (error) {
+            console.error('Supabase signUp error:', error);
+            showQuickStatus('Registration failed: ' + (error.message || JSON.stringify(error)), 'error');
+            return;
         }
-    })();
+
+        // Note: Email confirmation may be required depending on your Supabase project settings.
+        // Create local user entry for offline sessions (keep current local flow)
+        registerUser(username, password, signupEmail); // reuse existing local storage registration
+
+        document.getElementById('loginModal').style.display = 'none';
+        registerForm.reset();
+        showQuickStatus('Account created — check your email to confirm (if required)', 'success');
+    } catch (err) {
+        console.error('Registration error:', err);
+        showQuickStatus('Registration error: ' + (err.message || String(err)), 'error');
+    }
+})();
+        });
+    }
+}
 
 // FIXED USER MANAGEMENT FUNCTIONS
 function loginUser(username, password) {
@@ -3045,61 +2988,100 @@ function updateUserStats() {
 /* ---------- USER CUSTOMIZATION SYSTEM ---------- */
 
 // Enhanced user profiles with customization - NOW WITH SUPABASE SYNC!
-
-    async function saveUserProfile(username, profileData) {
-    console.log('💾 saveUserProfile called for:', username, 'Data:', profileData);
+async function saveUserProfile(username, profileData) {
+    console.log('Saving profile for:', username, 'Data:', profileData);
     
+    // 1. Save to localStorage (immediate, for offline use)
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const existingData = users[username] || {};
+    
+    users[username] = {
+        ...existingData,
+        ...profileData,
+        lastUpdated: new Date().toISOString()
+    };
+    
+    localStorage.setItem('rom-users', JSON.stringify(users));
+    
+  // 2. Try to sync to Supabase in background (non-blocking)
+setTimeout(async () => {
     try {
-        // 1. Save to localStorage first
-        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-        const existingData = users[username] || {};
-        
-        users[username] = {
-            ...existingData,
-            ...profileData,
-            lastUpdated: new Date().toISOString()
-        };
-        
-        localStorage.setItem('rom-users', JSON.stringify(users));
-        console.log('✅ Saved to localStorage');
+        // Get current supabase session and user id if available
+        const sessionRes = await supabase.auth.getSession();
+        const userId = sessionRes?.data?.session?.user?.id || null;
 
-        // 2. Save to Supabase with proper mapping
-        const supabaseData = {
+        const payload = {
+            // Prefer UUID from Supabase auth when available
+            id: userId || username,
             username: username,
-            email: profileData.email || existingData.email || '',
-            profile_pic: profileData.profilePic || existingData.profilePic || null,
-            signature: profileData.signature || existingData.signature || '',
-            status: profileData.status || existingData.status || '',
-            favorites: profileData.favorites || existingData.favorites || [],
-            avatar_type: profileData.avatarType || existingData.avatarType || 'generated',
-            posts_count: profileData.posts || existingData.posts || 0,
-            messages_count: profileData.messages || existingData.messages || 0,
-            last_updated: new Date().toISOString(),
-            last_active: new Date().toISOString()
+            ...profileData,
+            last_updated: new Date().toISOString()
         };
 
-        console.log('📤 Saving to Supabase:', supabaseData);
-        
         const { data, error } = await supabase
             .from('users')
-            .upsert(supabaseData, { onConflict: 'username' })
-            .select();
+            .upsert(payload);
 
         if (error) {
-            console.error('❌ Supabase save failed:', error);
-            throw error;
+            console.error('❌ Supabase sync failed (will use localStorage):', error);
+            showQuickStatus('Server sync failed: ' + (error.message || JSON.stringify(error)), 'error');
+        } else {
+            console.log('✅ Profile synced to Supabase!', data);
+            showQuickStatus('Profile synced to server', 'success');
         }
-        
-        console.log('✅ Supabase save successful!', data);
-        
-    } catch (error) {
-        console.error('❌ Error in saveUserProfile:', error);
-        // Don't throw - we want to continue even if Supabase fails
+    } catch (err) {
+        console.error('❌ Supabase sync error (offline?):', err);
+        showQuickStatus('Sync error: ' + (err.message || String(err)), 'error');
     }
+}, 0);
     
     updateStorageInfo();
     return true;
 }
+
+// Function to fix existing users who might have missing data
+function fixUserData() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser) return;
+    
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const userData = users[currentUser.username];
+    
+    if (userData) {
+        // Fix missing join date
+        if (!userData.joined) {
+            userData.joined = new Date().toISOString();
+            console.log('Fixed missing join date for user:', currentUser.username);
+        }
+        
+        // Fix missing profile fields
+        const requiredFields = ['profilePic', 'signature', 'status', 'avatarType'];
+        let needsFix = false;
+        
+        requiredFields.forEach(field => {
+            if (userData[field] === undefined) {
+                userData[field] = field === 'avatarType' ? 'generated' : '';
+                needsFix = true;
+                console.log('Fixed missing field:', field, 'for user:', currentUser.username);
+            }
+        });
+        
+        if (needsFix) {
+            localStorage.setItem('rom-users', JSON.stringify(users));
+            console.log('User data fixed and saved');
+        }
+        
+        // Also update current-user join date if missing
+        if (!currentUser.joined && userData.joined) {
+            currentUser.joined = userData.joined;
+            localStorage.setItem('rom-current-user', JSON.stringify(currentUser));
+            console.log('Fixed current-user join date');
+        }
+    }
+}
+
+// Call this on page load
+setTimeout(fixUserData, 1000);
 
 async function loadUserProfile(username) {
     console.log('🔄 Loading profile for:', username);
