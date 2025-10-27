@@ -3673,10 +3673,12 @@ function initFriendSearch() {
   if (!searchInput) return;
 
   searchInput.addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase().trim();
+    const searchTerm = (this.value || '').toLowerCase().trim(); // Add null check
+    
     if (searchTerm.length === 0) {
-      document.getElementById('searchFriendsResults').innerHTML = '';
-      return;
+        resetSearch();
+        searchResults.textContent = '';
+        return;
     }
 
     // Search through all users
