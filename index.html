@@ -3019,7 +3019,7 @@ setTimeout(async () => {
         };
 
         const { data, error } = await supabase
-            .from('users')
+            .from('Users')
             .upsert(payload);
 
         if (error) {
@@ -3092,7 +3092,7 @@ async function loadUserProfile(username) {
     setTimeout(async () => {
         try {
             const { data, error } = await supabase
-                .from('users')
+                .from('Users')
                 .select('*')
                 .eq('username', username)
                 .single();
@@ -5413,11 +5413,11 @@ function updateOnlineUsers() {
     userDiv.className = 'online-user';
     userDiv.innerHTML = `
       <span class="online-indicator"></span>
-      <span style="font-weight: bold; color: #00ffff;">${username}</span>
+      <span style="font-weight: bold; color: #00ffff;">${user.username}</span>  // ← CHANGED to user.username
       <small style="color: #a8dfe8; margin-left: auto;">${user.status}</small>
     `;
     onlineList.appendChild(userDiv);
-  });
+});
   
   if (onlineCount) {
     onlineCount.textContent = `${onlineUsers.length} users online`;
