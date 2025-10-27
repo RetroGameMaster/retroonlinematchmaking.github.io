@@ -2670,6 +2670,58 @@ function initLogoutHandler() {
 }
 
 function initDataManagementHandler() {
+    // Profile button
+    const profileBtn = document.getElementById('profileBtn');
+    if (profileBtn) {
+        profileBtn.addEventListener('click', function() {
+            const socialModal = document.getElementById('socialHubModal');
+            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+            
+            if (!currentUser) {
+                showQuickStatus('Please login first!', 'error');
+                document.getElementById('loginModal').style.display = 'flex';
+                return;
+            }
+            
+            // Close login modal if open
+            document.getElementById('loginModal').style.display = 'none';
+            
+            // Open social hub and switch to profile tab
+            if (socialModal) {
+                socialModal.style.display = 'flex';
+                
+                // Switch to profile tab
+                document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+                const profileNavBtn = document.querySelector('[data-tab="my-profile"]');
+                if (profileNavBtn) profileNavBtn.classList.add('active');
+                
+                document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+                const profileTab = document.getElementById('my-profile');
+                if (profileTab) profileTab.classList.add('active');
+                
+                loadUserProfileForDisplay();
+            }
+        });
+    }
+    
+    // Favorites button
+    const favoritesBtn = document.getElementById('favoritesBtn');
+    if (favoritesBtn) {
+        favoritesBtn.addEventListener('click', function() {
+            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+            
+            if (!currentUser) {
+                showQuickStatus('Please login first!', 'error');
+                document.getElementById('loginModal').style.display = 'flex';
+                return;
+            }
+            
+            showQuickStatus('Favorites feature coming soon!', 'info');
+            // You can implement favorites display here
+        });
+    }
+    
+    // Data Management button
     const dataManagementBtn = document.getElementById('dataManagementBtn');
     if (dataManagementBtn) {
         dataManagementBtn.addEventListener('click', function() {
@@ -2689,10 +2741,10 @@ function initDataManagementHandler() {
             if (socialModal) {
                 socialModal.style.display = 'flex';
                 
-                // Switch to profile tab
+                // Switch to profile tab (where data management is)
                 document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
-                const profileBtn = document.querySelector('[data-tab="my-profile"]');
-                if (profileBtn) profileBtn.classList.add('active');
+                const profileNavBtn = document.querySelector('[data-tab="my-profile"]');
+                if (profileNavBtn) profileNavBtn.classList.add('active');
                 
                 document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
                 const profileTab = document.getElementById('my-profile');
@@ -2703,8 +2755,7 @@ function initDataManagementHandler() {
         });
     }
 }
-
-// SIMPLIFIED Profile Loading
+// FIXED Profile Loading
 function loadUserProfileForDisplay() {
     const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
     if (!currentUser) {
@@ -2714,7 +2765,7 @@ function loadUserProfileForDisplay() {
     
     console.log('Loading profile for:', currentUser.username);
     
-    // Get user data
+    // Get user data directly from localStorage
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
     const userData = users[currentUser.username];
     
@@ -2733,9 +2784,46 @@ function loadUserProfileForDisplay() {
         joinDateElement.textContent = `Joined: ${joinDate}`;
     }
     
+    // Update profile picture in preview
+    const preview = document.getElementById('profilePicPreview');
+    if (preview) {
+        if (userData.profilePic) {
+            preview.innerHTML = `<img src="${userData.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+        } else {
+            let previewText = document.getElementById('profilePicText');
+            if (!previewText) {
+                previewText = document.createElement('span');
+                previewText.id = 'profilePicText';
+                preview.appendChild(previewText);
+            }
+            previewText.textContent = currentUser.username.charAt(0).toUpperCase();
+        }
+    }
+    
+    // Update signature
+    const signatureInput = document.getElementById('userSignature');
+    const signatureCount = document.getElementById('signatureCount');
+    if (signatureInput) {
+        signatureInput.value = userData.signature || '';
+    }
+    if (signatureCount) {
+        signatureCount.textContent = (userData.signature || '').length;
+    }
+    
+    // Update status
+    const statusSelector = document.getElementById('userStatus');
+    if (statusSelector && userData.status) {
+        statusSelector.value = userData.status;
+    }
+    
+    // Update profile header avatar
+    updateProfileAvatar(currentUser.username, userData);
+    
     // Update stats
     updateUserStats();
-    console.log('Profile display updated for:', currentUser.username);
+    updateStorageInfo();
+    
+    console.log('Profile display fully updated for:', currentUser.username);
 }
 
 function updateUserStats() {
@@ -2873,40 +2961,41 @@ async function loadUserProfile(username) {
 
 // FIXED Profile Picture System with proper saving
 function initProfilePictureSystem() {
-    const uploadInput = document.getElementById('profilePicUpload');
-    const preview = document.getElementById('profilePicPreview');
+  const uploadInput = document.getElementById('profilePicUpload');
+  const preview = document.getElementById('profilePicPreview');
+  
+  if (!uploadInput || !preview) {
+    console.log('Profile picture elements not found');
+    return;
+  }
+  
+  uploadInput.addEventListener('change', handleProfilePicUpload);
+  
+  // Load current user's profile pic
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  if (currentUser) {
+    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+    const profile = users[currentUser.username];
+    console.log('Loading profile for:', currentUser.username, profile);
     
-    if (!uploadInput || !preview) {
-        console.log('Profile picture elements not found');
-        return;
+    if (profile && profile.profilePic) {
+      preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
+      console.log('Profile picture loaded from storage');
+    } else {
+      // Create text element if it doesn't exist
+      let previewText = document.getElementById('profilePicText');
+      if (!previewText) {
+        previewText = document.createElement('span');
+        previewText.id = 'profilePicText';
+        preview.appendChild(previewText);
+      }
+      previewText.textContent = currentUser.username.charAt(0).toUpperCase();
+      console.log('Using default avatar');
     }
     
-    uploadInput.addEventListener('change', handleProfilePicUpload);
-    
-    // Load current user's profile pic
-    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-    if (currentUser) {
-        const profile = loadUserProfile(currentUser.username);
-        console.log('Loading profile for:', currentUser.username, profile);
-        
-        if (profile && profile.profilePic) {
-            preview.innerHTML = `<img src="${profile.profilePic}" alt="${currentUser.username}" style="width:100%;height:100%;object-fit:cover;">`;
-            console.log('Profile picture loaded from storage');
-        } else {
-            // Create text element if it doesn't exist
-            let previewText = document.getElementById('profilePicText');
-            if (!previewText) {
-                previewText = document.createElement('span');
-                previewText.id = 'profilePicText';
-                preview.appendChild(previewText);
-            }
-            previewText.textContent = currentUser.username.charAt(0).toUpperCase();
-            console.log('Using default avatar');
-        }
-        
-        // Also update the profile header avatar
-        updateProfileAvatar(currentUser.username, profile);
-    }
+    // Also update the profile header avatar
+    updateProfileAvatar(currentUser.username, profile);
+  }
 }
 
 function updateProfileAvatar(username, profile) {
