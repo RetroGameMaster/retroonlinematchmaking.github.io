@@ -5691,10 +5691,16 @@ function initAllSystems() {
     initLivePlayerCount();
     initEngagementFeatures();
     initClipOfWeek();
-    initCustomizationSystems();
-    initFriendSystem();
-    initGameLobbies();
-    initPlayerSearchSystem();
+   
+    // DELAY Supabase-dependent systems to prevent splash screen issues
+    setTimeout(() => {
+        initCustomizationSystems();
+        initFriendSystem();
+        initGameLobbies();
+        initPlayerSearchSystem();
+        console.log('✅ All systems initialized (including Supabase)');
+    }, 1000); // 1 second delay after splash screen
+}
   
     console.log('✅ All systems initialized');
 }
