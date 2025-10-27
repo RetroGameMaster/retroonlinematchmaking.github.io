@@ -3137,7 +3137,7 @@ async function loadUserProfile(username) {
     }
 }
 
-// FIXED: Enhanced Profile Picture System with proper saving
+// FIXED Profile Picture System with proper saving
 function initProfilePictureSystem() {
   const uploadInput = document.getElementById('profilePicUpload');
   const preview = document.getElementById('profilePicPreview');
@@ -3149,7 +3149,7 @@ function initProfilePictureSystem() {
   
   uploadInput.addEventListener('change', handleProfilePicUpload);
   
-  // Load current user's profile pic immediately
+  // Load current user's profile pic
   const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
   if (currentUser) {
     const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
@@ -5467,8 +5467,6 @@ function initUserFavorites() {
 }
 
 /* ---------- SOCIAL HUB SYSTEM ---------- */
-
-// FIXED: Enhanced Social Hub initialization
 function initSocialHub() {
   const socialBtn = document.getElementById('socialHubBtn');
   const socialModal = document.getElementById('socialHubModal');
@@ -5504,45 +5502,6 @@ function initSocialHub() {
   initSocialTabs();
   initChatSystem();
   initProfileSystem();
-  initRealTimeUpdates(); // Add real-time updates
-}
-
-// FIXED: Enhanced social hub loading
-function loadSocialHub() {
-  console.log('Loading Social Hub...');
-  updateOnlineUsers();
-  loadChatMessages();
-  loadUserProfileForDisplay();
-  updateUserStats();
-  updateStorageInfo();
-  
-  // Initialize all social systems
-  setTimeout(() => {
-    initFriendSystem();
-    loadActiveLobbies();
-    initPlayerSearchSystem();
-    loadRecentlyActivePlayers();
-  }, 100);
-}
-
-// ADD: Real-time update system for Social Hub
-function initRealTimeUpdates() {
-  // Update online users every 30 seconds
-  setInterval(updateOnlineUsers, 30000);
-  
-  // Update chat when social hub is open
-  setInterval(() => {
-    const socialModal = document.getElementById('socialHubModal');
-    if (socialModal && socialModal.style.display === 'flex') {
-      const activeTab = document.querySelector('.social-tab.active');
-      if (activeTab && activeTab.id === 'global-chat') {
-        loadChatMessages();
-      }
-    }
-  }, 5000);
-  
-  // Update player count
-  setInterval(updateRealPlayerCount, 30000);
 }
 
 function initSocialHubButtons() {
@@ -5601,7 +5560,16 @@ function initSocialTabs() {
   });
 }
 
-// FIXED: Enhanced chat system initialization
+function loadSocialHub() {
+  updateOnlineUsers();
+  loadChatMessages();
+  loadUserProfileForDisplay();
+  updateUserStats();
+  loadFriendSystem();
+  loadActiveLobbies();
+}
+
+// Chat System
 function initChatSystem() {
   const chatInput = document.getElementById('chatInput');
   const sendBtn = document.getElementById('sendMessage');
@@ -5617,9 +5585,6 @@ function initChatSystem() {
       }
     });
   }
-  
-  // Load existing messages immediately
-  loadChatMessages();
 }
 
 function sendChatMessage() {
@@ -5655,31 +5620,14 @@ function sendChatMessage() {
   playChatSound();
 }
 
-// FIXED: Better chat message loading
 function loadChatMessages() {
   const chatMessages = document.getElementById('chatMessages');
-  if (!chatMessages) return;
-  
   const chatData = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
   
-  console.log('Loading chat messages:', chatData.length);
   chatMessages.innerHTML = '';
   
-  if (chatData.length === 0) {
-    // Add welcome message if no messages exist
-    const welcomeMsg = {
-      id: Date.now(),
-      username: 'System',
-      text: 'Welcome to Global Chat! Start the conversation...',
-      timestamp: new Date().toISOString(),
-      type: 'system'
-    };
-    chatData.push(welcomeMsg);
-    localStorage.setItem('rom-chat-messages', JSON.stringify(chatData));
-  }
-  
   chatData.forEach(msg => {
-    appendChatMessage(msg);
+    appendEnhancedChatMessage(msg);
   });
   
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -5713,6 +5661,73 @@ function initProfileSystem() {
   if (postBtn) {
     postBtn.addEventListener('click', postToWall);
   }
+}
+
+function postToWall() {
+  const postText = document.getElementById('wallPostText').value.trim();
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  
+  if (!postText) return;
+  if (!currentUser) {
+    showQuickStatus('Please login to post!', 'error');
+    return;
+  }
+  
+  const post = {
+    id: Date.now(),
+    author: currentUser.username,
+    content: postText,
+    timestamp: new Date().toISOString(),
+    likes: 0,
+    comments: []
+  };
+  
+  const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+  wallPosts.unshift(post);
+  
+  localStorage.setItem('rom-wall-posts', JSON.stringify(wallPosts));
+  
+  appendWallPost(post);
+  document.getElementById('wallPostText').value = '';
+  updateUserStats();
+  showQuickStatus('Posted to your wall!', 'success');
+}
+
+function loadWallPosts() {
+  const wallPostsContainer = document.getElementById('wallPosts');
+  const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+  const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+  
+  wallPostsContainer.innerHTML = '';
+  
+  const userPosts = wallPosts.filter(post => post.author === currentUser.username);
+  
+  userPosts.forEach(post => {
+    appendWallPost(post);
+  });
+}
+
+function appendWallPost(post) {
+  const wallPostsContainer = document.getElementById('wallPosts');
+  
+  const postDiv = document.createElement('div');
+  postDiv.className = 'wall-post';
+  
+  const time = new Date(post.timestamp).toLocaleString();
+  
+  postDiv.innerHTML = `
+    <div class="wall-post-header">
+      <span class="wall-post-author">${post.author}</span>
+      <span class="wall-post-time">${time}</span>
+    </div>
+    <div class="wall-post-content">${escapeHtml(post.content)}</div>
+    <div class="wall-post-actions" style="margin-top: 10px; display: flex; gap: 15px; font-size: 0.8rem;">
+      <button class="like-btn" data-post="${post.id}" style="background: none; border: none; color: #a8dfe8; cursor: pointer;">❤️ ${post.likes}</button>
+      <button class="comment-btn" style="background: none; border: none; color: #a8dfe8; cursor: pointer;">💬 Comment</button>
+    </div>
+  `;
+  
+  wallPostsContainer.appendChild(postDiv);
 }
 
 // FIXED Online Users System - Shows real user data
@@ -5765,11 +5780,11 @@ function updateOnlineUsers() {
     userDiv.className = 'online-user';
     userDiv.innerHTML = `
       <span class="online-indicator"></span>
-      <span style="font-weight: bold; color: #00ffff;">${user.username}</span>
+      <span style="font-weight: bold; color: #00ffff;">${user.username}</span>  // ← CHANGED to user.username
       <small style="color: #a8dfe8; margin-left: auto;">${user.status}</small>
     `;
     onlineList.appendChild(userDiv);
-  });
+});
   
   if (onlineCount) {
     onlineCount.textContent = `${onlineUsers.length} users online`;
@@ -6036,8 +6051,7 @@ function initAllSystems() {
     initGameLobbies();
     initPlayerSearchSystem();
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
-    initRealTimeUpdates(); // ✅ ADDED: Initialize real-time updates
-    
+  
     console.log('✅ All systems initialized');
 }
 </script>
