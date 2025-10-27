@@ -2479,7 +2479,15 @@ try {
         })
     };
 }
-
+// Debug: print current Supabase session
+(async () => {
+    try {
+        const { data } = await supabase.auth.getSession();
+        console.log('Supabase session:', data?.session ?? null);
+    } catch (e) {
+        console.warn('Could not read supabase session', e);
+    }
+})();
 /* ---------- FIXED ACCOUNT SYSTEM ---------- */
 
 function initAccountSystem() {
@@ -2556,13 +2564,66 @@ function initAuthForms() {
                 return;
             }
             
+            (async () => {
+    try {
+        // We need an email to sign in — attempt to find a stored email for this username
+        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+        const stored = users[username];
+        const signinEmail = stored?.email || `${username}@local.invalid`;
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: signinEmail,
+            password
+        });
+
+        if (error) {
+            console.warn('Supabase signIn error:', error);
+            // Fall back to local auth for legacy accounts
             if (loginUser(username, password)) {
                 document.getElementById('loginModal').style.display = 'none';
-                this.reset();
-                showQuickStatus(`Welcome back, ${username}!`, 'success');
-            } else {
-                showQuickStatus('Invalid username or password!', 'error');
+                loginForm.reset();
+                showQuickStatus(`Welcome back (local), ${username}!`, 'success');
+                return;
             }
+            showQuickStatus('Login failed: ' + (error.message || JSON.stringify(error)), 'error');
+            return;
+        }
+
+        // Success: set local session similar to your existing flow
+        // Read user profile from localStorage or create minimal local record
+        if (!stored) {
+            users[username] = {
+                password: btoa(password),
+                email: signinEmail,
+                joined: new Date().toISOString(),
+                lastActive: new Date().toISOString(),
+                favorites: [],
+                profilePic: null,
+                signature: '',
+                status: '',
+                avatarType: 'generated',
+                posts: 0,
+                messages: 0
+            };
+            localStorage.setItem('rom-users', JSON.stringify(users));
+        }
+
+        // Set rom-current-user to match your existing shape
+        const userData = {
+            username,
+            email: signinEmail,
+            joined: users[username].joined,
+            favorites: users[username].favorites || []
+        };
+        localStorage.setItem('rom-current-user', JSON.stringify(userData));
+        document.getElementById('loginModal').style.display = 'none';
+        loginForm.reset();
+        showQuickStatus(`Welcome back, ${username}!`, 'success');
+    } catch (err) {
+        console.error('Login error:', err);
+        showQuickStatus('Login error: ' + (err.message || String(err)), 'error');
+    }
+})();
         });
     }
     
@@ -2588,13 +2649,36 @@ function initAuthForms() {
                 return;
             }
             
-            if (registerUser(username, password, email)) {
-                document.getElementById('loginModal').style.display = 'none';
-                this.reset();
-                showQuickStatus('Account created successfully! Welcome!', 'success');
-            } else {
-                showQuickStatus('Username already exists! Please choose another.', 'error');
-            }
+            (async () => {
+    try {
+        // Supabase requires an email — if user didn't provide one, synthesize a throwaway
+        const signupEmail = email || `${username}@local.invalid`;
+
+        const { data, error } = await supabase.auth.signUp({
+            email: signupEmail,
+            password
+        }, {
+            data: { username }
+        });
+
+        if (error) {
+            console.error('Supabase signUp error:', error);
+            showQuickStatus('Registration failed: ' + (error.message || JSON.stringify(error)), 'error');
+            return;
+        }
+
+        // Note: Email confirmation may be required depending on your Supabase project settings.
+        // Create local user entry for offline sessions (keep current local flow)
+        registerUser(username, password, signupEmail); // reuse existing local storage registration
+
+        document.getElementById('loginModal').style.display = 'none';
+        registerForm.reset();
+        showQuickStatus('Account created — check your email to confirm (if required)', 'success');
+    } catch (err) {
+        console.error('Registration error:', err);
+        showQuickStatus('Registration error: ' + (err.message || String(err)), 'error');
+    }
+})();
         });
     }
 }
@@ -2919,27 +3003,37 @@ async function saveUserProfile(username, profileData) {
     
     localStorage.setItem('rom-users', JSON.stringify(users));
     
-    // 2. Try to sync to Supabase in background (non-blocking)
-    setTimeout(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('users')
-                .upsert({
-                    id: username,
-                    username: username,
-                    ...profileData,
-                    last_updated: new Date().toISOString()
-                });
-                
-            if (error) {
-                console.log('❌ Supabase sync failed (will use localStorage):', error);
-            } else {
-                console.log('✅ Profile synced to Supabase!');
-            }
-        } catch (error) {
-            console.log('❌ Supabase sync error (offline?):', error);
+  // 2. Try to sync to Supabase in background (non-blocking)
+setTimeout(async () => {
+    try {
+        // Get current supabase session and user id if available
+        const sessionRes = await supabase.auth.getSession();
+        const userId = sessionRes?.data?.session?.user?.id || null;
+
+        const payload = {
+            // Prefer UUID from Supabase auth when available
+            id: userId || username,
+            username: username,
+            ...profileData,
+            last_updated: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('users')
+            .upsert(payload);
+
+        if (error) {
+            console.error('❌ Supabase sync failed (will use localStorage):', error);
+            showQuickStatus('Server sync failed: ' + (error.message || JSON.stringify(error)), 'error');
+        } else {
+            console.log('✅ Profile synced to Supabase!', data);
+            showQuickStatus('Profile synced to server', 'success');
         }
-    }, 0);
+    } catch (err) {
+        console.error('❌ Supabase sync error (offline?):', err);
+        showQuickStatus('Sync error: ' + (err.message || String(err)), 'error');
+    }
+}, 0);
     
     updateStorageInfo();
     return true;
