@@ -3019,7 +3019,7 @@ setTimeout(async () => {
         };
 
         const { data, error } = await supabase
-            .from('Users')
+            .from('users')
             .upsert(payload);
 
         if (error) {
@@ -3092,7 +3092,7 @@ async function loadUserProfile(username) {
     setTimeout(async () => {
         try {
             const { data, error } = await supabase
-                .from('Users')
+                .from('users')
                 .select('*')
                 .eq('username', username)
                 .single();
