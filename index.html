@@ -3084,33 +3084,43 @@ function fixUserData() {
 setTimeout(fixUserData, 1000);
 
 async function loadUserProfile(username) {
-    // First try localStorage (immediate response)
-    const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-    const localData = users[username];
+    console.log('🔄 Loading profile for:', username);
     
-    // Then try Supabase in background (non-blocking)
-    setTimeout(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('username', username)
-                .single();
-                
-            if (!error && data) {
-                console.log('✅ Background sync from Supabase');
-                // Update localStorage with fresh data
-                users[username] = data;
-                localStorage.setItem('rom-users', JSON.stringify(users));
-            }
-        } catch (error) {
-            console.log('❌ Background sync failed (offline mode):', error);
+    try {
+        // NEW APPROACH: Try different query methods
+        
+        // Method 1: Try without .single() first
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('username', username);
+            
+        if (error) {
+            console.error('❌ Method 1 failed:', error);
+            throw error;
         }
-    }, 0);
-    
-    return localData || null;
+        
+        if (!data || data.length === 0) {
+            console.log('📭 No user found in Supabase, using localStorage');
+            throw new Error('User not found in Supabase');
+        }
+        
+        console.log('✅ Profile loaded from Supabase:', data[0]);
+        
+        // Update localStorage with fresh data
+        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+        users[username] = { ...users[username], ...data[0] };
+        localStorage.setItem('rom-users', JSON.stringify(users));
+        
+        return data[0];
+        
+    } catch (error) {
+        console.log('📋 Falling back to localStorage due to:', error.message);
+        // Fallback to localStorage
+        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+        return users[username] || null;
+    }
 }
-
 // FIXED Profile Picture System with proper saving
 function initProfilePictureSystem() {
   const uploadInput = document.getElementById('profilePicUpload');
