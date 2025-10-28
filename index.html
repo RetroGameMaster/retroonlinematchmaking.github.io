@@ -6,6 +6,9 @@
 <title>RetroOnlineMatchmaking</title>
   <!-- Supabase Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- HTML Editor for Signatures -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <style>
 /* --- Base Styling --- */
 body, html {
@@ -1200,6 +1203,175 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   opacity: 1;
 }
 
+/* HTML Editor Styles for Signatures */
+.signature-editor-container {
+  margin: 15px 0;
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.signature-editor-toolbar {
+  background: rgba(0, 20, 40, 0.9);
+  border-bottom: 1px solid #00ffff;
+  padding: 8px;
+}
+
+.signature-editor {
+  background: rgba(0, 10, 20, 0.8);
+  min-height: 120px;
+  max-height: 200px;
+  overflow-y: auto;
+  color: #00ffff;
+  font-family: 'Orbitron', Arial, sans-serif;
+}
+
+.signature-preview {
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(0, 20, 40, 0.6);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 6px;
+  min-height: 40px;
+}
+
+/* Individual Profile Page Styles */
+.profile-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.profile-header-section {
+  background: rgba(0, 30, 60, 0.7);
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+
+.profile-avatar-xlarge {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 3px solid #00ffff;
+  overflow: hidden;
+  background: linear-gradient(135deg, #00e0ff, #ff33cc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.profile-avatar-xlarge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-info-main {
+  flex: 1;
+}
+
+.profile-username-large {
+  color: #00ffff;
+  font-size: 2rem;
+  margin: 0 0 10px 0;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.profile-status-large {
+  color: #ff33cc;
+  font-size: 1.1rem;
+  margin: 0 0 15px 0;
+}
+
+.profile-signature-large {
+  color: #a8dfe8;
+  font-style: italic;
+  font-size: 1rem;
+  margin: 10px 0;
+  padding: 10px;
+  background: rgba(0, 20, 40, 0.4);
+  border-radius: 6px;
+  border-left: 3px solid #00ffff;
+}
+
+.profile-meta {
+  display: flex;
+  gap: 20px;
+  margin-top: 15px;
+  color: #a8dfe8;
+  font-size: 0.9rem;
+}
+
+.profile-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+
+.profile-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.friends-list-mini {
+  background: rgba(0, 30, 60, 0.7);
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.friends-list-mini h3 {
+  color: #00ffff;
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+}
+
+.friend-item-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.friend-item-mini:last-child {
+  border-bottom: none;
+}
+
+.friend-avatar-mini {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00e0ff, #ff33cc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.friend-avatar-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .social-hub-content {
@@ -1306,6 +1478,22 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   .wall-posts {
     max-height: 40vh !important;
     overflow-y: auto !important;
+  }
+  
+  /* Profile page mobile */
+  .profile-header-section {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .profile-content-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .profile-meta {
+    justify-content: center;
+    flex-wrap: wrap;
   }
 }
 
@@ -2275,10 +2463,22 @@ body.sega-theme .music-btn:hover {
                 <option value="😎 Chilling">😎 Chilling</option>
               </select>
               
-              <!-- Signature Input -->
-              <textarea class="signature-input" id="userSignature" placeholder="Your custom signature... (Max 140 characters)" maxlength="140"></textarea>
+              <!-- HTML Signature Editor -->
+              <div class="signature-editor-container">
+                <div class="signature-editor-toolbar" id="signatureToolbar">
+                  <!-- Quill toolbar will be inserted here -->
+                </div>
+                <div class="signature-editor" id="signatureEditor">
+                  <!-- Quill editor will be inserted here -->
+                </div>
+              </div>
               <div style="text-align: right; color: #a8dfe8; font-size: 0.8rem; margin-top: 5px;">
-                <span id="signatureCount">0</span>/140
+                <span id="signatureCount">0</span>/500 characters
+              </div>
+              
+              <!-- Signature Preview -->
+              <div class="signature-preview" id="signaturePreview">
+                Your signature preview will appear here...
               </div>
               
               <!-- Storage Info -->
@@ -2453,6 +2653,67 @@ body.sega-theme .music-btn:hover {
     </div>
   </div>
 
+  <!-- Individual Profile Page Modal -->
+  <div id="profilePageModal" class="modal" style="display: none;">
+    <div class="profile-page" style="background: rgba(0, 20, 40, 0.95); max-width: 1200px; width: 95%; height: 90vh; border-radius: 12px; overflow-y: auto;">
+      <span class="close-btn" id="closeProfilePage">&times;</span>
+      
+      <div class="profile-header-section">
+        <div class="profile-avatar-xlarge" id="profilePageAvatar">
+          <span id="profilePageAvatarText">U</span>
+        </div>
+        <div class="profile-info-main">
+          <h1 class="profile-username-large" id="profilePageUsername">Username</h1>
+          <p class="profile-status-large" id="profilePageStatus">💻 Online</p>
+          <div class="profile-signature-large" id="profilePageSignature">
+            This user hasn't set a signature yet.
+          </div>
+          <div class="profile-meta">
+            <span id="profilePageJoinDate">Joined: Loading...</span>
+            <span id="profilePageLastActive">Last Active: Now</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="profile-content-grid">
+        <div class="profile-main-content">
+          <!-- Wall Posts Section -->
+          <div class="profile-wall-section" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
+            <h3 style="color: #00ffff; margin-bottom: 15px;">Wall Posts</h3>
+            <div class="wall-post-input" style="margin-bottom: 20px;">
+              <textarea id="profilePageWallPostText" placeholder="Write something on this user's wall..." 
+                        style="width: 100%; height: 80px; padding: 12px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px; resize: vertical;"></textarea>
+              <button id="profilePagePostToWall" class="button" style="margin-top: 10px;">Post to Wall</button>
+            </div>
+            <div id="profilePageWallPosts" class="wall-posts">
+              <!-- Wall posts will appear here -->
+            </div>
+          </div>
+        </div>
+        
+        <div class="profile-sidebar">
+          <!-- Friends List Mini -->
+          <div class="friends-list-mini">
+            <h3>Friends</h3>
+            <div id="profilePageFriendsList">
+              <!-- Friends will appear here -->
+            </div>
+          </div>
+          
+          <!-- Profile Actions -->
+          <div class="profile-actions" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2);">
+            <h3 style="color: #00ffff; margin-bottom: 15px;">Actions</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <button class="button" id="profilePageAddFriend">Add Friend</button>
+              <button class="button muted" id="profilePageSendMessage">Send Message</button>
+              <button class="button" id="profilePageViewInHub">View in Social Hub</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Custom cursor -->
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
@@ -2480,6 +2741,7 @@ try {
         })
     };
 }
+
 // Debug: print current Supabase session
 (async () => {
     try {
@@ -2602,6 +2864,7 @@ function initAuthForms() {
                 favorites: [],
                 profilePic: null,
                 signature: '',
+                signature_html: '',
                 status: '',
                 avatarType: 'generated',
                 posts: 0,
@@ -2745,6 +3008,7 @@ function registerUser(username, password, email) {
         // Profile customization fields
         profilePic: null,
         signature: '',
+        signature_html: '',
         status: '',
         avatarType: 'generated',
         posts: 0,
@@ -2945,14 +3209,15 @@ function loadUserProfileForDisplay() {
         }
     }
     
-    // Update signature
-    const signatureInput = document.getElementById('userSignature');
-    const signatureCount = document.getElementById('signatureCount');
-    if (signatureInput) {
-        signatureInput.value = userData.signature || '';
-    }
-    if (signatureCount) {
-        signatureCount.textContent = (userData.signature || '').length;
+    // Update signature editor
+    if (window.signatureEditor) {
+        if (userData.signature_html) {
+            window.signatureEditor.root.innerHTML = userData.signature_html;
+        } else if (userData.signature) {
+            window.signatureEditor.setText(userData.signature);
+        }
+        updateSignaturePreview();
+        updateSignatureCount();
     }
     
     // Update status
@@ -3061,7 +3326,7 @@ function fixUserData() {
         }
         
         // Fix missing profile fields
-        const requiredFields = ['profilePic', 'signature', 'status', 'avatarType'];
+        const requiredFields = ['profilePic', 'signature', 'signature_html', 'status', 'avatarType'];
         let needsFix = false;
         
         requiredFields.forEach(field => {
@@ -3286,41 +3551,128 @@ function handleProfilePicUpload(event) {
     reader.readAsDataURL(file);
 }
 
-// Signature System
-function initSignatureSystem() {
-    const signatureInput = document.getElementById('userSignature');
-    const signatureCount = document.getElementById('signatureCount');
+/* ---------- HTML SIGNATURE EDITOR SYSTEM ---------- */
+let signatureEditor = null;
+
+function initSignatureEditor() {
+    // Initialize Quill editor for signatures
+    const toolbarOptions = [
+        ['bold', 'italic', 'underline', 'strike'],
+        ['link', 'image'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'font': [] }],
+        [{ 'size': ['small', false, 'large', 'huge'] }],
+        [{ 'align': [] }],
+        ['clean']
+    ];
     
-    signatureInput.addEventListener('input', function() {
-        const currentLength = this.value.length;
-        signatureCount.textContent = currentLength;
-        
-        // Update character count color
-        if (currentLength > 130) {
-            signatureCount.style.color = '#ff3333';
-        } else if (currentLength > 110) {
-            signatureCount.style.color = '#ffff00';
-        } else {
-            signatureCount.style.color = '#a8dfe8';
-        }
-        
-        const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-        if (currentUser) {
-            saveUserProfile(currentUser.username, {
-                signature: this.value
-            });
-        }
+    signatureEditor = new Quill('#signatureEditor', {
+        modules: {
+            toolbar: {
+                container: '#signatureToolbar',
+                handlers: {
+                    // Custom image handler to prevent large images
+                    'image': function() {
+                        const input = document.createElement('input');
+                        input.setAttribute('type', 'file');
+                        input.setAttribute('accept', 'image/*');
+                        input.click();
+                        
+                        input.onchange = function() {
+                            const file = input.files[0];
+                            if (file) {
+                                if (file.size > 100 * 1024) { // 100KB max
+                                    showQuickStatus('Image too large! Max 100KB for signatures.', 'error');
+                                    return;
+                                }
+                                
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    const range = signatureEditor.getSelection();
+                                    signatureEditor.insertEmbed(range.index, 'image', e.target.result);
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        };
+                    }
+                }
+            }
+        },
+        theme: 'snow'
     });
+    
+    // Customize Quill editor styling
+    const editorElement = document.querySelector('#signatureEditor .ql-editor');
+    if (editorElement) {
+        editorElement.style.fontFamily = "'Orbitron', Arial, sans-serif";
+        editorElement.style.color = '#00ffff';
+        editorElement.style.minHeight = '120px';
+        editorElement.style.maxHeight = '200px';
+        editorElement.style.overflowY = 'auto';
+    }
     
     // Load current signature
     const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
     if (currentUser) {
-        const profile = loadUserProfile(currentUser.username);
-        if (profile && profile.signature) {
-            signatureInput.value = profile.signature;
-            signatureCount.textContent = profile.signature.length;
+        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
+        const userData = users[currentUser.username];
+        
+        if (userData) {
+            if (userData.signature_html) {
+                signatureEditor.root.innerHTML = userData.signature_html;
+            } else if (userData.signature) {
+                signatureEditor.setText(userData.signature);
+            }
         }
     }
+    
+    // Update preview on content change
+    signatureEditor.on('text-change', function() {
+        updateSignaturePreview();
+        updateSignatureCount();
+        saveSignature();
+    });
+    
+    window.signatureEditor = signatureEditor;
+}
+
+function updateSignaturePreview() {
+    const preview = document.getElementById('signaturePreview');
+    if (!preview || !signatureEditor) return;
+    
+    const content = signatureEditor.root.innerHTML;
+    preview.innerHTML = content || 'Your signature preview will appear here...';
+}
+
+function updateSignatureCount() {
+    const countElement = document.getElementById('signatureCount');
+    if (!countElement || !signatureEditor) return;
+    
+    const text = signatureEditor.getText();
+    const length = text.trim().length;
+    countElement.textContent = length;
+    
+    // Update color based on length
+    if (length > 450) {
+        countElement.style.color = '#ff3333';
+    } else if (length > 350) {
+        countElement.style.color = '#ffff00';
+    } else {
+        countElement.style.color = '#a8dfe8';
+    }
+}
+
+function saveSignature() {
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    if (!currentUser || !signatureEditor) return;
+    
+    const signature_html = signatureEditor.root.innerHTML;
+    const signature = signatureEditor.getText().trim();
+    
+    saveUserProfile(currentUser.username, {
+        signature: signature,
+        signature_html: signature_html
+    });
 }
 
 // Status System
@@ -3433,7 +3785,7 @@ function initImportSystem() {
                     
                     // Reload all customization
                     initProfilePictureSystem();
-                    initSignatureSystem();
+                    initSignatureEditor();
                     initStatusSystem();
                 }
             } catch (error) {
@@ -3459,6 +3811,7 @@ function clearProfileData() {
         saveUserProfile(currentUser.username, {
             profilePic: null,
             signature: '',
+            signature_html: '',
             status: '',
             avatarType: 'generated'
         });
@@ -3470,7 +3823,10 @@ function clearProfileData() {
         previewText.textContent = currentUser.username.charAt(0).toUpperCase();
         preview.appendChild(previewText);
         
-        document.getElementById('userSignature').value = '';
+        if (signatureEditor) {
+            signatureEditor.setText('');
+        }
+        
         document.getElementById('userStatus').value = '';
         document.getElementById('signatureCount').textContent = '0';
         
@@ -3552,10 +3908,341 @@ function appendEnhancedChatMessage(message) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+/* ---------- INDIVIDUAL PROFILE PAGES ---------- */
+
+function initProfilePages() {
+    // Add event listener for profile page modal close button
+    const closeProfilePage = document.getElementById('closeProfilePage');
+    if (closeProfilePage) {
+        closeProfilePage.addEventListener('click', function() {
+            document.getElementById('profilePageModal').style.display = 'none';
+        });
+    }
+    
+    // Close modal when clicking outside
+    const profilePageModal = document.getElementById('profilePageModal');
+    if (profilePageModal) {
+        profilePageModal.addEventListener('click', function(e) {
+            if (e.target === profilePageModal) {
+                profilePageModal.style.display = 'none';
+            }
+        });
+    }
+    
+    // Add friend button on profile page
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener('click', function() {
+            const username = document.getElementById('profilePageUsername').textContent;
+            sendFriendRequest(username);
+        });
+    }
+    
+    // Send message button on profile page
+    const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', function() {
+            const username = document.getElementById('profilePageUsername').textContent;
+            startPrivateChat(username);
+        });
+    }
+    
+    // View in hub button on profile page
+    const viewInHubBtn = document.getElementById('profilePageViewInHub');
+    if (viewInHubBtn) {
+        viewInHubBtn.addEventListener('click', function() {
+            document.getElementById('profilePageModal').style.display = 'none';
+            document.getElementById('socialHubModal').style.display = 'flex';
+            // Switch to find players tab to see the user
+            document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="find-players"]').classList.add('active');
+            document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('find-players').classList.add('active');
+        });
+    }
+    
+    // Wall post button on profile page
+    const wallPostBtn = document.getElementById('profilePagePostToWall');
+    if (wallPostBtn) {
+        wallPostBtn.addEventListener('click', function() {
+            const postText = document.getElementById('profilePageWallPostText').value.trim();
+            const targetUser = document.getElementById('profilePageUsername').textContent;
+            
+            if (!postText) return;
+            
+            const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+            if (!currentUser) {
+                showQuickStatus('Please login to post!', 'error');
+                return;
+            }
+            
+            const post = {
+                id: Date.now().toString(),
+                author: currentUser.username,
+                targetUser: targetUser,
+                content: postText,
+                timestamp: new Date().toISOString(),
+                likes: 0,
+                comments: []
+            };
+            
+            // Save to Supabase for cross-device sync
+            saveWallPostToSupabase(post);
+            
+            // Also save locally
+            const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+            wallPosts.unshift(post);
+            localStorage.setItem('rom-wall-posts', JSON.stringify(wallPosts));
+            
+            appendWallPostToProfilePage(post);
+            document.getElementById('profilePageWallPostText').value = '';
+            showQuickStatus(`Posted to ${targetUser}'s wall!`, 'success');
+        });
+    }
+}
+
+function openProfilePage(username) {
+    const profileModal = document.getElementById('profilePageModal');
+    if (!profileModal) return;
+    
+    profileModal.style.display = 'flex';
+    loadProfilePage(username);
+}
+
+async function loadProfilePage(username) {
+    const userProfile = await loadUserProfile(username);
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    
+    if (!userProfile) {
+        showQuickStatus('User not found!', 'error');
+        return;
+    }
+    
+    // Update profile header
+    document.getElementById('profilePageUsername').textContent = username;
+    document.getElementById('profilePageStatus').textContent = userProfile.status || '💻 Online';
+    
+    // Update signature with HTML support
+    const signatureElement = document.getElementById('profilePageSignature');
+    if (userProfile.signature_html) {
+        signatureElement.innerHTML = userProfile.signature_html;
+    } else if (userProfile.signature) {
+        signatureElement.textContent = userProfile.signature;
+    } else {
+        signatureElement.textContent = 'This user hasn\'t set a signature yet.';
+    }
+    
+    // Update join date
+    const joinDate = userProfile.joined ? new Date(userProfile.joined).toLocaleDateString() : 'Unknown';
+    document.getElementById('profilePageJoinDate').textContent = `Joined: ${joinDate}`;
+    
+    // Update last active
+    const lastActive = userProfile.lastActive ? 
+        formatLastActive(userProfile.lastActive) : 'Now';
+    document.getElementById('profilePageLastActive').textContent = `Last Active: ${lastActive}`;
+    
+    // Update profile picture
+    const avatarElement = document.getElementById('profilePageAvatar');
+    if (userProfile.profilePic) {
+        avatarElement.innerHTML = `<img src="${userProfile.profilePic}" alt="${username}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    } else {
+        const avatarText = document.getElementById('profilePageAvatarText');
+        avatarText.textContent = username.charAt(0).toUpperCase();
+    }
+    
+    // Update friend button state
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (currentUser && currentUser.username === username) {
+        addFriendBtn.style.display = 'none'; // Hide for own profile
+    } else {
+        addFriendBtn.style.display = 'block';
+        
+        // Check if already friends or request pending
+        const friendsData = JSON.parse(localStorage.getItem(`rom-friends-${currentUser?.username}`) || '{}');
+        const friends = friendsData.friends || [];
+        const requests = friendsData.requests || [];
+        
+        if (friends.includes(username)) {
+            addFriendBtn.textContent = 'Already Friends';
+            addFriendBtn.disabled = true;
+        } else if (requests.includes(username)) {
+            addFriendBtn.textContent = 'Request Sent';
+            addFriendBtn.disabled = true;
+        } else {
+            addFriendBtn.textContent = 'Add Friend';
+            addFriendBtn.disabled = false;
+        }
+    }
+    
+    // Load wall posts for this user
+    loadWallPostsForProfilePage(username);
+    
+    // Load friends list for this user
+    loadFriendsForProfilePage(username);
+}
+
+function appendWallPostToProfilePage(post) {
+    const wallPostsContainer = document.getElementById('profilePageWallPosts');
+    
+    const postDiv = document.createElement('div');
+    postDiv.className = 'wall-post';
+    postDiv.dataset.postId = post.id;
+    
+    const time = new Date(post.timestamp).toLocaleString();
+    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
+    const isOwnPost = post.author === currentUser?.username;
+    
+    postDiv.innerHTML = `
+        <div class="wall-post-header">
+            <span class="wall-post-author" style="color: ${isOwnPost ? '#00ffff' : '#ff33cc'};">${post.author}</span>
+            <span class="wall-post-time">${time}</span>
+        </div>
+        <div class="wall-post-content">${escapeHtml(post.content)}</div>
+        <div class="wall-post-actions" style="margin-top: 10px; display: flex; gap: 15px; font-size: 0.8rem;">
+            <button class="like-btn" data-post="${post.id}" style="background: none; border: none; color: #a8dfe8; cursor: pointer;">
+                ❤️ ${post.likes || 0}
+            </button>
+            ${isOwnPost ? `
+                <button class="delete-post-btn" data-post="${post.id}" style="background: none; border: none; color: #ff3333; cursor: pointer;">
+                    🗑️ Delete
+                </button>
+            ` : ''}
+        </div>
+    `;
+    
+    wallPostsContainer.appendChild(postDiv);
+    
+    // Add event listeners
+    const likeBtn = postDiv.querySelector('.like-btn');
+    const deleteBtn = postDiv.querySelector('.delete-post-btn');
+    
+    if (likeBtn) {
+        likeBtn.addEventListener('click', function() {
+            likeWallPost(post.id);
+        });
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            deleteWallPostFromProfilePage(post.id);
+        });
+    }
+}
+
+function loadWallPostsForProfilePage(username) {
+    const wallPostsContainer = document.getElementById('profilePageWallPosts');
+    
+    if (!wallPostsContainer) return;
+    
+    wallPostsContainer.innerHTML = '<div style="color: #a8dfe8; text-align: center; padding: 20px;">Loading posts...</div>';
+    
+    try {
+        // Load from localStorage (you can add Supabase integration here too)
+        const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+        const userPosts = wallPosts.filter(post => post.targetUser === username);
+        
+        wallPostsContainer.innerHTML = '';
+        
+        if (userPosts.length === 0) {
+            wallPostsContainer.innerHTML = `
+                <div style="color: #a8dfe8; text-align: center; padding: 20px;">
+                    No posts yet. Be the first to write something!
+                </div>
+            `;
+            return;
+        }
+        
+        userPosts.forEach(post => {
+            appendWallPostToProfilePage(post);
+        });
+        
+    } catch (err) {
+        console.error('Error loading wall posts:', err);
+        wallPostsContainer.innerHTML = '<div style="color: #ff3333; text-align: center; padding: 20px;">Error loading posts</div>';
+    }
+}
+
+function deleteWallPostFromProfilePage(postId) {
+    if (!confirm('Are you sure you want to delete this post?')) {
+        return;
+    }
+    
+    // Remove from localStorage
+    const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+    const updatedPosts = wallPosts.filter(post => post.id !== postId);
+    localStorage.setItem('rom-wall-posts', JSON.stringify(updatedPosts));
+    
+    // Remove from display
+    const postElement = document.querySelector(`[data-post-id="${postId}"]`);
+    if (postElement) {
+        postElement.remove();
+    }
+    
+    showQuickStatus('Post deleted!', 'success');
+}
+
+function loadFriendsForProfilePage(username) {
+    const friendsList = document.getElementById('profilePageFriendsList');
+    if (!friendsList) return;
+    
+    // Get friends data for this user
+    const friendsData = JSON.parse(localStorage.getItem(`rom-friends-${username}`) || '{}');
+    const friends = friendsData.friends || [];
+    
+    if (friends.length === 0) {
+        friendsList.innerHTML = '<div style="color: #a8dfe8; text-align: center; padding: 10px;">No friends yet</div>';
+        return;
+    }
+    
+    friendsList.innerHTML = '';
+    
+    // Show first 6 friends
+    friends.slice(0, 6).forEach(friendUsername => {
+        const friendData = loadUserProfile(friendUsername);
+        
+        const friendItem = document.createElement('div');
+        friendItem.className = 'friend-item-mini';
+        friendItem.style.cursor = 'pointer';
+        friendItem.addEventListener('click', function() {
+            openProfilePage(friendUsername);
+        });
+        
+        friendItem.innerHTML = `
+            <div class="friend-avatar-mini">
+                ${friendData && friendData.profilePic ? 
+                    `<img src="${friendData.profilePic}" alt="${friendUsername}">` :
+                    friendUsername.charAt(0).toUpperCase()
+                }
+            </div>
+            <span style="color: #00ffff; font-size: 0.9rem;">${friendUsername}</span>
+        `;
+        
+        friendsList.appendChild(friendItem);
+    });
+    
+    // Show "view all" if there are more friends
+    if (friends.length > 6) {
+        const viewAll = document.createElement('div');
+        viewAll.style.textAlign = 'center';
+        viewAll.style.marginTop = '10px';
+        viewAll.innerHTML = `<button class="button" style="font-size: 0.8rem; padding: 5px 10px;">View All ${friends.length} Friends</button>`;
+        viewAll.querySelector('button').addEventListener('click', function() {
+            // Switch to social hub friends tab
+            document.getElementById('profilePageModal').style.display = 'none';
+            document.getElementById('socialHubModal').style.display = 'flex';
+            document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="friends"]').classList.add('active');
+            document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('friends').classList.add('active');
+        });
+        friendsList.appendChild(viewAll);
+    }
+}
+
 /* ---------- INITIALIZE CUSTOMIZATION SYSTEMS ---------- */
 function initCustomizationSystems() {
     initProfilePictureSystem();
-    initSignatureSystem();
+    initSignatureEditor(); // Updated to use HTML editor
     initStatusSystem();
     initImportSystem();
     updateStorageInfo();
@@ -3799,106 +4486,8 @@ function viewUserProfile(username) {
         return;
     }
     
-    // Open social hub
-    const socialModal = document.getElementById('socialHubModal');
-    if (socialModal) {
-        socialModal.style.display = 'flex';
-        
-        // Switch to profile tab
-        document.querySelectorAll('.social-nav-btn').forEach(btn => btn.classList.remove('active'));
-        const profileNavBtn = document.querySelector('[data-tab="my-profile"]');
-        if (profileNavBtn) profileNavBtn.classList.add('active');
-        
-        document.querySelectorAll('.social-tab').forEach(tab => tab.classList.remove('active'));
-        const profileTab = document.getElementById('my-profile');
-        if (profileTab) profileTab.classList.add('active');
-        
-        // Load the target user's profile
-        loadOtherUserProfile(username);
-    }
-}
-
-// NEW: Load another user's profile
-async function loadOtherUserProfile(username) {
-    const currentUser = JSON.parse(localStorage.getItem('rom-current-user'));
-    
-    // Update profile header to show we're viewing someone else's profile
-    const profileHeader = document.querySelector('.profile-header h2');
-    if (profileHeader) {
-        profileHeader.textContent = `${username}'s Profile`;
-        if (username !== currentUser.username) {
-            profileHeader.innerHTML += ` <span style="color: #a8dfe8; font-size: 0.8em;">(Viewing)</span>`;
-        }
-    }
-    
-    // Load the user's profile data
-    const userProfile = await loadUserProfile(username);
-    
-    if (userProfile) {
-        // Update profile display
-        const usernameElement = document.getElementById('profileUsername');
-        const joinDateElement = document.getElementById('profileJoinDate');
-        
-        if (usernameElement) usernameElement.textContent = username;
-        if (joinDateElement) {
-            const joinDate = userProfile.joined ? new Date(userProfile.joined).toLocaleDateString() : 'Unknown';
-            joinDateElement.textContent = `Joined: ${joinDate}`;
-        }
-        
-        // Update profile picture
-        const preview = document.getElementById('profilePicPreview');
-        if (preview) {
-            if (userProfile.profilePic) {
-                preview.innerHTML = `<img src="${userProfile.profilePic}" alt="${username}" style="width:100%;height:100%;object-fit:cover;">`;
-            } else {
-                let previewText = document.getElementById('profilePicText');
-                if (!previewText) {
-                    previewText = document.createElement('span');
-                    previewText.id = 'profilePicText';
-                    preview.appendChild(previewText);
-                }
-                previewText.textContent = username.charAt(0).toUpperCase();
-            }
-        }
-        
-        // Update status and signature (read-only when viewing others)
-        const statusElement = document.createElement('div');
-        statusElement.style.color = '#a8dfe8';
-        statusElement.style.marginBottom = '10px';
-        statusElement.innerHTML = `<strong>Status:</strong> ${userProfile.status || 'Not set'}`;
-        
-        const signatureElement = document.createElement('div');
-        signatureElement.style.color = '#a8dfe8';
-        signatureElement.style.fontStyle = 'italic';
-        signatureElement.textContent = userProfile.signature || '';
-        
-        // Replace customization section with view-only info
-        const customizationSection = document.querySelector('.profile-customization');
-        if (customizationSection) {
-            if (username !== currentUser.username) {
-                customizationSection.innerHTML = `
-                    <h3 style="color: #00ffff; margin-bottom: 15px;">Profile Info</h3>
-                    <div style="color: #a8dfe8;">
-                        <div style="margin-bottom: 10px;"><strong>Status:</strong> ${userProfile.status || 'Not set'}</div>
-                        ${userProfile.signature ? `<div style="font-style: italic; border-left: 2px solid #00ffff; padding-left: 10px; margin-top: 10px;">"${userProfile.signature}"</div>` : ''}
-                    </div>
-                    <div style="margin-top: 15px;">
-                        <button class="button" onclick="sendFriendRequest('${username}')" style="margin-right: 10px;">Add Friend</button>
-                        <button class="button" onclick="startPrivateChat('${username}')">Send Message</button>
-                    </div>
-                `;
-            } else {
-                // It's our own profile, show customization
-                initCustomizationSystems();
-            }
-        }
-        
-        // Load this user's wall posts
-        loadWallPostsForUser(username);
-        
-    } else {
-        showQuickStatus('User profile not found!', 'error');
-    }
+    // Open individual profile page
+    openProfilePage(username);
 }
 
 /* ---------- FRIEND SYSTEM ---------- */
@@ -4008,7 +4597,7 @@ function loadFriendsList(friends) {
 
   friendsList.innerHTML = friends.map(username => `
     <div class="friend-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(0, 30, 60, 0.6); border-radius: 6px; margin-bottom: 10px;">
-      <span style="color: #00ffff;">${username}</span>
+      <span style="color: #00ffff; cursor: pointer;" onclick="openProfilePage('${username}')">${username}</span>
       <button class="button muted remove-friend-btn" data-username="${username}">Remove</button>
     </div>
   `).join('');
@@ -4057,7 +4646,7 @@ function initFriendSearch() {
       const isPending = pendingRequests.includes(username);
       return `
         <div class="search-result" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(0, 30, 60, 0.6); border-radius: 6px; margin-bottom: 10px;">
-          <span style="color: #00ffff;">${username}</span>
+          <span style="color: #00ffff; cursor: pointer;" onclick="openProfilePage('${username}')">${username}</span>
           <button class="button add-friend-btn" data-username="${username}" ${isPending ? 'disabled' : ''}>
             ${isPending ? 'Request Sent' : 'Add Friend'}
           </button>
@@ -4410,11 +4999,11 @@ function displaySearchResults(users, container) {
     <div class="player-result-card" style="background: rgba(0, 30, 60, 0.7); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
         ${user.profilePic ? 
-          `<img src="${user.profilePic}" alt="${user.username}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
-          `<div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">${user.username.charAt(0).toUpperCase()}</div>`
+          `<img src="${user.profilePic}" alt="${user.username}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; cursor: pointer;" onclick="openProfilePage('${user.username}')">` :
+          `<div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; cursor: pointer;" onclick="openProfilePage('${user.username}')">${user.username.charAt(0).toUpperCase()}</div>`
         }
         <div style="flex: 1;">
-          <div style="color: #00ffff; font-weight: bold; font-size: 1.1rem;">${user.username}</div>
+          <div style="color: #00ffff; font-weight: bold; font-size: 1.1rem; cursor: pointer;" onclick="openProfilePage('${user.username}')">${user.username}</div>
           <div style="color: #a8dfe8; font-size: 0.9rem;">${user.status || '💻 Online'}</div>
           ${user.signature ? `<div style="color: #a8dfe8; font-size: 0.8rem; font-style: italic; margin-top: 4px;">"${user.signature}"</div>` : ''}
         </div>
@@ -4473,10 +5062,10 @@ function loadRecentlyActivePlayers() {
   container.innerHTML = recentUsers.map(user => `
     <div class="recent-player-card" style="background: rgba(0, 30, 60, 0.6); border: 1px solid rgba(0,255,255,0.1); border-radius: 8px; padding: 12px; text-align: center;">
       ${user.profilePic ? 
-        `<img src="${user.profilePic}" alt="${user.username}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 0 auto 8px;">` :
-        `<div class="user-avatar" style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.4rem; margin: 0 auto 8px;">${user.username.charAt(0).toUpperCase()}</div>`
+        `<img src="${user.profilePic}" alt="${user.username}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 0 auto 8px; cursor: pointer;" onclick="openProfilePage('${user.username}')">` :
+        `<div class="user-avatar" style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #ff33cc); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.4rem; margin: 0 auto 8px; cursor: pointer;" onclick="openProfilePage('${user.username}')">${user.username.charAt(0).toUpperCase()}</div>`
       }
-      <div style="color: #00ffff; font-weight: bold; margin-bottom: 4px;">${user.username}</div>
+      <div style="color: #00ffff; font-weight: bold; margin-bottom: 4px; cursor: pointer;" onclick="openProfilePage('${user.username}')">${user.username}</div>
       <div style="color: #a8dfe8; font-size: 0.8rem; margin-bottom: 8px;">${user.status || '💻 Online'}</div>
       <button class="button add-friend-btn" data-username="${user.username}" style="padding: 4px 8px; font-size: 0.7rem; width: 100%;">Add Friend</button>
     </div>
@@ -5780,7 +6369,7 @@ function updateOnlineUsers() {
     userDiv.className = 'online-user';
     userDiv.innerHTML = `
       <span class="online-indicator"></span>
-      <span style="font-weight: bold; color: #00ffff;">${user.username}</span>  // ← CHANGED to user.username
+      <span style="font-weight: bold; color: #00ffff; cursor: pointer;" onclick="openProfilePage('${user.username}')">${user.username}</span>
       <small style="color: #a8dfe8; margin-left: auto;">${user.status}</small>
     `;
     onlineList.appendChild(userDiv);
@@ -6051,6 +6640,7 @@ function initAllSystems() {
     initGameLobbies();
     initPlayerSearchSystem();
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
+    initProfilePages(); // ✅ ADDED: Initialize individual profile pages
   
     console.log('✅ All systems initialized');
 }
