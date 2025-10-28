@@ -3270,7 +3270,61 @@ async function saveUserProfile(username, profileData) {
     };
     
     localStorage.setItem('rom-users', JSON.stringify(users));
-    
+     // 2. Enhanced Supabase sync with mobile support
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        
+        if (!session) {
+            console.log('🔐 No Supabase session, storing locally only');
+            // Create a pending sync for when user logs in on another device
+            const pendingSync = JSON.parse(localStorage.getItem('rom-pending-sync') || '[]');
+            pendingSync.push({
+                username: username,
+                profileData: profileData,
+                timestamp: new Date().toISOString()
+            });
+            localStorage.setItem('rom-pending-sync', JSON.stringify(pendingSync));
+            return true;
+        }
+
+        const payload = {
+            username: username,
+            profile_data: profileData,
+            last_updated: new Date().toISOString(),
+            user_id: session.user.id,
+            // Add mobile-specific data
+            device_info: {
+                user_agent: navigator.userAgent,
+                platform: navigator.platform,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        const { data, error } = await supabase
+            .from('user_profiles')
+            .upsert(payload, { 
+                onConflict: 'username',
+                ignoreDuplicates: false 
+            });
+
+        if (error) {
+            console.error('❌ Supabase sync failed:', error);
+            // Store for retry later
+            storePendingSync(username, profileData);
+            return true;
+        }
+        
+        console.log('✅ Profile synced to Supabase!', data);
+        
+        // Process any pending syncs
+        processPendingSyncs();
+        return true;
+    } catch (err) {
+        console.error('❌ Supabase sync error (offline?):', err);
+        storePendingSync(username, profileData);
+        return true;
+    }
     // 2. Sync to Supabase with better error handling
     try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -3359,11 +3413,13 @@ async function loadUserProfile(username) {
     console.log('🔄 Loading profile for:', username);
     
     try {
-        // Try to load from Supabase first
+        // Try to load from Supabase first with mobile optimization
         const { data, error } = await supabase
             .from('user_profiles')
             .select('*')
-            .eq('username', username);
+            .eq('username', username)
+            .order('last_updated', { ascending: false })
+            .limit(1); // Get only the most recent
             
         if (error) {
             console.error('❌ Supabase load error:', error);
@@ -3374,16 +3430,17 @@ async function loadUserProfile(username) {
             console.log('✅ Profile loaded from Supabase:', data[0]);
             const supabaseProfile = data[0];
             
-            // Merge with local data
+            // Merge with local data - prioritize Supabase but keep local favorites
             const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
             const localProfile = users[username] || {};
             
-            // Prefer Supabase data but keep local favorites
             const mergedProfile = {
                 ...localProfile,
                 ...supabaseProfile.profile_data,
                 // Keep local favorites if they exist
-                favorites: localProfile.favorites || supabaseProfile.profile_data?.favorites || []
+                favorites: localProfile.favorites || supabaseProfile.profile_data?.favorites || [],
+                // Update last sync time
+                lastSynced: new Date().toISOString()
             };
             
             users[username] = mergedProfile;
@@ -3600,7 +3657,24 @@ function initSignatureEditor() {
         },
         theme: 'snow'
     });
-    
+      // Fix HTML paste handling for signatures
+    signatureEditor.root.addEventListener('paste', function(e) {
+        e.preventDefault();
+        
+        // Get pasted HTML
+        const clipboardData = e.clipboardData || window.clipboardData;
+        const pastedData = clipboardData.getData('text/html') || clipboardData.getData('text/plain');
+        
+        if (pastedData) {
+            // Convert HTML to Quill delta and insert
+            const delta = signatureEditor.clipboard.convert(pastedData);
+            const range = signatureEditor.getSelection();
+            signatureEditor.updateContents(delta, 'user');
+            
+            // Move cursor to end
+            signatureEditor.setSelection(range.index + delta.length(), 0);
+        }
+    });
     // Customize Quill editor styling
     const editorElement = document.querySelector('#signatureEditor .ql-editor');
     if (editorElement) {
@@ -6641,7 +6715,7 @@ function initAllSystems() {
     initPlayerSearchSystem();
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
     initProfilePages(); // ✅ ADDED: Initialize individual profile pages
-  
+    processPendingSyncs(); // Process any pending syncs on startup
     console.log('✅ All systems initialized');
 }
 </script>
