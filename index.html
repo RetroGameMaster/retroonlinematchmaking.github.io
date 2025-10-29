@@ -1226,13 +1226,30 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   font-family: 'Orbitron', Arial, sans-serif;
 }
 
+/* Signature Preview Styling */
 .signature-preview {
-  margin-top: 15px;
-  padding: 10px;
+  min-height: 40px;
+  padding: 15px;
   background: rgba(0, 20, 40, 0.6);
   border: 1px solid rgba(0, 255, 255, 0.3);
   border-radius: 6px;
-  min-height: 40px;
+  color: #00ffff;
+  font-family: 'Orbitron', Arial, sans-serif;
+  overflow: auto;
+}
+
+.signature-preview * {
+  margin: 0;
+  padding: 0;
+  line-height: 1.4;
+}
+
+.signature-preview div {
+  margin-bottom: 5px;
+}
+
+.signature-preview div:last-child {
+  margin-bottom: 0;
 }
 
 /* Individual Profile Page Styles */
@@ -3468,6 +3485,7 @@ function initSignatureEditor() {
         editorElement.style.minHeight = '120px';
         editorElement.style.maxHeight = '200px';
         editorElement.style.overflowY = 'auto';
+        editorElement.style.background = 'rgba(0, 10, 20, 0.8)';
     }
     
     // Load current signature
@@ -3495,6 +3513,63 @@ function initSignatureEditor() {
     window.signatureEditor = signatureEditor;
 }
 
+function updateSignaturePreview() {
+    const preview = document.getElementById('signaturePreview');
+    if (!preview || !signatureEditor) return;
+    
+    const content = signatureEditor.root.innerHTML;
+    
+    // Create a container that preserves HTML and styling
+    preview.innerHTML = content || 'Your signature preview will appear here...';
+    
+    // Ensure the preview container allows HTML styling
+    preview.style.cssText = `
+        min-height: 40px;
+        padding: 15px;
+        background: rgba(0, 20, 40, 0.6);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 6px;
+        color: #00ffff;
+        font-family: 'Orbitron', Arial, sans-serif;
+        overflow: auto;
+    `;
+    
+    // If empty, show placeholder with styling
+    if (!content || content === '<p><br></p>') {
+        preview.innerHTML = '<div style="color: #a8dfe8; font-style: italic; text-align: center;">Your signature preview will appear here...</div>';
+    }
+}
+
+function updateSignatureCount() {
+    const countElement = document.getElementById('signatureCount');
+    if (!countElement || !signatureEditor) return;
+    
+    // Count text characters only (strip HTML tags for counting)
+    const text = signatureEditor.getText().trim();
+    const length = text.length;
+    countElement.textContent = length;
+    
+    // Update color based on length
+    if (length > 450) {
+        countElement.style.color = '#ff3333';
+    } else if (length > 350) {
+        countElement.style.color = '#ffff00';
+    } else {
+        countElement.style.color = '#a8dfe8';
+    }
+}
+
+function saveSignature() {
+    if (!signatureEditor) return;
+    
+    const signature_html = signatureEditor.root.innerHTML;
+    const signature = signatureEditor.getText().trim();
+    
+    saveUserProfile({
+        signature: signature,
+        signature_html: signature_html
+    });
+}
 function updateSignaturePreview() {
     const preview = document.getElementById('signaturePreview');
     if (!preview || !signatureEditor) return;
