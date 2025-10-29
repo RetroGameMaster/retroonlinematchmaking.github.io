@@ -3047,10 +3047,10 @@ async function saveUserProfile(profileData) {
     console.log('💾 Saving profile for:', user.email);
     
     const payload = {
+        user_id: user.id,
         username: user.email.split('@')[0],
         profile_data: profileData,
-        last_updated: new Date().toISOString(),
-        user_id: user.id
+        last_updated: new Date().toISOString()
     };
 
     const { data, error } = await supabase
@@ -3061,7 +3061,9 @@ async function saveUserProfile(profileData) {
 
     if (error) {
         console.error('❌ Profile save failed:', error);
-        showQuickStatus('Failed to save profile', 'error');
+        // Fallback to localStorage for now
+        localStorage.setItem(`rom-profile-${user.id}`, JSON.stringify(profileData));
+        showQuickStatus('Profile saved locally (Supabase error)', 'warning');
     } else {
         console.log('✅ Profile saved to Supabase!');
         showQuickStatus('Profile saved!', 'success');
@@ -3079,13 +3081,15 @@ async function loadUserProfile() {
     try {
         const { data, error } = await supabase
             .from('user_profiles')
-            .select('*')
+            .select('profile_data')
             .eq('user_id', user.id)
             .single();
 
         if (error) {
             console.error('❌ Profile load error:', error);
-            return null;
+            // Fallback to localStorage
+            const localProfile = localStorage.getItem(`rom-profile-${user.id}`);
+            return localProfile ? JSON.parse(localProfile) : null;
         }
         
         console.log('✅ Profile loaded from Supabase:', data);
@@ -3093,10 +3097,10 @@ async function loadUserProfile() {
         
     } catch (error) {
         console.error('❌ Profile load error:', error);
-        return null;
+        const localProfile = localStorage.getItem(`rom-profile-${user.id}`);
+        return localProfile ? JSON.parse(localProfile) : null;
     }
 }
-
 // FIXED Profile Picture System
 function initProfilePictureSystem() {
   const uploadInput = document.getElementById('profilePicUpload');
@@ -3956,7 +3960,10 @@ function updateUserStats() {
         console.log('User stats updated - Favorites:', favoritesCount, 'Posts:', userPosts, 'Messages:', userMessages);
     });
 }
-
+function initProfileSystem() {
+    // This is now handled by initWallSystem and initCustomizationSystems
+    console.log('Profile system initialized');
+}
 /* ---------- SOCIAL HUB SYSTEM ---------- */
 function initSocialHub() {
     const socialBtn = document.getElementById('socialHubBtn');
@@ -4870,7 +4877,7 @@ function initTypingEffect() {
     
     let typingTimer;
     searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
+        const searchTerm = (this.value || '').toLowerCase().trim();
         
         if (searchTerm.length > 0) {
             searchResults.style.color = '#ffff00';
