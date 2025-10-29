@@ -3853,81 +3853,12 @@ function initCustomizationSystems() {
     initSignatureEditor(); // Updated to use HTML editor
     initStatusSystem();
     initImportSystem();
-    initUsernameChangeSystem();
     updateStorageInfo();
     
     // Update storage info every 30 seconds
     setInterval(updateStorageInfo, 30000);
 }
-/* ---------- USERNAME CHANGE SYSTEM ---------- */
-function initUsernameChangeSystem() {
-    // Add username change option to profile customization
-    const profileCustomization = document.querySelector('.profile-customization');
-    if (profileCustomization) {
-        const usernameChangeHTML = `
-            <div class="username-change" style="margin-bottom: 15px;">
-                <h4 style="color: #00ffff; margin-bottom: 10px;">👤 Change Display Name</h4>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="newUsername" placeholder="New display name..." 
-                           style="flex: 1; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
-                    <button class="button" id="changeUsernameBtn" style="white-space: nowrap;">Change Name</button>
-                </div>
-                <p style="color: #a8dfe8; font-size: 0.8rem; margin-top: 5px;">
-                    This only changes your display name on this site, not your email/login.
-                </p>
-            </div>
-        `;
-        profileCustomization.insertAdjacentHTML('afterbegin', usernameChangeHTML);
 
-        // Add event listener
-        document.getElementById('changeUsernameBtn').addEventListener('click', changeUsername);
-    }
-}
-
-async function changeUsername() {
-    const newUsername = document.getElementById('newUsername').value.trim();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-        showQuickStatus('Please login to change username!', 'error');
-        return;
-    }
-    
-    if (!newUsername) {
-        showQuickStatus('Please enter a username!', 'error');
-        return;
-    }
-    
-    if (newUsername.length < 2) {
-        showQuickStatus('Username must be at least 2 characters!', 'error');
-        return;
-    }
-    
-    if (newUsername.length > 20) {
-        showQuickStatus('Username must be less than 20 characters!', 'error');
-        return;
-    }
-    
-    try {
-        // Save to profile
-        await saveUserProfile({
-            displayName: newUsername,
-            username: newUsername
-        });
-        
-        // Update UI immediately
-        document.getElementById('userDisplayName').textContent = newUsername;
-        document.getElementById('profileUsername').textContent = newUsername;
-        document.getElementById('profilePicText').textContent = newUsername.charAt(0).toUpperCase();
-        document.getElementById('profileAvatarText').textContent = newUsername.charAt(0).toUpperCase();
-        
-        document.getElementById('newUsername').value = '';
-        showQuickStatus(`Username changed to ${newUsername}!`, 'success');
-        
-    } catch (error) {
-        showQuickStatus('Error changing username: ' + error.message, 'error');
-    }
-}
 /* ---------- FIXED USER PROFILE DISPLAY ---------- */
 
 // FIXED: Better data loading with cross-device support
@@ -4556,32 +4487,9 @@ function initLivePlayerCount() {
     if (!playerCountElement) return;
     
     function updateRealPlayerCount() {
-        // Count real users from localStorage
-        const users = JSON.parse(localStorage.getItem('rom-users') || '{}');
-        const userCount = Object.keys(users).length;
-        
-        // Count online users (active in last 15 minutes)
-        const onlineUsers = Object.keys(users).filter(username => {
-            const userData = users[username];
-            const lastActive = userData.lastActive || userData.joined;
-            return Date.now() - new Date(lastActive).getTime() < 15 * 60 * 1000;
-        });
-        
-        const onlineCount = Math.max(onlineUsers.length, 1); // At least 1 (current user)
-        const totalCount = Math.max(userCount, 3); // At least 3 total
-        
-        // Update display
-        playerCountElement.textContent = `${onlineCount}/${totalCount}`;
-        
-        console.log(`📊 Real User Stats: ${onlineCount} online / ${totalCount} total registered`);
-    }
-    
-    // Update count every 30 seconds
-    setInterval(updateRealPlayerCount, 30000);
-    
-    // Initial update
-    updateRealPlayerCount();
-}
+        // For now, use demo data - you can implement real user counting later
+        const onlineCount = 4;
+        const userCount = 12;
         
         // Update display - show online/total format
         playerCountElement.textContent = `${onlineCount}/${userCount}`;
