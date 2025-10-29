@@ -3210,6 +3210,7 @@ function initDataManagementHandler() {
 /* ---------- USER CUSTOMIZATION SYSTEM ---------- */
 
 async function saveUserProfile(profileData) {
+async function saveUserProfile(profileData) {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -3217,15 +3218,31 @@ async function saveUserProfile(profileData) {
         return;
     }
     
-    console.log('💾 Saving profile to Supabase for:', user.email);
+    console.log('💾 Saving profile to Supabase for user:', user.id);
+    console.log('Profile data to save:', profileData);
     
     try {
+        // First, get existing profile to merge data
+        const { data: existingData, error: fetchError } = await supabase
+            .from('user_profiles')
+            .select('profile_data')
+            .eq('user_id', user.id)
+            .single();
+
+        let mergedData = profileData;
+        
+        // Merge with existing data if it exists
+        if (existingData && existingData.profile_data) {
+            mergedData = { ...existingData.profile_data, ...profileData };
+            console.log('Merged profile data:', mergedData);
+        }
+
         const { data, error } = await supabase
             .from('user_profiles')
             .upsert({
                 user_id: user.id,
                 username: user.user_metadata?.username || user.email.split('@')[0],
-                profile_data: profileData,
+                profile_data: mergedData,
                 last_updated: new Date().toISOString()
             }, { 
                 onConflict: 'user_id'
@@ -3233,11 +3250,11 @@ async function saveUserProfile(profileData) {
 
         if (error) {
             console.error('❌ Profile save failed:', error);
-            showQuickStatus('Failed to save profile!', 'error');
+            showQuickStatus('Failed to save profile: ' + error.message, 'error');
             return;
         }
 
-        console.log('✅ Profile saved to Supabase!');
+        console.log('✅ Profile saved to Supabase!', data);
         showQuickStatus('Profile saved!', 'success');
         
     } catch (error) {
@@ -3255,37 +3272,80 @@ async function loadUserProfile() {
     }
     
     try {
-        console.log('Loading profile from Supabase for user:', user.id);
+        console.log('🔍 Loading profile from Supabase for user:', user.id);
         
         const { data, error } = await supabase
             .from('user_profiles')
-            .select('profile_data')
+            .select('*')
             .eq('user_id', user.id)
             .single();
 
         if (error) {
-            console.error('❌ Profile load error:', error);
-            return null;
+            console.log('❌ No profile found in Supabase, creating new one...');
+            // Create initial profile if doesn't exist
+            const initialProfile = {
+                profilePic: null,
+                signature: '',
+                signature_html: '',
+                status: '',
+                avatarType: 'generated',
+                created: new Date().toISOString()
+            };
+            
+            await saveUserProfile(initialProfile);
+            return initialProfile;
         }
         
         console.log('✅ Profile loaded from Supabase:', data);
         
         if (data && data.profile_data) {
-            // Update profile picture if it exists
-            if (data.profile_data.profilePic) {
-                const preview = document.getElementById('profilePicPreview');
-                if (preview) {
-                    preview.innerHTML = `<img src="${data.profile_data.profilePic}" alt="${user.email}" style="width:100%;height:100%;object-fit:cover;">`;
-                }
-                updateProfileAvatar(user, data.profile_data);
-            }
+            // Update UI with loaded data
+            updateProfileUI(data.profile_data, user);
+            return data.profile_data;
         }
         
-        return data ? data.profile_data : null;
+        return null;
         
     } catch (error) {
         console.error('❌ Profile load error:', error);
         return null;
+    }
+}
+
+function updateProfileUI(profileData, user) {
+    console.log('Updating UI with profile data:', profileData);
+    
+    // Update profile picture
+    if (profileData.profilePic) {
+        const preview = document.getElementById('profilePicPreview');
+        if (preview) {
+            preview.innerHTML = `<img src="${profileData.profilePic}" alt="${user.email}" style="width:100%;height:100%;object-fit:cover;">`;
+        }
+        updateProfileAvatar(user, profileData);
+    } else {
+        // Set default avatar
+        const preview = document.getElementById('profilePicPreview');
+        if (preview) {
+            let previewText = document.getElementById('profilePicText');
+            if (!previewText) {
+                previewText = document.createElement('span');
+                previewText.id = 'profilePicText';
+                preview.appendChild(previewText);
+            }
+            previewText.textContent = (user.user_metadata?.username || user.email.split('@')[0]).charAt(0).toUpperCase();
+        }
+    }
+    
+    // Update signature
+    if (window.signatureEditor && profileData.signature_html) {
+        signatureEditor.root.innerHTML = profileData.signature_html;
+        updateSignaturePreview();
+    }
+    
+    // Update status
+    const statusSelector = document.getElementById('userStatus');
+    if (statusSelector && profileData.status) {
+        statusSelector.value = profileData.status;
     }
 }
 // FIXED Profile Picture System
