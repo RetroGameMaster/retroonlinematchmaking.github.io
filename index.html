@@ -1985,6 +1985,7 @@ body.sega-theme .music-btn:hover {
             <span class="username" id="userDisplayName">Guest</span>
             <div class="user-dropdown">
               <button id="profileBtn">Profile</button>
+              <button id="changeUsernameBtn">Change Username</button>
               <button id="favoritesBtn">My Favorites</button>
               <button id="dataManagementBtn">Data Management</button>
               <button id="logoutBtn">Logout</button>
@@ -2354,6 +2355,7 @@ body.sega-theme .music-btn:hover {
       <div class="login-tabs">
         <button class="tab-btn active" data-tab="login">Login</button>
         <button class="tab-btn" data-tab="register">Register</button>
+        <button class="tab-btn" data-tab="forgot-password">Forgot Password</button>
       </div>
       
       <form id="loginForm" class="auth-form">
@@ -2370,6 +2372,29 @@ body.sega-theme .music-btn:hover {
         <input type="password" id="registerPassword" placeholder="Create Password" required 
                style="width: 100%; padding: 12px; margin: 10px 0; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
         <button type="submit" class="button" style="width: 100%; margin-top: 1rem;">Create Account</button>
+      </form>
+      
+      <form id="forgotPasswordForm" class="auth-form" style="display: none;">
+        <input type="text" id="forgotPasswordEmail" placeholder="Enter your email" required 
+               style="width: 100%; padding: 12px; margin: 10px 0; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+        <button type="submit" class="button" style="width: 100%; margin-top: 1rem;">Reset Password</button>
+        <p style="color: #a8dfe8; font-size: 0.8rem; text-align: center; margin-top: 10px;">
+          We'll send you a password reset link
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change Username Modal -->
+  <div id="changeUsernameModal" class="modal" style="display: none;">
+    <div class="modal-content" style="background: rgba(0, 30, 60, 0.95); padding: 2rem; border-radius: 12px; max-width: 400px;">
+      <span class="close-btn" id="closeChangeUsername">&times;</span>
+      <h3 style="color: #00ffff; margin-bottom: 1.5rem;">Change Username</h3>
+      
+      <form id="changeUsernameForm">
+        <input type="text" id="newUsername" placeholder="New Username" required 
+               style="width: 100%; padding: 12px; margin: 10px 0; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+        <button type="submit" class="button" style="width: 100%; margin-top: 1rem;">Update Username</button>
       </form>
     </div>
   </div>
@@ -2759,6 +2784,7 @@ function initAccountSystem() {
     initLoginTabs();
     initLogoutHandler();
     initDataManagementHandler();
+    initChangeUsernameSystem();
     
     // Check auth state changes
     supabase.auth.onAuthStateChange((event, session) => {
@@ -2801,6 +2827,7 @@ function initLoginTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
     
     tabBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -2811,9 +2838,15 @@ function initLoginTabs() {
             if (tab === 'login') {
                 loginForm.style.display = 'block';
                 registerForm.style.display = 'none';
-            } else {
+                forgotPasswordForm.style.display = 'none';
+            } else if (tab === 'register') {
                 loginForm.style.display = 'none';
                 registerForm.style.display = 'block';
+                forgotPasswordForm.style.display = 'none';
+            } else if (tab === 'forgot-password') {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'none';
+                forgotPasswordForm.style.display = 'block';
             }
         });
     });
@@ -2822,6 +2855,7 @@ function initLoginTabs() {
 function initAuthForms() {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
     
     if (loginForm) {
         loginForm.addEventListener('submit', async function(e) {
@@ -2903,6 +2937,41 @@ function initAuthForms() {
             }
         });
     }
+    
+    if (forgotPasswordForm) {
+        forgotPasswordForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('forgotPasswordEmail').value.trim();
+            
+            if (!email) {
+                showQuickStatus('Please enter your email!', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin,
+                });
+
+                if (error) {
+                    showQuickStatus('Password reset failed: ' + error.message, 'error');
+                    return;
+                }
+
+                showQuickStatus('Password reset link sent to your email!', 'success');
+                forgotPasswordForm.reset();
+                
+                // Switch back to login tab
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelector('[data-tab="login"]').classList.add('active');
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('forgotPasswordForm').style.display = 'none';
+                
+            } catch (err) {
+                showQuickStatus('Password reset error: ' + err.message, 'error');
+            }
+        });
+    }
 }
 
 function checkLoginStatus() {
@@ -2915,7 +2984,11 @@ function checkLoginStatus() {
         if (user) {
             if (loginBtn) loginBtn.style.display = 'none';
             if (userSection) userSection.style.display = 'flex';
-            if (userDisplayName) userDisplayName.textContent = user.email.split('@')[0];
+            
+            // Get username from user metadata or use email prefix
+            const username = user.user_metadata?.username || user.email.split('@')[0];
+            if (userDisplayName) userDisplayName.textContent = username;
+            
             console.log('✅ User logged in via Supabase:', user.email);
             
             // Initialize user systems
@@ -2942,6 +3015,89 @@ function initLogoutHandler() {
                     showQuickStatus('Logged out successfully!', 'info');
                     checkLoginStatus();
                 }
+            }
+        });
+    }
+}
+
+function initChangeUsernameSystem() {
+    const changeUsernameBtn = document.getElementById('changeUsernameBtn');
+    const changeUsernameModal = document.getElementById('changeUsernameModal');
+    const closeChangeUsername = document.getElementById('closeChangeUsername');
+    const changeUsernameForm = document.getElementById('changeUsernameForm');
+    
+    if (changeUsernameBtn) {
+        changeUsernameBtn.addEventListener('click', function() {
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (!user) {
+                    showQuickStatus('Please login first!', 'error');
+                    return;
+                }
+                changeUsernameModal.style.display = 'flex';
+            });
+        });
+    }
+    
+    if (closeChangeUsername) {
+        closeChangeUsername.addEventListener('click', function() {
+            changeUsernameModal.style.display = 'none';
+        });
+    }
+    
+    if (changeUsernameModal) {
+        changeUsernameModal.addEventListener('click', function(e) {
+            if (e.target === changeUsernameModal) {
+                changeUsernameModal.style.display = 'none';
+            }
+        });
+    }
+    
+    if (changeUsernameForm) {
+        changeUsernameForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const newUsername = document.getElementById('newUsername').value.trim();
+            
+            if (!newUsername) {
+                showQuickStatus('Please enter a username!', 'error');
+                return;
+            }
+            
+            if (newUsername.length < 3) {
+                showQuickStatus('Username must be at least 3 characters!', 'error');
+                return;
+            }
+            
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    showQuickStatus('Please login first!', 'error');
+                    return;
+                }
+                
+                // Update user metadata with new username
+                const { error } = await supabase.auth.updateUser({
+                    data: { username: newUsername }
+                });
+                
+                if (error) {
+                    showQuickStatus('Username update failed: ' + error.message, 'error');
+                    return;
+                }
+                
+                // Update display
+                const userDisplayName = document.getElementById('userDisplayName');
+                if (userDisplayName) userDisplayName.textContent = newUsername;
+                
+                // Update profile display if open
+                const profileUsername = document.getElementById('profileUsername');
+                if (profileUsername) profileUsername.textContent = newUsername;
+                
+                showQuickStatus('Username updated successfully!', 'success');
+                changeUsernameModal.style.display = 'none';
+                changeUsernameForm.reset();
+                
+            } catch (err) {
+                showQuickStatus('Username update error: ' + err.message, 'error');
             }
         });
     }
@@ -3048,7 +3204,7 @@ async function saveUserProfile(profileData) {
     
     const payload = {
         user_id: user.id,
-        username: user.email.split('@')[0],
+        username: user.user_metadata?.username || user.email.split('@')[0],
         profile_data: profileData,
         last_updated: new Date().toISOString()
     };
@@ -3128,7 +3284,7 @@ function initProfilePictureSystem() {
             previewText.id = 'profilePicText';
             preview.appendChild(previewText);
           }
-          previewText.textContent = user.email.split('@')[0].charAt(0).toUpperCase();
+          previewText.textContent = (user.user_metadata?.username || user.email.split('@')[0]).charAt(0).toUpperCase();
           console.log('Using default avatar');
         }
         
@@ -3147,7 +3303,7 @@ function updateProfileAvatar(user, profile) {
         } else {
             const avatarText = avatarLarge.querySelector('#profileAvatarText');
             if (avatarText) {
-                avatarText.textContent = user.email.split('@')[0].charAt(0).toUpperCase();
+                avatarText.textContent = (user.user_metadata?.username || user.email.split('@')[0]).charAt(0).toUpperCase();
             }
         }
     }
@@ -3457,7 +3613,7 @@ function exportProfile() {
             const dataStr = JSON.stringify(profile, null, 2);
             const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
             
-            const exportFileDefaultName = `rom-profile-${user.email.split('@')[0]}.json`;
+            const exportFileDefaultName = `rom-profile-${user.user_metadata?.username || user.email.split('@')[0]}.json`;
             const linkElement = document.createElement('a');
             linkElement.setAttribute('href', dataUri);
             linkElement.setAttribute('download', exportFileDefaultName);
@@ -3522,7 +3678,7 @@ function clearProfileData() {
             const preview = document.getElementById('profilePicPreview');
             const previewText = document.getElementById('profilePicText');
             preview.innerHTML = '';
-            previewText.textContent = user.email.split('@')[0].charAt(0).toUpperCase();
+            previewText.textContent = (user.user_metadata?.username || user.email.split('@')[0]).charAt(0).toUpperCase();
             preview.appendChild(previewText);
             
             if (signatureEditor) {
@@ -3555,7 +3711,7 @@ function updateProfileDisplay() {
                     } else {
                         const avatarText = avatarContainer.querySelector('#profileAvatarText');
                         if (avatarText) {
-                            avatarText.textContent = user.email.split('@')[0].charAt(0).toUpperCase();
+                            avatarText.textContent = (user.user_metadata?.username || user.email.split('@')[0]).charAt(0).toUpperCase();
                         }
                     }
                 }
@@ -3634,11 +3790,11 @@ function postToWall() {
         }
         
         // Determine which user's wall we're posting on
-        const profileUsername = document.getElementById('profileUsername')?.textContent || user.email.split('@')[0];
+        const profileUsername = document.getElementById('profileUsername')?.textContent || (user.user_metadata?.username || user.email.split('@')[0]);
         
         const post = {
             id: Date.now().toString(),
-            author: user.email.split('@')[0],
+            author: user.user_metadata?.username || user.email.split('@')[0],
             targetUser: profileUsername, // Who's wall this is posted on
             content: postText,
             timestamp: new Date().toISOString(),
@@ -3657,7 +3813,7 @@ function postToWall() {
         appendWallPost(post);
         document.getElementById('wallPostText').value = '';
         updateUserStats();
-        showQuickStatus(`Posted to ${profileUsername === user.email.split('@')[0] ? 'your' : profileUsername + "'s"} wall!`, 'success');
+        showQuickStatus(`Posted to ${profileUsername === (user.user_metadata?.username || user.email.split('@')[0]) ? 'your' : profileUsername + "'s"} wall!`, 'success');
     });
 }
 
@@ -3704,7 +3860,7 @@ async function loadWallPostsForUser(userToView = null) {
     if (!viewingUsername) {
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (user) {
-                viewingUsername = document.getElementById('profileUsername')?.textContent || user.email.split('@')[0];
+                viewingUsername = document.getElementById('profileUsername')?.textContent || (user.user_metadata?.username || user.email.split('@')[0]);
                 loadWallPostsForUsername(viewingUsername, wallPostsContainer);
             }
         });
@@ -3776,7 +3932,7 @@ function appendWallPost(post) {
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
         
-        const currentUsername = user.email.split('@')[0];
+        const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
         const postDiv = document.createElement('div');
         postDiv.className = 'wall-post';
         postDiv.dataset.postId = post.id;
@@ -3877,7 +4033,7 @@ async function loadUserProfileForDisplay() {
         const usernameElement = document.getElementById('profileUsername');
         const joinDateElement = document.getElementById('profileJoinDate');
         
-        if (usernameElement) usernameElement.textContent = user.email.split('@')[0];
+        if (usernameElement) usernameElement.textContent = user.user_metadata?.username || user.email.split('@')[0];
         if (joinDateElement) {
             const joinDate = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Recently';
             joinDateElement.textContent = `Joined: ${joinDate}`;
@@ -3902,7 +4058,7 @@ async function loadUserProfileForDisplay() {
                         previewText.id = 'profilePicText';
                         preview.appendChild(previewText);
                     }
-                    previewText.textContent = user.email.split('@')[0].charAt(0).toUpperCase();
+                    previewText.textContent = (user.user_metadata?.username || user.email.split('@')[0]).charAt(0).toUpperCase();
                 }
             }
             
@@ -3947,13 +4103,13 @@ function updateUserStats() {
         
         // Get posts count
         const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
-        const userPosts = wallPosts.filter(post => post.author === user.email.split('@')[0]).length;
+        const userPosts = wallPosts.filter(post => post.author === (user.user_metadata?.username || user.email.split('@')[0])).length;
         const postsElement = document.getElementById('postsCount');
         if (postsElement) postsElement.textContent = userPosts;
         
         // Get messages count
         const chatMessages = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
-        const userMessages = chatMessages.filter(msg => msg.username === user.email.split('@')[0]).length;
+        const userMessages = chatMessages.filter(msg => msg.username === (user.user_metadata?.username || user.email.split('@')[0])).length;
         const messagesElement = document.getElementById('messagesCount');
         if (messagesElement) messagesElement.textContent = userMessages;
         
@@ -4067,7 +4223,7 @@ function sendChatMessage() {
         
         const messageObj = {
             id: Date.now(),
-            username: user.email.split('@')[0],
+            username: user.user_metadata?.username || user.email.split('@')[0],
             text: message,
             timestamp: new Date().toISOString(),
             type: 'global',
@@ -4096,7 +4252,7 @@ function loadChatMessages() {
     // Add isOwn property to each message
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) {
-            const currentUsername = user.email.split('@')[0];
+            const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
             chatData.forEach(msg => {
                 msg.isOwn = msg.username === currentUsername;
             });
@@ -4119,7 +4275,14 @@ function updateOnlineUsers() {
     
     if (!onlineList) return;
     
-    // For now, use demo data - you can implement real online tracking later
+    // For mobile, show empty state instead of demo users
+    if (window.innerWidth <= 768) {
+        onlineList.innerHTML = '<div style="color: #a8dfe8; text-align: center; padding: 10px;">No users online</div>';
+        if (onlineCount) onlineCount.textContent = '0 users online';
+        return;
+    }
+    
+    // For desktop, use demo data - you can implement real online tracking later
     const demoUsers = [
         { username: 'RetroGamer', status: '🎮 Gaming' },
         { username: 'PixelPusher', status: '💻 Online' },
@@ -4259,7 +4422,7 @@ function loadActiveLobbies() {
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
         
-        const currentUsername = user.email.split('@')[0];
+        const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
         
         if (lobbies.length === 0) {
             activeLobbies.innerHTML = '<p style="color: #a8dfe8; text-align: center; grid-column: 1 / -1;">No active lobbies. Create one!</p>';
@@ -4326,9 +4489,9 @@ function initLobbyCreation() {
             const newLobby = {
                 id: Date.now().toString(),
                 game: game,
-                host: user.email.split('@')[0],
+                host: user.user_metadata?.username || user.email.split('@')[0],
                 maxPlayers: Math.max(2, Math.min(8, maxPlayers)),
-                players: [user.email.split('@')[0]],
+                players: [user.user_metadata?.username || user.email.split('@')[0]],
                 status: 'Waiting for players',
                 created: new Date().toISOString()
             };
@@ -4358,7 +4521,7 @@ function joinLobby(lobbyId) {
             return;
         }
 
-        if (lobby.players.includes(user.email.split('@')[0])) {
+        if (lobby.players.includes(user.user_metadata?.username || user.email.split('@')[0])) {
             showQuickStatus('You are already in this lobby!', 'info');
             return;
         }
@@ -4368,7 +4531,7 @@ function joinLobby(lobbyId) {
             return;
         }
 
-        lobby.players.push(user.email.split('@')[0]);
+        lobby.players.push(user.user_metadata?.username || user.email.split('@')[0]);
         localStorage.setItem('rom-game-lobbies', JSON.stringify(lobbies));
         
         showQuickStatus(`Joined ${lobby.game} lobby!`, 'success');
@@ -4394,7 +4557,7 @@ function closeLobby(lobbyId) {
         const lobby = lobbies[lobbyIndex];
         
         // Only host can close the lobby
-        if (lobby.host !== user.email.split('@')[0]) {
+        if (lobby.host !== (user.user_metadata?.username || user.email.split('@')[0])) {
             showQuickStatus('Only the lobby host can close the lobby!', 'error');
             return;
         }
@@ -4494,7 +4657,7 @@ function initLivePlayerCount() {
         // Update display - show online/total format
         playerCountElement.textContent = `${onlineCount}/${userCount}`;
         
-        console.log(`📊 User Stats: ${onlineCount} online / ${userCount} total registered`);
+        console.log('📊 User Stats: ${onlineCount} online / ${userCount} total registered');
     }
     
     // Update count every 30 seconds
