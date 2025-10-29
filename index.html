@@ -3217,29 +3217,32 @@ async function saveUserProfile(profileData) {
         return;
     }
     
-    console.log('💾 Saving profile for:', user.email);
+    console.log('💾 Saving profile to Supabase for:', user.email);
     
-    const payload = {
-        user_id: user.id,
-        username: user.user_metadata?.username || user.email.split('@')[0],
-        profile_data: profileData,
-        last_updated: new Date().toISOString()
-    };
+    try {
+        const { data, error } = await supabase
+            .from('user_profiles')
+            .upsert({
+                user_id: user.id,
+                username: user.user_metadata?.username || user.email.split('@')[0],
+                profile_data: profileData,
+                last_updated: new Date().toISOString()
+            }, { 
+                onConflict: 'user_id'
+            });
 
-    const { data, error } = await supabase
-        .from('user_profiles')
-        .upsert(payload, { 
-            onConflict: 'user_id'
-        });
+        if (error) {
+            console.error('❌ Profile save failed:', error);
+            showQuickStatus('Failed to save profile!', 'error');
+            return;
+        }
 
-    if (error) {
-        console.error('❌ Profile save failed:', error);
-        // Fallback to localStorage for now
-        localStorage.setItem(`rom-profile-${user.id}`, JSON.stringify(profileData));
-        showQuickStatus('Profile saved locally (Supabase error)', 'warning');
-    } else {
         console.log('✅ Profile saved to Supabase!');
         showQuickStatus('Profile saved!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Profile save error:', error);
+        showQuickStatus('Profile save error!', 'error');
     }
 }
 
@@ -3252,6 +3255,8 @@ async function loadUserProfile() {
     }
     
     try {
+        console.log('Loading profile from Supabase for user:', user.id);
+        
         const { data, error } = await supabase
             .from('user_profiles')
             .select('profile_data')
@@ -3260,18 +3265,27 @@ async function loadUserProfile() {
 
         if (error) {
             console.error('❌ Profile load error:', error);
-            // Fallback to localStorage
-            const localProfile = localStorage.getItem(`rom-profile-${user.id}`);
-            return localProfile ? JSON.parse(localProfile) : null;
+            return null;
         }
         
         console.log('✅ Profile loaded from Supabase:', data);
+        
+        if (data && data.profile_data) {
+            // Update profile picture if it exists
+            if (data.profile_data.profilePic) {
+                const preview = document.getElementById('profilePicPreview');
+                if (preview) {
+                    preview.innerHTML = `<img src="${data.profile_data.profilePic}" alt="${user.email}" style="width:100%;height:100%;object-fit:cover;">`;
+                }
+                updateProfileAvatar(user, data.profile_data);
+            }
+        }
+        
         return data ? data.profile_data : null;
         
     } catch (error) {
         console.error('❌ Profile load error:', error);
-        const localProfile = localStorage.getItem(`rom-profile-${user.id}`);
-        return localProfile ? JSON.parse(localProfile) : null;
+        return null;
     }
 }
 // FIXED Profile Picture System
@@ -3339,48 +3353,67 @@ function handleProfilePicUpload(event) {
     }
     
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         console.log('File read successfully, compressing...');
         
-        // Use simpler compression that actually works
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Resize to max 150x150
-            let width = img.width;
-            let height = img.height;
-            const maxDimension = 150;
-            
-            if (width > height && width > maxDimension) {
-                height = (height * maxDimension) / width;
-                width = maxDimension;
-            } else if (height > maxDimension) {
-                width = (width * maxDimension) / height;
-                height = maxDimension;
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Convert to data URL
-            const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
-            console.log('Image compressed, size:', Math.round(compressedImage.length / 1024), 'KB');
-            
-            supabase.auth.getUser().then(({ data: { user } }) => {
-                if (user) {
-                    console.log('Saving profile picture for:', user.email);
+        try {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Resize to max 150x150
+                let width = img.width;
+                let height = img.height;
+                const maxDimension = 150;
+                
+                if (width > height && width > maxDimension) {
+                    height = (height * maxDimension) / width;
+                    width = maxDimension;
+                } else if (height > maxDimension) {
+                    width = (width * maxDimension) / height;
+                    height = maxDimension;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to data URL
+                const compressedImage = canvas.toDataURL('image/jpeg', 0.8);
+                console.log('Image compressed, size:', Math.round(compressedImage.length / 1024), 'KB');
+                
+                supabase.auth.getUser().then(async ({ data: { user } }) => {
+                    if (!user) {
+                        showQuickStatus('Please login first!', 'error');
+                        return;
+                    }
+
+                    console.log('Saving profile picture to Supabase for:', user.email);
                     
-                    // Save to Supabase
-                    saveUserProfile({
-                        profilePic: compressedImage,
-                        avatarType: 'custom',
-                        lastUpdated: new Date().toISOString()
-                    });
-                    
-                    console.log('Profile picture saved to Supabase');
+                    // Save DIRECTLY to Supabase
+                    const { data, error } = await supabase
+                        .from('user_profiles')
+                        .upsert({
+                            user_id: user.id,
+                            username: user.user_metadata?.username || user.email.split('@')[0],
+                            profile_data: {
+                                profilePic: compressedImage,
+                                avatarType: 'custom',
+                                lastUpdated: new Date().toISOString()
+                            },
+                            last_updated: new Date().toISOString()
+                        }, { 
+                            onConflict: 'user_id'
+                        });
+
+                    if (error) {
+                        console.error('❌ Supabase profile picture save failed:', error);
+                        showQuickStatus('Failed to save profile picture!', 'error');
+                        return;
+                    }
+
+                    console.log('✅ Profile picture saved to Supabase!');
                     
                     // Update preview immediately
                     const preview = document.getElementById('profilePicPreview');
@@ -3392,11 +3425,13 @@ function handleProfilePicUpload(event) {
                     updateProfileAvatar(user, { profilePic: compressedImage });
                     
                     showQuickStatus('Profile picture saved successfully!', 'success');
-                    updateStorageInfo();
-                }
-            });
-        };
-        img.src = e.target.result;
+                });
+            };
+            img.src = e.target.result;
+        } catch (err) {
+            console.error('Error processing image:', err);
+            showQuickStatus('Error processing image', 'error');
+        }
     };
     
     reader.onerror = function() {
