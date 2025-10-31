@@ -1389,6 +1389,182 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   object-fit: cover;
 }
 
+/* NEW: Profile Background Styles */
+.profile-background-section {
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0, 30, 60, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.profile-background-preview {
+  width: 100%;
+  height: 150px;
+  border: 2px solid #00ffff;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00ffff;
+  font-weight: bold;
+}
+
+.profile-background-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.background-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.background-option {
+  height: 80px;
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.background-option:hover {
+  border-color: #00ffff;
+  transform: scale(1.05);
+}
+
+.background-option.active {
+  border-color: #00ffff;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.background-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.background-option.color {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #000;
+}
+
+.background-option.custom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: rgba(0, 255, 255, 0.1);
+  color: #00ffff;
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+/* NEW: Profile Music Player Styles */
+.profile-music-section {
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0, 30, 60, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.profile-music-preview {
+  width: 100%;
+  padding: 15px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid #00ffff;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.profile-music-info {
+  flex: 1;
+}
+
+.profile-music-title {
+  color: #00ffff;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.profile-music-artist {
+  color: #a8dfe8;
+  font-size: 0.9rem;
+}
+
+.profile-music-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.profile-music-btn {
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid #00ffff;
+  border-radius: 4px;
+  color: #00ffff;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.profile-music-btn:hover {
+  background: rgba(0, 255, 255, 0.2);
+}
+
+.music-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.music-option {
+  padding: 10px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.music-option:hover {
+  border-color: #00ffff;
+  background: rgba(0, 255, 255, 0.1);
+}
+
+.music-option.active {
+  border-color: #00ffff;
+  background: rgba(0, 255, 255, 0.2);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.music-option-title {
+  color: #00ffff;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.music-option-artist {
+  color: #a8dfe8;
+  font-size: 0.8rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .social-hub-content {
@@ -1511,6 +1687,16 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   .profile-meta {
     justify-content: center;
     flex-wrap: wrap;
+  }
+
+  /* Background options mobile */
+  .background-options {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+
+  /* Music options mobile */
+  .music-options {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2503,6 +2689,91 @@ body.sega-theme .music-btn:hover {
                 <option value="😎 Chilling">😎 Chilling</option>
               </select>
               
+              <!-- NEW: Profile Background Section -->
+              <div class="profile-background-section">
+                <h4 style="color: #00ffff; margin-bottom: 15px;">🎨 Profile Background</h4>
+                
+                <div class="profile-background-preview" id="profileBackgroundPreview">
+                  <span id="backgroundPreviewText">Profile Background Preview</span>
+                </div>
+                
+                <div class="background-options">
+                  <div class="background-option color" data-background="linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)" style="background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);">
+                    Cyber Space
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #1e3c72, #2a5298)" style="background: linear-gradient(135deg, #1e3c72, #2a5298);">
+                    Deep Blue
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #667eea, #764ba2)" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    Purple Haze
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #f093fb, #f5576c)" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                    Pink Dream
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #4facfe, #00f2fe)" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                    Ocean Breeze
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #43e97b, #38f9d7)" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                    Green Matrix
+                  </div>
+                  <div class="background-option custom" id="customBackgroundOption">
+                    <span>🖼️ Custom</span>
+                    <small>Upload Image</small>
+                  </div>
+                </div>
+                
+                <input type="file" id="backgroundImageUpload" accept="image/*" style="display: none;">
+                <button onclick="document.getElementById('backgroundImageUpload').click()" class="button" style="width: 100%; margin-top: 10px;">Upload Custom Background</button>
+                <p style="color: #a8dfe8; font-size: 0.8rem; text-align: center; margin-top: 5px;">Max 100KB • JPG/PNG recommended</p>
+              </div>
+              
+              <!-- NEW: Profile Music Section -->
+              <div class="profile-music-section">
+                <h4 style="color: #00ffff; margin-bottom: 15px;">🎵 Profile Music</h4>
+                
+                <div class="profile-music-preview" id="profileMusicPreview">
+                  <div class="profile-music-info">
+                    <div class="profile-music-title" id="profileMusicTitle">No music selected</div>
+                    <div class="profile-music-artist" id="profileMusicArtist">Choose a track below</div>
+                  </div>
+                  <div class="profile-music-controls">
+                    <button class="profile-music-btn" id="profilePlayPause">▶️</button>
+                    <button class="profile-music-btn" id="profileStopMusic">⏹️</button>
+                  </div>
+                </div>
+                
+                <div class="music-options">
+                  <div class="music-option" data-music='{"id": "y909GFK2n_c", "title": "Video Game OST Radio", "artist": "Retro Gaming"}'>
+                    <div class="music-option-title">🎮 Video Game OST Radio</div>
+                    <div class="music-option-artist">Retro Gaming</div>
+                  </div>
+                  <div class="music-option" data-music='{"id": "jfKfPfyJRdk", "title": "Chill Lofi Beats", "artist": "Lofi Girl"}'>
+                    <div class="music-option-title">💤 Chill Lofi Beats</div>
+                    <div class="music-option-artist">Lofi Girl</div>
+                  </div>
+                  <div class="music-option" data-music='{"id": "4xDzrJKXOOY", "title": "Synthwave Retro Radio", "artist": "Synthwave"}'>
+                    <div class="music-option-title">🌃 Synthwave Retro Radio</div>
+                    <div class="music-option-artist">Synthwave</div>
+                  </div>
+                  <div class="music-option" data-music='{"id": "N2UYLx5BGI4", "title": "RPG Music Radio", "artist": "Final Fantasy & RPG"}'>
+                    <div class="music-option-title">✨ RPG Music Radio</div>
+                    <div class="music-option-artist">Final Fantasy & RPG</div>
+                  </div>
+                  <div class="music-option" data-music='{"id": "3H6UL3y0K8E", "title": "Pokemon Lofi", "artist": "Pokemon"}'>
+                    <div class="music-option-title">⚡ Pokemon Lofi</div>
+                    <div class="music-option-artist">Pokemon</div>
+                  </div>
+                  <div class="music-option" data-music='{"id": "rWc0L-NpAzc", "title": "Classic Game Music", "artist": "Classic Games"}'>
+                    <div class="music-option-title">🕹️ Classic Game Music</div>
+                    <div class="music-option-artist">Classic Games</div>
+                  </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 10px;">
+                  <button class="button muted" id="disableProfileMusic">Disable Profile Music</button>
+                </div>
+              </div>
+              
               <!-- HTML Signature Editor -->
               <div class="signature-editor-container">
                 <div class="signature-editor-toolbar" id="signatureToolbar">
@@ -3037,6 +3308,16 @@ function updateProfileUI(user, profileData) {
     const statusSelector = document.getElementById('userStatus');
     if (statusSelector && profileData.status) {
         statusSelector.value = profileData.status;
+    }
+    
+    // Update background
+    if (profileData.background) {
+        updateProfileBackgroundPreview(profileData.background);
+    }
+    
+    // Update music
+    if (profileData.music) {
+        updateProfileMusicPreview(profileData.music);
     }
     
     console.log('✅ UI updated with profile data');
@@ -3598,6 +3879,276 @@ function handleProfilePicUpload(event) {
     reader.readAsDataURL(file);
 }
 
+/* ---------- NEW: PROFILE BACKGROUND SYSTEM ---------- */
+function initProfileBackgroundSystem() {
+    const backgroundOptions = document.querySelectorAll('.background-option');
+    const backgroundUpload = document.getElementById('backgroundImageUpload');
+    const backgroundPreview = document.getElementById('profileBackgroundPreview');
+    
+    // Load current background
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+            loadUserProfile().then(profile => {
+                if (profile && profile.background) {
+                    updateProfileBackgroundPreview(profile.background);
+                    
+                    // Mark active option
+                    backgroundOptions.forEach(option => {
+                        if (option.dataset.background === profile.background) {
+                            option.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }
+    });
+    
+    // Background option click handlers
+    backgroundOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            if (this.id === 'customBackgroundOption') {
+                backgroundUpload.click();
+                return;
+            }
+            
+            const background = this.dataset.background;
+            selectBackgroundOption(this);
+            updateProfileBackgroundPreview(background);
+            saveUserProfile({ background: background });
+            showQuickStatus('Background updated!', 'success');
+        });
+    });
+    
+    // Custom background upload
+    backgroundUpload.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Check file size (max 100KB)
+        if (file.size > 100 * 1024) {
+            showQuickStatus('Background image too large! Max 100KB.', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const customBackground = e.target.result;
+            updateProfileBackgroundPreview(`url(${customBackground})`);
+            saveUserProfile({ background: customBackground });
+            showQuickStatus('Custom background saved!', 'success');
+            
+            // Mark custom option as active
+            selectBackgroundOption(document.getElementById('customBackgroundOption'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function selectBackgroundOption(selectedOption) {
+    // Remove active class from all options
+    document.querySelectorAll('.background-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    
+    // Add active class to selected option
+    selectedOption.classList.add('active');
+}
+
+function updateProfileBackgroundPreview(background) {
+    const preview = document.getElementById('profileBackgroundPreview');
+    if (!preview) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else if (background.startsWith('linear-gradient')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else {
+        preview.style.backgroundImage = `url(${background})`;
+        preview.innerHTML = '';
+    }
+}
+
+/* ---------- NEW: PROFILE MUSIC SYSTEM ---------- */
+function initProfileMusicSystem() {
+    const musicOptions = document.querySelectorAll('.music-option');
+    const playPauseBtn = document.getElementById('profilePlayPause');
+    const stopBtn = document.getElementById('profileStopMusic');
+    const disableBtn = document.getElementById('disableProfileMusic');
+    let profileMusicPlayer = null;
+    let currentMusic = null;
+    let isPlaying = false;
+    
+    // Load current music
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+            loadUserProfile().then(profile => {
+                if (profile && profile.music) {
+                    currentMusic = profile.music;
+                    updateProfileMusicPreview(profile.music);
+                    
+                    // Mark active option
+                    musicOptions.forEach(option => {
+                        const musicData = JSON.parse(option.dataset.music);
+                        if (musicData.id === profile.music.id) {
+                            option.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }
+    });
+    
+    // Music option click handlers
+    musicOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const musicData = JSON.parse(this.dataset.music);
+            selectMusicOption(this);
+            updateProfileMusicPreview(musicData);
+            currentMusic = musicData;
+            saveUserProfile({ music: musicData });
+            showQuickStatus('Profile music updated!', 'success');
+            
+            // Stop current music if playing
+            if (isPlaying) {
+                stopProfileMusic();
+            }
+        });
+    });
+    
+    // Play/Pause button
+    playPauseBtn.addEventListener('click', function() {
+        if (!currentMusic) {
+            showQuickStatus('No music selected!', 'error');
+            return;
+        }
+        
+        if (!isPlaying) {
+            playProfileMusic();
+        } else {
+            pauseProfileMusic();
+        }
+    });
+    
+    // Stop button
+    stopBtn.addEventListener('click', function() {
+        stopProfileMusic();
+    });
+    
+    // Disable music button
+    disableBtn.addEventListener('click', function() {
+        currentMusic = null;
+        stopProfileMusic();
+        updateProfileMusicPreview(null);
+        saveUserProfile({ music: null });
+        
+        // Remove active class from all options
+        musicOptions.forEach(option => {
+            option.classList.remove('active');
+        });
+        
+        showQuickStatus('Profile music disabled!', 'info');
+    });
+}
+
+function selectMusicOption(selectedOption) {
+    // Remove active class from all options
+    document.querySelectorAll('.music-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    
+    // Add active class to selected option
+    selectedOption.classList.add('active');
+}
+
+function updateProfileMusicPreview(musicData) {
+    const titleElement = document.getElementById('profileMusicTitle');
+    const artistElement = document.getElementById('profileMusicArtist');
+    const playPauseBtn = document.getElementById('profilePlayPause');
+    
+    if (!musicData) {
+        titleElement.textContent = 'No music selected';
+        artistElement.textContent = 'Choose a track below';
+        playPauseBtn.textContent = '▶️';
+        return;
+    }
+    
+    titleElement.textContent = musicData.title;
+    artistElement.textContent = musicData.artist;
+}
+
+function playProfileMusic() {
+    if (!currentMusic || !window.YT) return;
+    
+    const playPauseBtn = document.getElementById('profilePlayPause');
+    
+    if (!profileMusicPlayer) {
+        // Create invisible YouTube player for profile music
+        const playerDiv = document.createElement('div');
+        playerDiv.id = 'profile-music-player';
+        playerDiv.style.cssText = 'position: fixed; top: -1000px; left: -1000px; width: 1px; height: 1px;';
+        document.body.appendChild(playerDiv);
+        
+        profileMusicPlayer = new YT.Player('profile-music-player', {
+            height: '1',
+            width: '1',
+            videoId: currentMusic.id,
+            playerVars: {
+                'autoplay': 1,
+                'controls': 0,
+                'disablekb': 1,
+                'fs': 0,
+                'iv_load_policy': 3,
+                'modestbranding': 1,
+                'playsinline': 1,
+                'rel': 0,
+                'showinfo': 0
+            },
+            events: {
+                'onReady': function(event) {
+                    event.target.playVideo();
+                    isPlaying = true;
+                    playPauseBtn.textContent = '⏸️';
+                    showQuickStatus(`Now playing: ${currentMusic.title}`, 'success');
+                },
+                'onStateChange': function(event) {
+                    if (event.data === YT.PlayerState.ENDED) {
+                        isPlaying = false;
+                        playPauseBtn.textContent = '▶️';
+                    } else if (event.data === YT.PlayerState.PLAYING) {
+                        isPlaying = true;
+                        playPauseBtn.textContent = '⏸️';
+                    } else if (event.data === YT.PlayerState.PAUSED) {
+                        isPlaying = false;
+                        playPauseBtn.textContent = '▶️';
+                    }
+                }
+            }
+        });
+    } else {
+        profileMusicPlayer.loadVideoById(currentMusic.id);
+        isPlaying = true;
+        playPauseBtn.textContent = '⏸️';
+    }
+}
+
+function pauseProfileMusic() {
+    if (profileMusicPlayer && isPlaying) {
+        profileMusicPlayer.pauseVideo();
+        isPlaying = false;
+        document.getElementById('profilePlayPause').textContent = '▶️';
+    }
+}
+
+function stopProfileMusic() {
+    if (profileMusicPlayer) {
+        profileMusicPlayer.stopVideo();
+        isPlaying = false;
+        document.getElementById('profilePlayPause').textContent = '▶️';
+    }
+}
+
 /* ---------- HTML SIGNATURE EDITOR SYSTEM ---------- */
 let signatureEditor = null;
 
@@ -3862,6 +4413,8 @@ function initImportSystem() {
                         initProfilePictureSystem();
                         initSignatureEditor();
                         initStatusSystem();
+                        initProfileBackgroundSystem();
+                        initProfileMusicSystem();
                     }
                 });
             } catch (error) {
@@ -3889,7 +4442,9 @@ function clearProfileData() {
                 signature: '',
                 signature_html: '',
                 status: '',
-                avatarType: 'generated'
+                avatarType: 'generated',
+                background: null,
+                music: null
             });
             
             // Reset UI
@@ -3905,6 +4460,23 @@ function clearProfileData() {
             
             document.getElementById('userStatus').value = '';
             document.getElementById('signatureCount').textContent = '0';
+            
+            // Reset background and music
+            updateProfileBackgroundPreview('linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)');
+            updateProfileMusicPreview(null);
+            
+            // Remove active classes
+            document.querySelectorAll('.background-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelectorAll('.music-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            
+            // Stop music if playing
+            if (window.profileMusicPlayer) {
+                stopProfileMusic();
+            }
             
             showQuickStatus('Profile data cleared!', 'success');
             updateStorageInfo();
@@ -4227,6 +4799,8 @@ function initCustomizationSystems() {
     initSignatureEditor(); // Updated to use HTML editor
     initStatusSystem();
     initImportSystem();
+    initProfileBackgroundSystem(); // NEW: Background system
+    initProfileMusicSystem(); // NEW: Music system
     updateStorageInfo();
     
     // Update storage info every 30 seconds
@@ -4295,6 +4869,33 @@ async function loadUserProfileForDisplay() {
             const statusSelector = document.getElementById('userStatus');
             if (statusSelector && profile.status) {
                 statusSelector.value = profile.status;
+            }
+            
+            // Update background
+            if (profile.background) {
+                updateProfileBackgroundPreview(profile.background);
+                
+                // Mark active background option
+                document.querySelectorAll('.background-option').forEach(option => {
+                    if (option.dataset.background === profile.background) {
+                        option.classList.add('active');
+                    } else if (profile.background.startsWith('data:') && option.id === 'customBackgroundOption') {
+                        option.classList.add('active');
+                    }
+                });
+            }
+            
+            // Update music
+            if (profile.music) {
+                updateProfileMusicPreview(profile.music);
+                
+                // Mark active music option
+                document.querySelectorAll('.music-option').forEach(option => {
+                    const musicData = JSON.parse(option.dataset.music);
+                    if (musicData.id === profile.music.id) {
+                        option.classList.add('active');
+                    }
+                });
             }
             
             // Update profile header avatar
