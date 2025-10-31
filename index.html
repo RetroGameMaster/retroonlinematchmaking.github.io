@@ -2877,44 +2877,92 @@ function saveSignature() {
 
 /* ---------- FIXED REAL-TIME PLAYER COUNT ---------- */
 
+/* ---------- REAL-TIME PLAYER COUNT SYSTEM ---------- */
 function initLivePlayerCount() {
     const playerCountElement = document.getElementById('playerCount');
     if (!playerCountElement) return;
     
-    // Simulate real-time updates
-    function updateRealPlayerCount() {
-        // Base counts with some variation to simulate real activity
-        const baseOnline = 4;
-        const baseTotal = 12;
-        
-        // Add some random variation to make it feel live
-        const onlineVariation = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
-        const onlineCount = Math.max(1, baseOnline + onlineVariation);
-        const totalCount = baseTotal + Math.floor(Math.random() * 2); // occasional new user
-        
-        // Update display
-        playerCountElement.textContent = `${onlineCount}/${totalCount}`;
-        
-        // Add visual feedback for changes
-        playerCountElement.classList.add('player-count-animation');
-        setTimeout(() => {
-            playerCountElement.classList.remove('player-count-animation');
-        }, 1000);
-        
-        console.log(`📊 Updated User Stats: ${onlineCount} online / ${totalCount} total`);
+    let onlineSubscription = null;
+    
+    async function updateRealPlayerCount() {
+        try {
+            // Get total registered users
+            const { count: totalCount, error: totalError } = await supabase
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true });
+            
+            if (totalError) throw totalError;
+            
+            // Get online users (active in last 15 minutes)
+            const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+            const { count: onlineCount, error: onlineError } = await supabase
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true })
+                .gt('last_updated', fifteenMinutesAgo);
+            
+            if (onlineError) throw onlineError;
+            
+            // Update display
+            playerCountElement.textContent = `${onlineCount || 0}/${totalCount || 0}`;
+            
+            // Add visual feedback
+            playerCountElement.classList.add('player-count-animation');
+            setTimeout(() => {
+                playerCountElement.classList.remove('player-count-animation');
+            }, 1000);
+            
+            console.log(`📊 Real User Stats: ${onlineCount} online / ${totalCount} total`);
+            
+        } catch (error) {
+            console.error('Error updating player count:', error);
+        }
     }
     
-    // Update more frequently
-    setInterval(updateRealPlayerCount, 15000); // Every 15 seconds
+    // Subscribe to real-time updates
+    function subscribeToUserUpdates() {
+        if (onlineSubscription) return;
+        
+        onlineSubscription = supabase
+            .channel('online-users')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'user_profiles'
+                },
+                (payload) => {
+                    // Update count when any profile changes
+                    updateRealPlayerCount();
+                }
+            )
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ Subscribed to real-time user updates');
+                }
+            });
+    }
     
-    // Initial update
+    // Update every 30 seconds and subscribe to real-time changes
+    setInterval(updateRealPlayerCount, 30000);
+    
+    // Initial update and subscription
     updateRealPlayerCount();
+    subscribeToUserUpdates();
     
     // Also update when social hub is opened
     const socialBtn = document.getElementById('socialHubBtn');
     if (socialBtn) {
         socialBtn.addEventListener('click', updateRealPlayerCount);
     }
+    
+    // Cleanup subscription when needed
+    window.cleanupPlayerCount = function() {
+        if (onlineSubscription) {
+            supabase.removeChannel(onlineSubscription);
+            onlineSubscription = null;
+        }
+    };
 }
 
 /* ---------- FIXED CROSS-DEVICE DATA SYNC ---------- */
