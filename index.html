@@ -3959,13 +3959,9 @@ function updateProfileBackgroundPreview(background) {
         preview.innerHTML = '';
     }
 }
-/* ---------- NEW: PROFILE MUSIC SYSTEM ---------- */
-// GLOBAL VARIABLES FOR PROFILE MUSIC SYSTEM
-window.profileMusicPlayer = null;
-window.currentMusic = null;
-window.isPlaying = false;
 
-  function initProfileMusicSystem() {
+/* ---------- NEW: PROFILE MUSIC SYSTEM ---------- */
+function initProfileMusicSystem() {
     const youtubeUrlInput = document.getElementById('youtubeUrlInput');
     const setMusicBtn = document.getElementById('setMusicUrl');
     const playPauseBtn = document.getElementById('profilePlayPause');
@@ -4032,18 +4028,18 @@ window.isPlaying = false;
     });
     
     // Play/Pause button
-playPauseBtn.addEventListener('click', function() {
-    if (!window.currentMusic) {
-        showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
-        return;
-    }
-    
-    if (!window.isPlaying) {
-        playProfileMusic();
-    } else {
-        pauseProfileMusic();
-    }
-});
+    playPauseBtn.addEventListener('click', function() {
+        if (!currentMusic) {
+            showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
+            return;
+        }
+        
+        if (!isPlaying) {
+            playProfileMusic();
+        } else {
+            pauseProfileMusic();
+        }
+    });
     
     // Stop button
     stopBtn.addEventListener('click', function() {
@@ -4085,54 +4081,34 @@ function updateProfileMusicPreview(musicData) {
     const titleElement = document.getElementById('profileMusicTitle');
     const artistElement = document.getElementById('profileMusicArtist');
     const playPauseBtn = document.getElementById('profilePlayPause');
-    const youtubeUrlInput = document.getElementById('youtubeUrlInput');
-    const currentMusicInfo = document.getElementById('currentMusicInfo');
     
     if (!musicData) {
         titleElement.textContent = 'No music selected';
-        artistElement.textContent = 'Add a YouTube URL above';
+        artistElement.textContent = 'Choose a track below';
         playPauseBtn.textContent = '▶️';
-        if (youtubeUrlInput) youtubeUrlInput.value = '';
-        if (currentMusicInfo) currentMusicInfo.style.display = 'none';
         return;
     }
     
-    titleElement.textContent = musicData.title || 'Custom YouTube Music';
-    artistElement.textContent = musicData.url || 'YouTube Music';
-    
-    if (youtubeUrlInput) {
-        youtubeUrlInput.value = musicData.url || '';
-    }
-    
-    if (currentMusicInfo) {
-        currentMusicInfo.style.display = 'block';
-        document.getElementById('currentMusicUrl').textContent = musicData.url || 'YouTube Music';
-    }
-    
-    // Reset play button state
-    playPauseBtn.textContent = '▶️';
-    window.isPlaying = false;
+    titleElement.textContent = musicData.title;
+    artistElement.textContent = musicData.artist;
 }
 
 function playProfileMusic() {
-    if (!window.currentMusic || !window.YT) {
-        showQuickStatus('No music selected or YouTube not loaded!', 'error');
-        return;
-    }
+    if (!currentMusic || !window.YT) return;
     
     const playPauseBtn = document.getElementById('profilePlayPause');
     
-    if (!window.profileMusicPlayer) {
+    if (!profileMusicPlayer) {
         // Create invisible YouTube player for profile music
         const playerDiv = document.createElement('div');
         playerDiv.id = 'profile-music-player';
         playerDiv.style.cssText = 'position: fixed; top: -1000px; left: -1000px; width: 1px; height: 1px;';
         document.body.appendChild(playerDiv);
         
-        window.profileMusicPlayer = new YT.Player('profile-music-player', {
+        profileMusicPlayer = new YT.Player('profile-music-player', {
             height: '1',
             width: '1',
-            videoId: window.currentMusic.id,
+            videoId: currentMusic.id,
             playerVars: {
                 'autoplay': 1,
                 'controls': 0,
@@ -4147,52 +4123,28 @@ function playProfileMusic() {
             events: {
                 'onReady': function(event) {
                     event.target.playVideo();
-                    window.isPlaying = true;
-                    if (playPauseBtn) playPauseBtn.textContent = '⏸️';
+                    isPlaying = true;
+                    playPauseBtn.textContent = '⏸️';
                     showQuickStatus('Now playing profile music!', 'success');
                 },
                 'onStateChange': function(event) {
                     if (event.data === YT.PlayerState.ENDED) {
-                        window.isPlaying = false;
-                        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+                        isPlaying = false;
+                        playPauseBtn.textContent = '▶️';
                     } else if (event.data === YT.PlayerState.PLAYING) {
-                        window.isPlaying = true;
-                        if (playPauseBtn) playPauseBtn.textContent = '⏸️';
+                        isPlaying = true;
+                        playPauseBtn.textContent = '⏸️';
                     } else if (event.data === YT.PlayerState.PAUSED) {
-                        window.isPlaying = false;
-                        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+                        isPlaying = false;
+                        playPauseBtn.textContent = '▶️';
                     }
-                },
-                'onError': function(event) {
-                    console.error('YouTube player error:', event.data);
-                    showQuickStatus('Error playing music. Please check the URL.', 'error');
-                    window.isPlaying = false;
-                    if (playPauseBtn) playPauseBtn.textContent = '▶️';
                 }
             }
         });
     } else {
-        window.profileMusicPlayer.loadVideoById(window.currentMusic.id);
-        window.isPlaying = true;
-        if (playPauseBtn) playPauseBtn.textContent = '⏸️';
-    }
-}
-
-function pauseProfileMusic() {
-    if (window.profileMusicPlayer && window.isPlaying) {
-        window.profileMusicPlayer.pauseVideo();
-        window.isPlaying = false;
-        const playPauseBtn = document.getElementById('profilePlayPause');
-        if (playPauseBtn) playPauseBtn.textContent = '▶️';
-    }
-}
-
-function stopProfileMusic() {
-    if (window.profileMusicPlayer) {
-        window.profileMusicPlayer.stopVideo();
-        window.isPlaying = false;
-        const playPauseBtn = document.getElementById('profilePlayPause');
-        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+        profileMusicPlayer.loadVideoById(currentMusic.id);
+        isPlaying = true;
+        playPauseBtn.textContent = '⏸️';
     }
 }
 
@@ -4948,15 +4900,18 @@ async function loadUserProfileForDisplay() {
                 });
             }
             
-           // Update music
-if (profile.music) {
-    updateProfileMusicPreview(profile.music);
-    
-    // Store current music globally so play button works
-    window.currentMusic = profile.music;
-    window.profileMusicPlayer = null;
-    window.isPlaying = false;
-}
+            // Update music
+            if (profile.music) {
+                updateProfileMusicPreview(profile.music);
+                
+                // Mark active music option
+                document.querySelectorAll('.music-option').forEach(option => {
+                    const musicData = JSON.parse(option.dataset.music);
+                    if (musicData.id === profile.music.id) {
+                        option.classList.add('active');
+                    }
+                });
+            }
             
             // Update profile header avatar
             updateProfileAvatar(user, profile);
@@ -4969,18 +4924,7 @@ if (profile.music) {
         });
     });
 }
-// Initialize music system for this profile
-if (profile && profile.music) {
-    window.currentMusic = profile.music;
-    window.profileMusicPlayer = null;
-    window.isPlaying = false;
-    
-    // Update play button state
-    const playPauseBtn = document.getElementById('profilePlayPause');
-    if (playPauseBtn) {
-        playPauseBtn.textContent = '▶️';
-    }
-}
+
 function updateUserStats() {
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
