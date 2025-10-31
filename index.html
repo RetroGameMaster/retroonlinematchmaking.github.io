@@ -2731,43 +2731,33 @@ body.sega-theme .music-btn:hover {
               <div class="profile-music-section">
                 <h4 style="color: #00ffff; margin-bottom: 15px;">🎵 Profile Music</h4>
                 
-                <div class="profile-music-preview" id="profileMusicPreview">
-                  <div class="profile-music-info">
-                    <div class="profile-music-title" id="profileMusicTitle">No music selected</div>
-                    <div class="profile-music-artist" id="profileMusicArtist">Choose a track below</div>
-                  </div>
-                  <div class="profile-music-controls">
-                    <button class="profile-music-btn" id="profilePlayPause">▶️</button>
-                    <button class="profile-music-btn" id="profileStopMusic">⏹️</button>
-                  </div>
-                </div>
+               <div class="profile-music-preview" id="profileMusicPreview">
+  <div class="profile-music-info">
+    <div class="profile-music-title" id="profileMusicTitle">No music selected</div>
+    <div class="profile-music-artist" id="profileMusicArtist">Add a YouTube URL above</div>
+  </div>
+  <div class="profile-music-controls">
+    <button class="profile-music-btn" id="profilePlayPause">▶️</button>
+    <button class="profile-music-btn" id="profileStopMusic">⏹️</button>
+  </div>
+</div>
+
+<!-- YouTube Player Container (hidden but functional) -->
+<div id="profileMusicPlayerContainer" style="display: none;"></div>
                 
-                <div class="music-options">
-                  <div class="music-option" data-music='{"id": "y909GFK2n_c", "title": "Video Game OST Radio", "artist": "Retro Gaming"}'>
-                    <div class="music-option-title">🎮 Video Game OST Radio</div>
-                    <div class="music-option-artist">Retro Gaming</div>
-                  </div>
-                  <div class="music-option" data-music='{"id": "jfKfPfyJRdk", "title": "Chill Lofi Beats", "artist": "Lofi Girl"}'>
-                    <div class="music-option-title">💤 Chill Lofi Beats</div>
-                    <div class="music-option-artist">Lofi Girl</div>
-                  </div>
-                  <div class="music-option" data-music='{"id": "4xDzrJKXOOY", "title": "Synthwave Retro Radio", "artist": "Synthwave"}'>
-                    <div class="music-option-title">🌃 Synthwave Retro Radio</div>
-                    <div class="music-option-artist">Synthwave</div>
-                  </div>
-                  <div class="music-option" data-music='{"id": "N2UYLx5BGI4", "title": "RPG Music Radio", "artist": "Final Fantasy & RPG"}'>
-                    <div class="music-option-title">✨ RPG Music Radio</div>
-                    <div class="music-option-artist">Final Fantasy & RPG</div>
-                  </div>
-                  <div class="music-option" data-music='{"id": "3H6UL3y0K8E", "title": "Pokemon Lofi", "artist": "Pokemon"}'>
-                    <div class="music-option-title">⚡ Pokemon Lofi</div>
-                    <div class="music-option-artist">Pokemon</div>
-                  </div>
-                  <div class="music-option" data-music='{"id": "rWc0L-NpAzc", "title": "Classic Game Music", "artist": "Classic Games"}'>
-                    <div class="music-option-title">🕹️ Classic Game Music</div>
-                    <div class="music-option-artist">Classic Games</div>
-                  </div>
-                </div>
+               <!-- YouTube URL Input -->
+<div class="music-url-input" style="margin-bottom: 15px;">
+  <label style="color: #00ffff; display: block; margin-bottom: 5px;">🎵 YouTube URL</label>
+  <input type="text" id="youtubeUrlInput" placeholder="Paste YouTube URL here..." 
+         style="width: 100%; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+  <button id="setMusicUrl" class="button" style="width: 100%; margin-top: 8px;">Set Profile Music</button>
+</div>
+
+<!-- Music Info Display -->
+<div class="current-music-info" style="background: rgba(0, 30, 60, 0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; display: none;" id="currentMusicInfo">
+  <div style="color: #00ffff; font-weight: bold;" id="currentMusicTitle">Current Music</div>
+  <div style="color: #a8dfe8; font-size: 0.9rem;" id="currentMusicUrl"></div>
+</div>
                 
                 <div style="text-align: center; margin-top: 10px;">
                   <button class="button muted" id="disableProfileMusic">Disable Profile Music</button>
@@ -3972,10 +3962,13 @@ function updateProfileBackgroundPreview(background) {
 
 /* ---------- NEW: PROFILE MUSIC SYSTEM ---------- */
 function initProfileMusicSystem() {
-    const musicOptions = document.querySelectorAll('.music-option');
+    const youtubeUrlInput = document.getElementById('youtubeUrlInput');
+    const setMusicBtn = document.getElementById('setMusicUrl');
     const playPauseBtn = document.getElementById('profilePlayPause');
     const stopBtn = document.getElementById('profileStopMusic');
     const disableBtn = document.getElementById('disableProfileMusic');
+    const currentMusicInfo = document.getElementById('currentMusicInfo');
+    
     let profileMusicPlayer = null;
     let currentMusic = null;
     let isPlaying = false;
@@ -3987,40 +3980,57 @@ function initProfileMusicSystem() {
                 if (profile && profile.music) {
                     currentMusic = profile.music;
                     updateProfileMusicPreview(profile.music);
-                    
-                    // Mark active option
-                    musicOptions.forEach(option => {
-                        const musicData = JSON.parse(option.dataset.music);
-                        if (musicData.id === profile.music.id) {
-                            option.classList.add('active');
-                        }
-                    });
+                    youtubeUrlInput.value = profile.music.url || '';
+                    currentMusicInfo.style.display = 'block';
+                    document.getElementById('currentMusicUrl').textContent = profile.music.url;
                 }
             });
         }
     });
     
-    // Music option click handlers
-    musicOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            const musicData = JSON.parse(this.dataset.music);
-            selectMusicOption(this);
-            updateProfileMusicPreview(musicData);
-            currentMusic = musicData;
-            saveUserProfile({ music: musicData });
-            showQuickStatus('Profile music updated!', 'success');
-            
-            // Stop current music if playing
-            if (isPlaying) {
-                stopProfileMusic();
-            }
-        });
+    // Set music from URL
+    setMusicBtn.addEventListener('click', function() {
+        const youtubeUrl = youtubeUrlInput.value.trim();
+        
+        if (!youtubeUrl) {
+            showQuickStatus('Please enter a YouTube URL!', 'error');
+            return;
+        }
+        
+        // Extract video ID from various YouTube URL formats
+        const videoId = extractYouTubeId(youtubeUrl);
+        
+        if (!videoId) {
+            showQuickStatus('Invalid YouTube URL!', 'error');
+            return;
+        }
+        
+        const musicData = {
+            id: videoId,
+            url: youtubeUrl,
+            title: 'Custom YouTube Music',
+            type: 'youtube'
+        };
+        
+        currentMusic = musicData;
+        updateProfileMusicPreview(musicData);
+        saveUserProfile({ music: musicData });
+        
+        currentMusicInfo.style.display = 'block';
+        document.getElementById('currentMusicUrl').textContent = youtubeUrl;
+        
+        // Stop current music if playing
+        if (isPlaying) {
+            stopProfileMusic();
+        }
+        
+        showQuickStatus('Profile music set!', 'success');
     });
     
     // Play/Pause button
     playPauseBtn.addEventListener('click', function() {
         if (!currentMusic) {
-            showQuickStatus('No music selected!', 'error');
+            showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
             return;
         }
         
@@ -4043,13 +4053,18 @@ function initProfileMusicSystem() {
         updateProfileMusicPreview(null);
         saveUserProfile({ music: null });
         
-        // Remove active class from all options
-        musicOptions.forEach(option => {
-            option.classList.remove('active');
-        });
+        youtubeUrlInput.value = '';
+        currentMusicInfo.style.display = 'none';
         
         showQuickStatus('Profile music disabled!', 'info');
     });
+}
+
+// Helper function to extract YouTube ID from various URL formats
+function extractYouTubeId(url) {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
 }
 
 function selectMusicOption(selectedOption) {
@@ -4110,7 +4125,7 @@ function playProfileMusic() {
                     event.target.playVideo();
                     isPlaying = true;
                     playPauseBtn.textContent = '⏸️';
-                    showQuickStatus(`Now playing: ${currentMusic.title}`, 'success');
+                    showQuickStatus('Now playing profile music!', 'success');
                 },
                 'onStateChange': function(event) {
                     if (event.data === YT.PlayerState.ENDED) {
