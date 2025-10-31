@@ -3042,11 +3042,13 @@ try {
         })
     };
 }
-/* ---------- PROFILE MUSIC PLAYER GLOBAL VARIABLES ---------- */
+
+/* ---------- FIXED PROFILE MUSIC PLAYER GLOBAL VARIABLES ---------- */
 // Profile music player variables - MUST be global to avoid conflicts with main music player
 let profileMusicPlayer = null;
 let currentProfileMusic = null;
 let isProfileMusicPlaying = false;
+
 // Debug: print current Supabase session
 (async () => {
     try {
@@ -3964,7 +3966,7 @@ function updateProfileBackgroundPreview(background) {
     }
 }
 
-/* ---------- NEW: PROFILE MUSIC SYSTEM ---------- */
+/* ---------- FIXED PROFILE MUSIC SYSTEM ---------- */
 function initProfileMusicSystem() {
     const youtubeUrlInput = document.getElementById('youtubeUrlInput');
     const setMusicBtn = document.getElementById('setMusicUrl');
@@ -3981,96 +3983,102 @@ function initProfileMusicSystem() {
         if (user) {
             loadUserProfile().then(profile => {
                 if (profile && profile.music) {
-                    currentMusic = profile.music;
+                    currentProfileMusic = profile.music;
                     updateProfileMusicPreview(profile.music);
-                    youtubeUrlInput.value = profile.music.url || '';
-                    currentMusicInfo.style.display = 'block';
-                    document.getElementById('currentMusicUrl').textContent = profile.music.url;
+                    if (youtubeUrlInput) youtubeUrlInput.value = profile.music.url || '';
+                    if (currentMusicInfo) {
+                        currentMusicInfo.style.display = 'block';
+                        document.getElementById('currentMusicUrl').textContent = profile.music.url;
+                    }
                 }
             });
         }
     });
     
     // Set music from URL
-    setMusicBtn.addEventListener('click', function() {
-        const youtubeUrl = youtubeUrlInput.value.trim();
-        
-        if (!youtubeUrl) {
-            showQuickStatus('Please enter a YouTube URL!', 'error');
-            return;
-        }
-        
-        // Extract video ID from various YouTube URL formats
-        const videoId = extractYouTubeId(youtubeUrl);
-        
-        if (!videoId) {
-            showQuickStatus('Invalid YouTube URL!', 'error');
-            return;
-        }
-        
-        const musicData = {
-            id: videoId,
-            url: youtubeUrl,
-            title: 'Custom YouTube Music',
-            type: 'youtube'
-        };
-        
-        currentMusic = musicData;
-        updateProfileMusicPreview(musicData);
-        saveUserProfile({ music: musicData });
-        
-        currentMusicInfo.style.display = 'block';
-        document.getElementById('currentMusicUrl').textContent = youtubeUrl;
-        
-        // Stop current music if playing
-        if (isPlaying) {
-            stopProfileMusic();
-        }
-        
-        showQuickStatus('Profile music set!', 'success');
-    });
+    if (setMusicBtn) {
+        setMusicBtn.addEventListener('click', function() {
+            const youtubeUrl = youtubeUrlInput.value.trim();
+            
+            if (!youtubeUrl) {
+                showQuickStatus('Please enter a YouTube URL!', 'error');
+                return;
+            }
+            
+            // Extract video ID from various YouTube URL formats
+            const videoId = extractYouTubeId(youtubeUrl);
+            
+            if (!videoId) {
+                showQuickStatus('Invalid YouTube URL!', 'error');
+                return;
+            }
+            
+            const musicData = {
+                id: videoId,
+                url: youtubeUrl,
+                title: 'Custom YouTube Music',
+                type: 'youtube'
+            };
+            
+            currentProfileMusic = musicData;
+            updateProfileMusicPreview(musicData);
+            saveUserProfile({ music: musicData });
+            
+            if (currentMusicInfo) {
+                currentMusicInfo.style.display = 'block';
+                document.getElementById('currentMusicUrl').textContent = youtubeUrl;
+            }
+            
+            // Stop current music if playing
+            if (isProfileMusicPlaying) {
+                stopProfileMusic();
+            }
+            
+            showQuickStatus('Profile music set!', 'success');
+        });
+    }
     
     // Play/Pause button - FIXED
-    playPauseBtn.addEventListener('click', function() {
-        console.log('🎵 Profile Play/Pause clicked');
-        if (!currentMusic) {
-            showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
-            return;
-        }
-        
-        if (!isPlaying) {
-            playProfileMusic();
-        } else {
-            pauseProfileMusic();
-        }
-    });
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', function() {
+            console.log('🎵 Profile Play/Pause clicked');
+            if (!currentProfileMusic) {
+                showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
+                return;
+            }
+            
+            if (!isProfileMusicPlaying) {
+                playProfileMusic();
+            } else {
+                pauseProfileMusic();
+            }
+        });
+    }
     
     // Stop button - FIXED
-    stopBtn.addEventListener('click', function() {
-        console.log('🛑 Profile Stop clicked');
-        stopProfileMusic();
-    });
+    if (stopBtn) {
+        stopBtn.addEventListener('click', function() {
+            console.log('🛑 Profile Stop clicked');
+            stopProfileMusic();
+        });
+    }
     
     // Disable music button
-    disableBtn.addEventListener('click', function() {
-        currentMusic = null;
-        stopProfileMusic();
-        updateProfileMusicPreview(null);
-        saveUserProfile({ music: null });
-        
-        youtubeUrlInput.value = '';
-        currentMusicInfo.style.display = 'none';
-        
-        showQuickStatus('Profile music disabled!', 'info');
-    });
+    if (disableBtn) {
+        disableBtn.addEventListener('click', function() {
+            currentProfileMusic = null;
+            stopProfileMusic();
+            updateProfileMusicPreview(null);
+            saveUserProfile({ music: null });
+            
+            if (youtubeUrlInput) youtubeUrlInput.value = '';
+            if (currentMusicInfo) currentMusicInfo.style.display = 'none';
+            
+            showQuickStatus('Profile music disabled!', 'info');
+        });
+    }
 }
 
-// Helper function to extract YouTube ID from various URL formats
-function extractYouTubeId(url) {
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
-}
 // Ensure YouTube API is loaded for profile music
 function ensureYouTubeAPIForProfileMusic() {
     if (!window.YT) {
@@ -4092,6 +4100,7 @@ function ensureYouTubeAPIForProfileMusic() {
         console.log('✅ YouTube API already loaded for profile music');
     }
 }
+
 function selectMusicOption(selectedOption) {
     // Remove active class from all options
     document.querySelectorAll('.music-option').forEach(option => {
@@ -4155,20 +4164,20 @@ function playProfileMusic() {
                     console.log('✅ Profile music player ready');
                     event.target.playVideo();
                     isProfileMusicPlaying = true;
-                    playPauseBtn.textContent = '⏸️';
+                    if (playPauseBtn) playPauseBtn.textContent = '⏸️';
                     showQuickStatus('Now playing profile music!', 'success');
                 },
                 'onStateChange': function(event) {
                     console.log('Profile music state:', event.data);
                     if (event.data === YT.PlayerState.ENDED) {
                         isProfileMusicPlaying = false;
-                        playPauseBtn.textContent = '▶️';
+                        if (playPauseBtn) playPauseBtn.textContent = '▶️';
                     } else if (event.data === YT.PlayerState.PLAYING) {
                         isProfileMusicPlaying = true;
-                        playPauseBtn.textContent = '⏸️';
+                        if (playPauseBtn) playPauseBtn.textContent = '⏸️';
                     } else if (event.data === YT.PlayerState.PAUSED) {
                         isProfileMusicPlaying = false;
-                        playPauseBtn.textContent = '▶️';
+                        if (playPauseBtn) playPauseBtn.textContent = '▶️';
                     }
                 },
                 'onError': function(event) {
@@ -4181,15 +4190,17 @@ function playProfileMusic() {
         console.log('🔄 Using existing profile music player');
         profileMusicPlayer.loadVideoById(currentProfileMusic.id);
         isProfileMusicPlaying = true;
-        playPauseBtn.textContent = '⏸️';
+        if (playPauseBtn) playPauseBtn.textContent = '⏸️';
     }
 }
+
 function pauseProfileMusic() {
     console.log('⏸️ Pausing profile music');
     if (profileMusicPlayer && isProfileMusicPlaying) {
         profileMusicPlayer.pauseVideo();
         isProfileMusicPlaying = false;
-        document.getElementById('profilePlayPause').textContent = '▶️';
+        const playPauseBtn = document.getElementById('profilePlayPause');
+        if (playPauseBtn) playPauseBtn.textContent = '▶️';
         showQuickStatus('Profile music paused', 'info');
     }
 }
@@ -4199,9 +4210,17 @@ function stopProfileMusic() {
     if (profileMusicPlayer) {
         profileMusicPlayer.stopVideo();
         isProfileMusicPlaying = false;
-        document.getElementById('profilePlayPause').textContent = '▶️';
+        const playPauseBtn = document.getElementById('profilePlayPause');
+        if (playPauseBtn) playPauseBtn.textContent = '▶️';
         showQuickStatus('Profile music stopped', 'info');
     }
+}
+
+// Helper function to extract YouTube ID from various URL formats
+function extractYouTubeId(url) {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
 }
 
 /* ---------- HTML SIGNATURE EDITOR SYSTEM ---------- */
@@ -4855,7 +4874,7 @@ function initCustomizationSystems() {
     initStatusSystem();
     initImportSystem();
     initProfileBackgroundSystem(); // NEW: Background system
-    initProfileMusicSystem(); // NEW: Music system
+    initProfileMusicSystem(); // FIXED: Music system
     updateStorageInfo();
     
     // Update storage info every 30 seconds
