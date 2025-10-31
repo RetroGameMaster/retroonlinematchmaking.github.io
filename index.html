@@ -1565,6 +1565,201 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   font-size: 0.8rem;
 }
 
+/* NEW: Profile Bio Section */
+.profile-bio-section {
+  background: rgba(0, 30, 60, 0.7);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  margin-bottom: 20px;
+}
+
+.profile-bio-section h3 {
+  color: #00ffff;
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.bio-text {
+  color: #a8dfe8;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  min-height: 60px;
+}
+
+.bio-text.empty {
+  font-style: italic;
+  color: #668899;
+}
+
+.bio-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.bio-stat-item {
+  background: rgba(0, 20, 40, 0.6);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.bio-stat-label {
+  color: #00ffff;
+  font-size: 0.8rem;
+  margin-bottom: 5px;
+}
+
+.bio-stat-value {
+  color: #a8dfe8;
+  font-weight: bold;
+}
+
+.bio-edit textarea {
+  width: 100%;
+  height: 120px;
+  padding: 12px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  color: #00ffff;
+  font-family: 'Orbitron', Arial, sans-serif;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+.bio-char-count {
+  text-align: right;
+  color: #a8dfe8;
+  font-size: 0.8rem;
+}
+
+/* NEW: Profile Visitor Counter */
+.profile-visitors {
+  background: rgba(0, 30, 60, 0.7);
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  margin-bottom: 20px;
+}
+
+.profile-visitors h3 {
+  color: #00ffff;
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+}
+
+.visitor-stats {
+  display: flex;
+  justify-content: space-between;
+  color: #a8dfe8;
+  font-size: 0.9rem;
+}
+
+/* NEW: Profile Comments Section */
+.profile-comments {
+  background: rgba(0, 30, 60, 0.7);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.profile-comments h3 {
+  color: #00ffff;
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.comment-input {
+  margin-bottom: 20px;
+}
+
+.comment-input textarea {
+  width: 100%;
+  height: 80px;
+  padding: 12px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid #00ffff;
+  border-radius: 6px;
+  color: #00ffff;
+  font-family: 'Orbitron', Arial, sans-serif;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.comment-item {
+  background: rgba(0, 20, 40, 0.6);
+  border-radius: 6px;
+  padding: 15px;
+  border: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.comment-author {
+  color: #00ffff;
+  font-weight: bold;
+}
+
+.comment-time {
+  color: #668899;
+  font-size: 0.8rem;
+}
+
+.comment-content {
+  color: #a8dfe8;
+  line-height: 1.4;
+}
+
+/* NEW: Profile Route System */
+.profile-route-container {
+  display: none;
+}
+
+.profile-route-container.active {
+  display: block;
+}
+
+.profile-navigation {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.profile-nav-btn {
+  padding: 10px 20px;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 6px;
+  color: #00ffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Orbitron', Arial, sans-serif;
+}
+
+.profile-nav-btn:hover {
+  background: rgba(0, 255, 255, 0.2);
+}
+
+.profile-nav-btn.active {
+  background: rgba(0, 255, 255, 0.3);
+  border-color: #00ffff;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .social-hub-content {
@@ -1697,6 +1892,22 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
   /* Music options mobile */
   .music-options {
     grid-template-columns: 1fr;
+  }
+
+  /* Bio stats mobile */
+  .bio-stats {
+    grid-template-columns: 1fr;
+  }
+
+  /* Profile navigation mobile */
+  .profile-navigation {
+    justify-content: center;
+  }
+
+  .profile-nav-btn {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
   }
 }
 
@@ -2165,131 +2376,272 @@ body.sega-theme .music-btn:hover {
 
   <!-- Main content -->
   <main id="mainContent" style="display:none;">
-    <header class="site-header">
-      <div class="brand">
-        <div class="logo" aria-hidden="true">ROM</div>
-        <div>
-          <h1>RetroOnlineMatchmaking</h1>
-          <p>Play classic games online again</p>
+    <!-- Profile Route Container -->
+    <div id="profileRouteContainer" class="profile-route-container">
+      <div class="profile-page">
+        <!-- Profile Navigation -->
+        <div class="profile-navigation">
+          <button class="profile-nav-btn active" data-section="profile-main">🏠 Profile</button>
+          <button class="profile-nav-btn" data-section="profile-friends">👥 Friends</button>
+          <button class="profile-nav-btn" data-section="profile-comments">💬 Comments</button>
+          <button class="button" id="backToMain" style="margin-left: auto;">← Back to Main</button>
         </div>
-      </div>
 
-      <nav class="site-nav" aria-label="primary" style="display:flex; gap:8px; align-items:center;">
-        <a class="button" href="https://discord.com/invite/jcRqpmMZdZ" target="_blank" rel="noopener">Join Discord</a>
-        <a class="button" href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" target="_blank" rel="noopener">YouTube</a>
-        <a class="button" href="https://www.patreon.com/RetroGameMaster?utm_campaign=creatorshare_creator" target="_blank" rel="noopener">Support on Patreon</a>
-        <a class="button" id="openSubmitBtn">Submit Method</a>
-        <a class="button" href="https://retroonlinematchmaking.flarum.cloud/" target="_blank" rel="noopener">Forum</a>
-        <a class="button" id="socialHubBtn">Social Hub</a>
-        
-        <!-- User Account Section -->
-        <div class="user-section" style="display: none;">
-          <div class="user-menu">
-            <span class="username" id="userDisplayName">Guest</span>
-            <div class="user-dropdown">
-              <button id="profileBtn">Profile</button>
-              <button id="changeUsernameBtn">Change Username</button>
-              <button id="favoritesBtn">My Favorites</button>
-              <button id="dataManagementBtn">Data Management</button>
-              <button id="logoutBtn">Logout</button>
+        <!-- Profile Header -->
+        <div class="profile-header-section">
+          <div class="profile-avatar-xlarge" id="profilePageAvatar">
+            <span id="profilePageAvatarText">U</span>
+          </div>
+          <div class="profile-info-main">
+            <h1 class="profile-username-large" id="profilePageUsername">Username</h1>
+            <p class="profile-status-large" id="profilePageStatus">💻 Online</p>
+            <div class="profile-signature-large" id="profilePageSignature">
+              This user hasn't set a signature yet.
+            </div>
+            <div class="profile-meta">
+              <span id="profilePageJoinDate">Joined: Loading...</span>
+              <span id="profilePageLastActive">Last Active: Now</span>
+              <span id="profilePageViews">👁️ Views: 0</span>
+              <span id="profilePageFriendsCount">👥 Friends: 0</span>
             </div>
           </div>
         </div>
-        <button class="button" id="loginBtn">Login / Register</button>
-      </nav>
-    </header>
 
-    <!-- Status Bar - UPDATED: Removed Ping -->
-    <div class="status-bar">
-      <span class="status-indicator">🟢 SYSTEM ONLINE</span>
-      <span class="status-indicator live-players">👥 PLAYERS: <span id="playerCount" class="player-count-animation">0</span></span>
-      <span class="status-indicator">🕐 <span id="liveClock">--:--:--</span></span>
-    </div>
+        <!-- Profile Content Grid -->
+        <div class="profile-content-grid">
+          <!-- Main Content -->
+          <div class="profile-main-content">
+            <!-- Bio Section -->
+            <div id="profile-main" class="profile-section active">
+              <div class="profile-bio-section">
+                <h3>About Me</h3>
+                <div class="bio-text empty" id="profilePageBio">
+                  This user hasn't written a bio yet.
+                </div>
+                <div class="bio-stats">
+                  <div class="bio-stat-item">
+                    <div class="bio-stat-label">🎮 Favorite Systems</div>
+                    <div class="bio-stat-value" id="profileFavoriteSystems">Not set</div>
+                  </div>
+                  <div class="bio-stat-item">
+                    <div class="bio-stat-label">📅 Gaming Since</div>
+                    <div class="bio-stat-value" id="profileGamingSince">Not set</div>
+                  </div>
+                  <div class="bio-stat-item">
+                    <div class="bio-stat-label">⭐ Top Games</div>
+                    <div class="bio-stat-value" id="profileTopGames">Not set</div>
+                  </div>
+                </div>
+              </div>
 
-    <!-- Search System -->
-    <div class="search-container">
-      <input type="text" class="search-bar" placeholder="🔍 Search for platforms, or connection methods..." id="searchInput">
-      <div class="search-results" id="searchResults"></div>
-    </div>
+              <!-- Visitor Counter -->
+              <div class="profile-visitors">
+                <h3>Profile Visitors</h3>
+                <div class="visitor-stats">
+                  <span>Today: <strong id="visitorsToday">0</strong></span>
+                  <span>This Week: <strong id="visitorsWeek">0</strong></span>
+                  <span>Total: <strong id="visitorsTotal">0</strong></span>
+                </div>
+              </div>
 
-    <div style="max-width:1100px; margin:1.2rem auto; padding:0 4vw;">
-      <div class="platform-caption">Find your Player 2 — choose a platform</div>
+              <!-- Wall Posts Section -->
+              <div class="profile-wall-section" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
+                <h3 style="color: #00ffff; margin-bottom: 15px;">Wall Posts</h3>
+                <div class="wall-post-input" style="margin-bottom: 20px;">
+                  <textarea id="profilePageWallPostText" placeholder="Write something on this user's wall..." 
+                            style="width: 100%; height: 80px; padding: 12px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px; resize: vertical;"></textarea>
+                  <button id="profilePagePostToWall" class="button" style="margin-top: 10px;">Post to Wall</button>
+                </div>
+                <div id="profilePageWallPosts" class="wall-posts">
+                  <!-- Wall posts will appear here -->
+                </div>
+              </div>
+            </div>
 
-      <!-- NEW: Featured Games Section -->
-      <section class="featured-games">
-        <h2>🔥 Featured Games This Week</h2>
-        <div class="game-carousel">
-          <div class="game-card">
-            <h3>Street Fighter II</h3>
-            <p>Classic arcade fighter with active community</p>
-            <a class="button" href="#arcade">Play Now</a>
+            <!-- Friends Section -->
+            <div id="profile-friends" class="profile-section">
+              <div class="friends-list-mini" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
+                <h3 style="color: #00ffff; margin-bottom: 15px;">Friends (<span id="friendsCount">0</span>)</h3>
+                <div id="profilePageFriendsList">
+                  <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                    No friends yet. Start adding some!
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div id="profile-comments" class="profile-section">
+              <div class="profile-comments">
+                <h3>Profile Comments</h3>
+                <div class="comment-input">
+                  <textarea id="profileCommentText" placeholder="Write a comment on this profile..."></textarea>
+                  <button id="postProfileComment" class="button">Post Comment</button>
+                </div>
+                <div class="comment-list" id="profileCommentsList">
+                  <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                    No comments yet. Be the first to comment!
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="game-card">
-            <h3>Gran Turismo PSP</h3>
-            <p>PSP racing game with active community</p>
-            <a class="button" href="#psp">Play Now</a>
-          </div>
-          <div class="game-card">
-            <h3>Resident Evil Outbreak</h3>
-            <p>PS2 4 player survival horror game with active community</p>
-            <a class="button" href="#ps2">Play Now</a>
-          </div>
-          <div class="game-card">
-            <h3>Tekken 3</h3>
-            <p>PS1 fighting game with rollback netcode</p>
-            <a class="button" href="#ps1">Play Now</a>
+
+          <!-- Sidebar -->
+          <div class="profile-sidebar">
+            <!-- Profile Actions -->
+            <div class="profile-actions" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2);">
+              <h3 style="color: #00ffff; margin-bottom: 15px;">Actions</h3>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="button" id="profilePageAddFriend">Add Friend</button>
+                <button class="button muted" id="profilePageSendMessage">Send Message</button>
+                <button class="button" id="profilePageViewInHub">View in Social Hub</button>
+                <button class="button" id="profilePageShare">Share Profile</button>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="friends-list-mini" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2);">
+              <h3 style="color: #00ffff; margin-bottom: 15px;">Recent Activity</h3>
+              <div id="recentActivityList">
+                <div style="color: #a8dfe8; font-size: 0.9rem; text-align: center; padding: 10px;">
+                  No recent activity
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <!-- NEW: Community Events -->
-      <section class="community-events">
-        <h2>📅 Community Events</h2>
-        <div class="event-list">
-          <div class="event-card">
-            <h3>Resident Evil Outbreak File #2</h3>
-            <p>Can you survive a scenerio!?</p>
-            <div class="event-date">Friday Oct.24th starting at 8:30 PM EST</div>
+    <!-- Main Site Content -->
+    <div id="mainSiteContent">
+      <header class="site-header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">ROM</div>
+          <div>
+            <h1>RetroOnlineMatchmaking</h1>
+            <p>Play classic games online again</p>
           </div>
-          <div class="event-card">
-            <h3>Gran Turismo PSP</h3>
-            <p>Do you have a need for speed?</p>
-            <div class="event-date">Oct.25th starting at 1:00PM EST</div>
+        </div>
+
+        <nav class="site-nav" aria-label="primary" style="display:flex; gap:8px; align-items:center;">
+          <a class="button" href="https://discord.com/invite/jcRqpmMZdZ" target="_blank" rel="noopener">Join Discord</a>
+          <a class="button" href="https://youtube.com/@retroonlinematchmaking?si=JASKyZdqxTyAenLb" target="_blank" rel="noopener">YouTube</a>
+          <a class="button" href="https://www.patreon.com/RetroGameMaster?utm_campaign=creatorshare_creator" target="_blank" rel="noopener">Support on Patreon</a>
+          <a class="button" id="openSubmitBtn">Submit Method</a>
+          <a class="button" href="https://retroonlinematchmaking.flarum.cloud/" target="_blank" rel="noopener">Forum</a>
+          <a class="button" id="socialHubBtn">Social Hub</a>
+          
+          <!-- User Account Section -->
+          <div class="user-section" style="display: none;">
+            <div class="user-menu">
+              <span class="username" id="userDisplayName">Guest</span>
+              <div class="user-dropdown">
+                <button id="profileBtn">Profile</button>
+                <button id="changeUsernameBtn">Change Username</button>
+                <button id="favoritesBtn">My Favorites</button>
+                <button id="dataManagementBtn">Data Management</button>
+                <button id="logoutBtn">Logout</button>
+              </div>
+            </div>
           </div>
-          <div class="event-card">
-            <h3>Tekken 6 PSP</h3>
-            <p>Are you the king of iron fist tournament?</p>
-            <div class="event-date">Oct.25th Starting at 1:00 PM EST</div>
+          <button class="button" id="loginBtn">Login / Register</button>
+        </nav>
+      </header>
+
+      <!-- Status Bar - UPDATED: Removed Ping -->
+      <div class="status-bar">
+        <span class="status-indicator">🟢 SYSTEM ONLINE</span>
+        <span class="status-indicator live-players">👥 PLAYERS: <span id="playerCount" class="player-count-animation">0</span></span>
+        <span class="status-indicator">🕐 <span id="liveClock">--:--:--</span></span>
+      </div>
+
+      <!-- Search System -->
+      <div class="search-container">
+        <input type="text" class="search-bar" placeholder="🔍 Search for platforms, or connection methods..." id="searchInput">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <div style="max-width:1100px; margin:1.2rem auto; padding:0 4vw;">
+        <div class="platform-caption">Find your Player 2 — choose a platform</div>
+
+        <!-- NEW: Featured Games Section -->
+        <section class="featured-games">
+          <h2>🔥 Featured Games This Week</h2>
+          <div class="game-carousel">
+            <div class="game-card">
+              <h3>Street Fighter II</h3>
+              <p>Classic arcade fighter with active community</p>
+              <a class="button" href="#arcade">Play Now</a>
+            </div>
+            <div class="game-card">
+              <h3>Gran Turismo PSP</h3>
+              <p>PSP racing game with active community</p>
+              <a class="button" href="#psp">Play Now</a>
+            </div>
+            <div class="game-card">
+              <h3>Resident Evil Outbreak</h3>
+              <p>PS2 4 player survival horror game with active community</p>
+              <a class="button" href="#ps2">Play Now</a>
+            </div>
+            <div class="game-card">
+              <h3>Tekken 3</h3>
+              <p>PS1 fighting game with rollback netcode</p>
+              <a class="button" href="#ps1">Play Now</a>
+            </div>
           </div>
+        </section>
+
+        <!-- NEW: Community Events -->
+        <section class="community-events">
+          <h2>📅 Community Events</h2>
+          <div class="event-list">
             <div class="event-card">
-            <h3>Syphon Filter Dark Mirror</h3>
-            <p>Keep your friends close and your taser fully charged</p>
-            <div class="event-date">Oct.25th Starting at 1:00 PM EST</div>
+              <h3>Resident Evil Outbreak File #2</h3>
+              <p>Can you survive a scenerio!?</p>
+              <div class="event-date">Friday Oct.24th starting at 8:30 PM EST</div>
+            </div>
+            <div class="event-card">
+              <h3>Gran Turismo PSP</h3>
+              <p>Do you have a need for speed?</p>
+              <div class="event-date">Oct.25th starting at 1:00PM EST</div>
+            </div>
+            <div class="event-card">
+              <h3>Tekken 6 PSP</h3>
+              <p>Are you the king of iron fist tournament?</p>
+              <div class="event-date">Oct.25th Starting at 1:00 PM EST</div>
+            </div>
+              <div class="event-card">
+              <h3>Syphon Filter Dark Mirror</h3>
+              <p>Keep your friends close and your taser fully charged</p>
+              <div class="event-date">Oct.25th Starting at 1:00 PM EST</div>
+            </div>
           </div>
-        </div>
-      </section>
- <!-- NEW: Clip of the Week Section -->
-      <section class="clip-of-week">
-        <h2>🎬 Clip of the Week</h2>
-        <div class="video-container">
-          <iframe 
-            src="https://www.youtube.com/embed/rfFrGxlRMj0" 
-            title="Gran Turismo PSP Online Multiplayer"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-          </iframe>
-        </div>
-        <div class="clip-info">
-          <h3>This Week's Featured Gameplay</h3>
-          <p>Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!</p>
-          <div class="clip-meta">
-            <span>📅 Posted:<span id="clipDate"> Oct.18th</span></span>
-            <span>👤 By:<span id="clipAuthor"> FlatoutOutAnakin898</span></span>
-          </div>
-        </div>
-      </section>
+        </section>
 
-     <!-- Supporter Hall of Fame -->
+        <!-- NEW: Clip of the Week Section -->
+        <section class="clip-of-week">
+          <h2>🎬 Clip of the Week</h2>
+          <div class="video-container">
+            <iframe 
+              src="https://www.youtube.com/embed/rfFrGxlRMj0" 
+              title="Gran Turismo PSP Online Multiplayer"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowfullscreen>
+            </iframe>
+          </div>
+          <div class="clip-info">
+            <h3>This Week's Featured Gameplay</h3>
+            <p>Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!</p>
+            <div class="clip-meta">
+              <span>📅 Posted:<span id="clipDate"> Oct.18th</span></span>
+              <span>👤 By:<span id="clipAuthor"> FlatoutOutAnakin898</span></span>
+            </div>
+          </div>
+        </section>
+
+       <!-- Supporter Hall of Fame -->
 <section class="supporter-section">
   <h2>Supporter Hall of Fame</h2>
   <p>Thank you to our amazing supporters who help keep RetroOnlineMatchmaking running!</p>
@@ -2303,7 +2655,7 @@ body.sega-theme .music-btn:hover {
   </div>
 </section>
 
-       <!-- Arcade -->
+         <!-- Arcade -->
 <button class="collapsible" type="button">Arcade Connections</button>
 <div class="content" aria-hidden="true">
   <div class="card">
@@ -2527,18 +2879,19 @@ body.sega-theme .music-btn:hover {
   </div>
 </div>
 
-      
-     
-      <!-- Submit -->
-      <section id="submitMethodSection">
-        <h2>Have a new connection method? Submit it here!</h2>
-        <p>Help expand the RetroOnlineMatchmaking network by submitting your own connection methods.</p>
-        <a class="button" id="openFormBtn" href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" rel="noopener">Submit New Method</a>
-      </section>
+        
+         
+        <!-- Submit -->
+        <section id="submitMethodSection">
+          <h2>Have a new connection method? Submit it here!</h2>
+          <p>Help expand the RetroOnlineMatchmaking network by submitting your own connection methods.</p>
+          <a class="button" id="openFormBtn" href="https://docs.google.com/forms/d/e/1FAIpQLScm5TrARTAVqajDcivjW5kiGGD5nYQYjI6Wph6U3E3P5-sXLg/viewform" target="_blank" rel="noopener">Submit New Method</a>
+        </section>
 
-      <footer class="site-footer">
-        © 2025 RetroOnlineMatchmaking — Built by the community
-      </footer>
+        <footer class="site-footer">
+          © 2025 RetroOnlineMatchmaking — Built by the community
+        </footer>
+      </div>
     </div>
   </main>
 
@@ -2948,67 +3301,6 @@ body.sega-theme .music-btn:hover {
             <h3 style="color: #00ffff;">Recent Activity</h3>
             <p>See what's happening in the community</p>
             <!-- Activity feed would go here -->
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Individual Profile Page Modal -->
-  <div id="profilePageModal" class="modal" style="display: none;">
-    <div class="profile-page" style="background: rgba(0, 20, 40, 0.95); max-width: 1200px; width: 95%; height: 90vh; border-radius: 12px; overflow-y: auto;">
-      <span class="close-btn" id="closeProfilePage">&times;</span>
-      
-      <div class="profile-header-section">
-        <div class="profile-avatar-xlarge" id="profilePageAvatar">
-          <span id="profilePageAvatarText">U</span>
-        </div>
-        <div class="profile-info-main">
-          <h1 class="profile-username-large" id="profilePageUsername">Username</h1>
-          <p class="profile-status-large" id="profilePageStatus">💻 Online</p>
-          <div class="profile-signature-large" id="profilePageSignature">
-            This user hasn't set a signature yet.
-          </div>
-          <div class="profile-meta">
-            <span id="profilePageJoinDate">Joined: Loading...</span>
-            <span id="profilePageLastActive">Last Active: Now</span>
-          </div>
-        </div>
-      </div>
-      
-      <div class="profile-content-grid">
-        <div class="profile-main-content">
-          <!-- Wall Posts Section -->
-          <div class="profile-wall-section" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
-            <h3 style="color: #00ffff; margin-bottom: 15px;">Wall Posts</h3>
-            <div class="wall-post-input" style="margin-bottom: 20px;">
-              <textarea id="profilePageWallPostText" placeholder="Write something on this user's wall..." 
-                        style="width: 100%; height: 80px; padding: 12px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px; resize: vertical;"></textarea>
-              <button id="profilePagePostToWall" class="button" style="margin-top: 10px;">Post to Wall</button>
-            </div>
-            <div id="profilePageWallPosts" class="wall-posts">
-              <!-- Wall posts will appear here -->
-            </div>
-          </div>
-        </div>
-        
-        <div class="profile-sidebar">
-          <!-- Friends List Mini -->
-          <div class="friends-list-mini">
-            <h3>Friends</h3>
-            <div id="profilePageFriendsList">
-              <!-- Friends will appear here -->
-            </div>
-          </div>
-          
-          <!-- Profile Actions -->
-          <div class="profile-actions" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2);">
-            <h3 style="color: #00ffff; margin-bottom: 15px;">Actions</h3>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              <button class="button" id="profilePageAddFriend">Add Friend</button>
-              <button class="button muted" id="profilePageSendMessage">Send Message</button>
-              <button class="button" id="profilePageViewInHub">View in Social Hub</button>
-            </div>
           </div>
         </div>
       </div>
@@ -5496,6 +5788,405 @@ function initPlayerSearchSystem() {
     console.log('Player search system placeholder');
 }
 
+/* ---------- NEW: PROFILE ROUTE SYSTEM ---------- */
+function initProfileRouteSystem() {
+    console.log('🔄 Initializing profile route system...');
+    
+    // Back to main button
+    const backToMainBtn = document.getElementById('backToMain');
+    if (backToMainBtn) {
+        backToMainBtn.addEventListener('click', function() {
+            showMainSite();
+        });
+    }
+    
+    // Profile navigation
+    const profileNavBtns = document.querySelectorAll('.profile-nav-btn');
+    profileNavBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const section = this.getAttribute('data-section');
+            
+            // Update active nav button
+            profileNavBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show selected section
+            document.querySelectorAll('.profile-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(section).classList.add('active');
+        });
+    });
+    
+    // Profile actions
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener('click', function() {
+            showQuickStatus('Friend request sent!', 'success');
+        });
+    }
+    
+    const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', function() {
+            showQuickStatus('Message feature coming soon!', 'info');
+        });
+    }
+    
+    const viewInHubBtn = document.getElementById('profilePageViewInHub');
+    if (viewInHubBtn) {
+        viewInHubBtn.addEventListener('click', function() {
+            document.getElementById('socialHubModal').style.display = 'flex';
+        });
+    }
+    
+    const shareProfileBtn = document.getElementById('profilePageShare');
+    if (shareProfileBtn) {
+        shareProfileBtn.addEventListener('click', function() {
+            const profileUrl = window.location.href.split('?')[0] + '?profile=' + document.getElementById('profilePageUsername').textContent;
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            });
+        });
+    }
+    
+    // Profile comment system
+    const postCommentBtn = document.getElementById('postProfileComment');
+    if (postCommentBtn) {
+        postCommentBtn.addEventListener('click', postProfileComment);
+    }
+    
+    // Load profile data when route is active
+    loadProfilePageData();
+}
+
+function showProfilePage(username = null) {
+    console.log('👤 Showing profile page for:', username);
+    
+    // Hide main site, show profile route
+    document.getElementById('mainSiteContent').style.display = 'none';
+    document.getElementById('profileRouteContainer').classList.add('active');
+    
+    // Load profile data
+    loadProfilePageData(username);
+}
+
+function showMainSite() {
+    console.log('🏠 Showing main site');
+    
+    // Hide profile route, show main site
+    document.getElementById('profileRouteContainer').classList.remove('active');
+    document.getElementById('mainSiteContent').style.display = 'block';
+}
+
+async function loadProfilePageData(username = null) {
+    console.log('📄 Loading profile page data for:', username);
+    
+    // If no username specified, load current user's profile
+    if (!username) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+                username = user.user_metadata?.username || user.email.split('@')[0];
+                loadUserProfileData(username, true);
+            }
+        });
+    } else {
+        // Load specified user's profile
+        loadUserProfileData(username, false);
+    }
+}
+
+async function loadUserProfileData(username, isOwnProfile) {
+    console.log('👤 Loading user profile data:', username, 'isOwn:', isOwnProfile);
+    
+    try {
+        // Try to load from Supabase first
+        const { data: profileData, error } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('username', username)
+            .single();
+
+        if (error) {
+            console.log('❌ Profile not found in Supabase, using local data');
+            // Fallback to local data or create demo data
+            loadDemoProfileData(username, isOwnProfile);
+            return;
+        }
+
+        console.log('✅ Profile loaded from Supabase:', profileData);
+        
+        // Update profile page with loaded data
+        updateProfilePageDisplay(profileData, isOwnProfile);
+        
+    } catch (err) {
+        console.error('Error loading profile data:', err);
+        loadDemoProfileData(username, isOwnProfile);
+    }
+}
+
+function loadDemoProfileData(username, isOwnProfile) {
+    // Create demo profile data for testing
+    const demoProfile = {
+        username: username,
+        profile_data: {
+            profilePic: null,
+            signature: isOwnProfile ? 'Welcome to my retro gaming profile! 🎮' : 'This user loves retro gaming!',
+            status: '💻 Online',
+            bio: isOwnProfile ? 
+                'I\'ve been gaming since the 90s and love everything retro! My favorite systems are PS2 and PSP. Always looking for new players to game with!' :
+                'Retro gaming enthusiast with a passion for classic multiplayer games.',
+            favoriteSystems: 'PS2, PSP, PS1',
+            gamingSince: '1998',
+            topGames: 'Gran Turismo, Resident Evil Outbreak, Tekken 3',
+            joinDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+            lastActive: new Date().toISOString(),
+            profileViews: Math.floor(Math.random() * 100) + 1,
+            friendsCount: Math.floor(Math.random() * 50) + 1
+        }
+    };
+    
+    updateProfilePageDisplay(demoProfile, isOwnProfile);
+}
+
+function updateProfilePageDisplay(profileData, isOwnProfile) {
+    console.log('🎨 Updating profile page display:', profileData.username);
+    
+    // Update basic info
+    document.getElementById('profilePageUsername').textContent = profileData.username;
+    document.getElementById('profilePageStatus').textContent = profileData.profile_data?.status || '💻 Online';
+    document.getElementById('profilePageSignature').innerHTML = profileData.profile_data?.signature || 'This user hasn\'t set a signature yet.';
+    
+    // Update avatar
+    const avatarElement = document.getElementById('profilePageAvatar');
+    if (profileData.profile_data?.profilePic) {
+        avatarElement.innerHTML = `<img src="${profileData.profile_data.profilePic}" alt="${profileData.username}" style="width:100%;height:100%;object-fit:cover;">`;
+    } else {
+        document.getElementById('profilePageAvatarText').textContent = profileData.username.charAt(0).toUpperCase();
+    }
+    
+    // Update meta info
+    const joinDate = profileData.profile_data?.joinDate ? new Date(profileData.profile_data.joinDate).toLocaleDateString() : 'Recently';
+    document.getElementById('profilePageJoinDate').textContent = `Joined: ${joinDate}`;
+    
+    const lastActive = profileData.profile_data?.lastActive ? 
+        (new Date().getTime() - new Date(profileData.profile_data.lastActive).getTime() < 5 * 60 * 1000 ? 'Now' : 
+        formatRelativeTime(new Date(profileData.profile_data.lastActive))) : 'Now';
+    document.getElementById('profilePageLastActive').textContent = `Last Active: ${lastActive}`;
+    
+    // Update stats
+    document.getElementById('profilePageViews').textContent = `👁️ Views: ${profileData.profile_data?.profileViews || 0}`;
+    document.getElementById('profilePageFriendsCount').textContent = `👥 Friends: ${profileData.profile_data?.friendsCount || 0}`;
+    document.getElementById('friendsCount').textContent = profileData.profile_data?.friendsCount || 0;
+    
+    // Update bio section
+    const bioElement = document.getElementById('profilePageBio');
+    if (profileData.profile_data?.bio) {
+        bioElement.textContent = profileData.profile_data.bio;
+        bioElement.classList.remove('empty');
+    } else {
+        bioElement.textContent = 'This user hasn\'t written a bio yet.';
+        bioElement.classList.add('empty');
+    }
+    
+    // Update bio stats
+    document.getElementById('profileFavoriteSystems').textContent = profileData.profile_data?.favoriteSystems || 'Not set';
+    document.getElementById('profileGamingSince').textContent = profileData.profile_data?.gamingSince || 'Not set';
+    document.getElementById('profileTopGames').textContent = profileData.profile_data?.topGames || 'Not set';
+    
+    // Update visitor stats
+    const visitorsToday = Math.floor((profileData.profile_data?.profileViews || 0) * 0.1);
+    const visitorsWeek = Math.floor((profileData.profile_data?.profileViews || 0) * 0.3);
+    document.getElementById('visitorsToday').textContent = visitorsToday;
+    document.getElementById('visitorsWeek').textContent = visitorsWeek;
+    document.getElementById('visitorsTotal').textContent = profileData.profile_data?.profileViews || 0;
+    
+    // Update friend list (demo data)
+    updateFriendList(profileData.username);
+    
+    // Update recent activity (demo data)
+    updateRecentActivity(profileData.username);
+    
+    // Load wall posts for this user
+    loadWallPostsForUsername(profileData.username, document.getElementById('profilePageWallPosts'));
+    
+    // Update action buttons based on ownership
+    updateProfileActions(isOwnProfile);
+}
+
+function updateFriendList(username) {
+    const friendsList = document.getElementById('profilePageFriendsList');
+    
+    // Demo friend data
+    const demoFriends = [
+        { username: 'RetroGamer88', status: '🎮 Gaming' },
+        { username: 'PixelMaster', status: '💻 Online' },
+        { username: 'ArcadeKing', status: '😎 Chilling' },
+        { username: 'GameCollector', status: '🤝 Looking to Play' }
+    ];
+    
+    friendsList.innerHTML = '';
+    
+    if (demoFriends.length === 0) {
+        friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No friends yet. Start adding some!</div>';
+        return;
+    }
+    
+    demoFriends.forEach(friend => {
+        const friendItem = document.createElement('div');
+        friendItem.className = 'friend-item-mini';
+        friendItem.innerHTML = `
+            <div class="friend-avatar-mini">
+                ${friend.username.charAt(0).toUpperCase()}
+            </div>
+            <div style="flex: 1;">
+                <div style="color: #00ffff; font-weight: bold; font-size: 0.9rem;">${friend.username}</div>
+                <div style="color: #a8dfe8; font-size: 0.7rem;">${friend.status}</div>
+            </div>
+        `;
+        friendsList.appendChild(friendItem);
+    });
+}
+
+function updateRecentActivity(username) {
+    const activityList = document.getElementById('recentActivityList');
+    
+    // Demo activity data
+    const demoActivities = [
+        { action: '🎮 Played Gran Turismo PSP', time: '2 hours ago' },
+        { action: '💬 Posted on RetroGamer88\'s wall', time: '5 hours ago' },
+        { action: '⭐ Favorited PS2 connection method', time: '1 day ago' },
+        { action: '👥 Added PixelMaster as friend', time: '2 days ago' }
+    ];
+    
+    activityList.innerHTML = '';
+    
+    demoActivities.forEach(activity => {
+        const activityItem = document.createElement('div');
+        activityItem.style.cssText = 'color: #a8dfe8; font-size: 0.8rem; padding: 8px 0; border-bottom: 1px solid rgba(0,255,255,0.1);';
+        activityItem.innerHTML = `
+            <div>${activity.action}</div>
+            <div style="color: #668899; font-size: 0.7rem;">${activity.time}</div>
+        `;
+        activityList.appendChild(activityItem);
+    });
+}
+
+function updateProfileActions(isOwnProfile) {
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    
+    if (isOwnProfile) {
+        addFriendBtn.style.display = 'none';
+        sendMessageBtn.style.display = 'none';
+    } else {
+        addFriendBtn.style.display = 'block';
+        sendMessageBtn.style.display = 'block';
+    }
+}
+
+function postProfileComment() {
+    const commentText = document.getElementById('profileCommentText').value.trim();
+    
+    if (!commentText) return;
+    
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) {
+            showQuickStatus('Please login to comment!', 'error');
+            return;
+        }
+        
+        const profileUsername = document.getElementById('profilePageUsername').textContent;
+        const comment = {
+            id: Date.now().toString(),
+            author: user.user_metadata?.username || user.email.split('@')[0],
+            targetUser: profileUsername,
+            content: commentText,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Save comment to localStorage (would be Supabase in production)
+        const comments = JSON.parse(localStorage.getItem('rom-profile-comments') || '[]');
+        comments.unshift(comment);
+        localStorage.setItem('rom-profile-comments', JSON.stringify(comments));
+        
+        appendProfileComment(comment);
+        document.getElementById('profileCommentText').value = '';
+        showQuickStatus('Comment posted!', 'success');
+    });
+}
+
+function appendProfileComment(comment) {
+    const commentsList = document.getElementById('profileCommentsList');
+    
+    const commentDiv = document.createElement('div');
+    commentDiv.className = 'comment-item';
+    
+    const time = new Date(comment.timestamp).toLocaleString();
+    
+    commentDiv.innerHTML = `
+        <div class="comment-header">
+            <span class="comment-author">${comment.author}</span>
+            <span class="comment-time">${time}</span>
+        </div>
+        <div class="comment-content">${escapeHtml(comment.content)}</div>
+    `;
+    
+    // Remove "no comments" message if it exists
+    const noCommentsMsg = commentsList.querySelector('div');
+    if (noCommentsMsg && noCommentsMsg.style.textAlign === 'center') {
+        noCommentsMsg.remove();
+    }
+    
+    commentsList.appendChild(commentDiv);
+}
+
+function formatRelativeTime(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+/* ---------- URL ROUTING SYSTEM ---------- */
+function initURLRouting() {
+    console.log('🔄 Initializing URL routing...');
+    
+    // Check URL for profile parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const profileParam = urlParams.get('profile');
+    
+    if (profileParam) {
+        // Show profile page if profile parameter exists
+        showProfilePage(profileParam);
+    }
+    
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function(event) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const profileParam = urlParams.get('profile');
+        
+        if (profileParam) {
+            showProfilePage(profileParam);
+        } else {
+            showMainSite();
+        }
+    });
+}
+
+// Update URL when viewing profiles
+function updateURLForProfile(username) {
+    const newUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(username);
+    window.history.pushState({ profile: username }, '', newUrl);
+}
+
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
     window.removeEventListener('load', onLoad);
@@ -6532,6 +7223,8 @@ function initAllSystems() {
     initGameLobbies();
     initPlayerSearchSystem();
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
+    initProfileRouteSystem(); // ✅ NEW: Profile route system
+    initURLRouting(); // ✅ NEW: URL routing system
     console.log('✅ All systems initialized');
 }
 </script>
