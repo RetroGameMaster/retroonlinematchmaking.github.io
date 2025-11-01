@@ -2418,10 +2418,96 @@ body.sega-theme .music-btn:hover {
           <div class="profile-main-content">
             <!-- Bio Section -->
             <div id="profile-main" class="profile-section active">
+              <!-- Profile Background Section -->
+              <div class="profile-background-section">
+                <h3 style="color: #00ffff; margin-bottom: 15px;">🎨 Profile Background</h3>
+                
+                <div class="profile-background-preview" id="profilePageBackgroundPreview">
+                  <span id="profilePageBackgroundPreviewText">Profile Background Preview</span>
+                </div>
+                
+                <div class="background-options">
+                  <div class="background-option color" data-background="linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)" style="background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);">
+                    Cyber Space
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #1e3c72, #2a5298)" style="background: linear-gradient(135deg, #1e3c72, #2a5298);">
+                    Deep Blue
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #667eea, #764ba2)" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    Purple Haze
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #f093fb, #f5576c)" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                    Pink Dream
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #4facfe, #00f2fe)" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                    Ocean Breeze
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #43e97b, #38f9d7)" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                    Green Matrix
+                  </div>
+                  <div class="background-option custom" id="profilePageCustomBackgroundOption">
+                    <span>🖼️ Custom</span>
+                    <small>Upload Image</small>
+                  </div>
+                </div>
+                
+                <input type="file" id="profilePageBackgroundImageUpload" accept="image/*" style="display: none;">
+                <button onclick="document.getElementById('profilePageBackgroundImageUpload').click()" class="button" style="width: 100%; margin-top: 10px;">Upload Custom Background</button>
+                <p style="color: #a8dfe8; font-size: 0.8rem; text-align: center; margin-top: 5px;">Max 100KB • JPG/PNG recommended</p>
+              </div>
+
+              <!-- Profile Music Section -->
+              <div class="profile-music-section">
+                <h3 style="color: #00ffff; margin-bottom: 15px;">🎵 Profile Music</h3>
+                
+                <div class="profile-music-preview" id="profilePageMusicPreview">
+                  <div class="profile-music-info">
+                    <div class="profile-music-title" id="profilePageMusicTitle">No music selected</div>
+                    <div class="profile-music-artist" id="profilePageMusicArtist">Add a YouTube URL above</div>
+                  </div>
+                  <div class="profile-music-controls">
+                    <button class="profile-music-btn" id="profilePagePlayPause">▶️</button>
+                    <button class="profile-music-btn" id="profilePageStopMusic">⏹️</button>
+                  </div>
+                </div>
+
+                <!-- YouTube URL Input -->
+                <div class="music-url-input" style="margin-bottom: 15px;">
+                  <label style="color: #00ffff; display: block; margin-bottom: 5px;">🎵 YouTube URL</label>
+                  <input type="text" id="profilePageYoutubeUrlInput" placeholder="Paste YouTube URL here..." 
+                         style="width: 100%; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+                  <button id="profilePageSetMusicUrl" class="button" style="width: 100%; margin-top: 8px;">Set Profile Music</button>
+                </div>
+
+                <!-- Music Info Display -->
+                <div class="current-music-info" style="background: rgba(0, 30, 60, 0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; display: none;" id="profilePageCurrentMusicInfo">
+                  <div style="color: #00ffff; font-weight: bold;" id="profilePageCurrentMusicTitle">Current Music</div>
+                  <div style="color: #a8dfe8; font-size: 0.9rem;" id="profilePageCurrentMusicUrl"></div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 10px;">
+                  <button class="button muted" id="profilePageDisableProfileMusic">Disable Profile Music</button>
+                </div>
+              </div>
+
+              <!-- Bio Editor Section -->
               <div class="profile-bio-section">
                 <h3>About Me</h3>
+                <div class="bio-edit" id="profilePageBioEdit" style="display: none;">
+                  <textarea id="profilePageBioText" placeholder="Tell us about yourself..."></textarea>
+                  <div class="bio-char-count">
+                    <span id="profilePageBioCharCount">0</span>/500 characters
+                  </div>
+                  <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="button" id="profilePageSaveBio">Save Bio</button>
+                    <button class="button muted" id="profilePageCancelBio">Cancel</button>
+                  </div>
+                </div>
                 <div class="bio-text empty" id="profilePageBio">
                   This user hasn't written a bio yet.
+                </div>
+                <div style="margin-top: 10px;">
+                  <button class="button" id="profilePageEditBio" style="display: none;">✏️ Edit Bio</button>
                 </div>
                 <div class="bio-stats">
                   <div class="bio-stat-item">
@@ -2472,7 +2558,22 @@ body.sega-theme .music-btn:hover {
                     No friends yet. Start adding some!
                   </div>
                 </div>
-            </div>
+                
+                <!-- Player Search System -->
+                <div style="margin-top: 20px;">
+                  <h4 style="color: #00ffff; margin-bottom: 10px;">🔍 Find Players</h4>
+                  <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="playerSearchInput" placeholder="Search for players..." 
+                           style="flex: 1; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+                    <button id="playerSearchBtn" class="button">Search</button>
+                  </div>
+                  <div id="playerSearchResults" style="min-height: 100px;">
+                    <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                      Use the search above to find players to add as friends
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Comments Section -->
@@ -3115,7 +3216,7 @@ body.sega-theme .music-btn:hover {
 <div class="current-music-info" style="background: rgba(0, 30, 60, 0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; display: none;" id="currentMusicInfo">
   <div style="color: #00ffff; font-weight: bold;" id="currentMusicTitle">Current Music</div>
   <div style="color: #a8dfe8; font-size: 0.9rem;" id="currentMusicUrl"></div>
-</div>
+}
                 
                 <div style="text-align: center; margin-top: 10px;">
                   <button class="button muted" id="disableProfileMusic">Disable Profile Music</button>
