@@ -6258,7 +6258,7 @@ async function performPlayerSearch() {
     }
 }
 
-async function displayPlayerSearchResults(users, searchTerm) {
+function displayPlayerSearchResults(users, searchTerm) {
     const searchResults = document.getElementById('playerSearchResults');
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const currentUsername = currentUser?.user_metadata?.username || currentUser?.email.split('@')[0];
