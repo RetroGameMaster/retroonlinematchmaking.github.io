@@ -7909,27 +7909,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-  // NEW: Function to actually apply background to profile
-function applyProfileBackground(background) {
-    const profilePage = document.querySelector('.profile-page');
-    if (!profilePage) return;
-    
-    if (background.startsWith('url(') || background.startsWith('data:')) {
-        profilePage.style.backgroundImage = background;
-        profilePage.style.backgroundSize = 'cover';
-        profilePage.style.backgroundPosition = 'center';
-        profilePage.style.backgroundAttachment = 'fixed';
-    } else if (background.startsWith('linear-gradient')) {
-        profilePage.style.backgroundImage = background;
-        profilePage.style.backgroundSize = 'cover';
-    } else {
-        profilePage.style.backgroundImage = `url(${background})`;
-        profilePage.style.backgroundSize = 'cover';
-        profilePage.style.backgroundPosition = 'center';
-        profilePage.style.backgroundAttachment = 'fixed';
-    }
-}
-
 /* ---------- INITIALIZE ALL SYSTEMS ---------- */
 function initAllSystems() {
     console.log('🚀 Initializing all systems...');
@@ -7960,7 +7939,6 @@ function initAllSystems() {
     initURLRouting(); // ✅ NEW: URL routing system
     console.log('✅ All systems initialized');
 }
-
 </script>
 </body>
 </html>
