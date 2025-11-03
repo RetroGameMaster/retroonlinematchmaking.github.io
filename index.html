@@ -4179,25 +4179,22 @@ function handleProfilePicUpload(event) {
     reader.readAsDataURL(file);
 }
 
-/* ---------- PROFILE PAGE BACKGROUND SYSTEM ---------- */
-function initProfilePageBackgroundSystem() {
-    const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
-    const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
-    const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
+/* ---------- NEW: PROFILE BACKGROUND SYSTEM ---------- */
+function initProfileBackgroundSystem() {
+    const backgroundOptions = document.querySelectorAll('.background-option');
+    const backgroundUpload = document.getElementById('backgroundImageUpload');
+    const backgroundPreview = document.getElementById('profileBackgroundPreview');
     
-    // Load current background and apply it
+    // Load current background
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) {
             loadUserProfile().then(profile => {
                 if (profile && profile.background) {
-                    updateProfilePageBackgroundPreview(profile.background);
-                    applyProfileBackground(profile.background);
+                    updateProfileBackgroundPreview(profile.background);
                     
                     // Mark active option
                     backgroundOptions.forEach(option => {
                         if (option.dataset.background === profile.background) {
-                            option.classList.add('active');
-                        } else if (profile.background.startsWith('data:') && option.id === 'profilePageCustomBackgroundOption') {
                             option.classList.add('active');
                         }
                     });
@@ -4205,6 +4202,95 @@ function initProfilePageBackgroundSystem() {
             });
         }
     });
+    
+    // Background option click handlers
+    backgroundOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            if (this.id === 'customBackgroundOption') {
+                backgroundUpload.click();
+                return;
+            }
+            
+            const background = this.dataset.background;
+            selectBackgroundOption(this);
+            updateProfileBackgroundPreview(background);
+            saveUserProfile({ background: background });
+            showQuickStatus('Background updated!', 'success');
+        });
+    });
+    
+    // Custom background upload
+    backgroundUpload.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Check file size (max 100KB)
+        if (file.size > 100 * 1024) {
+            showQuickStatus('Background image too large! Max 100KB.', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const customBackground = e.target.result;
+            updateProfileBackgroundPreview(`url(${customBackground})`);
+            saveUserProfile({ background: customBackground });
+            showQuickStatus('Custom background saved!', 'success');
+            
+            // Mark custom option as active
+            selectBackgroundOption(document.getElementById('customBackgroundOption'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function selectBackgroundOption(selectedOption) {
+    // Remove active class from all options
+    document.querySelectorAll('.background-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    
+    // Add active class to selected option
+    selectedOption.classList.add('active');
+}
+
+function updateProfileBackgroundPreview(background) {
+    const preview = document.getElementById('profileBackgroundPreview');
+    if (!preview) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else if (background.startsWith('linear-gradient')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else {
+        preview.style.backgroundImage = `url(${background})`;
+        preview.innerHTML = '';
+    }
+}
+function updateProfileBackgroundPreview(background) {
+    const preview = document.getElementById('profileBackgroundPreview');
+    if (!preview) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else if (background.startsWith('linear-gradient')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else {
+        preview.style.backgroundImage = `url(${background})`;
+        preview.innerHTML = '';
+    }
+}
+
+// ========== ADD THIS RIGHT AFTER THE ABOVE FUNCTION ==========
+/* ---------- PROFILE PAGE BACKGROUND SYSTEM ---------- */
+function initProfilePageBackgroundSystem() {
+    const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
+    const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
+    const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
     
     backgroundOptions.forEach(option => {
         option.addEventListener('click', function() {
@@ -4216,7 +4302,6 @@ function initProfilePageBackgroundSystem() {
             const background = this.dataset.background;
             selectProfilePageBackgroundOption(this);
             updateProfilePageBackgroundPreview(background);
-            applyProfileBackground(background);
             saveUserProfile({ background: background });
             showQuickStatus('Background updated!', 'success');
         });
@@ -4235,7 +4320,6 @@ function initProfilePageBackgroundSystem() {
         reader.onload = function(e) {
             const customBackground = e.target.result;
             updateProfilePageBackgroundPreview(`url(${customBackground})`);
-            applyProfileBackground(`url(${customBackground})`);
             saveUserProfile({ background: customBackground });
             showQuickStatus('Custom background saved!', 'success');
             
@@ -4266,6 +4350,48 @@ function updateProfilePageBackgroundPreview(background) {
         preview.style.backgroundImage = `url(${background})`;
         preview.innerHTML = '';
     }
+}
+/* ---------- PROFILE PAGE BACKGROUND SYSTEM ---------- */
+function initProfilePageBackgroundSystem() {
+    const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
+    const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
+    const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
+    
+    backgroundOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            if (this.id === 'profilePageCustomBackgroundOption') {
+                backgroundUpload.click();
+                return;
+            }
+            
+            const background = this.dataset.background;
+            selectProfilePageBackgroundOption(this);
+            updateProfilePageBackgroundPreview(background);
+            saveUserProfile({ background: background });
+            showQuickStatus('Background updated!', 'success');
+        });
+    });
+    
+    backgroundUpload.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 100 * 1024) {
+            showQuickStatus('Background image too large! Max 100KB.', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const customBackground = e.target.result;
+            updateProfilePageBackgroundPreview(`url(${customBackground})`);
+            saveUserProfile({ background: customBackground });
+            showQuickStatus('Custom background saved!', 'success');
+            
+            selectProfilePageBackgroundOption(document.getElementById('profilePageCustomBackgroundOption'));
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 function selectProfilePageBackgroundOption(selectedOption) {
@@ -5910,25 +6036,17 @@ function initLobbyCreation() {
                 return;
             }
 
-            // Create a proper modal for lobby creation
+            // Simple lobby creation - you can expand this with a form
             const game = prompt('Enter game name:');
             if (!game) return;
 
-            const maxPlayersInput = prompt('Maximum players (2-8):', '4');
-            if (!maxPlayersInput) return;
+            const maxPlayers = parseInt(prompt('Maximum players (2-8):', '4')) || 4;
             
-            const maxPlayers = parseInt(maxPlayersInput) || 4;
-            
-            if (maxPlayers < 2 || maxPlayers > 8) {
-                showQuickStatus('Maximum players must be between 2 and 8!', 'error');
-                return;
-            }
-
             const newLobby = {
                 id: Date.now().toString(),
                 game: game,
                 host: user.user_metadata?.username || user.email.split('@')[0],
-                maxPlayers: maxPlayers,
+                maxPlayers: Math.max(2, Math.min(8, maxPlayers)),
                 players: [user.user_metadata?.username || user.email.split('@')[0]],
                 status: 'Waiting for players',
                 created: new Date().toISOString()
@@ -6365,50 +6483,6 @@ function initProfileRouteSystem() {
     initProfilePageMusicSystem();
     initProfilePageBackgroundSystem();
     initProfilePageBioEditor();
-    
-  // NEW: Initialize all profile navigation buttons
-function initProfileNavigation() {
-    // Set music button - already handled by initProfilePageMusicSystem()
-    
-    // View in social hub button
-    const viewInHubBtn = document.getElementById('profilePageViewInHub');
-    if (viewInHubBtn) {
-        viewInHubBtn.addEventListener('click', function() {
-            document.getElementById('socialHubModal').style.display = 'flex';
-        });
-    }
-    
-    // Add friend button
-    const addFriendBtn = document.getElementById('profilePageAddFriend');
-    if (addFriendBtn) {
-        addFriendBtn.addEventListener('click', function() {
-            const profileUsername = document.getElementById('profilePageUsername').textContent;
-            sendFriendRequest(profileUsername);
-        });
-    }
-    
-    // Send message button
-    const sendMessageBtn = document.getElementById('profilePageSendMessage');
-    if (sendMessageBtn) {
-        sendMessageBtn.addEventListener('click', function() {
-            const profileUsername = document.getElementById('profilePageUsername').textContent;
-            showQuickStatus(`Message feature for ${profileUsername} coming soon!`, 'info');
-        });
-    }
-    
-    // Share profile button
-    const shareProfileBtn = document.getElementById('profilePageShare');
-    if (shareProfileBtn) {
-        shareProfileBtn.addEventListener('click', function() {
-            const profileUsername = document.getElementById('profilePageUsername').textContent;
-            const profileUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(profileUsername);
-            navigator.clipboard.writeText(profileUrl).then(() => {
-                showQuickStatus('Profile URL copied to clipboard!', 'success');
-            }).catch(() => {
-                showQuickStatus('Failed to copy URL', 'error');
-            });
-        });
-    }
 }
 // NEW: Profile Page Bio Editor
 function initProfilePageBioEditor() {
@@ -6645,68 +6719,38 @@ function updateProfilePageDisplay(profileData, isOwnProfile) {
     updateProfileActions(isOwnProfile);
 }
 
-async function updateFriendList(username) {
+function updateFriendList(username) {
     const friendsList = document.getElementById('profilePageFriendsList');
     
-    friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">Loading friends...</div>';
+    // Demo friend data
+    const demoFriends = [
+        { username: 'RetroGamer88', status: '🎮 Gaming' },
+        { username: 'PixelMaster', status: '💻 Online' },
+        { username: 'ArcadeKing', status: '😎 Chilling' },
+        { username: 'GameCollector', status: '🤝 Looking to Play' }
+    ];
     
-    try {
-        // Get real friends data from Supabase
-        const { data: friendsData, error } = await supabase
-            .from('friend_requests')
-            .select('*')
-            .or(`from_user.eq.${username},to_user.eq.${username}`)
-            .eq('status', 'accepted');
-        
-        if (error) {
-            throw error;
-        }
-        
-        friendsList.innerHTML = '';
-        
-        if (!friendsData || friendsData.length === 0) {
-            friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No friends yet. Start adding some!</div>';
-            return;
-        }
-        
-        // Process friend data
-        const friends = [];
-        for (const friend of friendsData) {
-            const friendUsername = friend.from_user === username ? friend.to_user : friend.from_user;
-            
-            // Get friend's profile data
-            const { data: friendProfile } = await supabase
-                .from('user_profiles')
-                .select('profile_data')
-                .eq('username', friendUsername)
-                .single();
-            
-            friends.push({
-                username: friendUsername,
-                status: friendProfile?.profile_data?.status || '💻 Online'
-            });
-        }
-        
-        // Display real friends
-        friends.forEach(friend => {
-            const friendItem = document.createElement('div');
-            friendItem.className = 'friend-item-mini';
-            friendItem.innerHTML = `
-                <div class="friend-avatar-mini">
-                    ${friend.username.charAt(0).toUpperCase()}
-                </div>
-                <div style="flex: 1;">
-                    <div style="color: #00ffff; font-weight: bold; font-size: 0.9rem;">${friend.username}</div>
-                    <div style="color: #a8dfe8; font-size: 0.7rem;">${friend.status}</div>
-                </div>
-            `;
-            friendsList.appendChild(friendItem);
-        });
-        
-    } catch (err) {
-        console.error('Error loading friends:', err);
+    friendsList.innerHTML = '';
+    
+    if (demoFriends.length === 0) {
         friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No friends yet. Start adding some!</div>';
+        return;
     }
+    
+    demoFriends.forEach(friend => {
+        const friendItem = document.createElement('div');
+        friendItem.className = 'friend-item-mini';
+        friendItem.innerHTML = `
+            <div class="friend-avatar-mini">
+                ${friend.username.charAt(0).toUpperCase()}
+            </div>
+            <div style="flex: 1;">
+                <div style="color: #00ffff; font-weight: bold; font-size: 0.9rem;">${friend.username}</div>
+                <div style="color: #a8dfe8; font-size: 0.7rem;">${friend.status}</div>
+            </div>
+        `;
+        friendsList.appendChild(friendItem);
+    });
 }
 
 async function updateRecentActivity(username) {
@@ -6784,16 +6828,13 @@ async function updateRecentActivity(username) {
 function updateProfileActions(isOwnProfile) {
     const addFriendBtn = document.getElementById('profilePageAddFriend');
     const sendMessageBtn = document.getElementById('profilePageSendMessage');
-    const backgroundSection = document.querySelector('.profile-background-section');
     
     if (isOwnProfile) {
         addFriendBtn.style.display = 'none';
         sendMessageBtn.style.display = 'none';
-        if (backgroundSection) backgroundSection.style.display = 'block';
     } else {
         addFriendBtn.style.display = 'block';
         sendMessageBtn.style.display = 'block';
-        if (backgroundSection) backgroundSection.style.display = 'none';
     }
 }
 
