@@ -4328,7 +4328,153 @@ function updateProfileBackgroundPreview(background) {
         preview.innerHTML = '';
     }
 }
+function updateProfileBackgroundPreview(background) {
+    const preview = document.getElementById('profileBackgroundPreview');
+    if (!preview) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else if (background.startsWith('linear-gradient')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else {
+        preview.style.backgroundImage = `url(${background})`;
+        preview.innerHTML = '';
+    }
+}
 
+// ========== ADD THIS RIGHT AFTER THE ABOVE FUNCTION ==========
+/* ---------- PROFILE PAGE BACKGROUND SYSTEM ---------- */
+function initProfilePageBackgroundSystem() {
+    const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
+    const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
+    const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
+    
+    backgroundOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            if (this.id === 'profilePageCustomBackgroundOption') {
+                backgroundUpload.click();
+                return;
+            }
+            
+            const background = this.dataset.background;
+            selectProfilePageBackgroundOption(this);
+            updateProfilePageBackgroundPreview(background);
+            saveUserProfile({ background: background });
+            showQuickStatus('Background updated!', 'success');
+        });
+    });
+    
+    backgroundUpload.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 100 * 1024) {
+            showQuickStatus('Background image too large! Max 100KB.', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const customBackground = e.target.result;
+            updateProfilePageBackgroundPreview(`url(${customBackground})`);
+            saveUserProfile({ background: customBackground });
+            showQuickStatus('Custom background saved!', 'success');
+            
+            selectProfilePageBackgroundOption(document.getElementById('profilePageCustomBackgroundOption'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function selectProfilePageBackgroundOption(selectedOption) {
+    document.querySelectorAll('.profile-background-section .background-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    selectedOption.classList.add('active');
+}
+
+function updateProfilePageBackgroundPreview(background) {
+    const preview = document.getElementById('profilePageBackgroundPreview');
+    if (!preview) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else if (background.startsWith('linear-gradient')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else {
+        preview.style.backgroundImage = `url(${background})`;
+        preview.innerHTML = '';
+    }
+}
+/* ---------- PROFILE PAGE BACKGROUND SYSTEM ---------- */
+function initProfilePageBackgroundSystem() {
+    const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
+    const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
+    const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
+    
+    backgroundOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            if (this.id === 'profilePageCustomBackgroundOption') {
+                backgroundUpload.click();
+                return;
+            }
+            
+            const background = this.dataset.background;
+            selectProfilePageBackgroundOption(this);
+            updateProfilePageBackgroundPreview(background);
+            saveUserProfile({ background: background });
+            showQuickStatus('Background updated!', 'success');
+        });
+    });
+    
+    backgroundUpload.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 100 * 1024) {
+            showQuickStatus('Background image too large! Max 100KB.', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const customBackground = e.target.result;
+            updateProfilePageBackgroundPreview(`url(${customBackground})`);
+            saveUserProfile({ background: customBackground });
+            showQuickStatus('Custom background saved!', 'success');
+            
+            selectProfilePageBackgroundOption(document.getElementById('profilePageCustomBackgroundOption'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function selectProfilePageBackgroundOption(selectedOption) {
+    document.querySelectorAll('.profile-background-section .background-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    selectedOption.classList.add('active');
+}
+
+function updateProfilePageBackgroundPreview(background) {
+    const preview = document.getElementById('profilePageBackgroundPreview');
+    if (!preview) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else if (background.startsWith('linear-gradient')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else {
+        preview.style.backgroundImage = `url(${background})`;
+        preview.innerHTML = '';
+    }
+}
 /* ---------- FIXED PROFILE MUSIC SYSTEM ---------- */
 function initProfileMusicSystem() {
     const youtubeUrlInput = document.getElementById('youtubeUrlInput');
@@ -4584,6 +4730,129 @@ function extractYouTubeId(url) {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
     return match ? match[1] : null;
+
+  /* ---------- PROFILE PAGE MUSIC SYSTEM ---------- */
+function initProfilePageMusicSystem() {
+    const playPauseBtn = document.getElementById('profilePagePlayPause');
+    const stopBtn = document.getElementById('profilePageStopMusic');
+    const setMusicBtn = document.getElementById('profilePageSetMusicUrl');
+    const disableBtn = document.getElementById('profilePageDisableProfileMusic');
+    
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', function() {
+            console.log('🎵 Profile Page Play/Pause clicked');
+            if (!currentProfileMusic) {
+                showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
+                return;
+            }
+            
+            if (!isProfileMusicPlaying) {
+                playProfileMusic();
+            } else {
+                pauseProfileMusic();
+            }
+        });
+    }
+    
+    if (stopBtn) {
+        stopBtn.addEventListener('click', function() {
+            console.log('🛑 Profile Page Stop clicked');
+            stopProfileMusic();
+        });
+    }
+    
+    if (setMusicBtn) {
+        setMusicBtn.addEventListener('click', function() {
+            const youtubeUrl = document.getElementById('profilePageYoutubeUrlInput').value.trim();
+            
+            if (!youtubeUrl) {
+                showQuickStatus('Please enter a YouTube URL!', 'error');
+                return;
+            }
+            
+            const videoId = extractYouTubeId(youtubeUrl);
+            
+            if (!videoId) {
+                showQuickStatus('Invalid YouTube URL!', 'error');
+                return;
+            }
+            
+            const musicData = {
+                id: videoId,
+                url: youtubeUrl,
+                title: 'Custom YouTube Music',
+                type: 'youtube'
+            };
+            
+            currentProfileMusic = musicData;
+            updateProfilePageMusicPreview(musicData);
+            saveUserProfile({ music: musicData });
+            
+            const currentMusicInfo = document.getElementById('profilePageCurrentMusicInfo');
+            if (currentMusicInfo) {
+                currentMusicInfo.style.display = 'block';
+                document.getElementById('profilePageCurrentMusicUrl').textContent = youtubeUrl;
+            }
+            
+            if (isProfileMusicPlaying) {
+                stopProfileMusic();
+            }
+            
+            showQuickStatus('Profile music set!', 'success');
+        });
+    }
+    
+    if (disableBtn) {
+        disableBtn.addEventListener('click', function() {
+            currentProfileMusic = null;
+            stopProfileMusic();
+            updateProfilePageMusicPreview(null);
+            saveUserProfile({ music: null });
+            
+            const youtubeInput = document.getElementById('profilePageYoutubeUrlInput');
+            const currentMusicInfo = document.getElementById('profilePageCurrentMusicInfo');
+            if (youtubeInput) youtubeInput.value = '';
+            if (currentMusicInfo) currentMusicInfo.style.display = 'none';
+            
+            showQuickStatus('Profile music disabled!', 'info');
+        });
+    }
+    
+    // Load current music for profile page
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+            loadUserProfile().then(profile => {
+                if (profile && profile.music) {
+                    currentProfileMusic = profile.music;
+                    updateProfilePageMusicPreview(profile.music);
+                    const youtubeInput = document.getElementById('profilePageYoutubeUrlInput');
+                    const currentMusicInfo = document.getElementById('profilePageCurrentMusicInfo');
+                    if (youtubeInput) youtubeInput.value = profile.music.url || '';
+                    if (currentMusicInfo) {
+                        currentMusicInfo.style.display = 'block';
+                        document.getElementById('profilePageCurrentMusicUrl').textContent = profile.music.url;
+                    }
+                }
+            });
+        }
+    });
+}
+
+function updateProfilePageMusicPreview(musicData) {
+    const titleElement = document.getElementById('profilePageMusicTitle');
+    const artistElement = document.getElementById('profilePageMusicArtist');
+    const playPauseBtn = document.getElementById('profilePagePlayPause');
+    
+    if (!musicData) {
+        titleElement.textContent = 'No music selected';
+        artistElement.textContent = 'Add a YouTube URL above';
+        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+        return;
+    }
+    
+    titleElement.textContent = musicData.title;
+    artistElement.textContent = musicData.artist;
+    if (playPauseBtn) playPauseBtn.textContent = isProfileMusicPlaying ? '⏸️' : '▶️';
 }
 
 /* ---------- HTML SIGNATURE EDITOR SYSTEM ---------- */
@@ -5467,47 +5736,136 @@ function initChatSystem() {
   }
 }
 
-function sendChatMessage() {
+async function sendChatMessage() {
     const chatInput = document.getElementById('chatInput');
     const message = chatInput.value.trim();
     
     if (!message) return;
     
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        if (!user) {
-            showQuickStatus('Please login to chat!', 'error');
-            return;
-        }
-        
-        const messageObj = {
-            id: Date.now(),
-            username: user.user_metadata?.username || user.email.split('@')[0],
-            text: message,
-            timestamp: new Date().toISOString(),
-            type: 'global',
-            isOwn: true
-        };
-        
-        const chatData = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
-        chatData.push(messageObj);
-        
-        if (chatData.length > 100) {
-            chatData.splice(0, chatData.length - 100);
-        }
-        
-        localStorage.setItem('rom-chat-messages', JSON.stringify(chatData));
-        
-        appendEnhancedChatMessage(messageObj);
-        chatInput.value = '';
-        playChatSound();
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        showQuickStatus('Please login to chat!', 'error');
+        return;
+    }
+    
+    const username = user.user_metadata?.username || user.email.split('@')[0];
+    
+    // Save to Supabase for cross-device sync
+    const { data, error } = await supabase
+        .from('global_chat')
+        .insert([{
+            username: username,
+            message: message
+        }]);
+    
+    if (error) {
+        console.error('Failed to save message to Supabase:', error);
+        showQuickStatus('Failed to send message!', 'error');
+        return;
+    }
+    
+    // Also save locally for immediate display
+    const messageObj = {
+        id: Date.now(),
+        username: username,
+        text: message,
+        timestamp: new Date().toISOString(),
+        type: 'global',
+        isOwn: true
+    };
+    
+    const chatData = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
+    chatData.push(messageObj);
+    
+    if (chatData.length > 100) {
+        chatData.splice(0, chatData.length - 100);
+    }
+    
+    localStorage.setItem('rom-chat-messages', JSON.stringify(chatData));
+    
+    appendEnhancedChatMessage(messageObj);
+    chatInput.value = '';
+    playChatSound();
+    
+    showQuickStatus('Message sent!', 'success');
 }
 
-function loadChatMessages() {
+async function loadChatMessages() {
+    const chatMessages = document.getElementById('chatMessages');
+    
+    // Load messages from Supabase
+    const { data: supabaseMessages, error } = await supabase
+        .from('global_chat')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(100);
+    
+    if (error) {
+        console.error('Failed to load messages from Supabase:', error);
+        // Fallback to localStorage
+        loadLocalChatMessages();
+        return;
+    }
+    
+    // Convert Supabase format to app format
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUsername = user?.user_metadata?.username || user?.email.split('@')[0];
+    
+    const chatData = supabaseMessages.map(msg => ({
+        id: msg.id,
+        username: msg.username,
+        text: msg.message,
+        timestamp: msg.created_at,
+        type: 'global',
+        isOwn: msg.username === currentUsername
+    }));
+    
+    chatMessages.innerHTML = '';
+    
+    chatData.forEach(msg => {
+        appendEnhancedChatMessage(msg);
+    });
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Set up real-time subscription
+    setupChatSubscription();
+}
+
+function setupChatSubscription() {
+    const subscription = supabase
+        .channel('global-chat')
+        .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'global_chat' },
+            (payload) => {
+                // New message received
+                supabase.auth.getUser().then(({ data: { user } }) => {
+                    const currentUsername = user?.user_metadata?.username || user?.email.split('@')[0];
+                    const newMessage = {
+                        id: payload.new.id,
+                        username: payload.new.username,
+                        text: payload.new.message,
+                        timestamp: payload.new.created_at,
+                        type: 'global',
+                        isOwn: payload.new.username === currentUsername
+                    };
+                    
+                    if (!newMessage.isOwn) {
+                        appendEnhancedChatMessage(newMessage);
+                        playChatSound();
+                    }
+                });
+            }
+        )
+        .subscribe();
+        
+    return subscription;
+}
+
+function loadLocalChatMessages() {
     const chatMessages = document.getElementById('chatMessages');
     const chatData = JSON.parse(localStorage.getItem('rom-chat-messages') || '[]');
     
-    // Add isOwn property to each message
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) {
             const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
@@ -5525,7 +5883,6 @@ function loadChatMessages() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     });
 }
-
 // FIXED Online Users System - Shows real user data
 function updateOnlineUsers() {
     const onlineList = document.getElementById('onlineUsersList');
@@ -5855,8 +6212,143 @@ function loadFriendSystem() {
 
 /* ---------- PLAYER SEARCH SYSTEM ---------- */
 function initPlayerSearchSystem() {
-    // Placeholder for player search system
-    console.log('Player search system placeholder');
+    const searchBtn = document.getElementById('playerSearchBtn');
+    const searchInput = document.getElementById('playerSearchInput');
+    const searchResults = document.getElementById('playerSearchResults');
+    
+    if (searchBtn && searchInput) {
+        searchBtn.addEventListener('click', performPlayerSearch);
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performPlayerSearch();
+            }
+        });
+    }
+}
+
+async function performPlayerSearch() {
+    const searchInput = document.getElementById('playerSearchInput');
+    const searchResults = document.getElementById('playerSearchResults');
+    const searchTerm = searchInput.value.trim().toLowerCase();
+    
+    if (!searchTerm) {
+        showQuickStatus('Please enter a username to search!', 'error');
+        return;
+    }
+    
+    searchResults.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">Searching...</div>';
+    
+    try {
+        // Search in Supabase user_profiles
+        const { data: users, error } = await supabase
+            .from('user_profiles')
+            .select('username, profile_data')
+            .ilike('username', `%${searchTerm}%`)
+            .limit(10);
+        
+        if (error) {
+            throw error;
+        }
+        
+        displayPlayerSearchResults(users, searchTerm);
+        
+    } catch (error) {
+        console.error('Search error:', error);
+        searchResults.innerHTML = '<div style="text-align: center; color: #ff3333; padding: 20px;">Search failed. Please try again.</div>';
+    }
+}
+
+async function displayPlayerSearchResults(users, searchTerm) {
+    const searchResults = document.getElementById('playerSearchResults');
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const currentUsername = currentUser?.user_metadata?.username || currentUser?.email.split('@')[0];
+    
+    if (!users || users.length === 0) {
+        searchResults.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                No players found matching "${searchTerm}"
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    users.forEach(user => {
+        if (user.username === currentUsername) return; // Skip current user
+        
+        const status = user.profile_data?.status || '💻 Online';
+        const isOnline = true; // You can implement actual online status checking
+        
+        html += `
+            <div class="user-card" style="margin: 10px 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="user-avatar">
+                            ${user.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div style="color: #00ffff; font-weight: bold;">${user.username}</div>
+                            <div style="color: #a8dfe8; font-size: 0.8rem;">${status}</div>
+                        </div>
+                    </div>
+                    <button class="button add-friend-btn" data-username="${user.username}" 
+                            style="padding: 6px 12px; font-size: 0.8rem;">
+                        Add Friend
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    searchResults.innerHTML = html;
+    
+    // Add event listeners to add friend buttons
+    document.querySelectorAll('.add-friend-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const username = this.getAttribute('data-username');
+            sendFriendRequest(username);
+        });
+    });
+}
+
+async function sendFriendRequest(targetUsername) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+        showQuickStatus('Please login to send friend requests!', 'error');
+        return;
+    }
+    
+    const fromUsername = user.user_metadata?.username || user.email.split('@')[0];
+    
+    if (fromUsername === targetUsername) {
+        showQuickStatus('You cannot add yourself as a friend!', 'error');
+        return;
+    }
+    
+    try {
+        const { data, error } = await supabase
+            .from('friend_requests')
+            .insert([{
+                from_user: fromUsername,
+                to_user: targetUsername,
+                status: 'pending'
+            }]);
+        
+        if (error) {
+            if (error.code === '23505') { // Unique constraint violation
+                showQuickStatus('Friend request already sent!', 'info');
+            } else {
+                throw error;
+            }
+        } else {
+            showQuickStatus(`Friend request sent to ${targetUsername}!`, 'success');
+        }
+        
+    } catch (error) {
+        console.error('Failed to send friend request:', error);
+        showQuickStatus('Failed to send friend request!', 'error');
+    }
 }
 
 /* ---------- NEW: PROFILE ROUTE SYSTEM ---------- */
@@ -5929,6 +6421,8 @@ function initProfileRouteSystem() {
     
     // Load profile data when route is active
     loadProfilePageData();
+    initProfilePageMusicSystem();
+    initProfilePageBackgroundSystem();
 }
 
 function showProfilePage(username = null) {
