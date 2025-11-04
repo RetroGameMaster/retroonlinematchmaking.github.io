@@ -4290,7 +4290,8 @@ function initProfilePageBackgroundSystem() {
     const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
     const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
     const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
-      // Load current background and apply it
+    
+    // Load current background and apply it
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) {
             loadUserProfile().then(profile => {
@@ -4311,7 +4312,7 @@ function initProfilePageBackgroundSystem() {
         }
     });
     
-      backgroundOptions.forEach(option => {
+    backgroundOptions.forEach(option => {
         option.addEventListener('click', function() {
             if (this.id === 'profilePageCustomBackgroundOption') {
                 backgroundUpload.click();
@@ -4327,7 +4328,7 @@ function initProfilePageBackgroundSystem() {
         });
     });
     
-      backgroundUpload.addEventListener('change', function(event) {
+    backgroundUpload.addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (!file) return;
         
@@ -4372,71 +4373,7 @@ function updateProfilePageBackgroundPreview(background) {
         preview.innerHTML = '';
     }
 }
-/* ---------- PROFILE PAGE BACKGROUND SYSTEM ---------- */
-function initProfilePageBackgroundSystem() {
-    const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
-    const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
-    const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
-    
-    backgroundOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            if (this.id === 'profilePageCustomBackgroundOption') {
-                backgroundUpload.click();
-                return;
-            }
-            
-            const background = this.dataset.background;
-            selectProfilePageBackgroundOption(this);
-            updateProfilePageBackgroundPreview(background);
-            saveUserProfile({ background: background });
-            showQuickStatus('Background updated!', 'success');
-        });
-    });
-    
-    backgroundUpload.addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        if (file.size > 100 * 1024) {
-            showQuickStatus('Background image too large! Max 100KB.', 'error');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const customBackground = e.target.result;
-            updateProfilePageBackgroundPreview(`url(${customBackground})`);
-            saveUserProfile({ background: customBackground });
-            showQuickStatus('Custom background saved!', 'success');
-            
-            selectProfilePageBackgroundOption(document.getElementById('profilePageCustomBackgroundOption'));
-        };
-        reader.readAsDataURL(file);
-    });
-}
 
-function selectProfilePageBackgroundOption(selectedOption) {
-    document.querySelectorAll('.profile-background-section .background-option').forEach(option => {
-        option.classList.remove('active');
-    });
-    selectedOption.classList.add('active');
-}
-
-function updateProfilePageBackgroundPreview(background) {
-    const preview = document.getElementById('profilePageBackgroundPreview');
-    if (!preview) return;
-    
-    if (background.startsWith('url(') || background.startsWith('data:')) {
-        preview.style.backgroundImage = background;
-        preview.innerHTML = '';
-    } else if (background.startsWith('linear-gradient')) {
-        preview.style.backgroundImage = background;
-        preview.innerHTML = '';
-    } else {
-        preview.style.backgroundImage = `url(${background})`;
-        preview.innerHTML = '';
-    }
-}
 /* ---------- FIXED PROFILE MUSIC SYSTEM ---------- */
 function initProfileMusicSystem() {
     const youtubeUrlInput = document.getElementById('youtubeUrlInput');
