@@ -447,25 +447,9 @@ header{
 footer.site-footer { text-align:center; padding:18px 4vw; color:#a8dfe8; font-size:13px; border-top:1px solid rgba(0,224,255,0.04); margin-top:2.2rem }
 
 /* --- Cursor (fixed for correct tracking) --- */
-/* --- Cursor (fixed for correct tracking) --- */
 #customCursor{
   position:fixed; width:40px; height:40px; pointer-events:none; z-index:5000; transform:translate(-50%,-50%);
   filter: drop-shadow(0 6px 18px rgba(0,224,255,0.08));
-  display: block !important;
-}
-
-/* Fix cursor display */
-body, html {
-  cursor: none !important;
-}
-
-@media (max-width: 768px) {
-  #customCursor {
-    display: none !important;
-  }
-  body, html {
-    cursor: auto !important;
-  }
 }
 
 /* --- Canvas BG --- */
@@ -3164,6 +3148,81 @@ body.sega-theme .music-btn:hover {
                 <option value="😎 Chilling">😎 Chilling</option>
               </select>
               
+              <!-- NEW: Profile Background Section -->
+              <div class="profile-background-section">
+                <h4 style="color: #00ffff; margin-bottom: 15px;">🎨 Profile Background</h4>
+                
+                <div class="profile-background-preview" id="profileBackgroundPreview">
+                  <span id="backgroundPreviewText">Profile Background Preview</span>
+                </div>
+                
+                <div class="background-options">
+                  <div class="background-option color" data-background="linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)" style="background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);">
+                    Cyber Space
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #1e3c72, #2a5298)" style="background: linear-gradient(135deg, #1e3c72, #2a5298);">
+                    Deep Blue
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #667eea, #764ba2)" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    Purple Haze
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #f093fb, #f5576c)" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                    Pink Dream
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #4facfe, #00f2fe)" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                    Ocean Breeze
+                  </div>
+                  <div class="background-option color" data-background="linear-gradient(135deg, #43e97b, #38f9d7)" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                    Green Matrix
+                  </div>
+                  <div class="background-option custom" id="customBackgroundOption">
+                    <span>🖼️ Custom</span>
+                    <small>Upload Image</small>
+                  </div>
+                </div>
+                
+                <input type="file" id="backgroundImageUpload" accept="image/*" style="display: none;">
+                <button onclick="document.getElementById('backgroundImageUpload').click()" class="button" style="width: 100%; margin-top: 10px;">Upload Custom Background</button>
+                <p style="color: #a8dfe8; font-size: 0.8rem; text-align: center; margin-top: 5px;">Max 100KB • JPG/PNG recommended</p>
+              </div>
+              
+              <!-- NEW: Profile Music Section -->
+              <div class="profile-music-section">
+                <h4 style="color: #00ffff; margin-bottom: 15px;">🎵 Profile Music</h4>
+                
+               <div class="profile-music-preview" id="profileMusicPreview">
+  <div class="profile-music-info">
+    <div class="profile-music-title" id="profileMusicTitle">No music selected</div>
+    <div class="profile-music-artist" id="profileMusicArtist">Add a YouTube URL above</div>
+  </div>
+  <div class="profile-music-controls">
+    <button class="profile-music-btn" id="profilePlayPause">▶️</button>
+    <button class="profile-music-btn" id="profileStopMusic">⏹️</button>
+  </div>
+</div>
+
+<!-- YouTube Player Container (hidden but functional) -->
+<div id="profileMusicPlayerContainer" style="display: none;"></div>
+                
+               <!-- YouTube URL Input -->
+<div class="music-url-input" style="margin-bottom: 15px;">
+  <label style="color: #00ffff; display: block; margin-bottom: 5px;">🎵 YouTube URL</label>
+  <input type="text" id="youtubeUrlInput" placeholder="Paste YouTube URL here..." 
+         style="width: 100%; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+  <button id="setMusicUrl" class="button" style="width: 100%; margin-top: 8px;">Set Profile Music</button>
+</div>
+
+<!-- Music Info Display -->
+<div class="current-music-info" style="background: rgba(0, 30, 60, 0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; display: none;" id="currentMusicInfo">
+  <div style="color: #00ffff; font-weight: bold;" id="currentMusicTitle">Current Music</div>
+  <div style="color: #a8dfe8; font-size: 0.9rem;" id="currentMusicUrl"></div>
+}
+                
+                <div style="text-align: center; margin-top: 10px;">
+                  <button class="button muted" id="disableProfileMusic">Disable Profile Music</button>
+                </div>
+              </div>
+              
               <!-- HTML Signature Editor -->
               <div class="signature-editor-container">
                 <div class="signature-editor-toolbar" id="signatureToolbar">
@@ -4671,7 +4730,7 @@ function extractYouTubeId(url) {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
     return match ? match[1] : null;
-}
+
   /* ---------- PROFILE PAGE MUSIC SYSTEM ---------- */
 function initProfilePageMusicSystem() {
     const playPauseBtn = document.getElementById('profilePagePlayPause');
@@ -6227,23 +6286,9 @@ async function performPlayerSearch() {
 
 function displayPlayerSearchResults(users, searchTerm) {
     const searchResults = document.getElementById('playerSearchResults');
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const currentUsername = currentUser?.user_metadata?.username || currentUser?.email.split('@')[0];
     
-    // Get current user asynchronously
-    let currentUsername = '';
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        currentUsername = user?.user_metadata?.username || user?.email.split('@')[0] || '';
-        
-             // Now that we have the username, process the results
-        processSearchResultsWithClickableUsers(users, searchTerm, currentUsername, searchResults);
-    }).catch(error => {
-        console.error('Error getting current user:', error);
-        // Process without current username if there's an error
-        processSearchResultsWithClickableUsers(users, searchTerm, '', searchResults);
-    });
-}
-
-// NEW: Function to make usernames clickable
-function processSearchResultsWithClickableUsers(users, searchTerm, currentUsername, searchResults) {
     if (!users || users.length === 0) {
         searchResults.innerHTML = `
             <div style="text-align: center; color: #a8dfe8; padding: 20px;">
@@ -6258,75 +6303,7 @@ function processSearchResultsWithClickableUsers(users, searchTerm, currentUserna
         if (user.username === currentUsername) return; // Skip current user
         
         const status = user.profile_data?.status || '💻 Online';
-        
-        html += `
-            <div class="user-card" style="margin: 10px 0;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="user-avatar">
-                            ${user.username.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div style="color: #00ffff; font-weight: bold; cursor: pointer; text-decoration: underline;" 
-                                 onclick="viewUserProfile('${user.username}')" 
-                                 onkeypress="if(event.key==='Enter') viewUserProfile('${user.username}')"
-                                 tabindex="0" role="button">
-                                ${user.username}
-                            </div>
-                            <div style="color: #a8dfe8; font-size: 0.8rem;">${status}</div>
-                        </div>
-                    </div>
-                    <button class="button add-friend-btn" data-username="${user.username}" 
-                            style="padding: 6px 12px; font-size: 0.8rem;">
-                        Add Friend
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-    
-    // If no users after filtering (only current user in results)
-    if (html === '') {
-        searchResults.innerHTML = `
-            <div style="text-align: center; color: #a8dfe8; padding: 20px;">
-                No other players found matching "${searchTerm}"
-            </div>
-        `;
-        return;
-    }
-    
-    searchResults.innerHTML = html;
-    
-    // Add event listeners to add friend buttons
-    document.querySelectorAll('.add-friend-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const username = this.getAttribute('data-username');
-            sendFriendRequest(username);
-        });
-    });
-}
-
-// NEW: Function to view user profile when username is clicked
-function viewUserProfile(username) {
-    showProfilePage(username);
-    updateURLForProfile(username);
-}
-
-function processSearchResults(users, searchTerm, currentUsername, searchResults) {
-    if (!users || users.length === 0) {
-        searchResults.innerHTML = `
-            <div style="text-align: center; color: #a8dfe8; padding: 20px;">
-                No players found matching "${searchTerm}"
-            </div>
-        `;
-        return;
-    }
-    
-    let html = '';
-    users.forEach(user => {
-        if (user.username === currentUsername) return; // Skip current user
-        
-        const status = user.profile_data?.status || '💻 Online';
+        const isOnline = true; // You can implement actual online status checking
         
         html += `
             <div class="user-card" style="margin: 10px 0;">
@@ -6348,16 +6325,6 @@ function processSearchResults(users, searchTerm, currentUsername, searchResults)
             </div>
         `;
     });
-    
-    // If no users after filtering (only current user in results)
-    if (html === '') {
-        searchResults.innerHTML = `
-            <div style="text-align: center; color: #a8dfe8; padding: 20px;">
-                No other players found matching "${searchTerm}"
-            </div>
-        `;
-        return;
-    }
     
     searchResults.innerHTML = html;
     
@@ -6482,89 +6449,8 @@ function initProfileRouteSystem() {
     loadProfilePageData();
     initProfilePageMusicSystem();
     initProfilePageBackgroundSystem();
-    initProfilePageBioEditor();
 }
-// NEW: Profile Page Bio Editor
-function initProfilePageBioEditor() {
-    const editBioBtn = document.getElementById('profilePageEditBio');
-    const saveBioBtn = document.getElementById('profilePageSaveBio');
-    const cancelBioBtn = document.getElementById('profilePageCancelBio');
-    const bioEditSection = document.getElementById('profilePageBioEdit');
-    const bioDisplay = document.getElementById('profilePageBio');
-    const bioTextarea = document.getElementById('profilePageBioText');
-    const charCount = document.getElementById('profilePageBioCharCount');
-    
-    if (!editBioBtn) return;
-    
-    // Check if this is the current user's profile
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        if (user) {
-            const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
-            const profileUsername = document.getElementById('profilePageUsername')?.textContent;
-            
-            if (currentUsername === profileUsername) {
-                editBioBtn.style.display = 'block';
-                
-                // Load current bio
-                loadUserProfile().then(profile => {
-                    if (profile && profile.bio) {
-                        bioTextarea.value = profile.bio;
-                        charCount.textContent = profile.bio.length;
-                    }
-                });
-            }
-        }
-    });
-    
-    // Edit bio button
-    editBioBtn.addEventListener('click', function() {
-        bioEditSection.style.display = 'block';
-        bioDisplay.style.display = 'none';
-        this.style.display = 'none';
-    });
-    
-    // Cancel edit
-    cancelBioBtn.addEventListener('click', function() {
-        bioEditSection.style.display = 'none';
-        bioDisplay.style.display = 'block';
-        editBioBtn.style.display = 'block';
-    });
-    
-    // Save bio
-    saveBioBtn.addEventListener('click', function() {
-        const bioText = bioTextarea.value.trim();
-        
-        if (bioText.length > 500) {
-            showQuickStatus('Bio must be 500 characters or less!', 'error');
-            return;
-        }
-        
-        saveUserProfile({ bio: bioText }).then(() => {
-            bioDisplay.textContent = bioText || 'This user hasn\'t written a bio yet.';
-            bioDisplay.classList.toggle('empty', !bioText);
-            
-            bioEditSection.style.display = 'none';
-            bioDisplay.style.display = 'block';
-            editBioBtn.style.display = 'block';
-            
-            showQuickStatus('Bio updated successfully!', 'success');
-        });
-    });
-    
-    // Character count
-    bioTextarea.addEventListener('input', function() {
-        const length = this.value.length;
-        charCount.textContent = length;
-        
-        if (length > 450) {
-            charCount.style.color = '#ff3333';
-        } else if (length > 350) {
-            charCount.style.color = '#ffff00';
-        } else {
-            charCount.style.color = '#a8dfe8';
-        }
-    });
-}
+
 function showProfilePage(username = null) {
     console.log('👤 Showing profile page for:', username);
     
@@ -6753,76 +6639,28 @@ function updateFriendList(username) {
     });
 }
 
-async function updateRecentActivity(username) {
+function updateRecentActivity(username) {
     const activityList = document.getElementById('recentActivityList');
     
-    if (!activityList) return;
+    // Demo activity data
+    const demoActivities = [
+        { action: '🎮 Played Gran Turismo PSP', time: '2 hours ago' },
+        { action: '💬 Posted on RetroGamer88\'s wall', time: '5 hours ago' },
+        { action: '⭐ Favorited PS2 connection method', time: '1 day ago' },
+        { action: '👥 Added PixelMaster as friend', time: '2 days ago' }
+    ];
     
-    try {
-        // Load real activity data from multiple sources
-        const activities = [];
-        
-        // Get recent wall posts by this user
-        const { data: wallPosts, error: wallError } = await supabase
-            .from('wall_posts')
-            .select('content, created_at')
-            .eq('author', username)
-            .order('created_at', { ascending: false })
-            .limit(5);
-
-        if (!wallError && wallPosts) {
-            wallPosts.forEach(post => {
-                activities.push({
-                    action: `💬 Posted: "${post.content.substring(0, 30)}${post.content.length > 30 ? '...' : ''}"`,
-                    time: formatRelativeTime(new Date(post.created_at))
-                });
-            });
-        }
-
-        // Get recent chat messages
-        const { data: chatMessages, error: chatError } = await supabase
-            .from('global_chat')
-            .select('message, created_at')
-            .eq('username', username)
-            .order('created_at', { ascending: false })
-            .limit(3);
-
-        if (!chatError && chatMessages) {
-            chatMessages.forEach(msg => {
-                activities.push({
-                    action: `💭 Sent message in global chat`,
-                    time: formatRelativeTime(new Date(msg.created_at))
-                });
-            });
-        }
-
-        // Sort activities by time
-        activities.sort((a, b) => new Date(b.originalTime || b.time) - new Date(a.originalTime || a.time));
-        
-        // Take only the 5 most recent
-        const recentActivities = activities.slice(0, 5);
-
-        activityList.innerHTML = '';
-        
-        if (recentActivities.length === 0) {
-            activityList.innerHTML = '<div style="color: #a8dfe8; text-align: center; padding: 20px;">No recent activity</div>';
-            return;
-        }
-
-        recentActivities.forEach(activity => {
-            const activityItem = document.createElement('div');
-            activityItem.style.cssText = 'color: #a8dfe8; font-size: 0.8rem; padding: 8px 0; border-bottom: 1px solid rgba(0,255,255,0.1);';
-            activityItem.innerHTML = `
-                <div>${activity.action}</div>
-                <div style="color: #668899; font-size: 0.7rem;">${activity.time}</div>
-            `;
-            activityList.appendChild(activityItem);
-        });
-
-    } catch (err) {
-        console.error('Error loading recent activity:', err);
-        activityList.innerHTML = '<div style="color: #ff3333; text-align: center; padding: 20px;">Error loading activity</div>';
-    }
+    activityList.innerHTML = '';
+    
+    demoActivities.forEach(activity => {
+        const activityItem = document.createElement('div');
+        activityItem.style.cssText = 'color: #a8dfe8; font-size: 0.8rem; padding: 8px 0; border-bottom: 1px solid rgba(0,255,255,0.1);';
+        activityItem.innerHTML = `
+            <div>${activity.action}</div>
+            <div style="color: #668899; font-size: 0.7rem;">${activity.time}</div>
+        `;
+        activityList.appendChild(activityItem);
+    });
 }
 
 function updateProfileActions(isOwnProfile) {
