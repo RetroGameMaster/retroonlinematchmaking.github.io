@@ -2757,6 +2757,61 @@ body.sega-theme .music-btn:hover {
           </div>
         </section>
 
+        <!-- Real Salty Bet Live Stream -->
+<section class="salty-bet-live" style="margin: 2rem auto; max-width: 1100px; padding: 0 4vw;">
+    <h2 style="color: #00ffff; text-align: center; margin-bottom: 1.5rem; text-shadow: 0 0 8px rgba(0,255,255,0.08);">🎮 Salty Bet Live</h2>
+    
+    <div class="stream-container" style="display: grid; grid-template-columns: 1fr 400px; gap: 20px; margin-bottom: 2rem;">
+        <!-- Twitch Stream Embed -->
+        <div class="twitch-embed">
+            <div id="twitch-embed" style="border: 2px solid #ff3366; border-radius: 12px; overflow: hidden; background: #000;">
+                <!-- Twitch embed will load here -->
+            </div>
+            <div style="text-align: center; margin-top: 10px;">
+                <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5);">Open in Twitch</a>
+            </div>
+        </div>
+        
+        <!-- Salty Bet Website Embed -->
+        <div class="salty-website-embed">
+            <div style="border: 2px solid #00ffff; border-radius: 12px; overflow: hidden; height: 500px;">
+                <iframe 
+                    src="https://www.saltybet.com" 
+                    style="width: 100%; height: 100%; border: none;"
+                    title="Salty Bet Website"
+                    allow="autoplay; encrypted-media">
+                </iframe>
+            </div>
+            <div style="text-align: center; margin-top: 10px;">
+                <a href="https://www.saltybet.com" target="_blank" class="button">Open SaltyBet.com</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="salty-instructions" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
+        <h3 style="color: #ff3366; margin-top: 0;">How to Play Salty Bet</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <div style="color: #a8dfe8;">
+                <strong style="color: #00ffff;">1. Watch the Stream</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Left side shows the live Twitch stream with current matches</p>
+            </div>
+            <div style="color: #a8dfe8;">
+                <strong style="color: #00ffff;">2. Place Bets</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Right side shows SaltyBet.com where you can bet with real virtual currency</p>
+            </div>
+            <div style="color: #a8dfe8;">
+                <strong style="color: #00ffff;">3. Create Account</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Visit SaltyBet.com to create an account and start betting</p>
+            </div>
+            <div style="color: #a8dfe8;">
+                <strong style="color: #00ffff;">4. Enjoy!</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Bet on MUGEN characters and watch the matches live</p>
+            </div>
+        </div>
+    </div>
+</section>
+
        <!-- Supporter Hall of Fame -->
 <section class="supporter-section">
   <h2>Supporter Hall of Fame</h2>
@@ -6809,7 +6864,65 @@ function updateURLForProfile(username) {
     const newUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(username);
     window.history.pushState({ profile: username }, '', newUrl);
 }
+/* ---------- REAL SALTY BET INTEGRATION ---------- */
+function initRealSaltyBet() {
+    console.log('🎮 Initializing Real Salty Bet integration...');
+    
+    // Load Twitch embed
+    loadTwitchEmbed();
+    
+    // The Salty Bet website embed will automatically work
+    // Users interact directly with the real SaltyBet.com
+}
 
+function loadTwitchEmbed() {
+    // Only load on desktop to avoid mobile issues
+    if (window.innerWidth < 768) {
+        document.getElementById('twitch-embed').innerHTML = `
+            <div style="padding: 40px; text-align: center; color: #a8dfe8;">
+                <p>📱 For best experience on mobile, open Salty Bet directly:</p>
+                <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5); margin: 10px;">Open Twitch</a>
+                <a href="https://www.saltybet.com" target="_blank" class="button" style="margin: 10px;">Open SaltyBet.com</a>
+            </div>
+        `;
+        return;
+    }
+    
+    // Load Twitch Embed Script
+    const script = document.createElement('script');
+    script.src = 'https://embed.twitch.tv/embed/v1.js';
+    script.onload = function() {
+        try {
+            new Twitch.Embed('twitch-embed', {
+                width: '100%',
+                height: '500',
+                channel: 'saltybet',
+                layout: 'video',
+                autoplay: false, // Start paused to be respectful
+                muted: true,
+                parent: ['retroonlinematchmaking.com'] // Update with your domain
+            });
+            console.log('✅ Twitch embed loaded for Salty Bet');
+        } catch (error) {
+            console.error('❌ Twitch embed failed:', error);
+            document.getElementById('twitch-embed').innerHTML = `
+                <div style="padding: 40px; text-align: center; color: #a8dfe8;">
+                    <p>Twitch embed unavailable. Open Salty Bet directly:</p>
+                    <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5);">Open Twitch</a>
+                </div>
+            `;
+        }
+    };
+    script.onerror = function() {
+        document.getElementById('twitch-embed').innerHTML = `
+            <div style="padding: 40px; text-align: center; color: #a8dfe8;">
+                <p>Open Salty Bet on Twitch:</p>
+                <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5);">Watch on Twitch</a>
+            </div>
+        `;
+    };
+    document.head.appendChild(script);
+}
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
     window.removeEventListener('load', onLoad);
@@ -7926,6 +8039,7 @@ function initAllSystems() {
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
     initProfileRouteSystem(); // ✅ NEW: Profile route system
     initURLRouting(); // ✅ NEW: URL routing system
+    initRealSaltyBet();
     console.log('✅ All systems initialized');
 }
 </script>
