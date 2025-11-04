@@ -2561,12 +2561,12 @@ body.sega-theme .music-btn:hover {
                 
                 <!-- Player Search System -->
                 <div style="margin-top: 20px;">
-    <h4 style="color: #00ffff; margin-bottom: 10px;">🔍 Find Players</h4>
-    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <input type="text" id="profilePlayerSearchInput" placeholder="Search for players..." 
-               style="flex: 1; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
-        <button id="profilePlayerSearchBtn" class="button">Search</button>
-    </div>
+                  <h4 style="color: #00ffff; margin-bottom: 10px;">🔍 Find Players</h4>
+                  <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="playerSearchInput" placeholder="Search for players..." 
+                           style="flex: 1; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+                    <button id="playerSearchBtn" class="button">Search</button>
+                  </div>
                   <div id="playerSearchResults" style="min-height: 100px;">
                     <div style="text-align: center; color: #a8dfe8; padding: 20px;">
                       Use the search above to find players to add as friends
@@ -3369,12 +3369,12 @@ body.sega-theme .music-btn:hover {
         </div>
       </div>
       
-   <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
-    <div>
-        <label style="color: #00ffff; display: block; margin-bottom: 5px;">👤 Search Players</label>
-        <input type="text" id="socialPlayerSearchInput" placeholder="Enter username or game..." 
-               style="width: 100%; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
-    </div>
+      <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px;">
+        <div>
+          <label style="color: #00ffff; display: block; margin-bottom: 5px;">👤 Search Players</label>
+          <input type="text" id="playerSearchInput" placeholder="Enter username or game..." 
+                 style="width: 100%; padding: 10px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+        </div>
         <div style="display: flex; align-items: end;">
           <button id="searchPlayersBtn" class="button" style="height: 40px;">Search</button>
         </div>
@@ -6212,8 +6212,8 @@ function loadFriendSystem() {
 
 /* ---------- PLAYER SEARCH SYSTEM ---------- */
 function initPlayerSearchSystem() {
-    const searchBtn = document.getElementById('profilePlayerSearchBtn');
-    const searchInput = document.getElementById('profilePlayerSearchInput');
+    const searchBtn = document.getElementById('playerSearchBtn');
+    const searchInput = document.getElementById('playerSearchInput');
     const searchResults = document.getElementById('playerSearchResults');
     
     if (searchBtn && searchInput) {
@@ -6224,37 +6224,11 @@ function initPlayerSearchSystem() {
             }
         });
     }
-    
-    // Also initialize the social hub search
-    const socialSearchBtn = document.getElementById('searchPlayersBtn');
-    const socialSearchInput = document.getElementById('socialPlayerSearchInput');
-    
-    if (socialSearchBtn && socialSearchInput) {
-        socialSearchBtn.addEventListener('click', performPlayerSearch);
-        socialSearchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performPlayerSearch();
-            }
-        });
-    }
 }
 
 async function performPlayerSearch() {
-    // Try profile search input first, then social hub input
-    let searchInput = document.getElementById('profilePlayerSearchInput');
-    let searchResults = document.getElementById('playerSearchResults');
-    
-    // If profile search doesn't exist, try social hub search
-    if (!searchInput) {
-        searchInput = document.getElementById('socialPlayerSearchInput');
-        searchResults = document.getElementById('playerSearchResults'); // This might be different in social hub
-    }
-    
-    if (!searchInput || !searchResults) {
-        showQuickStatus('Search system not available!', 'error');
-        return;
-    }
-    
+    const searchInput = document.getElementById('playerSearchInput');
+    const searchResults = document.getElementById('playerSearchResults');
     const searchTerm = searchInput.value.trim().toLowerCase();
     
     if (!searchTerm) {
