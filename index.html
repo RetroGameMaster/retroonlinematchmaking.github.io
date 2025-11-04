@@ -7661,7 +7661,7 @@ function initClipOfWeek() {
     if (!currentClip) {
         // Default clip data
         currentClip = {
-            videoId: 'Zl8w7VuXIcI',
+            videoId: 'Zl8w7VuXIcI', // This is your current video ID
             title: 'This Week\'s Featured Gameplay',
             description: 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!',
             author: 'FlatoutOutAnakin898',
@@ -7671,10 +7671,11 @@ function initClipOfWeek() {
         localStorage.setItem('rom-current-clip', JSON.stringify(currentClip));
     }
     
-    // Update the video embed
+    // Update the video embed - FIXED: Proper YouTube embed URL
     const iframe = document.querySelector('.video-container iframe');
     if (iframe && currentClip.videoId) {
-        iframe.src = `https://www.youtube.com/embed/${currentClip.videoId}`;
+        iframe.src = `https://www.youtube.com/embed/${currentClip.videoId}?rel=0&modestbranding=1`;
+        console.log('✅ Updated video embed with ID:', currentClip.videoId);
     }
     
     // Update clip info with ACTUAL data from storage
@@ -7691,19 +7692,29 @@ function initClipOfWeek() {
             ...newClipData
         };
         localStorage.setItem('rom-current-clip', JSON.stringify(updatedClip));
+        
+        // Force reload the clip data
         initClipOfWeek();
         showQuickStatus('Clip of the Week updated!', 'success');
+        
+        console.log('🔄 Clip updated:', updatedClip);
     };
     
-    // Optional: Auto-update every week
-    updateClipWeekly();
+    console.log('📹 Clip of the Week loaded:', currentClip);
 }
 
-function updateClipWeekly() {
-    // This would automatically rotate clips weekly
-    // For now, it's manual via updateClipOfWeek function
-    console.log('📹 Clip of the Week system ready - use updateClipOfWeek() to change clips');
-}
+// Add this function to easily update the clip from browser console
+window.updateClip = function(videoId, title, author, date) {
+    const newClipData = {
+        videoId: videoId,
+        title: title || 'This Week\'s Featured Gameplay',
+        author: author || 'Community Member',
+        date: date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    };
+    
+    window.updateClipOfWeek(newClipData);
+};
+
 
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
