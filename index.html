@@ -7653,68 +7653,135 @@ function showMessage(text, type = 'info') {
     }, 3000);
 }
 
-/* ---------- Clip of the Week System ---------- */
+/* ---------- FIXED Clip of the Week System ---------- */
 function initClipOfWeek() {
+    console.log('📹 Initializing Clip of the Week...');
+    
     // Load clip data from localStorage or use defaults
     let currentClip = JSON.parse(localStorage.getItem('rom-current-clip'));
     
     if (!currentClip) {
-        // Default clip data
+        // Default clip data - USING CORRECT EMBED FORMAT
         currentClip = {
-            videoId: 'Zl8w7VuXIcI', // This is your current video ID
-            title: 'This Week\'s Featured Gameplay',
+            videoId: 'Zl8w7VuXIcI',
+            title: 'Gran Turismo PSP Online Multiplayer',
             description: 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!',
             author: 'FlatoutOutAnakin898',
-            date: 'Nov.1st',
+            date: 'Nov 1st',
             game: 'Gran Turismo PSP'
         };
         localStorage.setItem('rom-current-clip', JSON.stringify(currentClip));
+        console.log('✅ Created default clip data');
     }
     
     // Update the video embed - FIXED: Proper YouTube embed URL
     const iframe = document.querySelector('.video-container iframe');
     if (iframe && currentClip.videoId) {
-        iframe.src = `https://www.youtube.com/embed/${currentClip.videoId}?rel=0&modestbranding=1`;
+        // CORRECTED: Use embed format, not watch format
+        iframe.src = `https://www.youtube.com/embed/${currentClip.videoId}?rel=0&modestbranding=1&autoplay=0`;
         console.log('✅ Updated video embed with ID:', currentClip.videoId);
+    } else {
+        console.error('❌ Could not find iframe or videoId');
     }
     
-    // Update clip info with ACTUAL data from storage
+    // Update clip info
+    const clipTitle = document.querySelector('.clip-info h3');
+    const clipDescription = document.querySelector('.clip-info p');
     const clipDate = document.getElementById('clipDate');
     const clipAuthor = document.getElementById('clipAuthor');
     
-    if (clipDate) clipDate.textContent = currentClip.date;
-    if (clipAuthor) clipAuthor.textContent = currentClip.author;
+    if (clipTitle) clipTitle.textContent = currentClip.title;
+    if (clipDescription) clipDescription.textContent = currentClip.description;
+    if (clipDate) clipDate.textContent = ' ' + currentClip.date;
+    if (clipAuthor) clipAuthor.textContent = ' ' + currentClip.author;
     
-    // Function to update clip (you can call this from console or admin panel)
+    // Enhanced update function for Supabase integration
     window.updateClipOfWeek = function(newClipData) {
+        console.log('🔄 Updating Clip of the Week:', newClipData);
+        
         const updatedClip = {
             ...currentClip,
-            ...newClipData
+            ...newClipData,
+            lastUpdated: new Date().toISOString()
         };
+        
+        // Save to localStorage
         localStorage.setItem('rom-current-clip', JSON.stringify(updatedClip));
         
-        // Force reload the clip data
-        initClipOfWeek();
-        showQuickStatus('Clip of the Week updated!', 'success');
+        // If using Supabase, save there too
+        saveClipToSupabase(updatedClip);
         
-        console.log('🔄 Clip updated:', updatedClip);
+        // Reload the clip
+        initClipOfWeek();
+        showQuickStatus('🎬 Clip of the Week updated!', 'success');
+        
+        console.log('✅ Clip updated:', updatedClip);
     };
     
     console.log('📹 Clip of the Week loaded:', currentClip);
 }
 
-// Add this function to easily update the clip from browser console
-window.updateClip = function(videoId, title, author, date) {
+// Save clip to Supabase (optional - for multi-admin support)
+async function saveClipToSupabase(clipData) {
+    try {
+        const { data, error } = await supabase
+            .from('site_content') 
+            .upsert({
+                id: 'clip_of_the_week',
+                content: clipData,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) {
+            console.error('❌ Supabase save failed:', error);
+        } else {
+            console.log('✅ Clip saved to Supabase');
+        }
+    } catch (err) {
+        console.error('❌ Supabase error:', err);
+    }
+}
+
+// Easy console command to update clips
+window.updateClip = function(videoUrlOrId, title, author, date, description) {
+    let videoId;
+    
+    // Extract video ID from various YouTube URL formats
+    if (videoUrlOrId.includes('youtube.com') || videoUrlOrId.includes('youtu.be')) {
+        const match = videoUrlOrId.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+        videoId = match ? match[1] : videoUrlOrId;
+    } else {
+        videoId = videoUrlOrId; // Assume it's already just the ID
+    }
+    
     const newClipData = {
         videoId: videoId,
         title: title || 'This Week\'s Featured Gameplay',
         author: author || 'Community Member',
-        date: date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        date: date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        description: description || 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!'
     };
     
     window.updateClipOfWeek(newClipData);
 };
 
+// Load clip from Supabase on startup
+async function loadClipFromSupabase() {
+    try {
+        const { data, error } = await supabase
+            .from('site_content')
+            .select('content')
+            .eq('id', 'clip_of_the_week')
+            .single();
+
+        if (!error && data && data.content) {
+            console.log('✅ Loaded clip from Supabase');
+            localStorage.setItem('rom-current-clip', JSON.stringify(data.content));
+        }
+    } catch (err) {
+        console.log('ℹ️ No Supabase clip found, using local storage');
+    }
+}
 
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
