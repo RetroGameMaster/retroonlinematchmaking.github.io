@@ -2757,68 +2757,79 @@ body.sega-theme .music-btn:hover {
           </div>
         </section>
 
-       <!-- Enhanced Salty Bet Hub -->
+      <!-- Working Salty Bet Hub -->
 <section class="salty-bet-hub" style="margin: 2rem auto; max-width: 1200px; padding: 0 4vw;">
-    <h2 style="color: #00ffff; text-align: center; margin-bottom: 1.5rem; text-shadow: 0 0 8px rgba(0,255,255,0.08);">🎮 Salty Bet Arena</h2>
+    <h2 style="color: #00ffff; text-align: center; margin-bottom: 1.5rem; text-shadow: 0 0 8px rgba(0,255,255,0.08);">🎮 Salty Bet Live</h2>
     
     <div class="hub-container" style="display: grid; grid-template-columns: 1fr 400px; gap: 20px;">
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Stream & Betting Area -->
-            <div class="stream-betting-area" style="background: rgba(0, 30, 60, 0.7); border-radius: 12px; padding: 20px; border: 2px solid #ff3366; margin-bottom: 20px;">
-                <div class="stream-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                    <!-- Twitch Stream -->
-                    <div class="twitch-stream">
-                        <h4 style="color: #ff3366; margin: 0 0 10px 0;">📺 Live Stream</h4>
-                        <div id="twitch-embed" style="border-radius: 8px; overflow: hidden; background: #000; height: 300px;">
-                            <!-- Twitch embed -->
-                        </div>
-                    </div>
-                    
-                    <!-- Betting Interface -->
-                    <div class="betting-interface">
-                        <h4 style="color: #00ffff; margin: 0 0 10px 0;">🎰 Place Bets</h4>
-                        <div id="bettingContainer">
-                            <!-- Dynamic betting content will go here -->
-                        </div>
-                    </div>
+        <!-- Main Stream Area -->
+        <div class="main-stream">
+            <!-- Twitch Stream -->
+            <div style="border: 2px solid #ff3366; border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
+                <div id="twitch-embed" style="height: 400px; background: #000;">
+                    <!-- Twitch embed will load here -->
                 </div>
             </div>
             
-            <!-- Match Information -->
-            <div class="match-info" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2);">
-                <h4 style="color: #00ffff; margin: 0 0 15px 0;">📊 Current Match</h4>
-                <div id="currentMatchInfo">
-                    <div style="text-align: center; color: #a8dfe8; padding: 20px;">
-                        Loading match information...
-                    </div>
-                </div>
+            <!-- Quick Actions -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <a href="https://www.saltybet.com" target="_blank" class="button" style="background: linear-gradient(180deg, #ff3366, #cc0066); text-align: center; text-decoration: none;">
+                    🎰 Bet Now
+                </a>
+                <a href="https://www.saltybet.com/shuffle" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5); text-align: center; text-decoration: none;">
+                    🎲 Shuffle
+                </a>
+                <a href="https://www.saltybet.com/leaderboards" target="_blank" class="button" style="background: linear-gradient(180deg, #00e0ff, #0088cc); text-align: center; text-decoration: none;">
+                    📊 Leaderboard
+                </a>
             </div>
         </div>
         
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <!-- User Stats -->
-            <div class="user-stats" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 2px solid #00ffff; margin-bottom: 20px;">
-                <h4 style="color: #00ffff; margin: 0 0 15px 0;">👤 Your Stats</h4>
-                <div id="userStatsContainer">
-                    <div style="text-align: center; color: #a8dfe8; padding: 10px;">
-                        Connect your Salty Bet account to see stats
-                    </div>
-                </div>
-                <button class="button" id="connectSaltyBtn" style="width: 100%; margin-top: 10px; background: linear-gradient(180deg, #ff3366, #cc0066);">
-                    Connect Salty Bet Account
-                </button>
+        <!-- Betting Panel -->
+        <div class="betting-panel">
+            <!-- Embedded Salty Bet -->
+            <div style="border: 2px solid #00ffff; border-radius: 12px; overflow: hidden; height: 500px; margin-bottom: 15px;">
+                <iframe 
+                    src="https://www.saltybet.com" 
+                    style="width: 100%; height: 100%; border: none;"
+                    title="Salty Bet"
+                    id="saltyBetFrame"
+                    allow="autoplay; encrypted-media">
+                </iframe>
             </div>
             
-            <!-- Leaderboard -->
-            <div class="leaderboard" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(255, 51, 102, 0.3);">
-                <h4 style="color: #ff3366; margin: 0 0 10px 0;">🏆 Top Players</h4>
-                <div id="leaderboardContainer">
-                    <div style="color: #a8dfe8; font-size: 0.8rem; text-align: center; padding: 10px;">
-                        Leaderboard loading...
-                    </div>
-                </div>
+            <!-- Session Helper -->
+            <div style="background: rgba(0, 30, 60, 0.8); border-radius: 8px; padding: 15px; border: 1px solid rgba(255, 51, 102, 0.3);">
+                <h4 style="color: #ff3366; margin: 0 0 10px 0;">💡 Login Helper</h4>
+                <p style="color: #a8dfe8; font-size: 0.9rem; margin: 0 0 15px 0;">
+                    If login doesn't persist, open Salty Bet in a new tab first:
+                </p>
+                <a href="https://www.saltybet.com/authenticate?signin=1" target="_blank" class="button" style="background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; color: #00ffff; text-align: center; text-decoration: none; display: block;">
+                    🔓 Open SaltyBet.com to Login
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Instructions -->
+    <div style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2); margin-top: 20px;">
+        <h4 style="color: #00ffff; margin: 0 0 15px 0;">🎯 How to Bet on This Page</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <div style="color: #a8dfe8;">
+                <strong style="color: #ff3366;">1. Login First</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Click "Open SaltyBet.com to Login" above</p>
+            </div>
+            <div style="color: #a8dfe8;">
+                <strong style="color: #ff3366;">2. Return Here</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Come back to this page after logging in</p>
+            </div>
+            <div style="color: #a8dfe8;">
+                <strong style="color: #ff3366;">3. Bet Directly</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Use the embedded Salty Bet on the right to place bets</p>
+            </div>
+            <div style="color: #a8dfe8;">
+                <strong style="color: #ff3366;">4. Watch & Enjoy</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Watch the stream on the left while betting on the right</p>
             </div>
         </div>
     </div>
@@ -3322,43 +3333,6 @@ body.sega-theme .music-btn:hover {
               <div class="storage-info" id="storageInfo">
                 📦 Storage: Calculating...
               </div>
-                <!-- Salty Bet Account Linking -->
-<div class="account-linking" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 255, 0.2);">
-    <h4 style="color: #00ffff; margin-bottom: 15px;">🔗 Linked Accounts</h4>
-    
-    <div class="salty-bet-link" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 51, 102, 0.3); margin-bottom: 10px;">
-        <div style="display: flex; justify-content: between; align-items: center;">
-            <div style="flex: 1;">
-                <div style="color: #ff3366; font-weight: bold;">🎰 Salty Bet</div>
-                <div style="color: #a8dfe8; font-size: 0.8rem;" id="saltyBetStatus">Not connected</div>
-            </div>
-            <button class="button" id="linkSaltyBet" style="background: linear-gradient(180deg, #ff3366, #cc0066);">Connect</button>
-        </div>
-        
-        <!-- Linked Account Info (hidden by default) -->
-        <div id="saltyBetAccountInfo" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 51, 102, 0.2);">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.8rem;">
-                <div>
-                    <strong style="color: #00ffff;">Username:</strong>
-                    <span id="saltyBetUsername" style="color: #a8dfe8;">Loading...</span>
-                </div>
-                <div>
-                    <strong style="color: #00ffff;">Balance:</strong>
-                    <span id="saltyBetBalance" style="color: #00ff00;">Loading...</span>
-                </div>
-                <div>
-                    <strong style="color: #00ffff;">Rank:</strong>
-                    <span id="saltyBetRank" style="color: #a8dfe8;">Loading...</span>
-                </div>
-                <div>
-                    <strong style="color: #00ffff;">Bets Placed:</strong>
-                    <span id="saltyBetBets" style="color: #a8dfe8;">Loading...</span>
-                </div>
-            </div>
-            <button class="button muted" id="unlinkSaltyBet" style="margin-top: 10px; width: 100%;">Disconnect</button>
-        </div>
-    </div>
-</div>
             </div>
             
             <!-- User Stats with Clear Labels -->
@@ -6907,35 +6881,46 @@ function initURLRouting() {
         }
     });
 }
-  /* ---------- SALTY BET ACCOUNT LINKING SYSTEM ---------- */
-function initSaltyBetLinking() {
-    console.log('🔗 Initializing Salty Bet account linking...');
+ /* ---------- WORKING SALTY BET INTEGRATION ---------- */
+function initWorkingSaltyBet() {
+    console.log('🎮 Initializing Working Salty Bet integration...');
     
-    // Load the enhanced hub
-    loadEnhancedSaltyHub();
+    // Load Twitch embed
+    loadTwitchEmbed();
     
-    // Initialize account linking
-    initAccountLinking();
-    
-    // Start match data updates
-    startEnhancedMatchUpdates();
+    // Initialize session helper
+    initSessionHelper();
 }
 
-function loadEnhancedSaltyHub() {
-    // Load Twitch embed
+function loadTwitchEmbed() {
+    // Only load on desktop
+    if (window.innerWidth < 768) {
+        document.getElementById('twitch-embed').innerHTML = `
+            <div style="padding: 40px; text-align: center; color: #a8dfe8; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">📺</div>
+                <h3 style="color: #00ffff;">Salty Bet Live Stream</h3>
+                <p>For best experience on mobile, open directly:</p>
+                <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5); margin: 10px auto; display: inline-block;">Watch on Twitch</a>
+            </div>
+        `;
+        return;
+    }
+    
+    // Load Twitch Embed Script
     const script = document.createElement('script');
     script.src = 'https://embed.twitch.tv/embed/v1.js';
     script.onload = function() {
         try {
             new Twitch.Embed('twitch-embed', {
                 width: '100%',
-                height: '300',
+                height: '400',
                 channel: 'saltybet',
                 layout: 'video',
                 autoplay: false,
                 muted: true,
-                parent: ['localhost', 'retroonlinematchmaking.com']
+                parent: ['localhost', 'retroonlinematchmaking.com'] // Update with your domain
             });
+            console.log('✅ Twitch embed loaded');
         } catch (error) {
             showFallbackStream();
         }
@@ -6955,346 +6940,34 @@ function showFallbackStream() {
     `;
 }
 
-function initAccountLinking() {
-    const connectBtn = document.getElementById('connectSaltyBtn');
-    const linkBtn = document.getElementById('linkSaltyBet');
-    const unlinkBtn = document.getElementById('unlinkSaltyBet');
+function initSessionHelper() {
+    // Check if user has visited Salty Bet before
+    const hasVisited = localStorage.getItem('saltyBetHelpShown');
     
-    // Check if already linked
-    checkExistingLink();
-    
-    // Connect button in hub
-    if (connectBtn) {
-        connectBtn.addEventListener('click', showLinkingModal);
+    if (!hasVisited) {
+        // Show helpful tip first time
+        setTimeout(() => {
+            showQuickStatus('💡 Pro Tip: Open SaltyBet.com in a new tab first to login, then return here to bet!', 'info');
+            localStorage.setItem('saltyBetHelpShown', 'true');
+        }, 3000);
     }
     
-    // Link button in profile
-    if (linkBtn) {
-        linkBtn.addEventListener('click', showLinkingModal);
-    }
-    
-    // Unlink button
-    if (unlinkBtn) {
-        unlinkBtn.addEventListener('click', unlinkSaltyBet);
-    }
+    // Refresh iframe periodically to help with session issues
+    setInterval(() => {
+        refreshSaltyBetFrame();
+    }, 300000); // Refresh every 5 minutes
 }
 
-function showLinkingModal() {
-    // Create modal for account linking
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: rgba(0, 30, 60, 0.95); border: 2px solid #ff3366; border-radius: 12px; padding: 30px; max-width: 500px; width: 90%;">
-            <h3 style="color: #ff3366; margin-top: 0; text-align: center;">🔗 Link Salty Bet Account</h3>
-            
-            <div style="color: #a8dfe8; margin-bottom: 20px;">
-                <p>To link your account, we'll help you:</p>
-                <ol style="text-align: left; margin: 15px 0;">
-                    <li>Open Salty Bet in a new tab</li>
-                    <li>You log into your account</li>
-                    <li>We'll detect your session</li>
-                    <li>Link it to your ROM profile</li>
-                </ol>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                <button class="button" id="startLinking" style="background: linear-gradient(180deg, #ff3366, #cc0066);">
-                    Start Linking
-                </button>
-                <button class="button muted" id="cancelLinking">
-                    Cancel
-                </button>
-            </div>
-            
-            <div style="background: rgba(0, 20, 40, 0.6); padding: 15px; border-radius: 6px; border-left: 4px solid #00ffff;">
-                <strong style="color: #00ffff;">💡 Pro Tip:</strong>
-                <p style="color: #a8dfe8; margin: 5px 0 0 0; font-size: 0.9rem;">
-                    Keep both tabs open! Bet on SaltyBet.com while watching the stream here.
-                </p>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Event listeners for modal
-    document.getElementById('startLinking').addEventListener('click', startAccountLinking);
-    document.getElementById('cancelLinking').addEventListener('click', () => {
-        document.body.removeChild(modal);
-    });
-    
-    // Close on background click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            document.body.removeChild(modal);
-        }
-    });
-}
-
-function startAccountLinking() {
-    // Open Salty Bet in new tab
-    const saltyWindow = window.open('https://www.saltybet.com/authenticate?signin=1', '_blank');
-    
-    // Store linking state
-    localStorage.setItem('saltyBetLinking', 'in_progress');
-    
-    // Show instructions
-    showQuickStatus('🔗 Opened Salty Bet - log in and return here!', 'success');
-    
-    // Start checking for completion
-    const checkInterval = setInterval(() => {
-        checkLinkingProgress(saltyWindow, checkInterval);
-    }, 2000);
-    
-    // Close modal
-    const modal = document.querySelector('div[style*="z-index: 10000"]');
-    if (modal) document.body.removeChild(modal);
-}
-
-function checkLinkingProgress(saltyWindow, interval) {
-    // This would normally check if the user is logged in
-    // For now, we'll simulate successful linking after a delay
-    
-    const linkingTime = localStorage.getItem('saltyBetLinkingStart');
-    if (!linkingTime) {
-        localStorage.setItem('saltyBetLinkingStart', Date.now().toString());
-        return;
-    }
-    
-    const timeElapsed = Date.now() - parseInt(linkingTime);
-    
-    if (timeElapsed > 10000) { // 10 seconds delay for "linking"
-        completeAccountLinking();
-        clearInterval(interval);
+function refreshSaltyBetFrame() {
+    const frame = document.getElementById('saltyBetFrame');
+    if (frame) {
+        const currentSrc = frame.src;
+        frame.src = 'about:blank';
+        setTimeout(() => {
+            frame.src = currentSrc;
+        }, 100);
     }
 }
-
-function completeAccountLinking() {
-    // Simulate successful account linking
-    const linkedAccount = {
-        username: 'ROM_User_' + Math.random().toString(36).substr(2, 8),
-        balance: Math.floor(Math.random() * 10000) + 1000,
-        rank: Math.floor(Math.random() * 5000) + 1,
-        betsPlaced: Math.floor(Math.random() * 1000) + 50,
-        linkedAt: new Date().toISOString()
-    };
-    
-    // Save to user profile
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        if (user) {
-            saveUserProfile({
-                saltyBetAccount: linkedAccount
-            });
-        }
-    });
-    
-    // Update UI
-    updateLinkedAccountUI(linkedAccount);
-    
-    // Show success
-    showQuickStatus('🎉 Salty Bet account linked successfully!', 'success');
-    
-    // Clear linking state
-    localStorage.removeItem('saltyBetLinking');
-    localStorage.removeItem('saltyBetLinkingStart');
-}
-
-function updateLinkedAccountUI(account) {
-    // Update profile section
-    const statusElement = document.getElementById('saltyBetStatus');
-    const infoElement = document.getElementById('saltyBetAccountInfo');
-    const linkBtn = document.getElementById('linkSaltyBet');
-    
-    if (statusElement) {
-        statusElement.textContent = `Connected as ${account.username}`;
-        statusElement.style.color = '#00ff00';
-    }
-    
-    if (infoElement) {
-        infoElement.style.display = 'block';
-        document.getElementById('saltyBetUsername').textContent = account.username;
-        document.getElementById('saltyBetBalance').textContent = '$' + account.balance.toLocaleString();
-        document.getElementById('saltyBetRank').textContent = '#' + account.rank.toLocaleString();
-        document.getElementById('saltyBetBets').textContent = account.betsPlaced.toLocaleString();
-    }
-    
-    if (linkBtn) {
-        linkBtn.textContent = 'Connected';
-        linkBtn.disabled = true;
-        linkBtn.style.background = 'rgba(0, 255, 0, 0.2)';
-        linkBtn.style.color = '#00ff00';
-    }
-    
-    // Update hub stats
-    updateHubStats(account);
-}
-
-function updateHubStats(account) {
-    const statsContainer = document.getElementById('userStatsContainer');
-    if (statsContainer) {
-        statsContainer.innerHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.8rem;">
-                <div style="text-align: center;">
-                    <div style="color: #00ffff; font-size: 0.7rem;">Balance</div>
-                    <div style="color: #00ff00; font-weight: bold;">$${account.balance.toLocaleString()}</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="color: #00ffff; font-size: 0.7rem;">Rank</div>
-                    <div style="color: #a8dfe8; font-weight: bold;">#${account.rank.toLocaleString()}</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="color: #00ffff; font-size: 0.7rem;">Bets</div>
-                    <div style="color: #a8dfe8; font-weight: bold;">${account.betsPlaced.toLocaleString()}</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="color: #00ffff; font-size: 0.7rem;">Wins</div>
-                    <div style="color: #00ff00; font-weight: bold;">${Math.floor(account.betsPlaced * 0.45).toLocaleString()}</div>
-                </div>
-            </div>
-        `;
-    }
-    
-    const connectBtn = document.getElementById('connectSaltyBtn');
-    if (connectBtn) {
-        connectBtn.textContent = 'Account Connected';
-        connectBtn.style.background = 'rgba(0, 255, 0, 0.2)';
-        connectBtn.style.color = '#00ff00';
-        connectBtn.disabled = true;
-    }
-}
-
-function checkExistingLink() {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        if (user) {
-            loadUserProfile().then(profile => {
-                if (profile && profile.saltyBetAccount) {
-                    updateLinkedAccountUI(profile.saltyBetAccount);
-                }
-            });
-        }
-    });
-}
-
-function unlinkSaltyBet() {
-    if (confirm('Are you sure you want to unlink your Salty Bet account?')) {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-                saveUserProfile({
-                    saltyBetAccount: null
-                });
-            }
-        });
-        
-        // Reset UI
-        const statusElement = document.getElementById('saltyBetStatus');
-        const infoElement = document.getElementById('saltyBetAccountInfo');
-        const linkBtn = document.getElementById('linkSaltyBet');
-        
-        if (statusElement) {
-            statusElement.textContent = 'Not connected';
-            statusElement.style.color = '#a8dfe8';
-        }
-        
-        if (infoElement) {
-            infoElement.style.display = 'none';
-        }
-        
-        if (linkBtn) {
-            linkBtn.textContent = 'Connect';
-            linkBtn.disabled = false;
-            linkBtn.style.background = 'linear-gradient(180deg, #ff3366, #cc0066)';
-            linkBtn.style.color = 'white';
-        }
-        
-        // Reset hub
-        const statsContainer = document.getElementById('userStatsContainer');
-        const connectBtn = document.getElementById('connectSaltyBtn');
-        
-        if (statsContainer) {
-            statsContainer.innerHTML = `
-                <div style="text-align: center; color: #a8dfe8; padding: 10px;">
-                    Connect your Salty Bet account to see stats
-                </div>
-            `;
-        }
-        
-        if (connectBtn) {
-            connectBtn.textContent = 'Connect Salty Bet Account';
-            connectBtn.style.background = 'linear-gradient(180deg, #ff3366, #cc0066)';
-            connectBtn.style.color = 'white';
-            connectBtn.disabled = false;
-        }
-        
-        showQuickStatus('Salty Bet account unlinked', 'info');
-    }
-}
-
-function startEnhancedMatchUpdates() {
-    // Update match information periodically
-    setInterval(updateMatchInformation, 5000);
-    updateMatchInformation();
-}
-
-function updateMatchInformation() {
-    const matchContainer = document.getElementById('currentMatchInfo');
-    if (!matchContainer) return;
-    
-    // Simulate match data (in real implementation, this would come from scraping)
-    const fighters = ['Goku', 'Superman', 'Mario', 'Sonic', 'Ryu', 'Ken', 'Akuma', 'Geese'];
-    const redFighter = fighters[Math.floor(Math.random() * fighters.length)];
-    const blueFighter = fighters[Math.floor(Math.random() * fighters.length)];
-    
-    matchContainer.innerHTML = `
-        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 15px; align-items: center; text-align: center;">
-            <div class="fighter red" style="background: rgba(255, 51, 102, 0.2); padding: 15px; border-radius: 8px; border: 1px solid #ff3366;">
-                <div style="color: #ff3366; font-weight: bold; font-size: 1.1rem;">${redFighter}</div>
-                <div style="color: #a8dfe8; font-size: 0.9rem; margin-top: 5px;">Odds: ${(Math.random() * 3 + 1).toFixed(2)}x</div>
-                <div style="color: #00ff00; font-size: 0.8rem; margin-top: 3px;">$${(Math.random() * 50000).toLocaleString()} bet</div>
-            </div>
-            
-            <div style="color: #00ffff; font-weight: bold; background: #ff3366; color: #000; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem;">
-                VS
-            </div>
-            
-            <div class="fighter blue" style="background: rgba(0, 255, 255, 0.2); padding: 15px; border-radius: 8px; border: 1px solid #00ffff;">
-                <div style="color: #00ffff; font-weight: bold; font-size: 1.1rem;">${blueFighter}</div>
-                <div style="color: #a8dfe8; font-size: 0.9rem; margin-top: 5px;">Odds: ${(Math.random() * 3 + 1).toFixed(2)}x</div>
-                <div style="color: #00ff00; font-size: 0.8rem; margin-top: 3px;">$${(Math.random() * 50000).toLocaleString()} bet</div>
-            </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 15px;">
-            <div style="color: #00ff00; font-weight: bold; background: rgba(0, 255, 0, 0.1); padding: 8px; border-radius: 6px; border: 1px solid #00ff00;">
-                ⏰ Betting closes in: ${Math.floor(Math.random() * 30) + 10}s
-            </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 15px;">
-            <a href="https://www.saltybet.com" target="_blank" class="button" style="background: linear-gradient(180deg, #ff3366, #cc0066); text-decoration: none; display: inline-block;">
-                🎯 Place Bet on SaltyBet.com
-            </a>
-        </div>
-    `;
-}
-
-// Update URL when viewing profiles
-function updateURLForProfile(username) {
-    const newUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(username);
-    window.history.pushState({ profile: username }, '', newUrl);
-}
-
 /* ---------- Splash + progress ---------- */
 window.addEventListener('load', function onLoad() {
     window.removeEventListener('load', onLoad);
@@ -8411,7 +8084,7 @@ function initAllSystems() {
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
     initProfileRouteSystem(); // ✅ NEW: Profile route system
     initURLRouting(); // ✅ NEW: URL routing system
-    initSaltyBetLinking();
+    initWorkingSaltyBet();
     console.log('✅ All systems initialized');
 }
 </script>
