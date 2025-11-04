@@ -2786,30 +2786,51 @@ body.sega-theme .music-btn:hover {
         </div>
         
         <!-- Betting Panel -->
-        <div class="betting-panel">
-            <!-- Embedded Salty Bet -->
-            <div style="border: 2px solid #00ffff; border-radius: 12px; overflow: hidden; height: 500px; margin-bottom: 15px;">
-                <iframe 
-                    src="https://www.saltybet.com" 
-                    style="width: 100%; height: 100%; border: none;"
-                    title="Salty Bet"
-                    id="saltyBetFrame"
-                    allow="autoplay; encrypted-media">
-                </iframe>
-            </div>
-            
-            <!-- Session Helper -->
-            <div style="background: rgba(0, 30, 60, 0.8); border-radius: 8px; padding: 15px; border: 1px solid rgba(255, 51, 102, 0.3);">
-                <h4 style="color: #ff3366; margin: 0 0 10px 0;">💡 Login Helper</h4>
-                <p style="color: #a8dfe8; font-size: 0.9rem; margin: 0 0 15px 0;">
-                    If login doesn't persist, open Salty Bet in a new tab first:
-                </p>
-                <a href="https://www.saltybet.com/authenticate?signin=1" target="_blank" class="button" style="background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; color: #00ffff; text-align: center; text-decoration: none; display: block;">
-                    🔓 Open SaltyBet.com to Login
-                </a>
-            </div>
-        </div>
+<div class="betting-panel">
+    <!-- Login First Message -->
+    <div style="background: rgba(0, 30, 60, 0.9); border: 2px solid #ff3366; border-radius: 12px; padding: 30px; height: 500px; display: flex; flex-direction: column; justify-content: center; text-align: center; margin-bottom: 15px;">
+        <div style="font-size: 4rem; margin-bottom: 20px;">🔐</div>
+        <h3 style="color: #ff3366; margin: 0 0 15px 0;">Login Required</h3>
+        <p style="color: #a8dfe8; margin: 0 0 25px 0; font-size: 1rem;">
+            To place bets, you need to be logged into Salty Bet.<br>
+            Click the button below to open SaltyBet.com and login first.
+        </p>
+        
+        <a href="https://www.saltybet.com/authenticate?signin=1" target="_blank" class="button" style="background: linear-gradient(180deg, #ff3366, #cc0066); text-align: center; text-decoration: none; font-size: 1.1rem; padding: 15px; margin-bottom: 15px;">
+            🔓 Login to Salty Bet
+        </a>
+        
+        <p style="color: #00ffff; font-size: 0.9rem; margin: 0;">
+            After logging in, return to this page to watch the stream!
+        </p>
     </div>
+    
+    <!-- Embedded Version (Hidden by default) -->
+    <div id="embeddedSaltyBet" style="display: none; border: 2px solid #00ffff; border-radius: 12px; overflow: hidden; height: 500px; margin-bottom: 15px;">
+        <iframe 
+            src="https://www.saltybet.com" 
+            style="width: 100%; height: 100%; border: none;"
+            title="Salty Bet"
+            id="saltyBetFrame"
+            allow="autoplay; encrypted-media">
+        </iframe>
+    </div>
+    
+    <!-- Session Helper -->
+    <div style="background: rgba(0, 30, 60, 0.8); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.3);">
+        <h4 style="color: #00ffff; margin: 0 0 10px 0;">💡 How This Works</h4>
+        <div style="color: #a8dfe8; font-size: 0.9rem;">
+            <p style="margin: 0 0 10px 0;"><strong>1.</strong> Click "Login to Salty Bet" above</p>
+            <p style="margin: 0 0 10px 0;"><strong>2.</strong> Login on SaltyBet.com in the new tab</p>
+            <p style="margin: 0 0 10px 0;"><strong>3.</strong> Return here to watch the stream</p>
+            <p style="margin: 0;"><strong>4.</strong> Place bets in the Salty Bet tab while watching here</p>
+        </div>
+        
+        <button class="button" id="showEmbedded" style="background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; color: #00ffff; width: 100%; margin-top: 10px;">
+            🧪 Try Embedded Version Anyway
+        </button>
+    </div>
+</div>
     
     <!-- Instructions -->
     <div style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2); margin-top: 20px;">
@@ -6888,8 +6909,8 @@ function initWorkingSaltyBet() {
     // Load Twitch embed
     loadTwitchEmbed();
     
-    // Initialize session helper
-    initSessionHelper();
+    // Initialize embedded version toggle
+    initEmbeddedToggle();
 }
 
 function loadTwitchEmbed() {
@@ -6940,17 +6961,38 @@ function showFallbackStream() {
     `;
 }
 
-function initSessionHelper() {
+function initEmbeddedToggle() {
+    const showEmbeddedBtn = document.getElementById('showEmbedded');
+    
+    if (showEmbeddedBtn) {
+        showEmbeddedBtn.addEventListener('click', function() {
+            const loginPanel = document.querySelector('.betting-panel > div:first-child');
+            const embeddedPanel = document.getElementById('embeddedSaltyBet');
+            
+            if (loginPanel && embeddedPanel) {
+                loginPanel.style.display = 'none';
+                embeddedPanel.style.display = 'block';
+                this.textContent = '← Back to Instructions';
+                this.style.background = 'rgba(255, 51, 102, 0.1)';
+                this.style.borderColor = '#ff3366';
+                this.style.color = '#ff3366';
+                
+                showQuickStatus('⚠️ Embedded version may have login issues due to browser security', 'info');
+            }
+        });
+    }
+    
     // Check if user has visited Salty Bet before
     const hasVisited = localStorage.getItem('saltyBetHelpShown');
     
     if (!hasVisited) {
         // Show helpful tip first time
         setTimeout(() => {
-            showQuickStatus('💡 Pro Tip: Open SaltyBet.com in a new tab first to login, then return here to bet!', 'info');
+            showQuickStatus('💡 Click "Login to Salty Bet" to start betting while watching the stream here!', 'info');
             localStorage.setItem('saltyBetHelpShown', 'true');
         }, 3000);
     }
+}
     
     // Refresh iframe periodically to help with session issues
     setInterval(() => {
