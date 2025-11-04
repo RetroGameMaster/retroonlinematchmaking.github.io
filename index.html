@@ -3464,6 +3464,119 @@ async function saveUserProfile(profileUpdates) {
         showQuickStatus('Profile save error!', 'error');
     }
 }
+/* ---------- FIXED PROFILE PAGE BUTTONS ---------- */
+function initProfilePageButtons() {
+    console.log('🔧 Initializing profile page buttons...');
+    
+    // Back to Main button - FIXED
+    const backToMainBtn = document.getElementById('backToMain');
+    if (backToMainBtn) {
+        backToMainBtn.addEventListener('click', function() {
+            console.log('← Back to Main clicked');
+            showMainSite();
+        });
+    }
+    
+    // Add Friend button - FIXED
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener('click', function() {
+            const username = document.getElementById('profilePageUsername').textContent;
+            console.log('👥 Add Friend clicked for:', username);
+            sendFriendRequest(username);
+        });
+    }
+    
+    // Send Message button - FIXED
+    const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', function() {
+            const username = document.getElementById('profilePageUsername').textContent;
+            console.log('💬 Send Message clicked for:', username);
+            showQuickStatus(`Message feature for ${username} coming soon!`, 'info');
+        });
+    }
+    
+    // View in Hub button - FIXED
+    const viewInHubBtn = document.getElementById('profilePageViewInHub');
+    if (viewInHubBtn) {
+        viewInHubBtn.addEventListener('click', function() {
+            console.log('🔍 View in Hub clicked');
+            const socialModal = document.getElementById('socialHubModal');
+            if (socialModal) {
+                socialModal.style.display = 'flex';
+                // Switch to the profile tab in social hub
+                setTimeout(() => {
+                    const profileTab = document.querySelector('[data-tab="my-profile"]');
+                    if (profileTab) profileTab.click();
+                }, 100);
+            }
+        });
+    }
+    
+    // Share Profile button - FIXED
+    const shareProfileBtn = document.getElementById('profilePageShare');
+    if (shareProfileBtn) {
+        shareProfileBtn.addEventListener('click', function() {
+            const username = document.getElementById('profilePageUsername').textContent;
+            const profileUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(username);
+            
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                console.log('📋 Profile URL copied:', profileUrl);
+                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            }).catch(err => {
+                console.error('Failed to copy profile URL:', err);
+                // Fallback method
+                const textArea = document.createElement('textarea');
+                textArea.value = profileUrl;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            });
+        });
+    }
+    
+    // Profile navigation buttons - FIXED
+    const profileNavBtns = document.querySelectorAll('.profile-nav-btn');
+    profileNavBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const section = this.getAttribute('data-section');
+            console.log('📱 Profile nav clicked:', section);
+            
+            // Update active nav button
+            profileNavBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show selected section
+            document.querySelectorAll('.profile-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(section).classList.add('active');
+        });
+    });
+    
+    // Wall post button - FIXED
+    const wallPostBtn = document.getElementById('profilePagePostToWall');
+    if (wallPostBtn) {
+        wallPostBtn.addEventListener('click', function() {
+            console.log('📝 Post to Wall clicked');
+            postToProfileWall();
+        });
+    }
+    
+    // Profile comment button - FIXED
+    const postCommentBtn = document.getElementById('postProfileComment');
+    if (postCommentBtn) {
+        postCommentBtn.addEventListener('click', function() {
+            console.log('💬 Post Comment clicked');
+            postProfileComment();
+        });
+    }
+    
+    console.log('✅ All profile page buttons initialized');
+}
 
 /* ---------- FIXED SIGNATURE SYSTEM ---------- */
 
@@ -7024,10 +7137,6 @@ function updateFriendList(username) {
     
     // Demo friend data
     const demoFriends = [
-        { username: 'RetroGamer88', status: '🎮 Gaming' },
-        { username: 'PixelMaster', status: '💻 Online' },
-        { username: 'ArcadeKing', status: '😎 Chilling' },
-        { username: 'GameCollector', status: '🤝 Looking to Play' }
     ];
     
     friendsList.innerHTML = '';
