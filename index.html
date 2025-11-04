@@ -2720,24 +2720,24 @@ body.sega-theme .music-btn:hover {
           <h2>📅 Community Events</h2>
           <div class="event-list">
             <div class="event-card">
-              <h3>Street Hoop/Dunk Dream</h3>
-              <p>Clash on the Courts Tournament!</p>
-              <div class="event-date">Friday Nov.7th starting at 4:30 PM EST</div>
+              <h3>Resident Evil Outbreak File #2</h3>
+              <p>Can you survive a scenerio!?</p>
+              <div class="event-date">Friday Oct.24th starting at 8:30 PM EST</div>
             </div>
             <div class="event-card">
               <h3>Gran Turismo PSP</h3>
               <p>Do you have a need for speed?</p>
-              <div class="event-date">Nov.8th starting at 1:00PM EST</div>
+              <div class="event-date">Oct.25th starting at 1:00PM EST</div>
             </div>
             <div class="event-card">
-              <h3>Grand Theft Auto Liberty City Stories</h3>
-              <p>Liberty City ain't big enough for all of us.</p>
-              <div class="event-date">Nov.9th Starting at 1:00 PM EST</div>
+              <h3>Tekken 6 PSP</h3>
+              <p>Are you the king of iron fist tournament?</p>
+              <div class="event-date">Oct.25th Starting at 1:00 PM EST</div>
             </div>
               <div class="event-card">
-              <h3>Need For Speed Most Wanted PSP</h3>
-              <p>Outdrive 'em or get booked</p>
-              <div class="event-date">Nov.9th Starting at 4:00 PM EST</div>
+              <h3>Syphon Filter Dark Mirror</h3>
+              <p>Keep your friends close and your taser fully charged</p>
+              <div class="event-date">Oct.25th Starting at 1:00 PM EST</div>
             </div>
           </div>
         </section>
@@ -3463,119 +3463,6 @@ async function saveUserProfile(profileUpdates) {
         console.error('❌ Profile save error:', error);
         showQuickStatus('Profile save error!', 'error');
     }
-}
-/* ---------- FIXED PROFILE PAGE BUTTONS ---------- */
-function initProfilePageButtons() {
-    console.log('🔧 Initializing profile page buttons...');
-    
-    // Back to Main button - FIXED
-    const backToMainBtn = document.getElementById('backToMain');
-    if (backToMainBtn) {
-        backToMainBtn.addEventListener('click', function() {
-            console.log('← Back to Main clicked');
-            showMainSite();
-        });
-    }
-    
-    // Add Friend button - FIXED
-    const addFriendBtn = document.getElementById('profilePageAddFriend');
-    if (addFriendBtn) {
-        addFriendBtn.addEventListener('click', function() {
-            const username = document.getElementById('profilePageUsername').textContent;
-            console.log('👥 Add Friend clicked for:', username);
-            sendFriendRequest(username);
-        });
-    }
-    
-    // Send Message button - FIXED
-    const sendMessageBtn = document.getElementById('profilePageSendMessage');
-    if (sendMessageBtn) {
-        sendMessageBtn.addEventListener('click', function() {
-            const username = document.getElementById('profilePageUsername').textContent;
-            console.log('💬 Send Message clicked for:', username);
-            showQuickStatus(`Message feature for ${username} coming soon!`, 'info');
-        });
-    }
-    
-    // View in Hub button - FIXED
-    const viewInHubBtn = document.getElementById('profilePageViewInHub');
-    if (viewInHubBtn) {
-        viewInHubBtn.addEventListener('click', function() {
-            console.log('🔍 View in Hub clicked');
-            const socialModal = document.getElementById('socialHubModal');
-            if (socialModal) {
-                socialModal.style.display = 'flex';
-                // Switch to the profile tab in social hub
-                setTimeout(() => {
-                    const profileTab = document.querySelector('[data-tab="my-profile"]');
-                    if (profileTab) profileTab.click();
-                }, 100);
-            }
-        });
-    }
-    
-    // Share Profile button - FIXED
-    const shareProfileBtn = document.getElementById('profilePageShare');
-    if (shareProfileBtn) {
-        shareProfileBtn.addEventListener('click', function() {
-            const username = document.getElementById('profilePageUsername').textContent;
-            const profileUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(username);
-            
-            navigator.clipboard.writeText(profileUrl).then(() => {
-                console.log('📋 Profile URL copied:', profileUrl);
-                showQuickStatus('Profile URL copied to clipboard!', 'success');
-            }).catch(err => {
-                console.error('Failed to copy profile URL:', err);
-                // Fallback method
-                const textArea = document.createElement('textarea');
-                textArea.value = profileUrl;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showQuickStatus('Profile URL copied to clipboard!', 'success');
-            });
-        });
-    }
-    
-    // Profile navigation buttons - FIXED
-    const profileNavBtns = document.querySelectorAll('.profile-nav-btn');
-    profileNavBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const section = this.getAttribute('data-section');
-            console.log('📱 Profile nav clicked:', section);
-            
-            // Update active nav button
-            profileNavBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Show selected section
-            document.querySelectorAll('.profile-section').forEach(sec => {
-                sec.classList.remove('active');
-            });
-            document.getElementById(section).classList.add('active');
-        });
-    });
-    
-    // Wall post button - FIXED
-    const wallPostBtn = document.getElementById('profilePagePostToWall');
-    if (wallPostBtn) {
-        wallPostBtn.addEventListener('click', function() {
-            console.log('📝 Post to Wall clicked');
-            postToProfileWall();
-        });
-    }
-    
-    // Profile comment button - FIXED
-    const postCommentBtn = document.getElementById('postProfileComment');
-    if (postCommentBtn) {
-        postCommentBtn.addEventListener('click', function() {
-            console.log('💬 Post Comment clicked');
-            postProfileComment();
-        });
-    }
-    
-    console.log('✅ All profile page buttons initialized');
 }
 
 /* ---------- FIXED SIGNATURE SYSTEM ---------- */
@@ -4398,14 +4285,33 @@ function updateProfileBackgroundPreview(background) {
     }
 }
 
-// ========== ADD THIS RIGHT AFTER THE ABOVE FUNCTION ==========
 /* ---------- PROFILE PAGE BACKGROUND SYSTEM ---------- */
 function initProfilePageBackgroundSystem() {
     const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
     const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
     const backgroundPreview = document.getElementById('profilePageBackgroundPreview');
+      // Load current background and apply it
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+            loadUserProfile().then(profile => {
+                if (profile && profile.background) {
+                    updateProfilePageBackgroundPreview(profile.background);
+                    applyProfileBackground(profile.background);
+                    
+                    // Mark active option
+                    backgroundOptions.forEach(option => {
+                        if (option.dataset.background === profile.background) {
+                            option.classList.add('active');
+                        } else if (profile.background.startsWith('data:') && option.id === 'profilePageCustomBackgroundOption') {
+                            option.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }
+    });
     
-    backgroundOptions.forEach(option => {
+      backgroundOptions.forEach(option => {
         option.addEventListener('click', function() {
             if (this.id === 'profilePageCustomBackgroundOption') {
                 backgroundUpload.click();
@@ -4415,12 +4321,13 @@ function initProfilePageBackgroundSystem() {
             const background = this.dataset.background;
             selectProfilePageBackgroundOption(this);
             updateProfilePageBackgroundPreview(background);
+            applyProfileBackground(background);
             saveUserProfile({ background: background });
             showQuickStatus('Background updated!', 'success');
         });
     });
     
-    backgroundUpload.addEventListener('change', function(event) {
+      backgroundUpload.addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (!file) return;
         
@@ -4433,6 +4340,7 @@ function initProfilePageBackgroundSystem() {
         reader.onload = function(e) {
             const customBackground = e.target.result;
             updateProfilePageBackgroundPreview(`url(${customBackground})`);
+            applyProfileBackground(`url(${customBackground})`);
             saveUserProfile({ background: customBackground });
             showQuickStatus('Custom background saved!', 'success');
             
@@ -6149,17 +6057,25 @@ function initLobbyCreation() {
                 return;
             }
 
-            // Simple lobby creation - you can expand this with a form
+            // Create a proper modal for lobby creation
             const game = prompt('Enter game name:');
             if (!game) return;
 
-            const maxPlayers = parseInt(prompt('Maximum players (2-8):', '4')) || 4;
+            const maxPlayersInput = prompt('Maximum players (2-8):', '4');
+            if (!maxPlayersInput) return;
             
+            const maxPlayers = parseInt(maxPlayersInput) || 4;
+            
+            if (maxPlayers < 2 || maxPlayers > 8) {
+                showQuickStatus('Maximum players must be between 2 and 8!', 'error');
+                return;
+            }
+
             const newLobby = {
                 id: Date.now().toString(),
                 game: game,
                 host: user.user_metadata?.username || user.email.split('@')[0],
-                maxPlayers: Math.max(2, Math.min(8, maxPlayers)),
+                maxPlayers: maxPlayers,
                 players: [user.user_metadata?.username || user.email.split('@')[0]],
                 status: 'Waiting for players',
                 created: new Date().toISOString()
@@ -6596,305 +6512,49 @@ function initProfileRouteSystem() {
     initProfilePageMusicSystem();
     initProfilePageBackgroundSystem();
     initProfilePageBioEditor();
-}
-  /* ---------- FIXED PROFILE PAGE BUTTONS ---------- */
-function initProfilePageButtons() {
-    console.log('🔧 Initializing profile page buttons...');
     
-    // Back to Main button - FIXED
-    const backToMainBtn = document.getElementById('backToMain');
-    if (backToMainBtn) {
-        backToMainBtn.addEventListener('click', function() {
-            console.log('← Back to Main clicked');
-            showMainSite();
-        });
-    }
+  // NEW: Initialize all profile navigation buttons
+function initProfileNavigation() {
+    // Set music button - already handled by initProfilePageMusicSystem()
     
-    // Add Friend button - FIXED
-    const addFriendBtn = document.getElementById('profilePageAddFriend');
-    if (addFriendBtn) {
-        addFriendBtn.addEventListener('click', function() {
-            const username = document.getElementById('profilePageUsername').textContent;
-            console.log('👥 Add Friend clicked for:', username);
-            sendFriendRequest(username);
-        });
-    }
-    
-    // Send Message button - FIXED
-    const sendMessageBtn = document.getElementById('profilePageSendMessage');
-    if (sendMessageBtn) {
-        sendMessageBtn.addEventListener('click', function() {
-            const username = document.getElementById('profilePageUsername').textContent;
-            console.log('💬 Send Message clicked for:', username);
-            showQuickStatus(`Message feature for ${username} coming soon!`, 'info');
-        });
-    }
-    
-    // View in Hub button - FIXED
+    // View in social hub button
     const viewInHubBtn = document.getElementById('profilePageViewInHub');
     if (viewInHubBtn) {
         viewInHubBtn.addEventListener('click', function() {
-            console.log('🔍 View in Hub clicked');
-            const socialModal = document.getElementById('socialHubModal');
-            if (socialModal) {
-                socialModal.style.display = 'flex';
-                // Switch to the profile tab in social hub
-                setTimeout(() => {
-                    const profileTab = document.querySelector('[data-tab="my-profile"]');
-                    if (profileTab) profileTab.click();
-                }, 100);
-            }
+            document.getElementById('socialHubModal').style.display = 'flex';
         });
     }
     
-    // Share Profile button - FIXED
+    // Add friend button
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener('click', function() {
+            const profileUsername = document.getElementById('profilePageUsername').textContent;
+            sendFriendRequest(profileUsername);
+        });
+    }
+    
+    // Send message button
+    const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', function() {
+            const profileUsername = document.getElementById('profilePageUsername').textContent;
+            showQuickStatus(`Message feature for ${profileUsername} coming soon!`, 'info');
+        });
+    }
+    
+    // Share profile button
     const shareProfileBtn = document.getElementById('profilePageShare');
     if (shareProfileBtn) {
         shareProfileBtn.addEventListener('click', function() {
-            const username = document.getElementById('profilePageUsername').textContent;
-            const profileUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(username);
-            
+            const profileUsername = document.getElementById('profilePageUsername').textContent;
+            const profileUrl = window.location.origin + window.location.pathname + '?profile=' + encodeURIComponent(profileUsername);
             navigator.clipboard.writeText(profileUrl).then(() => {
-                console.log('📋 Profile URL copied:', profileUrl);
                 showQuickStatus('Profile URL copied to clipboard!', 'success');
-            }).catch(err => {
-                console.error('Failed to copy profile URL:', err);
-                // Fallback method
-                const textArea = document.createElement('textarea');
-                textArea.value = profileUrl;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            }).catch(() => {
+                showQuickStatus('Failed to copy URL', 'error');
             });
         });
-    }
-    
-    // Profile navigation buttons - FIXED
-    const profileNavBtns = document.querySelectorAll('.profile-nav-btn');
-    profileNavBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const section = this.getAttribute('data-section');
-            console.log('📱 Profile nav clicked:', section);
-            
-            // Update active nav button
-            profileNavBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Show selected section
-            document.querySelectorAll('.profile-section').forEach(sec => {
-                sec.classList.remove('active');
-            });
-            document.getElementById(section).classList.add('active');
-        });
-    });
-    
-    // Wall post button - FIXED
-    const wallPostBtn = document.getElementById('profilePagePostToWall');
-    if (wallPostBtn) {
-        wallPostBtn.addEventListener('click', function() {
-            console.log('📝 Post to Wall clicked');
-            postToProfileWall();
-        });
-    }
-    
-    // Profile comment button - FIXED
-    const postCommentBtn = document.getElementById('postProfileComment');
-    if (postCommentBtn) {
-        postCommentBtn.addEventListener('click', function() {
-            console.log('💬 Post Comment clicked');
-            postProfileComment();
-        });
-    }
-    
-    // Music player buttons - FIXED
-    const profilePlayPauseBtn = document.getElementById('profilePagePlayPause');
-    const profileStopBtn = document.getElementById('profilePageStopMusic');
-    
-    if (profilePlayPauseBtn) {
-        profilePlayPauseBtn.addEventListener('click', function() {
-            console.log('🎵 Profile Play/Pause clicked');
-            if (!currentProfileMusic) {
-                showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
-                return;
-            }
-            
-            if (!isProfileMusicPlaying) {
-                playProfileMusic();
-            } else {
-                pauseProfileMusic();
-            }
-        });
-    }
-    
-    if (profileStopBtn) {
-        profileStopBtn.addEventListener('click', function() {
-            console.log('🛑 Profile Stop clicked');
-            stopProfileMusic();
-        });
-    }
-    
-    // Set Music URL button - FIXED
-    const setMusicBtn = document.getElementById('profilePageSetMusicUrl');
-    if (setMusicBtn) {
-        setMusicBtn.addEventListener('click', function() {
-            const youtubeUrl = document.getElementById('profilePageYoutubeUrlInput').value.trim();
-            
-            if (!youtubeUrl) {
-                showQuickStatus('Please enter a YouTube URL!', 'error');
-                return;
-            }
-            
-            const videoId = extractYouTubeId(youtubeUrl);
-            
-            if (!videoId) {
-                showQuickStatus('Invalid YouTube URL!', 'error');
-                return;
-            }
-            
-            const musicData = {
-                id: videoId,
-                url: youtubeUrl,
-                title: 'Custom YouTube Music',
-                artist: 'YouTube',
-                type: 'youtube'
-            };
-            
-            currentProfileMusic = musicData;
-            updateProfilePageMusicPreview(musicData);
-            saveUserProfile({ music: musicData });
-            
-            const currentMusicInfo = document.getElementById('profilePageCurrentMusicInfo');
-            if (currentMusicInfo) {
-                currentMusicInfo.style.display = 'block';
-                document.getElementById('profilePageCurrentMusicUrl').textContent = youtubeUrl;
-            }
-            
-            // Stop current music if playing
-            if (isProfileMusicPlaying) {
-                stopProfileMusic();
-            }
-            
-            showQuickStatus('Profile music set!', 'success');
-        });
-    }
-    
-    // Disable Profile Music button - FIXED
-    const disableMusicBtn = document.getElementById('profilePageDisableProfileMusic');
-    if (disableMusicBtn) {
-        disableMusicBtn.addEventListener('click', function() {
-            currentProfileMusic = null;
-            stopProfileMusic();
-            updateProfilePageMusicPreview(null);
-            saveUserProfile({ music: null });
-            
-            const youtubeInput = document.getElementById('profilePageYoutubeUrlInput');
-            const currentMusicInfo = document.getElementById('profilePageCurrentMusicInfo');
-            if (youtubeInput) youtubeInput.value = '';
-            if (currentMusicInfo) currentMusicInfo.style.display = 'none';
-            
-            showQuickStatus('Profile music disabled!', 'info');
-        });
-    }
-    
-    // Background image upload - FIXED
-    const backgroundUpload = document.getElementById('profilePageBackgroundImageUpload');
-    if (backgroundUpload) {
-        backgroundUpload.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            if (file.size > 100 * 1024) {
-                showQuickStatus('Background image too large! Max 100KB.', 'error');
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const customBackground = e.target.result;
-                updateProfilePageBackgroundPreview(`url(${customBackground})`);
-                saveUserProfile({ background: customBackground });
-                showQuickStatus('Custom background saved!', 'success');
-                
-                // Mark custom option as active
-                const customOption = document.getElementById('profilePageCustomBackgroundOption');
-                if (customOption) {
-                    document.querySelectorAll('.profile-background-section .background-option').forEach(option => {
-                        option.classList.remove('active');
-                    });
-                    customOption.classList.add('active');
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-    
-    // Background options - FIXED
-    const backgroundOptions = document.querySelectorAll('.profile-background-section .background-option');
-    backgroundOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            if (this.id === 'profilePageCustomBackgroundOption') {
-                backgroundUpload.click();
-                return;
-            }
-            
-            const background = this.dataset.background;
-            // Mark active option
-            backgroundOptions.forEach(opt => opt.classList.remove('active'));
-            this.classList.add('active');
-            
-            updateProfilePageBackgroundPreview(background);
-            saveUserProfile({ background: background });
-            showQuickStatus('Background updated!', 'success');
-        });
-    });
-    
-    console.log('✅ All profile page buttons initialized');
-}
-
-// Helper function for profile page wall posts
-async function postToProfileWall() {
-    const postText = document.getElementById('profilePageWallPostText').value.trim();
-    
-    if (!postText) {
-        showQuickStatus('Please enter some text!', 'error');
-        return;
-    }
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        showQuickStatus('Please login to post!', 'error');
-        return;
-    }
-    
-    const profileUsername = document.getElementById('profilePageUsername').textContent;
-    const authorUsername = user.user_metadata?.username || user.email.split('@')[0];
-    
-    try {
-        const { data, error } = await supabase
-            .from('wall_posts')
-            .insert([{
-                author: authorUsername,
-                target_user: profileUsername,
-                content: postText,
-                likes: 0,
-                comments: []
-            }]);
-
-        if (error) throw error;
-
-        console.log('✅ Profile wall post saved to Supabase!');
-        
-        // Refresh wall posts display
-        await loadWallPostsForUsername(profileUsername, document.getElementById('profilePageWallPosts'));
-        
-        document.getElementById('profilePageWallPostText').value = '';
-        showQuickStatus(`Posted to ${profileUsername}'s wall!`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Profile wall post error:', error);
-        showQuickStatus('Post failed!', 'error');
     }
 }
 // NEW: Profile Page Bio Editor
@@ -7132,34 +6792,68 @@ function updateProfilePageDisplay(profileData, isOwnProfile) {
     updateProfileActions(isOwnProfile);
 }
 
-function updateFriendList(username) {
+async function updateFriendList(username) {
     const friendsList = document.getElementById('profilePageFriendsList');
     
-    // Demo friend data
-    const demoFriends = [
-    ];
+    friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">Loading friends...</div>';
     
-    friendsList.innerHTML = '';
-    
-    if (demoFriends.length === 0) {
+    try {
+        // Get real friends data from Supabase
+        const { data: friendsData, error } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .or(`from_user.eq.${username},to_user.eq.${username}`)
+            .eq('status', 'accepted');
+        
+        if (error) {
+            throw error;
+        }
+        
+        friendsList.innerHTML = '';
+        
+        if (!friendsData || friendsData.length === 0) {
+            friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No friends yet. Start adding some!</div>';
+            return;
+        }
+        
+        // Process friend data
+        const friends = [];
+        for (const friend of friendsData) {
+            const friendUsername = friend.from_user === username ? friend.to_user : friend.from_user;
+            
+            // Get friend's profile data
+            const { data: friendProfile } = await supabase
+                .from('user_profiles')
+                .select('profile_data')
+                .eq('username', friendUsername)
+                .single();
+            
+            friends.push({
+                username: friendUsername,
+                status: friendProfile?.profile_data?.status || '💻 Online'
+            });
+        }
+        
+        // Display real friends
+        friends.forEach(friend => {
+            const friendItem = document.createElement('div');
+            friendItem.className = 'friend-item-mini';
+            friendItem.innerHTML = `
+                <div class="friend-avatar-mini">
+                    ${friend.username.charAt(0).toUpperCase()}
+                </div>
+                <div style="flex: 1;">
+                    <div style="color: #00ffff; font-weight: bold; font-size: 0.9rem;">${friend.username}</div>
+                    <div style="color: #a8dfe8; font-size: 0.7rem;">${friend.status}</div>
+                </div>
+            `;
+            friendsList.appendChild(friendItem);
+        });
+        
+    } catch (err) {
+        console.error('Error loading friends:', err);
         friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No friends yet. Start adding some!</div>';
-        return;
     }
-    
-    demoFriends.forEach(friend => {
-        const friendItem = document.createElement('div');
-        friendItem.className = 'friend-item-mini';
-        friendItem.innerHTML = `
-            <div class="friend-avatar-mini">
-                ${friend.username.charAt(0).toUpperCase()}
-            </div>
-            <div style="flex: 1;">
-                <div style="color: #00ffff; font-weight: bold; font-size: 0.9rem;">${friend.username}</div>
-                <div style="color: #a8dfe8; font-size: 0.7rem;">${friend.status}</div>
-            </div>
-        `;
-        friendsList.appendChild(friendItem);
-    });
 }
 
 async function updateRecentActivity(username) {
@@ -7237,13 +6931,16 @@ async function updateRecentActivity(username) {
 function updateProfileActions(isOwnProfile) {
     const addFriendBtn = document.getElementById('profilePageAddFriend');
     const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    const backgroundSection = document.querySelector('.profile-background-section');
     
     if (isOwnProfile) {
         addFriendBtn.style.display = 'none';
         sendMessageBtn.style.display = 'none';
+        if (backgroundSection) backgroundSection.style.display = 'block';
     } else {
         addFriendBtn.style.display = 'block';
         sendMessageBtn.style.display = 'block';
+        if (backgroundSection) backgroundSection.style.display = 'none';
     }
 }
 
@@ -8359,6 +8056,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+  // NEW: Function to actually apply background to profile
+function applyProfileBackground(background) {
+    const profilePage = document.querySelector('.profile-page');
+    if (!profilePage) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        profilePage.style.backgroundImage = background;
+        profilePage.style.backgroundSize = 'cover';
+        profilePage.style.backgroundPosition = 'center';
+        profilePage.style.backgroundAttachment = 'fixed';
+    } else if (background.startsWith('linear-gradient')) {
+        profilePage.style.backgroundImage = background;
+        profilePage.style.backgroundSize = 'cover';
+    } else {
+        profilePage.style.backgroundImage = `url(${background})`;
+        profilePage.style.backgroundSize = 'cover';
+        profilePage.style.backgroundPosition = 'center';
+        profilePage.style.backgroundAttachment = 'fixed';
+    }
+}
+
 /* ---------- INITIALIZE ALL SYSTEMS ---------- */
 function initAllSystems() {
     console.log('🚀 Initializing all systems...');
@@ -8387,10 +8105,6 @@ function initAllSystems() {
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
     initProfileRouteSystem(); // ✅ NEW: Profile route system
     initURLRouting(); // ✅ NEW: URL routing system
-    initProfilePageButtons();
-    initProfilePageMusicSystem();
-    initProfilePageBackgroundSystem();
-    initProfilePageBioEditor();
     console.log('✅ All systems initialized');
 }
 </script>
