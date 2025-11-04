@@ -4730,7 +4730,7 @@ function extractYouTubeId(url) {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
     return match ? match[1] : null;
-
+}
   /* ---------- PROFILE PAGE MUSIC SYSTEM ---------- */
 function initProfilePageMusicSystem() {
     const playPauseBtn = document.getElementById('profilePagePlayPause');
@@ -6286,9 +6286,22 @@ async function performPlayerSearch() {
 
 function displayPlayerSearchResults(users, searchTerm) {
     const searchResults = document.getElementById('playerSearchResults');
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    const currentUsername = currentUser?.user_metadata?.username || currentUser?.email.split('@')[0];
     
+    // Get current user asynchronously
+    let currentUsername = '';
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        currentUsername = user?.user_metadata?.username || user?.email.split('@')[0] || '';
+        
+        // Now that we have the username, process the results
+        processSearchResults(users, searchTerm, currentUsername, searchResults);
+    }).catch(error => {
+        console.error('Error getting current user:', error);
+        // Process without current username if there's an error
+        processSearchResults(users, searchTerm, '', searchResults);
+    });
+}
+
+function processSearchResults(users, searchTerm, currentUsername, searchResults) {
     if (!users || users.length === 0) {
         searchResults.innerHTML = `
             <div style="text-align: center; color: #a8dfe8; padding: 20px;">
@@ -6303,7 +6316,6 @@ function displayPlayerSearchResults(users, searchTerm) {
         if (user.username === currentUsername) return; // Skip current user
         
         const status = user.profile_data?.status || '💻 Online';
-        const isOnline = true; // You can implement actual online status checking
         
         html += `
             <div class="user-card" style="margin: 10px 0;">
@@ -6325,6 +6337,16 @@ function displayPlayerSearchResults(users, searchTerm) {
             </div>
         `;
     });
+    
+    // If no users after filtering (only current user in results)
+    if (html === '') {
+        searchResults.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                No other players found matching "${searchTerm}"
+            </div>
+        `;
+        return;
+    }
     
     searchResults.innerHTML = html;
     
