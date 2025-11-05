@@ -7391,7 +7391,7 @@ function displayPlayerSearchResults(users, searchTerm) {
     });
 }
 
-function processSearchResults(users, searchTerm, currentUsername, searchResults) {
+async function processSearchResults(users, searchTerm, currentUsername, searchResults) {
     if (!users || users.length === 0) {
         searchResults.innerHTML = `
             <div style="text-align: center; color: #a8dfe8; padding: 20px;">
@@ -7647,7 +7647,7 @@ async function loadFriendsList() {
     }
 }
 
-function displayFriendsList(friendUsernames) {
+async function displayFriendsList(friendUsernames) {
     const friendsList = document.getElementById('friendsList');
     
     if (!friendUsernames || friendUsernames.length === 0) {
