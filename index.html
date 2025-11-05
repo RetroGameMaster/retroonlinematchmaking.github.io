@@ -2701,6 +2701,65 @@ body.sega-theme .music-btn:hover {
   background: #666;
   margin-right: 8px;
 }
+  /* ========== FIXES FOR VISIBILITY ========== */
+/* Make sure friend system is visible */
+.friend-requests-section,
+.friends-list-section,
+.find-friends-section {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.requests-container {
+    display: block;
+}
+
+#received-requests {
+    display: block;
+}
+
+#sent-requests {
+    display: none;
+}
+
+/* Make sure friend buttons are visible */
+.friend-btn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Make Edit Bio button visible */
+#profilePageEditBio {
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* Ensure bio edit section is properly styled */
+.bio-edit {
+    margin-top: 15px;
+    display: none; /* Hidden by default, shown when editing */
+}
+
+.bio-edit textarea {
+    width: 100%;
+    min-height: 100px;
+    background: rgba(0, 20, 40, 0.8);
+    border: 1px solid #00ffff;
+    color: #00ffff;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: 'Orbitron', Arial, sans-serif;
+    resize: vertical;
+}
+
+.bio-char-count {
+    text-align: right;
+    color: #a8dfe8;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
 </style>
 </style>
 </head>
@@ -4730,7 +4789,72 @@ function handleProfilePicUpload(event) {
     
     reader.readAsDataURL(file);
 }
+/* ---------- BIO EDITING SYSTEM ---------- */
+function initBioEditing() {
+    const editBioBtn = document.getElementById('profilePageEditBio');
+    const bioEditSection = document.getElementById('profilePageBioEdit');
+    const bioDisplay = document.getElementById('profilePageBio');
+    const bioText = document.getElementById('profilePageBioText');
+    const saveBioBtn = document.getElementById('profilePageSaveBio');
+    const cancelBioBtn = document.getElementById('profilePageCancelBio');
+    const charCount = document.getElementById('profilePageBioCharCount');
 
+    if (editBioBtn) {
+        editBioBtn.addEventListener('click', function() {
+            bioEditSection.style.display = 'block';
+            bioDisplay.style.display = 'none';
+            this.style.display = 'none';
+            
+            // Populate with current bio text
+            const currentBio = bioDisplay.textContent;
+            if (currentBio && !currentBio.includes('hasn\'t written a bio')) {
+                bioText.value = currentBio;
+            }
+            
+            updateBioCharCount();
+        });
+    }
+
+    if (saveBioBtn) {
+        saveBioBtn.addEventListener('click', function() {
+            const newBio = bioText.value.trim();
+            bioDisplay.textContent = newBio || 'This user hasn\'t written a bio yet.';
+            bioDisplay.classList.toggle('empty', !newBio);
+            
+            // Save to profile
+            saveUserProfile({ bio: newBio });
+            
+            // Hide edit section, show display
+            bioEditSection.style.display = 'none';
+            bioDisplay.style.display = 'block';
+            editBioBtn.style.display = 'block';
+            
+            showQuickStatus('Bio updated!', 'success');
+        });
+    }
+
+    if (cancelBioBtn) {
+        cancelBioBtn.addEventListener('click', function() {
+            bioEditSection.style.display = 'none';
+            bioDisplay.style.display = 'block';
+            editBioBtn.style.display = 'block';
+        });
+    }
+
+    if (bioText) {
+        bioText.addEventListener('input', updateBioCharCount);
+    }
+
+    function updateBioCharCount() {
+        if (charCount) {
+            const length = bioText.value.length;
+            charCount.textContent = length;
+            charCount.style.color = length > 450 ? '#ff3333' : length > 350 ? '#ffff00' : '#a8dfe8';
+        }
+    }
+    
+    console.log('✅ Bio editing system initialized');
+}
 /* ---------- NEW: PROFILE BACKGROUND SYSTEM ---------- */
 function initProfileBackgroundSystem() {
     const backgroundOptions = document.querySelectorAll('.background-option');
@@ -6208,6 +6332,8 @@ function loadSocialHub() {
   loadUserProfileForDisplay();
   updateUserStats();
   loadEnhancedFriendSystem();
+  loadFriendRequests();
+  loadFriendsList();
   loadActiveLobbies();
   loadFriendRequests();
   loadFriendsList();
@@ -7278,6 +7404,17 @@ function initEnhancedFriendSystem() {
     
     // Initialize search
     initFriendSearch();
+    
+    // Make sure the friends tab content is visible
+    setTimeout(() => {
+        const friendsTab = document.getElementById('friends');
+        if (friendsTab) {
+            friendsTab.style.display = 'flex';
+            friendsTab.style.flexDirection = 'column';
+        }
+    }, 100);
+    
+    console.log('✅ Enhanced friend system initialized');
 }
 
 function initFriendRequestTabs() {
@@ -9372,6 +9509,7 @@ function initAllSystems() {
     initClipOfWeek();
     initCustomizationSystems();
     initEnhancedFriendSystem();
+    initBioEditing();
     initGameLobbies();
     initPlayerSearchSystem();
     initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
