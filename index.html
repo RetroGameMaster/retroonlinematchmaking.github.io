@@ -6326,17 +6326,54 @@ function initSocialTabs() {
   });
 }
 
-function loadSocialHub() {
-  updateOnlineUsers();
-  loadChatMessages();
-  loadUserProfileForDisplay();
-  updateUserStats();
-  loadEnhancedFriendSystem();
-  loadFriendRequests();
-  loadFriendsList();
-  loadActiveLobbies();
-  loadFriendRequests();
-  loadFriendsList();
+ function loadSocialHub() {
+    console.log('🏠 LOADING SOCIAL HUB - FORCE FRIENDS SYSTEM');
+    updateOnlineUsers();
+    loadChatMessages();
+    loadUserProfileForDisplay();
+    updateUserStats();
+    
+    // ULTRA FORCE FRIEND SYSTEM TO LOAD
+    setTimeout(() => {
+        console.log('🔧 ULTRA FORCING FRIEND SYSTEM LOAD...');
+        
+        // Make sure friends tab is visible
+        const friendsTab = document.getElementById('friends');
+        if (friendsTab) {
+            friendsTab.style.display = 'flex';
+            friendsTab.style.flexDirection = 'column';
+            friendsTab.style.visibility = 'visible';
+            friendsTab.style.opacity = '1';
+            console.log('✅ Friends tab visibility forced');
+        }
+        
+        // Load friend data - USE EXISTING FUNCTIONS
+        loadFriendRequests();
+        loadFriendsList();
+        
+        // Add click handler to friends nav button
+        const friendsNavBtn = document.querySelector('[data-tab="friends"]');
+        if (friendsNavBtn && !friendsNavBtn.dataset.fixed) {
+            friendsNavBtn.dataset.fixed = 'true';
+            friendsNavBtn.addEventListener('click', function() {
+                console.log('👥 Friends tab clicked - loading data');
+                setTimeout(() => {
+                    loadFriendRequests();
+                    loadFriendsList();
+                    
+                    // Force visibility again
+                    const ft = document.getElementById('friends');
+                    if (ft) {
+                        ft.style.display = 'flex';
+                        ft.style.visibility = 'visible';
+                    }
+                }, 100);
+            });
+        }
+        
+    }, 1000);
+    
+    loadActiveLobbies();
 }
 
 // Chat System
