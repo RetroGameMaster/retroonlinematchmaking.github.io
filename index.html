@@ -7909,44 +7909,214 @@ async function sendFriendRequest(targetUsername) {
         showQuickStatus('Failed to send friend request!', 'error');
     }
 }
-async function sendFriendRequest(targetUsername) {
-    const { data: { user } } = await supabase.auth.getUser();
+  /* ---------- CLICKABLE PLAYER PROFILES SYSTEM ---------- */
+function initClickablePlayerProfiles() {
+    console.log('👤 Initializing clickable player profiles...');
     
-    if (!user) {
-        showQuickStatus('Please login to send friend requests!', 'error');
-        return;
-    }
+    // Make all existing player elements clickable
+    makeExistingPlayersClickable();
     
-    const fromUsername = user.user_metadata?.username || user.email.split('@')[0];
+    // Set up observer for dynamically added player elements
+    setupPlayerObserver();
     
-    if (fromUsername === targetUsername) {
-        showQuickStatus('You cannot add yourself as a friend!', 'error');
-        return;
-    }
+    // Add click handlers to search results and friends list
+    addClickHandlersToContainers();
     
-    try {
-        const { data, error } = await supabase
-            .from('friend_requests')
-            .insert([{
-                from_user: fromUsername,
-                to_user: targetUsername,
-                status: 'pending'
-            }]);
+    // Add CSS styles
+    addClickablePlayerStyles();
+}
+
+function makeExistingPlayersClickable() {
+    // Make search result items clickable
+    document.querySelectorAll('.search-result-item').forEach(item => {
+        makePlayerElementClickable(item);
+    });
+    
+    // Make friend items clickable
+    document.querySelectorAll('.friend-item').forEach(item => {
+        makePlayerElementClickable(item);
+    });
+    
+    // Make friend request items clickable
+    document.querySelectorAll('.friend-request-item').forEach(item => {
+        makePlayerElementClickable(item);
+    });
+    
+    // Make online users clickable
+    document.querySelectorAll('.online-user').forEach(item => {
+        makePlayerElementClickable(item);
+    });
+    
+    // Make user cards clickable
+    document.querySelectorAll('.user-card').forEach(item => {
+        makePlayerElementClickable(item);
+    });
+    
+    console.log('✅ Made existing player elements clickable');
+}
+
+function makePlayerElementClickable(element) {
+    // Add cursor pointer and hover effects
+    element.style.cursor = 'pointer';
+    element.classList.add('clickable-player');
+    
+    // Extract username from the element
+    const usernameElement = element.querySelector('.friend-name, .message-username, .wall-post-author');
+    let username = '';
+    
+    if (usernameElement) {
+        username = usernameElement.textContent.trim();
+    } else {
+        // Try to extract from text content or data attributes
+        const text = element.textContent || '';
+        const match = text.match(/(\w+)/);
+        if (match) username = match[1];
         
-        if (error) {
-            if (error.code === '23505') { // Unique constraint violation
-                showQuickStatus('Friend request already sent!', 'info');
-            } else {
-                throw error;
+        // Check data attributes
+        if (!username && element.dataset.username) {
+            username = element.dataset.username;
+        }
+    }
+    
+    if (username) {
+        element.dataset.username = username;
+        element.addEventListener('click', function(e) {
+            // Don't trigger if clicking on action buttons
+            if (!e.target.closest('.friend-actions') && 
+                !e.target.closest('.friend-btn') &&
+                !e.target.closest('.message-time') &&
+                !e.target.closest('button') &&
+                !e.target.closest('a')) {
+                e.preventDefault();
+                e.stopPropagation();
+                viewPlayerProfile(username);
             }
-        } else {
-            showQuickStatus(`Friend request sent to ${targetUsername}!`, 'success');
+        });
+    }
+}
+
+function setupPlayerObserver() {
+    // Watch for new player elements being added to the DOM
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    // Check if it's a player element or contains player elements
+                    if (node.classList && (
+                        node.classList.contains('search-result-item') ||
+                        node.classList.contains('friend-item') ||
+                        node.classList.contains('friend-request-item') ||
+                        node.classList.contains('online-user') ||
+                        node.classList.contains('user-card')
+                    )) {
+                        makePlayerElementClickable(node);
+                    }
+                    
+                    // Check children for player elements
+                    if (node.querySelectorAll) {
+                        node.querySelectorAll('.search-result-item, .friend-item, .friend-request-item, .online-user, .user-card').forEach(makePlayerElementClickable);
+                    }
+                }
+            });
+        });
+    });
+    
+    // Start observing
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+
+function addClickHandlersToContainers() {
+    // Add to search results container
+    const searchResults = document.getElementById('playerSearchResults');
+    if (searchResults) {
+        searchResults.addEventListener('click', function(e) {
+            const playerElement = e.target.closest('.search-result-item, .user-card');
+            if (playerElement && playerElement.dataset.username) {
+                e.preventDefault();
+                e.stopPropagation();
+                viewPlayerProfile(playerElement.dataset.username);
+            }
+        });
+    }
+    
+    // Add to friends list container
+    const friendsList = document.getElementById('friendsList');
+    if (friendsList) {
+        friendsList.addEventListener('click', function(e) {
+            const playerElement = e.target.closest('.friend-item');
+            if (playerElement && playerElement.dataset.username) {
+                e.preventDefault();
+                e.stopPropagation();
+                viewPlayerProfile(playerElement.dataset.username);
+            }
+        });
+    }
+    
+    // Add to friend requests container
+    const requestsList = document.getElementById('receivedRequestsList');
+    if (requestsList) {
+        requestsList.addEventListener('click', function(e) {
+            const playerElement = e.target.closest('.friend-request-item');
+            if (playerElement && playerElement.dataset.username) {
+                e.preventDefault();
+                e.stopPropagation();
+                viewPlayerProfile(playerElement.dataset.username);
+            }
+        });
+    }
+}
+
+function viewPlayerProfile(username) {
+    console.log('👤 Opening profile for:', username);
+    
+    // Close any open modals first
+    const socialModal = document.getElementById('socialHubModal');
+    if (socialModal) {
+        socialModal.style.display = 'none';
+    }
+    
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal) {
+        loginModal.style.display = 'none';
+    }
+    
+    // Show the profile page
+    showProfilePage(username);
+    
+    // Show success message
+    showQuickStatus(`Opening ${username}'s profile...`, 'success');
+}
+
+// Add CSS for clickable players
+function addClickablePlayerStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .clickable-player {
+            transition: all 0.2s ease;
         }
         
-    } catch (error) {
-        console.error('Failed to send friend request:', error);
-        showQuickStatus('Failed to send friend request!', 'error');
-    }
+        .clickable-player:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 255, 255, 0.2);
+            border-color: #00ffff !important;
+        }
+        
+        .friend-name, .message-username, .wall-post-author {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        
+        .clickable-player .friend-name:hover,
+        .clickable-player .message-username:hover,
+        .clickable-player .wall-post-author:hover {
+            color: #ff33cc;
+            text-decoration: underline;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 /* ---------- NEW: PROFILE ROUTE SYSTEM ---------- */
@@ -9546,6 +9716,7 @@ function initAllSystems() {
     initClipOfWeek();
     initCustomizationSystems();
     initEnhancedFriendSystem();
+    initClickablePlayerProfiles();
     initBioEditing();
     initGameLobbies();
     initPlayerSearchSystem();
