@@ -7519,6 +7519,7 @@ function initEnhancedFriendSystem() {
     
     console.log('✅ Enhanced friend system initialized');
 }
+/* ---------- ADD FRIEND BUTTON STATE MANAGEMENT ---------- */
 async function updateAddFriendButtonState() {
     const addFriendBtn = document.getElementById('profilePageAddFriend');
     if (!addFriendBtn) return;
@@ -7532,30 +7533,40 @@ async function updateAddFriendButtonState() {
     if (!profileUsername || profileUsername === currentUsername) return;
     
     try {
-        // Check if already friends
+        // Check if already friends - FIXED QUERY
         const { data: existingFriendship, error } = await supabase
             .from('friend_requests')
             .select('*')
-            .or(`and(from_user.eq.${currentUsername},to_user.eq.${profileUsername},status.eq.accepted),and(from_user.eq.${profileUsername},to_user.eq.${currentUsername},status.eq.accepted)`)
-            .single();
+            .or(`from_user.eq.${currentUsername},to_user.eq.${currentUsername}`)
+            .eq('status', 'accepted');
+
+        if (error) throw error;
+
+        // Check if we're friends with this specific user
+        const isFriend = existingFriendship?.some(request => 
+            (request.from_user === currentUsername && request.to_user === profileUsername) ||
+            (request.from_user === profileUsername && request.to_user === currentUsername)
+        );
             
-        if (existingFriendship && !error) {
+        if (isFriend) {
             addFriendBtn.textContent = '✅ Friends';
             addFriendBtn.disabled = true;
             addFriendBtn.style.background = 'rgba(0, 255, 0, 0.1)';
             return;
         }
         
-        // Check if request already sent
+        // Check if request already sent - FIXED QUERY
         const { data: existingRequest, error: requestError } = await supabase
             .from('friend_requests')
             .select('*')
             .eq('from_user', currentUsername)
             .eq('to_user', profileUsername)
             .eq('status', 'pending')
-            .single();
+            .maybeSingle(); // Use maybeSingle instead of single
             
-        if (existingRequest && !requestError) {
+        if (requestError) throw requestError;
+        
+        if (existingRequest) {
             addFriendBtn.textContent = '⏳ Request Sent';
             addFriendBtn.disabled = true;
             addFriendBtn.style.background = 'rgba(255, 255, 0, 0.1)';
@@ -7568,8 +7579,8 @@ async function updateAddFriendButtonState() {
         addFriendBtn.style.background = '';
         
     } catch (error) {
-        console.log('No existing relationship found');
-        // Default state if no relationship exists
+        console.log('No existing relationship found or query error:', error);
+        // Default state if no relationship exists or query fails
         addFriendBtn.textContent = '➕ Add Friend';
         addFriendBtn.disabled = false;
         addFriendBtn.style.background = '';
@@ -7599,30 +7610,47 @@ async function loadFriendRequests() {
     const sentList = document.getElementById('sentRequestsList');
     const requestsCount = document.getElementById('requestsCount');
     
-    if (!receivedList || !sentList) return;
+    if (!receivedList || !sentList) {
+        console.log('❌ Friend request elements not found');
+        return;
+    }
     
     try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            console.log('❌ No user logged in');
+            return;
+        }
         
         const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+        console.log('🔍 Loading friend requests for:', currentUsername);
         
-        // Load received requests (where current user is the target)
+        // Load received requests (where current user is the target) - FIXED QUERY
         const { data: receivedRequests, error: receivedError } = await supabase
             .from('friend_requests')
             .select('*')
             .eq('to_user', currentUsername)
-            .eq('status', 'pending');
-        
-        // Load sent requests (where current user is the sender)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+
+        // Load sent requests (where current user is the sender) - FIXED QUERY
         const { data: sentRequests, error: sentError } = await supabase
             .from('friend_requests')
             .select('*')
             .eq('from_user', currentUsername)
-            .eq('status', 'pending');
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
         
-        if (receivedError || sentError) {
-            throw new Error('Failed to load friend requests');
+        console.log('📨 Friend requests loaded:', {
+            received: receivedRequests?.length || 0,
+            sent: sentRequests?.length || 0
+        });
+
+        if (receivedError) {
+            console.error('❌ Error loading received requests:', receivedError);
+        }
+        if (sentError) {
+            console.error('❌ Error loading sent requests:', sentError);
         }
         
         // Display received requests
@@ -7639,7 +7667,7 @@ async function loadFriendRequests() {
         }
         
     } catch (error) {
-        console.error('Error loading friend requests:', error);
+        console.error('❌ Error loading friend requests:', error);
         receivedList.innerHTML = '<div class="empty-state">Error loading requests</div>';
         sentList.innerHTML = '<div class="empty-state">Error loading requests</div>';
     }
@@ -8004,6 +8032,32 @@ async function sendFriendRequest(targetUsername) {
     }
     
     try {
+        // Check if request already exists in either direction - FIXED QUERY
+        const { data: existingRequests, error: checkError } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .or(`from_user.eq.${fromUsername},to_user.eq.${fromUsername}`);
+        
+        if (checkError) throw checkError;
+        
+        // Check for existing relationship with this specific user
+        const existingRelationship = existingRequests?.find(request => 
+            (request.from_user === fromUsername && request.to_user === targetUsername) ||
+            (request.from_user === targetUsername && request.to_user === fromUsername)
+        );
+        
+        if (existingRelationship) {
+            if (existingRelationship.status === 'pending') {
+                showQuickStatus('Friend request already exists!', 'info');
+                return;
+            }
+            if (existingRelationship.status === 'accepted') {
+                showQuickStatus('You are already friends!', 'info');
+                return;
+            }
+        }
+        
+        // Send new request
         const { data, error } = await supabase
             .from('friend_requests')
             .insert([{
@@ -8023,6 +8077,8 @@ async function sendFriendRequest(targetUsername) {
             showQuickStatus(`Friend request sent to ${targetUsername}!`, 'success');
             // Reload the sent requests tab
             loadFriendRequests();
+            // Update the add friend button state
+            updateAddFriendButtonState();
         }
         
     } catch (error) {
