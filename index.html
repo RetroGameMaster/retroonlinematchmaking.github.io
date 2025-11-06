@@ -5890,42 +5890,77 @@ function initWallSystem() {
     const postBtn = document.getElementById('postToWall');
     
     if (postBtn) {
-        postBtn.addEventListener('click', postToWall);
+        // Remove existing listeners and add new one
+        postBtn.replaceWith(postBtn.cloneNode(true));
+        const newPostBtn = document.getElementById('postToWall');
+        newPostBtn.addEventListener('click', postToWall);
     }
     
-    // Load wall posts when viewing any profile
-    loadWallPostsForUser();
+    // Clear wall post text when switching profiles
+    const wallPostText = document.getElementById('wallPostText');
+    if (wallPostText) {
+        wallPostText.value = '';
+    }
 }
 
 // FIXED: Post to current user's wall or viewed user's wall
-function postToWall() {
+async function postToWall() {
     const postText = document.getElementById('wallPostText').value.trim();
     
-    if (!postText) return;
+    if (!postText) {
+        showQuickStatus('Please enter some text!', 'error');
+        return;
+    }
     
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        if (!user) {
-            showQuickStatus('Please login to post!', 'error');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        showQuickStatus('Please login to post!', 'error');
+        return;
+    }
+    
+    // Determine which user's wall we're posting on
+    const profileUsername = document.getElementById('profilePageUsername')?.textContent;
+    if (!profileUsername) {
+        showQuickStatus('Cannot determine profile owner!', 'error');
+        return;
+    }
+    
+    const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+    const isOwnProfile = (profileUsername === currentUsername);
+    
+    const post = {
+        id: Date.now().toString(),
+        author: currentUsername,
+        targetUser: profileUsername, // Who's wall this is posted on
+        content: postText,
+        timestamp: new Date().toISOString(),
+        likes: 0,
+        comments: []
+    };
+    
+    console.log('📝 Posting to wall:', post);
+    
+    try {
+        // Save to Supabase
+        const { data, error } = await supabase
+            .from('wall_posts')
+            .insert([{
+                author: post.author,
+                target_user: post.targetUser,
+                content: post.content,
+                likes: post.likes,
+                created_at: post.timestamp
+            }]);
+
+        if (error) {
+            console.error('❌ Supabase wall post failed:', error);
+            showQuickStatus('Failed to save post!', 'error');
             return;
         }
+
+        console.log('✅ Wall post saved to Supabase!');
         
-        // Determine which user's wall we're posting on
-        const profileUsername = document.getElementById('profileUsername')?.textContent || (user.user_metadata?.username || user.email.split('@')[0]);
-        
-        const post = {
-            id: Date.now().toString(),
-            author: user.user_metadata?.username || user.email.split('@')[0],
-            targetUser: profileUsername, // Who's wall this is posted on
-            content: postText,
-            timestamp: new Date().toISOString(),
-            likes: 0,
-            comments: []
-        };
-        
-        // Save to Supabase for cross-device sync
-        saveWallPostToSupabase(post);
-        
-        // Also save locally
+        // Also save locally for immediate display
         const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
         wallPosts.unshift(post);
         localStorage.setItem('rom-wall-posts', JSON.stringify(wallPosts));
@@ -5933,8 +5968,16 @@ function postToWall() {
         appendWallPost(post);
         document.getElementById('wallPostText').value = '';
         updateUserStats();
-        showQuickStatus(`Posted to ${profileUsername === (user.user_metadata?.username || user.email.split('@')[0]) ? 'your' : profileUsername + "'s"} wall!`, 'success');
-    });
+        
+        const message = isOwnProfile ? 
+            'Posted to your wall!' : 
+            `Posted to ${profileUsername}'s wall!`;
+        showQuickStatus(message, 'success');
+        
+    } catch (err) {
+        console.error('❌ Wall post error:', err);
+        showQuickStatus('Failed to post!', 'error');
+    }
 }
 
 // FIXED: Save wall posts to Supabase
@@ -6895,30 +6938,47 @@ async function loadFriendRequests() {
     const sentList = document.getElementById('sentRequestsList');
     const requestsCount = document.getElementById('requestsCount');
     
-    if (!receivedList || !sentList) return;
+    if (!receivedList || !sentList) {
+        console.log('❌ Friend request elements not found');
+        return;
+    }
     
     try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            console.log('❌ No user logged in');
+            return;
+        }
         
         const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+        console.log('🔍 Loading friend requests for:', currentUsername);
         
         // Load received requests (where current user is the target)
         const { data: receivedRequests, error: receivedError } = await supabase
             .from('friend_requests')
             .select('*')
             .eq('to_user', currentUsername)
-            .eq('status', 'pending');
-        
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+
         // Load sent requests (where current user is the sender)
         const { data: sentRequests, error: sentError } = await supabase
             .from('friend_requests')
             .select('*')
             .eq('from_user', currentUsername)
-            .eq('status', 'pending');
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
         
-        if (receivedError || sentError) {
-            throw new Error('Failed to load friend requests');
+        console.log('📨 Friend requests loaded:', {
+            received: receivedRequests?.length || 0,
+            sent: sentRequests?.length || 0
+        });
+
+        if (receivedError) {
+            console.error('❌ Error loading received requests:', receivedError);
+        }
+        if (sentError) {
+            console.error('❌ Error loading sent requests:', sentError);
         }
         
         // Display received requests
@@ -6935,12 +6995,11 @@ async function loadFriendRequests() {
         }
         
     } catch (error) {
-        console.error('Error loading friend requests:', error);
+        console.error('❌ Error loading friend requests:', error);
         receivedList.innerHTML = '<div class="empty-state">Error loading requests</div>';
         sentList.innerHTML = '<div class="empty-state">Error loading requests</div>';
     }
 }
-
 function displayReceivedRequests(requests) {
     const receivedList = document.getElementById('receivedRequestsList');
     
@@ -7460,7 +7519,62 @@ function initEnhancedFriendSystem() {
     
     console.log('✅ Enhanced friend system initialized');
 }
-
+async function updateAddFriendButtonState() {
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (!addFriendBtn) return;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+    const profileUsername = document.getElementById('profilePageUsername')?.textContent;
+    
+    if (!profileUsername || profileUsername === currentUsername) return;
+    
+    try {
+        // Check if already friends
+        const { data: existingFriendship, error } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .or(`and(from_user.eq.${currentUsername},to_user.eq.${profileUsername},status.eq.accepted),and(from_user.eq.${profileUsername},to_user.eq.${currentUsername},status.eq.accepted)`)
+            .single();
+            
+        if (existingFriendship && !error) {
+            addFriendBtn.textContent = '✅ Friends';
+            addFriendBtn.disabled = true;
+            addFriendBtn.style.background = 'rgba(0, 255, 0, 0.1)';
+            return;
+        }
+        
+        // Check if request already sent
+        const { data: existingRequest, error: requestError } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .eq('from_user', currentUsername)
+            .eq('to_user', profileUsername)
+            .eq('status', 'pending')
+            .single();
+            
+        if (existingRequest && !requestError) {
+            addFriendBtn.textContent = '⏳ Request Sent';
+            addFriendBtn.disabled = true;
+            addFriendBtn.style.background = 'rgba(255, 255, 0, 0.1)';
+            return;
+        }
+        
+        // Default state - can send request
+        addFriendBtn.textContent = '➕ Add Friend';
+        addFriendBtn.disabled = false;
+        addFriendBtn.style.background = '';
+        
+    } catch (error) {
+        console.log('No existing relationship found');
+        // Default state if no relationship exists
+        addFriendBtn.textContent = '➕ Add Friend';
+        addFriendBtn.disabled = false;
+        addFriendBtn.style.background = '';
+    }
+}
 function initFriendRequestTabs() {
     const tabBtns = document.querySelectorAll('.request-tab-btn');
     
@@ -8259,9 +8373,19 @@ async function loadProfilePageData(username = null) {
     }
 }
 
-async function loadUserProfileData(username, isOwnProfile) {
+async function loadUserProfileData(username, isOwnProfile = false) {
     console.log('👤 Loading user profile data:', username, 'isOwn:', isOwnProfile);
     
+    // Auto-detect if it's the current user's profile
+    if (!isOwnProfile) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+            isOwnProfile = (username === currentUsername);
+            console.log('🔄 Auto-detected profile ownership:', isOwnProfile);
+        }
+    }
+
     try {
         // Try to load from Supabase first
         const { data: profileData, error } = await supabase
@@ -8271,8 +8395,7 @@ async function loadUserProfileData(username, isOwnProfile) {
             .single();
 
         if (error) {
-            console.log('❌ Profile not found in Supabase, using local data');
-            // Fallback to local data or create demo data
+            console.log('❌ Profile not found in Supabase, using demo data');
             loadDemoProfileData(username, isOwnProfile);
             return;
         }
@@ -8375,6 +8498,11 @@ function updateProfilePageDisplay(profileData, isOwnProfile) {
     
     // Update action buttons based on ownership
     updateProfileActions(isOwnProfile);
+
+   // Update friend button state if viewing another user's profile
+    if (!isOwnProfile) {
+        updateAddFriendButtonState();
+    }
 }
 
 function updateFriendList(username) {
@@ -8438,13 +8566,23 @@ function updateRecentActivity(username) {
 function updateProfileActions(isOwnProfile) {
     const addFriendBtn = document.getElementById('profilePageAddFriend');
     const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    const editBioBtn = document.getElementById('profilePageEditBio');
+    
+    console.log('🔄 Updating profile actions, isOwnProfile:', isOwnProfile);
     
     if (isOwnProfile) {
-        addFriendBtn.style.display = 'none';
-        sendMessageBtn.style.display = 'none';
+        // Hide friend actions, show edit actions for own profile
+        if (addFriendBtn) addFriendBtn.style.display = 'none';
+        if (sendMessageBtn) sendMessageBtn.style.display = 'none';
+        if (editBioBtn) editBioBtn.style.display = 'block';
     } else {
-        addFriendBtn.style.display = 'block';
-        sendMessageBtn.style.display = 'block';
+        // Show friend actions, hide edit actions for other profiles
+        if (addFriendBtn) addFriendBtn.style.display = 'block';
+        if (sendMessageBtn) sendMessageBtn.style.display = 'block';
+        if (editBioBtn) editBioBtn.style.display = 'none';
+        
+        // Update add friend button text if already friends or request sent
+        updateAddFriendButtonState();
     }
 }
 
