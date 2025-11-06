@@ -8203,19 +8203,37 @@ function showProfilePage(username = null) {
     console.log('👤 Showing profile page for:', username);
     
     // Hide main site, show profile route
-    document.getElementById('mainSiteContent').style.display = 'none';
-    document.getElementById('profileRouteContainer').classList.add('active');
+    const mainSite = document.getElementById('mainSiteContent');
+    const profileRoute = document.getElementById('profileRouteContainer');
+    
+    if (mainSite) mainSite.style.display = 'none';
+    if (profileRoute) profileRoute.classList.add('active');
+    
+    // Update URL without page reload
+    if (username) {
+        const newUrl = getProfileUrl(username);
+        window.history.pushState({}, '', newUrl);
+    }
     
     // Load profile data
     loadProfilePageData(username);
+    
+    // Update share button
+    updateShareProfileButton();
 }
 
 function showMainSite() {
     console.log('🏠 Showing main site');
     
     // Hide profile route, show main site
-    document.getElementById('profileRouteContainer').classList.remove('active');
-    document.getElementById('mainSiteContent').style.display = 'block';
+    const profileRoute = document.getElementById('profileRouteContainer');
+    const mainSite = document.getElementById('mainSiteContent');
+    
+    if (profileRoute) profileRoute.classList.remove('active');
+    if (mainSite) mainSite.style.display = 'block';
+    
+    // Update URL to main site
+    window.history.pushState({}, '', '/');
 }
 
 async function loadProfilePageData(username = null) {
@@ -8494,30 +8512,125 @@ function formatRelativeTime(date) {
     return date.toLocaleDateString();
 }
 
-/* ---------- URL ROUTING SYSTEM ---------- */
+/* ---------- FIXED URL ROUTING SYSTEM ---------- */
 function initURLRouting() {
     console.log('🔄 Initializing URL routing...');
     
-    // Check URL for profile parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const profileParam = urlParams.get('profile');
-    
-    if (profileParam) {
-        // Show profile page if profile parameter exists
-        showProfilePage(profileParam);
+    function handleRoute() {
+        const path = window.location.pathname;
+        const hash = window.location.hash;
+        const searchParams = new URLSearchParams(window.location.search);
+        
+        console.log('📍 Current route:', { path, hash, search: window.location.search });
+        
+        // Handle profile routes like /user or /user/username
+        if (path.startsWith('/user')) {
+            let username = null;
+            
+            // Extract username from path /user/username
+            const pathParts = path.split('/').filter(part => part.length > 0);
+            if (pathParts.length >= 2) {
+                username = pathParts[1];
+            }
+            
+            // Fallback to query parameter ?profile=username
+            if (!username) {
+                username = searchParams.get('profile');
+            }
+            
+            console.log('👤 Profile route detected, username:', username);
+            
+            if (username) {
+                showProfilePage(username);
+            } else {
+                // If no username specified, show current user's profile
+                supabase.auth.getUser().then(({ data: { user } }) => {
+                    if (user) {
+                        const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+                        showProfilePage(currentUsername);
+                    } else {
+                        showProfilePage('Guest');
+                    }
+                });
+            }
+            return;
+        }
+        
+        // Handle main site routes
+        if (path === '/' || path === '/index.html' || !path || path === '') {
+            showMainSite();
+            return;
+        }
+        
+        // Default: show main site
+        showMainSite();
     }
     
+    // Initial route handling
+    handleRoute();
+    
     // Handle browser back/forward buttons
-    window.addEventListener('popstate', function(event) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const profileParam = urlParams.get('profile');
-        
-        if (profileParam) {
-            showProfilePage(profileParam);
-        } else {
-            showMainSite();
+    window.addEventListener('popstate', handleRoute);
+    
+    // Override internal link clicks to use our routing
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (link && link.href) {
+            const url = new URL(link.href);
+            
+            // Only handle same-origin links
+            if (url.origin === window.location.origin) {
+                // Handle profile links
+                if (url.pathname.startsWith('/user')) {
+                    e.preventDefault();
+                    window.history.pushState({}, '', url.pathname + url.search);
+                    handleRoute();
+                    return;
+                }
+                
+                // Handle main site links
+                if (url.pathname === '/' || url.pathname === '/index.html') {
+                    e.preventDefault();
+                    window.history.pushState({}, '', url.pathname);
+                    handleRoute();
+                    return;
+                }
+            }
         }
     });
+}
+
+/* ---------- ENHANCED PROFILE URL GENERATION ---------- */
+function getProfileUrl(username) {
+    // Use clean URL format: /user/username
+    return `/user/${encodeURIComponent(username)}`;
+}
+
+function shareProfile(username) {
+    const profileUrl = window.location.origin + getProfileUrl(username);
+    navigator.clipboard.writeText(profileUrl).then(() => {
+        showQuickStatus('Profile URL copied to clipboard!', 'success');
+    }).catch(() => {
+        // Fallback method
+        const tempInput = document.createElement('input');
+        tempInput.value = profileUrl;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        showQuickStatus('Profile URL copied to clipboard!', 'success');
+    });
+}
+
+// Update the existing shareProfileBtn event listener
+function updateShareProfileButton() {
+    const shareProfileBtn = document.getElementById('profilePageShare');
+    if (shareProfileBtn) {
+        shareProfileBtn.addEventListener('click', function() {
+            const username = document.getElementById('profilePageUsername').textContent;
+            shareProfile(username);
+        });
+    }
 }
  /* ---------- WORKING SALTY BET INTEGRATION ---------- */
 function initWorkingSaltyBet() {
