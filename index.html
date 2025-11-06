@@ -8412,6 +8412,8 @@ async function loadUserProfileData(username, isOwnProfile = false) {
 }
 
 function loadDemoProfileData(username, isOwnProfile) {
+    console.log('📋 Loading demo profile data for:', username);
+    
     // Create demo profile data for testing
     const demoProfile = {
         username: username,
@@ -8432,77 +8434,121 @@ function loadDemoProfileData(username, isOwnProfile) {
         }
     };
     
+    // SAFELY update the display
     updateProfilePageDisplay(demoProfile, isOwnProfile);
 }
 
 function updateProfilePageDisplay(profileData, isOwnProfile) {
-    console.log('🎨 Updating profile page display:', profileData.username);
+    console.log('🎨 Updating profile page display:', profileData.username, 'isOwn:', isOwnProfile);
     
-    // Update basic info
-    document.getElementById('profilePageUsername').textContent = profileData.username;
-    document.getElementById('profilePageStatus').textContent = profileData.profile_data?.status || '💻 Online';
-    document.getElementById('profilePageSignature').innerHTML = profileData.profile_data?.signature || 'This user hasn\'t set a signature yet.';
+    // SAFELY update basic info - only update elements that exist
+    const usernameElement = document.getElementById('profilePageUsername');
+    const statusElement = document.getElementById('profilePageStatus');
+    const signatureElement = document.getElementById('profilePageSignature');
     
-    // Update avatar
+    if (usernameElement) usernameElement.textContent = profileData.username;
+    if (statusElement) statusElement.textContent = profileData.profile_data?.status || '💻 Online';
+    if (signatureElement) signatureElement.innerHTML = profileData.profile_data?.signature || 'This user hasn\'t set a signature yet.';
+    
+    // SAFELY update avatar
     const avatarElement = document.getElementById('profilePageAvatar');
-    if (profileData.profile_data?.profilePic) {
-        avatarElement.innerHTML = `<img src="${profileData.profile_data.profilePic}" alt="${profileData.username}" style="width:100%;height:100%;object-fit:cover;">`;
-    } else {
-        document.getElementById('profilePageAvatarText').textContent = profileData.username.charAt(0).toUpperCase();
+    if (avatarElement) {
+        if (profileData.profile_data?.profilePic) {
+            avatarElement.innerHTML = `<img src="${profileData.profile_data.profilePic}" alt="${profileData.username}" style="width:100%;height:100%;object-fit:cover;">`;
+        } else {
+            const avatarText = document.getElementById('profilePageAvatarText');
+            if (avatarText) {
+                avatarText.textContent = profileData.username.charAt(0).toUpperCase();
+            }
+        }
     }
     
-    // Update meta info
-    const joinDate = profileData.profile_data?.joinDate ? new Date(profileData.profile_data.joinDate).toLocaleDateString() : 'Recently';
-    document.getElementById('profilePageJoinDate').textContent = `Joined: ${joinDate}`;
+    // SAFELY update meta info
+    const joinDateElement = document.getElementById('profilePageJoinDate');
+    const lastActiveElement = document.getElementById('profilePageLastActive');
+    const viewsElement = document.getElementById('profilePageViews');
+    const friendsCountElement = document.getElementById('profilePageFriendsCount');
     
-    const lastActive = profileData.profile_data?.lastActive ? 
-        (new Date().getTime() - new Date(profileData.profile_data.lastActive).getTime() < 5 * 60 * 1000 ? 'Now' : 
-        formatRelativeTime(new Date(profileData.profile_data.lastActive))) : 'Now';
-    document.getElementById('profilePageLastActive').textContent = `Last Active: ${lastActive}`;
+    if (joinDateElement) {
+        const joinDate = profileData.profile_data?.joinDate ? new Date(profileData.profile_data.joinDate).toLocaleDateString() : 'Recently';
+        joinDateElement.textContent = `Joined: ${joinDate}`;
+    }
     
-    // Update stats
-    document.getElementById('profilePageViews').textContent = `👁️ Views: ${profileData.profile_data?.profileViews || 0}`;
-    document.getElementById('profilePageFriendsCount').textContent = `👥 Friends: ${profileData.profile_data?.friendsCount || 0}`;
-    document.getElementById('friendsCount').textContent = profileData.profile_data?.friendsCount || 0;
+    if (lastActiveElement) {
+        const lastActive = profileData.profile_data?.lastActive ? 
+            (new Date().getTime() - new Date(profileData.profile_data.lastActive).getTime() < 5 * 60 * 1000 ? 'Now' : 
+            formatRelativeTime(new Date(profileData.profile_data.lastActive))) : 'Now';
+        lastActiveElement.textContent = `Last Active: ${lastActive}`;
+    }
     
-    // Update bio section
+    // SAFELY update stats
+    if (viewsElement) viewsElement.textContent = `👁️ Views: ${profileData.profile_data?.profileViews || 0}`;
+    if (friendsCountElement) friendsCountElement.textContent = `👥 Friends: ${profileData.profile_data?.friendsCount || 0}`;
+    
+    const friendsCountBadge = document.getElementById('friendsCount');
+    if (friendsCountBadge) friendsCountBadge.textContent = profileData.profile_data?.friendsCount || 0;
+    
+    // SAFELY update bio section - only if elements exist
     const bioElement = document.getElementById('profilePageBio');
-    if (profileData.profile_data?.bio) {
-        bioElement.textContent = profileData.profile_data.bio;
-        bioElement.classList.remove('empty');
-    } else {
-        bioElement.textContent = 'This user hasn\'t written a bio yet.';
-        bioElement.classList.add('empty');
+    if (bioElement) {
+        if (profileData.profile_data?.bio) {
+            bioElement.textContent = profileData.profile_data.bio;
+            bioElement.classList.remove('empty');
+        } else {
+            bioElement.textContent = 'This user hasn\'t written a bio yet.';
+            bioElement.classList.add('empty');
+        }
     }
     
-    // Update bio stats
-    document.getElementById('profileFavoriteSystems').textContent = profileData.profile_data?.favoriteSystems || 'Not set';
-    document.getElementById('profileGamingSince').textContent = profileData.profile_data?.gamingSince || 'Not set';
-    document.getElementById('profileTopGames').textContent = profileData.profile_data?.topGames || 'Not set';
+    // SAFELY update bio stats - only if elements exist
+    const favoriteSystemsElement = document.getElementById('profileFavoriteSystems');
+    const gamingSinceElement = document.getElementById('profileGamingSince');
+    const topGamesElement = document.getElementById('profileTopGames');
     
-    // Update visitor stats
-    const visitorsToday = Math.floor((profileData.profile_data?.profileViews || 0) * 0.1);
-    const visitorsWeek = Math.floor((profileData.profile_data?.profileViews || 0) * 0.3);
-    document.getElementById('visitorsToday').textContent = visitorsToday;
-    document.getElementById('visitorsWeek').textContent = visitorsWeek;
-    document.getElementById('visitorsTotal').textContent = profileData.profile_data?.profileViews || 0;
+    if (favoriteSystemsElement) favoriteSystemsElement.textContent = profileData.profile_data?.favoriteSystems || 'Not set';
+    if (gamingSinceElement) gamingSinceElement.textContent = profileData.profile_data?.gamingSince || 'Not set';
+    if (topGamesElement) topGamesElement.textContent = profileData.profile_data?.topGames || 'Not set';
     
-    // Update friend list (demo data)
-    updateFriendList(profileData.username);
+    // SAFELY update visitor stats - only if elements exist
+    const visitorsTodayElement = document.getElementById('visitorsToday');
+    const visitorsWeekElement = document.getElementById('visitorsWeek');
+    const visitorsTotalElement = document.getElementById('visitorsTotal');
     
-    // Update recent activity (demo data)
-    updateRecentActivity(profileData.username);
+    if (visitorsTodayElement && visitorsWeekElement && visitorsTotalElement) {
+        const visitorsToday = Math.floor((profileData.profile_data?.profileViews || 0) * 0.1);
+        const visitorsWeek = Math.floor((profileData.profile_data?.profileViews || 0) * 0.3);
+        visitorsTodayElement.textContent = visitorsToday;
+        visitorsWeekElement.textContent = visitorsWeek;
+        visitorsTotalElement.textContent = profileData.profile_data?.profileViews || 0;
+    }
     
-    // Load wall posts for this user
-    loadWallPostsForUsername(profileData.username, document.getElementById('profilePageWallPosts'));
+    // Update friend list (demo data) - only if element exists
+    const friendsListElement = document.getElementById('profilePageFriendsList');
+    if (friendsListElement) {
+        updateFriendList(profileData.username);
+    }
+    
+    // Update recent activity (demo data) - only if element exists
+    const activityListElement = document.getElementById('recentActivityList');
+    if (activityListElement) {
+        updateRecentActivity(profileData.username);
+    }
+    
+    // Load wall posts for this user - only if element exists
+    const wallPostsElement = document.getElementById('profilePageWallPosts');
+    if (wallPostsElement) {
+        loadWallPostsForUsername(profileData.username, wallPostsElement);
+    }
     
     // Update action buttons based on ownership
     updateProfileActions(isOwnProfile);
-
-   // Update friend button state if viewing another user's profile
+    
+    // Update friend button state if viewing another user's profile
     if (!isOwnProfile) {
         updateAddFriendButtonState();
     }
+    
+    console.log('✅ Profile page display updated successfully');
 }
 
 function updateFriendList(username) {
