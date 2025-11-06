@@ -8124,7 +8124,79 @@ function addClickablePlayerStyles() {
     `;
     document.head.appendChild(style);
 }
-
+/* ---------- NEW: PROFILE ROUTE SYSTEM ---------- */
+function initProfileRouteSystem() {
+    console.log('🔄 Initializing profile route system...');
+    
+    // Back to main button
+    const backToMainBtn = document.getElementById('backToMain');
+    if (backToMainBtn) {
+        backToMainBtn.addEventListener('click', function() {
+            showMainSite();
+        });
+    }
+    
+    // Profile navigation
+    const profileNavBtns = document.querySelectorAll('.profile-nav-btn');
+    profileNavBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const section = this.getAttribute('data-section');
+            
+            // Update active nav button
+            profileNavBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show selected section
+            document.querySelectorAll('.profile-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(section).classList.add('active');
+        });
+    });
+    
+    // Profile actions
+    const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener('click', function() {
+            showQuickStatus('Friend request sent!', 'success');
+        });
+    }
+    
+    const sendMessageBtn = document.getElementById('profilePageSendMessage');
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', function() {
+            showQuickStatus('Message feature coming soon!', 'info');
+        });
+    }
+    
+    const viewInHubBtn = document.getElementById('profilePageViewInHub');
+    if (viewInHubBtn) {
+        viewInHubBtn.addEventListener('click', function() {
+            document.getElementById('socialHubModal').style.display = 'flex';
+        });
+    }
+    
+    const shareProfileBtn = document.getElementById('profilePageShare');
+    if (shareProfileBtn) {
+        shareProfileBtn.addEventListener('click', function() {
+            const profileUrl = window.location.href.split('?')[0] + '?profile=' + document.getElementById('profilePageUsername').textContent;
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            });
+        });
+    }
+    
+    // Profile comment system
+    const postCommentBtn = document.getElementById('postProfileComment');
+    if (postCommentBtn) {
+        postCommentBtn.addEventListener('click', postProfileComment);
+    }
+    
+    // Load profile data when route is active
+    loadProfilePageData();
+    initProfilePageMusicSystem();
+    initProfilePageBackgroundSystem();
+}
 /* ---------- FIXED URL ROUTING SYSTEM ---------- */
 function initURLRouting() {
     console.log('🔄 Initializing URL routing...');
