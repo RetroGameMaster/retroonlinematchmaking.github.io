@@ -8125,15 +8125,120 @@ function addClickablePlayerStyles() {
     document.head.appendChild(style);
 }
 
-/* ---------- NEW: PROFILE ROUTE SYSTEM ---------- */
+/* ---------- FIXED URL ROUTING SYSTEM ---------- */
+function initURLRouting() {
+    console.log('🔄 Initializing URL routing...');
+    
+    // Handle initial URL
+    handleURLRouting();
+    
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', handleURLRouting);
+    
+    // Override all internal link clicks to use our routing
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (link && link.href && link.href.includes('retroonlinematchmaking.com')) {
+            e.preventDefault();
+            const url = new URL(link.href);
+            if (url.pathname.includes('/user/')) {
+                const username = url.pathname.split('/user/')[1];
+                navigateToProfile(username);
+            } else {
+                window.location.href = link.href;
+            }
+        }
+    });
+}
+
+function handleURLRouting() {
+    const url = new URL(window.location.href);
+    const path = url.pathname;
+    
+    // Handle /user/username URLs
+    if (path.includes('/user/')) {
+        const username = path.split('/user/')[1];
+        if (username) {
+            showProfilePage(decodeURIComponent(username));
+            return;
+        }
+    }
+    
+    // Handle ?profile=username parameter (legacy support)
+    const profileParam = url.searchParams.get('profile');
+    if (profileParam) {
+        showProfilePage(profileParam);
+        return;
+    }
+    
+    // Default to main site
+    showMainSite();
+}
+
+function navigateToProfile(username) {
+    // Update URL without page reload
+    const newUrl = `${window.location.origin}/user/${encodeURIComponent(username)}`;
+    window.history.pushState({}, '', newUrl);
+    showProfilePage(username);
+}
+
+function navigateToMain() {
+    // Update URL to main site
+    const newUrl = window.location.origin;
+    window.history.pushState({}, '', newUrl);
+    showMainSite();
+}
+
+function showProfilePage(username = null) {
+    console.log('👤 Showing profile page for:', username);
+    
+    // Hide main site, show profile route
+    const mainSite = document.getElementById('mainSiteContent');
+    const profileRoute = document.getElementById('profileRouteContainer');
+    
+    if (mainSite) mainSite.style.display = 'none';
+    if (profileRoute) {
+        profileRoute.classList.add('active');
+        profileRoute.style.display = 'block';
+    }
+    
+    // Load profile data
+    if (username) {
+        loadProfilePageData(username);
+    } else {
+        // Load current user's profile
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+                const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+                loadProfilePageData(currentUsername);
+            }
+        });
+    }
+}
+
+function showMainSite() {
+    console.log('🏠 Showing main site');
+    
+    // Hide profile route, show main site
+    const mainSite = document.getElementById('mainSiteContent');
+    const profileRoute = document.getElementById('profileRouteContainer');
+    
+    if (profileRoute) {
+        profileRoute.classList.remove('active');
+        profileRoute.style.display = 'none';
+    }
+    if (mainSite) mainSite.style.display = 'block';
+}
+
+// Update the back button handler
 function initProfileRouteSystem() {
     console.log('🔄 Initializing profile route system...');
     
-    // Back to main button
+    // Back to main button - UPDATED
     const backToMainBtn = document.getElementById('backToMain');
     if (backToMainBtn) {
         backToMainBtn.addEventListener('click', function() {
-            showMainSite();
+            navigateToMain();
         });
     }
     
@@ -8155,7 +8260,7 @@ function initProfileRouteSystem() {
         });
     });
     
-    // Profile actions
+    // Profile actions - UPDATED with proper URL sharing
     const addFriendBtn = document.getElementById('profilePageAddFriend');
     if (addFriendBtn) {
         addFriendBtn.addEventListener('click', function() {
@@ -8180,8 +8285,18 @@ function initProfileRouteSystem() {
     const shareProfileBtn = document.getElementById('profilePageShare');
     if (shareProfileBtn) {
         shareProfileBtn.addEventListener('click', function() {
-            const profileUrl = window.location.href.split('?')[0] + '?profile=' + document.getElementById('profilePageUsername').textContent;
+            const username = document.getElementById('profilePageUsername').textContent;
+            const profileUrl = `${window.location.origin}/user/${encodeURIComponent(username)}`;
             navigator.clipboard.writeText(profileUrl).then(() => {
+                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            }).catch(() => {
+                // Fallback
+                const tempInput = document.createElement('input');
+                tempInput.value = profileUrl;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
                 showQuickStatus('Profile URL copied to clipboard!', 'success');
             });
         });
@@ -8198,326 +8313,77 @@ function initProfileRouteSystem() {
     initProfilePageMusicSystem();
     initProfilePageBackgroundSystem();
 }
-
-function showProfilePage(username = null) {
-    console.log('👤 Showing profile page for:', username);
     
-    // Hide main site, show profile route
-    document.getElementById('mainSiteContent').style.display = 'none';
-    document.getElementById('profileRouteContainer').classList.add('active');
-    
-    // Load profile data
-    loadProfilePageData(username);
-}
-
-function showMainSite() {
-    console.log('🏠 Showing main site');
-    
-    // Hide profile route, show main site
-    document.getElementById('profileRouteContainer').classList.remove('active');
-    document.getElementById('mainSiteContent').style.display = 'block';
-}
-
-async function loadProfilePageData(username = null) {
-    console.log('📄 Loading profile page data for:', username);
-    
-    // If no username specified, load current user's profile
-    if (!username) {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-                username = user.user_metadata?.username || user.email.split('@')[0];
-                loadUserProfileData(username, true);
-            }
+    // Profile navigation
+    const profileNavBtns = document.querySelectorAll('.profile-nav-btn');
+    profileNavBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const section = this.getAttribute('data-section');
+            
+            // Update active nav button
+            profileNavBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show selected section
+            document.querySelectorAll('.profile-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(section).classList.add('active');
         });
-    } else {
-        // Load specified user's profile
-        loadUserProfileData(username, false);
-    }
-}
-
-async function loadUserProfileData(username, isOwnProfile) {
-    console.log('👤 Loading user profile data:', username, 'isOwn:', isOwnProfile);
-    
-    try {
-        // Try to load from Supabase first
-        const { data: profileData, error } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('username', username)
-            .single();
-
-        if (error) {
-            console.log('❌ Profile not found in Supabase, using local data');
-            // Fallback to local data or create demo data
-            loadDemoProfileData(username, isOwnProfile);
-            return;
-        }
-
-        console.log('✅ Profile loaded from Supabase:', profileData);
-        
-        // Update profile page with loaded data
-        updateProfilePageDisplay(profileData, isOwnProfile);
-        
-    } catch (err) {
-        console.error('Error loading profile data:', err);
-        loadDemoProfileData(username, isOwnProfile);
-    }
-}
-
-function loadDemoProfileData(username, isOwnProfile) {
-    // Create demo profile data for testing
-    const demoProfile = {
-        username: username,
-        profile_data: {
-            profilePic: null,
-            signature: isOwnProfile ? 'Welcome to my retro gaming profile! 🎮' : 'This user loves retro gaming!',
-            status: '💻 Online',
-            bio: isOwnProfile ? 
-                'I\'ve been gaming since the 90s and love everything retro! My favorite systems are PS2 and PSP. Always looking for new players to game with!' :
-                'Retro gaming enthusiast with a passion for classic multiplayer games.',
-            favoriteSystems: 'PS2, PSP, PS1',
-            gamingSince: '1998',
-            topGames: 'Gran Turismo, Resident Evil Outbreak, Tekken 3',
-            joinDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-            lastActive: new Date().toISOString(),
-            profileViews: Math.floor(Math.random() * 100) + 1,
-            friendsCount: Math.floor(Math.random() * 50) + 1
-        }
-    };
-    
-    updateProfilePageDisplay(demoProfile, isOwnProfile);
-}
-
-function updateProfilePageDisplay(profileData, isOwnProfile) {
-    console.log('🎨 Updating profile page display:', profileData.username);
-    
-    // Update basic info
-    document.getElementById('profilePageUsername').textContent = profileData.username;
-    document.getElementById('profilePageStatus').textContent = profileData.profile_data?.status || '💻 Online';
-    document.getElementById('profilePageSignature').innerHTML = profileData.profile_data?.signature || 'This user hasn\'t set a signature yet.';
-    
-    // Update avatar
-    const avatarElement = document.getElementById('profilePageAvatar');
-    if (profileData.profile_data?.profilePic) {
-        avatarElement.innerHTML = `<img src="${profileData.profile_data.profilePic}" alt="${profileData.username}" style="width:100%;height:100%;object-fit:cover;">`;
-    } else {
-        document.getElementById('profilePageAvatarText').textContent = profileData.username.charAt(0).toUpperCase();
-    }
-    
-    // Update meta info
-    const joinDate = profileData.profile_data?.joinDate ? new Date(profileData.profile_data.joinDate).toLocaleDateString() : 'Recently';
-    document.getElementById('profilePageJoinDate').textContent = `Joined: ${joinDate}`;
-    
-    const lastActive = profileData.profile_data?.lastActive ? 
-        (new Date().getTime() - new Date(profileData.profile_data.lastActive).getTime() < 5 * 60 * 1000 ? 'Now' : 
-        formatRelativeTime(new Date(profileData.profile_data.lastActive))) : 'Now';
-    document.getElementById('profilePageLastActive').textContent = `Last Active: ${lastActive}`;
-    
-    // Update stats
-    document.getElementById('profilePageViews').textContent = `👁️ Views: ${profileData.profile_data?.profileViews || 0}`;
-    document.getElementById('profilePageFriendsCount').textContent = `👥 Friends: ${profileData.profile_data?.friendsCount || 0}`;
-    document.getElementById('friendsCount').textContent = profileData.profile_data?.friendsCount || 0;
-    
-    // Update bio section
-    const bioElement = document.getElementById('profilePageBio');
-    if (profileData.profile_data?.bio) {
-        bioElement.textContent = profileData.profile_data.bio;
-        bioElement.classList.remove('empty');
-    } else {
-        bioElement.textContent = 'This user hasn\'t written a bio yet.';
-        bioElement.classList.add('empty');
-    }
-    
-    // Update bio stats
-    document.getElementById('profileFavoriteSystems').textContent = profileData.profile_data?.favoriteSystems || 'Not set';
-    document.getElementById('profileGamingSince').textContent = profileData.profile_data?.gamingSince || 'Not set';
-    document.getElementById('profileTopGames').textContent = profileData.profile_data?.topGames || 'Not set';
-    
-    // Update visitor stats
-    const visitorsToday = Math.floor((profileData.profile_data?.profileViews || 0) * 0.1);
-    const visitorsWeek = Math.floor((profileData.profile_data?.profileViews || 0) * 0.3);
-    document.getElementById('visitorsToday').textContent = visitorsToday;
-    document.getElementById('visitorsWeek').textContent = visitorsWeek;
-    document.getElementById('visitorsTotal').textContent = profileData.profile_data?.profileViews || 0;
-    
-    // Update friend list (demo data)
-    updateFriendList(profileData.username);
-    
-    // Update recent activity (demo data)
-    updateRecentActivity(profileData.username);
-    
-    // Load wall posts for this user
-    loadWallPostsForUsername(profileData.username, document.getElementById('profilePageWallPosts'));
-    
-    // Update action buttons based on ownership
-    updateProfileActions(isOwnProfile);
-}
-
-function updateFriendList(username) {
-    const friendsList = document.getElementById('profilePageFriendsList');
-    
-    // Demo friend data
-    const demoFriends = [
-        { username: 'RetroGamer88', status: '🎮 Gaming' },
-        { username: 'PixelMaster', status: '💻 Online' },
-        { username: 'ArcadeKing', status: '😎 Chilling' },
-        { username: 'GameCollector', status: '🤝 Looking to Play' }
-    ];
-    
-    friendsList.innerHTML = '';
-    
-    if (demoFriends.length === 0) {
-        friendsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No friends yet. Start adding some!</div>';
-        return;
-    }
-    
-    demoFriends.forEach(friend => {
-        const friendItem = document.createElement('div');
-        friendItem.className = 'friend-item-mini';
-        friendItem.innerHTML = `
-            <div class="friend-avatar-mini">
-                ${friend.username.charAt(0).toUpperCase()}
-            </div>
-            <div style="flex: 1;">
-                <div style="color: #00ffff; font-weight: bold; font-size: 0.9rem;">${friend.username}</div>
-                <div style="color: #a8dfe8; font-size: 0.7rem;">${friend.status}</div>
-            </div>
-        `;
-        friendsList.appendChild(friendItem);
     });
-}
-
-function updateRecentActivity(username) {
-    const activityList = document.getElementById('recentActivityList');
     
-    // Demo activity data
-    const demoActivities = [
-        { action: '🎮 Played Gran Turismo PSP', time: '2 hours ago' },
-        { action: '💬 Posted on RetroGamer88\'s wall', time: '5 hours ago' },
-        { action: '⭐ Favorited PS2 connection method', time: '1 day ago' },
-        { action: '👥 Added PixelMaster as friend', time: '2 days ago' }
-    ];
-    
-    activityList.innerHTML = '';
-    
-    demoActivities.forEach(activity => {
-        const activityItem = document.createElement('div');
-        activityItem.style.cssText = 'color: #a8dfe8; font-size: 0.8rem; padding: 8px 0; border-bottom: 1px solid rgba(0,255,255,0.1);';
-        activityItem.innerHTML = `
-            <div>${activity.action}</div>
-            <div style="color: #668899; font-size: 0.7rem;">${activity.time}</div>
-        `;
-        activityList.appendChild(activityItem);
-    });
-}
-
-function updateProfileActions(isOwnProfile) {
+    // Profile actions - UPDATED with proper URL sharing
     const addFriendBtn = document.getElementById('profilePageAddFriend');
+    if (addFriendBtn) {
+        addFriendBtn.addEventListener('click', function() {
+            showQuickStatus('Friend request sent!', 'success');
+        });
+    }
+    
     const sendMessageBtn = document.getElementById('profilePageSendMessage');
-    
-    if (isOwnProfile) {
-        addFriendBtn.style.display = 'none';
-        sendMessageBtn.style.display = 'none';
-    } else {
-        addFriendBtn.style.display = 'block';
-        sendMessageBtn.style.display = 'block';
-    }
-}
-
-function postProfileComment() {
-    const commentText = document.getElementById('profileCommentText').value.trim();
-    
-    if (!commentText) return;
-    
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        if (!user) {
-            showQuickStatus('Please login to comment!', 'error');
-            return;
-        }
-        
-        const profileUsername = document.getElementById('profilePageUsername').textContent;
-        const comment = {
-            id: Date.now().toString(),
-            author: user.user_metadata?.username || user.email.split('@')[0],
-            targetUser: profileUsername,
-            content: commentText,
-            timestamp: new Date().toISOString()
-        };
-        
-        // Save comment to localStorage (would be Supabase in production)
-        const comments = JSON.parse(localStorage.getItem('rom-profile-comments') || '[]');
-        comments.unshift(comment);
-        localStorage.setItem('rom-profile-comments', JSON.stringify(comments));
-        
-        appendProfileComment(comment);
-        document.getElementById('profileCommentText').value = '';
-        showQuickStatus('Comment posted!', 'success');
-    });
-}
-
-function appendProfileComment(comment) {
-    const commentsList = document.getElementById('profileCommentsList');
-    
-    const commentDiv = document.createElement('div');
-    commentDiv.className = 'comment-item';
-    
-    const time = new Date(comment.timestamp).toLocaleString();
-    
-    commentDiv.innerHTML = `
-        <div class="comment-header">
-            <span class="comment-author">${comment.author}</span>
-            <span class="comment-time">${time}</span>
-        </div>
-        <div class="comment-content">${escapeHtml(comment.content)}</div>
-    `;
-    
-    // Remove "no comments" message if it exists
-    const noCommentsMsg = commentsList.querySelector('div');
-    if (noCommentsMsg && noCommentsMsg.style.textAlign === 'center') {
-        noCommentsMsg.remove();
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', function() {
+            showQuickStatus('Message feature coming soon!', 'info');
+        });
     }
     
-    commentsList.appendChild(commentDiv);
-}
-
-function formatRelativeTime(date) {
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-}
-
-/* ---------- URL ROUTING SYSTEM ---------- */
-function initURLRouting() {
-    console.log('🔄 Initializing URL routing...');
-    
-    // Check URL for profile parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const profileParam = urlParams.get('profile');
-    
-    if (profileParam) {
-        // Show profile page if profile parameter exists
-        showProfilePage(profileParam);
+    const viewInHubBtn = document.getElementById('profilePageViewInHub');
+    if (viewInHubBtn) {
+        viewInHubBtn.addEventListener('click', function() {
+            document.getElementById('socialHubModal').style.display = 'flex';
+        });
     }
     
-    // Handle browser back/forward buttons
-    window.addEventListener('popstate', function(event) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const profileParam = urlParams.get('profile');
-        
-        if (profileParam) {
-            showProfilePage(profileParam);
-        } else {
-            showMainSite();
-        }
-    });
+    const shareProfileBtn = document.getElementById('profilePageShare');
+    if (shareProfileBtn) {
+        shareProfileBtn.addEventListener('click', function() {
+            const username = document.getElementById('profilePageUsername').textContent;
+            const profileUrl = `${window.location.origin}/user/${encodeURIComponent(username)}`;
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            }).catch(() => {
+                // Fallback
+                const tempInput = document.createElement('input');
+                tempInput.value = profileUrl;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                showQuickStatus('Profile URL copied to clipboard!', 'success');
+            });
+        });
+    }
+    
+    // Profile comment system
+    const postCommentBtn = document.getElementById('postProfileComment');
+    if (postCommentBtn) {
+        postCommentBtn.addEventListener('click', postProfileComment);
+    }
+    
+    // Load profile data when route is active
+    loadProfilePageData();
+    initProfilePageMusicSystem();
+    initProfilePageBackgroundSystem();
 }
  /* ---------- WORKING SALTY BET INTEGRATION ---------- */
 function initWorkingSaltyBet() {
