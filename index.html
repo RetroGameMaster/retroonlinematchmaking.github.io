@@ -6522,6 +6522,7 @@ function initSocialTabs() {
     loadChatMessages();
     loadUserProfileForDisplay();
     updateUserStats();
+   
     
     // ULTRA FORCE FRIEND SYSTEM TO LOAD
     setTimeout(() => {
@@ -6868,18 +6869,51 @@ function initUserFavorites() {
 
 /* ---------- GAME LOBBIES SYSTEM ---------- */
 function initGameLobbies() {
-    // Add game-specific lobbies with actual functionality
-    const lobbyChat = document.getElementById('lobby-chat');
-    if (lobbyChat) {
-        loadActiveLobbies();
-        initLobbyCreation();
+    console.log('🎮 Initializing game lobbies system...');
+    
+    // Initialize lobby creation
+    initLobbyCreation();
+    
+    // Load active lobbies
+    loadActiveLobbies();
+    
+    // Add click handler to lobby tab
+    const lobbyTabBtn = document.querySelector('[data-tab="lobby-chat"]');
+    if (lobbyTabBtn) {
+        lobbyTabBtn.addEventListener('click', function() {
+            console.log('🎮 Lobby tab clicked, loading lobbies...');
+            loadActiveLobbies();
+        });
     }
 }
 
 function loadActiveLobbies() {
-    const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
     const activeLobbies = document.getElementById('activeLobbies');
+    if (!activeLobbies) {
+        console.log('❌ Active lobbies container not found');
+        return;
+    }
     
+    console.log('🔄 Loading active lobbies...');
+    
+    // Get real lobbies from localStorage
+    const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+    
+    if (lobbies.length === 0) {
+        activeLobbies.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #a8dfe8;">
+                <h4>No Active Lobbies</h4>
+                <p>Create the first lobby to start playing!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    displayLobbies(lobbies);
+}
+
+function displayLobbies(lobbies) {
+    const activeLobbies = document.getElementById('activeLobbies');
     if (!activeLobbies) return;
     
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -6887,34 +6921,43 @@ function loadActiveLobbies() {
         
         const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
         
-        if (lobbies.length === 0) {
-            activeLobbies.innerHTML = '<p style="color: #a8dfe8; text-align: center; grid-column: 1 / -1;">No active lobbies. Create one!</p>';
-            return;
-        }
-
-        activeLobbies.innerHTML = lobbies.map(lobby => `
-            <div class="lobby-card" style="background: rgba(0, 30, 60, 0.7); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 15px;">
-                <div class="lobby-header" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span class="lobby-game" style="color: #ff33cc; font-weight: bold;">${lobby.game}</span>
-                    <span class="lobby-players" style="color: #00ffff;">${lobby.players.length}/${lobby.maxPlayers}</span>
-                </div>
-                <div class="lobby-info" style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem;">
-                    <span class="lobby-host" style="color: #a8dfe8;">Host: ${lobby.host}</span>
-                    <span class="lobby-status" style="color: #00ff00;">${lobby.status}</span>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="button join-lobby-btn" data-lobby="${lobby.id}" style="flex: 1;">Join Lobby</button>
-                    ${currentUsername === lobby.host ? 
-                    `<button class="button muted close-lobby-btn" data-lobby="${lobby.id}" style="flex: 0 0 auto;">❌</button>` : 
-                    ''}
-                </div>
-                ${lobby.players.length > 0 ? `
-                    <div class="lobby-players-list" style="margin-top: 10px; font-size: 0.8rem; color: #a8dfe8;">
-                        <strong>Players:</strong> ${lobby.players.join(', ')}
+        activeLobbies.innerHTML = lobbies.map(lobby => {
+            const isHost = lobby.host === currentUsername;
+            const isInLobby = lobby.players.includes(currentUsername);
+            const canJoin = !isInLobby && lobby.players.length < lobby.maxPlayers;
+            
+            return `
+                <div class="lobby-card" style="background: rgba(0, 30, 60, 0.7); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 15px;">
+                    <div class="lobby-header" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span class="lobby-game" style="color: #ff33cc; font-weight: bold;">${lobby.game}</span>
+                        <span class="lobby-players" style="color: #00ffff;">${lobby.players.length}/${lobby.maxPlayers}</span>
                     </div>
-                ` : ''}
-            </div>
-        `).join('');
+                    <div class="lobby-info" style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem;">
+                        <span class="lobby-host" style="color: #a8dfe8;">Host: ${lobby.host}</span>
+                        <span class="lobby-status" style="color: ${lobby.players.length < lobby.maxPlayers ? '#ffff00' : '#00ff00'};">
+                            ${lobby.players.length < lobby.maxPlayers ? 'Waiting for players' : 'Lobby full'}
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        ${canJoin ? 
+                            `<button class="button join-lobby-btn" data-lobby="${lobby.id}" style="flex: 1;">Join Lobby</button>` :
+                            isInLobby ?
+                            `<button class="button" style="flex: 1; background: rgba(0, 255, 0, 0.2); border-color: #00ff00;" disabled>Already Joined</button>` :
+                            `<button class="button" style="flex: 1; background: rgba(255, 0, 0, 0.2); border-color: #ff3333;" disabled>Lobby Full</button>`
+                        }
+                        ${isHost ? 
+                            `<button class="button muted close-lobby-btn" data-lobby="${lobby.id}" style="flex: 0 0 auto;">❌ Close</button>` : 
+                            ''
+                        }
+                    </div>
+                    ${lobby.players.length > 0 ? `
+                        <div class="lobby-players-list" style="margin-top: 10px; font-size: 0.8rem; color: #a8dfe8;">
+                            <strong>Players:</strong> ${lobby.players.join(', ')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
 
         // Add event listeners to join buttons
         document.querySelectorAll('.join-lobby-btn').forEach(btn => {
@@ -6929,6 +6972,8 @@ function loadActiveLobbies() {
                 closeLobby(this.dataset.lobby);
             });
         });
+        
+        console.log(`✅ Displayed ${lobbies.length} real lobbies`);
     });
 }
 
@@ -7038,7 +7083,6 @@ function closeLobby(lobbyId) {
     });
 }
 
-/* ---------- FRIEND SYSTEM ---------- */
 /* ---------- ENHANCED FRIENDS SYSTEM ---------- */
 function initFriendSystem() {
     console.log('👥 Initializing enhanced friends system...');
@@ -8825,6 +8869,8 @@ function updateProfileActions(isOwnProfile) {
     const addFriendBtn = document.getElementById('profilePageAddFriend');
     const sendMessageBtn = document.getElementById('profilePageSendMessage');
     const editBioBtn = document.getElementById('profilePageEditBio');
+    const bioEditSection = document.getElementById('profilePageBioEdit');
+    const bioDisplay = document.getElementById('profilePageBio');
     
     console.log('🔄 Updating profile actions, isOwnProfile:', isOwnProfile);
     
@@ -8833,11 +8879,15 @@ function updateProfileActions(isOwnProfile) {
         if (addFriendBtn) addFriendBtn.style.display = 'none';
         if (sendMessageBtn) sendMessageBtn.style.display = 'none';
         if (editBioBtn) editBioBtn.style.display = 'block';
+        if (bioEditSection) bioEditSection.style.display = 'none';
+        if (bioDisplay) bioDisplay.style.display = 'block';
     } else {
         // Show friend actions, hide edit actions for other profiles
         if (addFriendBtn) addFriendBtn.style.display = 'block';
         if (sendMessageBtn) sendMessageBtn.style.display = 'block';
         if (editBioBtn) editBioBtn.style.display = 'none';
+        if (bioEditSection) bioEditSection.style.display = 'none';
+        if (bioDisplay) bioDisplay.style.display = 'block';
         
         // Update add friend button text if already friends or request sent
         updateAddFriendButtonState();
