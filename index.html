@@ -5111,12 +5111,20 @@ function initProfileMusicSystem() {
     // Ensure YouTube API is loaded for profile music
     ensureYouTubeAPIForProfileMusic();
 
-    // Load current music
+    // Reset music state when initializing
+    if (window.currentProfileMusicPlayer) {
+        window.currentProfileMusicPlayer.destroy();
+        window.currentProfileMusicPlayer = null;
+    }
+    window.currentProfileMusic = null;
+    window.isProfileMusicPlaying = false;
+
+    // Load current music for the CURRENT USER (not the viewed profile)
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) {
             loadUserProfile().then(profile => {
                 if (profile && profile.music) {
-                    currentProfileMusic = profile.music;
+                    window.currentProfileMusic = profile.music;
                     updateProfileMusicPreview(profile.music);
                     if (youtubeUrlInput) youtubeUrlInput.value = profile.music.url || '';
                     if (currentMusicInfo) {
@@ -5153,7 +5161,7 @@ function initProfileMusicSystem() {
                 type: 'youtube'
             };
             
-            currentProfileMusic = musicData;
+            window.currentProfileMusic = musicData;
             updateProfileMusicPreview(musicData);
             saveUserProfile({ music: musicData });
             
@@ -5163,7 +5171,7 @@ function initProfileMusicSystem() {
             }
             
             // Stop current music if playing
-            if (isProfileMusicPlaying) {
+            if (window.isProfileMusicPlaying) {
                 stopProfileMusic();
             }
             
@@ -5175,12 +5183,12 @@ function initProfileMusicSystem() {
     if (playPauseBtn) {
         playPauseBtn.addEventListener('click', function() {
             console.log('🎵 Profile Play/Pause clicked');
-            if (!currentProfileMusic) {
+            if (!window.currentProfileMusic) {
                 showQuickStatus('No music selected! Add a YouTube URL first.', 'error');
                 return;
             }
             
-            if (!isProfileMusicPlaying) {
+            if (!window.isProfileMusicPlaying) {
                 playProfileMusic();
             } else {
                 pauseProfileMusic();
@@ -5199,7 +5207,7 @@ function initProfileMusicSystem() {
     // Disable music button
     if (disableBtn) {
         disableBtn.addEventListener('click', function() {
-            currentProfileMusic = null;
+            window.currentProfileMusic = null;
             stopProfileMusic();
             updateProfileMusicPreview(null);
             saveUserProfile({ music: null });
@@ -5209,6 +5217,129 @@ function initProfileMusicSystem() {
             
             showQuickStatus('Profile music disabled!', 'info');
         });
+    }
+}
+
+/* ---------- PROFILE PAGE MUSIC SYSTEM (For viewing other profiles) ---------- */
+function initProfilePageMusicSystem() {
+    const playPauseBtn = document.getElementById('profilePagePlayPause');
+    const stopBtn = document.getElementById('profilePageStopMusic');
+    
+    // Reset profile page music state
+    window.profilePageMusicPlayer = null;
+    window.profilePageMusic = null;
+    window.isProfilePageMusicPlaying = false;
+
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', function() {
+            console.log('🎵 Profile Page Play/Pause clicked');
+            if (!window.profilePageMusic) {
+                showQuickStatus('This user has no profile music!', 'error');
+                return;
+            }
+            
+            if (!window.isProfilePageMusicPlaying) {
+                playProfilePageMusic();
+            } else {
+                pauseProfilePageMusic();
+            }
+        });
+    }
+    
+    if (stopBtn) {
+        stopBtn.addEventListener('click', function() {
+            console.log('🛑 Profile Page Stop clicked');
+            stopProfilePageMusic();
+        });
+    }
+}
+
+function playProfilePageMusic() {
+    console.log('▶️ Playing profile page music:', window.profilePageMusic);
+    if (!window.profilePageMusic || !window.YT) {
+        console.log('❌ Cannot play: no music or YT not loaded');
+        return;
+    }
+    
+    const playPauseBtn = document.getElementById('profilePagePlayPause');
+    
+    if (!window.profilePageMusicPlayer) {
+        console.log('🔄 Creating new profile page music player');
+        // Create invisible YouTube player for profile page music
+        const playerDiv = document.createElement('div');
+        playerDiv.id = 'profile-page-music-player';
+        playerDiv.style.cssText = 'position: fixed; top: -1000px; left: -1000px; width: 1px; height: 1px; opacity: 0;';
+        document.body.appendChild(playerDiv);
+        
+        window.profilePageMusicPlayer = new YT.Player('profile-page-music-player', {
+            height: '1',
+            width: '1',
+            videoId: window.profilePageMusic.id,
+            playerVars: {
+                'autoplay': 1,
+                'controls': 0,
+                'disablekb': 1,
+                'fs': 0,
+                'iv_load_policy': 3,
+                'modestbranding': 1,
+                'playsinline': 1,
+                'rel': 0,
+                'showinfo': 0
+            },
+            events: {
+                'onReady': function(event) {
+                    console.log('✅ Profile page music player ready');
+                    event.target.playVideo();
+                    window.isProfilePageMusicPlaying = true;
+                    if (playPauseBtn) playPauseBtn.textContent = '⏸️';
+                    showQuickStatus('Now playing profile music!', 'success');
+                },
+                'onStateChange': function(event) {
+                    console.log('Profile page music state:', event.data);
+                    if (event.data === YT.PlayerState.ENDED) {
+                        window.isProfilePageMusicPlaying = false;
+                        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+                    } else if (event.data === YT.PlayerState.PLAYING) {
+                        window.isProfilePageMusicPlaying = true;
+                        if (playPauseBtn) playPauseBtn.textContent = '⏸️';
+                    } else if (event.data === YT.PlayerState.PAUSED) {
+                        window.isProfilePageMusicPlaying = false;
+                        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+                    }
+                },
+                'onError': function(event) {
+                    console.error('❌ Profile page music player error:', event.data);
+                    showQuickStatus('Profile music error!', 'error');
+                }
+            }
+        });
+    } else {
+        console.log('🔄 Using existing profile page music player');
+        window.profilePageMusicPlayer.loadVideoById(window.profilePageMusic.id);
+        window.isProfilePageMusicPlaying = true;
+        if (playPauseBtn) playPauseBtn.textContent = '⏸️';
+    }
+}
+
+function pauseProfilePageMusic() {
+    console.log('⏸️ Pausing profile page music');
+    if (window.profilePageMusicPlayer && window.isProfilePageMusicPlaying) {
+        window.profilePageMusicPlayer.pauseVideo();
+        window.isProfilePageMusicPlaying = false;
+        const playPauseBtn = document.getElementById('profilePagePlayPause');
+        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+        showQuickStatus('Profile music paused', 'info');
+    }
+}
+
+function stopProfilePageMusic() {
+    console.log('🛑 Stopping profile page music');
+    if (window.profilePageMusicPlayer) {
+        window.profilePageMusicPlayer.stopVideo();
+        window.isProfilePageMusicPlaying = false;
+        const playPauseBtn = document.getElementById('profilePagePlayPause');
+        if (playPauseBtn) playPauseBtn.textContent = '▶️';
+        showQuickStatus('Profile music stopped', 'info');
     }
 }
 
@@ -5468,15 +5599,15 @@ function updateProfilePageMusicPreview(musicData) {
     const playPauseBtn = document.getElementById('profilePagePlayPause');
     
     if (!musicData) {
-        titleElement.textContent = 'No music selected';
-        artistElement.textContent = 'Add a YouTube URL above';
+        if (titleElement) titleElement.textContent = 'No profile music';
+        if (artistElement) artistElement.textContent = 'This user has no profile music';
         if (playPauseBtn) playPauseBtn.textContent = '▶️';
         return;
     }
     
-    titleElement.textContent = musicData.title;
-    artistElement.textContent = musicData.artist;
-    if (playPauseBtn) playPauseBtn.textContent = isProfileMusicPlaying ? '⏸️' : '▶️';
+    if (titleElement) titleElement.textContent = musicData.title || 'Custom Music';
+    if (artistElement) artistElement.textContent = musicData.artist || 'YouTube';
+    if (playPauseBtn) playPauseBtn.textContent = window.isProfilePageMusicPlaying ? '⏸️' : '▶️';
 }
 
 /* ---------- HTML SIGNATURE EDITOR SYSTEM ---------- */
@@ -5904,10 +6035,17 @@ function initWallSystem() {
 }
 
 // FIXED: Post to current user's wall or viewed user's wall
+// FIXED: Post to current user's wall or viewed user's wall
 async function postToWall() {
-    const postText = document.getElementById('wallPostText').value.trim();
-    
+    const postText = document.getElementById('wallPostText');
     if (!postText) {
+        console.log('❌ Wall post text element not found');
+        return;
+    }
+    
+    const text = postText.value.trim();
+    
+    if (!text) {
         showQuickStatus('Please enter some text!', 'error');
         return;
     }
@@ -5932,7 +6070,7 @@ async function postToWall() {
         id: Date.now().toString(),
         author: currentUsername,
         targetUser: profileUsername, // Who's wall this is posted on
-        content: postText,
+        content: text,
         timestamp: new Date().toISOString(),
         likes: 0,
         comments: []
@@ -5960,13 +6098,15 @@ async function postToWall() {
 
         console.log('✅ Wall post saved to Supabase!');
         
-        // Also save locally for immediate display
-        const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
-        wallPosts.unshift(post);
-        localStorage.setItem('rom-wall-posts', JSON.stringify(wallPosts));
+        // Clear the input field
+        postText.value = '';
         
-        appendWallPost(post);
-        document.getElementById('wallPostText').value = '';
+        // Reload wall posts to show the new post
+        const wallPostsContainer = document.getElementById('profilePageWallPosts');
+        if (wallPostsContainer) {
+            loadWallPostsForUsername(profileUsername, wallPostsContainer);
+        }
+        
         updateUserStats();
         
         const message = isOwnProfile ? 
@@ -8603,6 +8743,22 @@ function updateProfilePageDisplay(profileData, isOwnProfile) {
     if (!isOwnProfile) {
         updateAddFriendButtonState();
     }
+   // Load the viewed user's music for profile page
+    if (!isOwnProfile && profileData.profile_data?.music) {
+        window.profilePageMusic = profileData.profile_data.music;
+        updateProfilePageMusicPreview(profileData.profile_data.music);
+    } else {
+        window.profilePageMusic = null;
+        updateProfilePageMusicPreview(null);
+    }
+    
+    // Hide customization sections when viewing other profiles
+    const customizationSections = document.querySelectorAll('.profile-customization, .profile-background-section, .profile-music-section');
+    if (!isOwnProfile && customizationSections) {
+        customizationSections.forEach(section => {
+            section.style.display = 'none';
+        });
+    }
     
     console.log('✅ Profile page display updated successfully');
 }
@@ -10081,6 +10237,8 @@ function initAllSystems() {
     initEngagementFeatures();
     initClipOfWeek();
     initCustomizationSystems();
+    initProfileMusicSystem(); // For current user's music settings
+    initProfilePageMusicSystem(); // For viewing other profiles' music
     initEnhancedFriendSystem();
     initClickablePlayerProfiles();
     initBioEditing();
