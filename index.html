@@ -2959,6 +2959,20 @@ body.sega-theme .music-btn:hover {
                 </div>
               </div>
 
+              <!-- Wall Posts Section -->
+              <div class="profile-wall-section" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
+                <h3 style="color: #00ffff; margin-bottom: 15px;">Wall Posts</h3>
+                <div class="wall-post-input" style="margin-bottom: 20px;">
+                  <textarea id="profilePageWallPostText" placeholder="Write something on this user's wall..." 
+                            style="width: 100%; height: 80px; padding: 12px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px; resize: vertical;"></textarea>
+                  <button id="profilePagePostToWall" class="button" style="margin-top: 10px;">Post to Wall</button>
+                </div>
+                <div id="profilePageWallPosts" class="wall-posts">
+                  <!-- Wall posts will appear here -->
+                </div>
+              </div>
+            </div>
+
             <!-- Friends Section -->
             <div id="profile-friends" class="profile-section">
               <div class="friends-list-mini" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
@@ -6000,6 +6014,298 @@ function appendEnhancedChatMessage(message) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+/* ---------- FIXED WALL SYSTEM ---------- */
+
+// FIXED: Enhanced wall system for posting on other users' profiles
+function initWallSystem() {
+    const postBtn = document.getElementById('postToWall');
+    
+    if (postBtn) {
+        // Remove existing listeners and add new one
+        postBtn.replaceWith(postBtn.cloneNode(true));
+        const newPostBtn = document.getElementById('postToWall');
+        newPostBtn.addEventListener('click', postToWall);
+    }
+    
+    // Clear wall post text when switching profiles
+    const wallPostText = document.getElementById('wallPostText');
+    if (wallPostText) {
+        wallPostText.value = '';
+    }
+}
+
+// FIXED: Post to current user's wall or viewed user's wall
+// FIXED: Post to current user's wall or viewed user's wall
+async function postToWall() {
+    const postText = document.getElementById('wallPostText');
+    if (!postText) {
+        console.log('❌ Wall post text element not found');
+        return;
+    }
+    
+    const text = postText.value.trim();
+    
+    if (!text) {
+        showQuickStatus('Please enter some text!', 'error');
+        return;
+    }
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        showQuickStatus('Please login to post!', 'error');
+        return;
+    }
+    
+    // Determine which user's wall we're posting on
+    const profileUsername = document.getElementById('profilePageUsername')?.textContent;
+    if (!profileUsername) {
+        showQuickStatus('Cannot determine profile owner!', 'error');
+        return;
+    }
+    
+    const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+    const isOwnProfile = (profileUsername === currentUsername);
+    
+    const post = {
+        id: Date.now().toString(),
+        author: currentUsername,
+        targetUser: profileUsername, // Who's wall this is posted on
+        content: text,
+        timestamp: new Date().toISOString(),
+        likes: 0,
+        comments: []
+    };
+    
+    console.log('📝 Posting to wall:', post);
+    
+    try {
+        // Save to Supabase
+        const { data, error } = await supabase
+            .from('wall_posts')
+            .insert([{
+                author: post.author,
+                target_user: post.targetUser,
+                content: post.content,
+                likes: post.likes,
+                created_at: post.timestamp
+            }]);
+
+        if (error) {
+            console.error('❌ Supabase wall post failed:', error);
+            showQuickStatus('Failed to save post!', 'error');
+            return;
+        }
+
+        console.log('✅ Wall post saved to Supabase!');
+        
+        // Clear the input field
+        postText.value = '';
+        
+        // Reload wall posts to show the new post
+        const wallPostsContainer = document.getElementById('profilePageWallPosts');
+        if (wallPostsContainer) {
+            loadWallPostsForUsername(profileUsername, wallPostsContainer);
+        }
+        
+        updateUserStats();
+        
+        const message = isOwnProfile ? 
+            'Posted to your wall!' : 
+            `Posted to ${profileUsername}'s wall!`;
+        showQuickStatus(message, 'success');
+        
+    } catch (err) {
+        console.error('❌ Wall post error:', err);
+        showQuickStatus('Failed to post!', 'error');
+    }
+}
+
+// FIXED: Save wall posts to Supabase
+async function saveWallPostToSupabase(post) {
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        
+        if (!session) {
+            console.log('No session for Supabase wall post');
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('wall_posts')
+            .insert([{
+                author: post.author,
+                target_user: post.targetUser,
+                content: post.content,
+                likes: post.likes,
+                created_at: post.timestamp
+            }]);
+
+        if (error) {
+            console.error('❌ Supabase wall post failed:', error);
+        } else {
+            console.log('✅ Wall post saved to Supabase!', data);
+        }
+    } catch (err) {
+        console.error('❌ Wall post sync error:', err);
+    }
+}
+
+// FIXED: Load wall posts for the currently viewed user
+async function loadWallPostsForUser(userToView = null) {
+    const wallPostsContainer = document.getElementById('wallPosts');
+    
+    if (!wallPostsContainer) return;
+    
+    // Determine which user's wall we're viewing
+    let viewingUsername = userToView;
+    
+    if (!viewingUsername) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+                viewingUsername = document.getElementById('profileUsername')?.textContent || (user.user_metadata?.username || user.email.split('@')[0]);
+                loadWallPostsForUsername(viewingUsername, wallPostsContainer);
+            }
+        });
+    } else {
+        loadWallPostsForUsername(viewingUsername, wallPostsContainer);
+    }
+}
+
+async function loadWallPostsForUsername(viewingUsername, wallPostsContainer) {
+    if (!viewingUsername) return;
+    
+    wallPostsContainer.innerHTML = '<div style="color: #a8dfe8; text-align: center; padding: 20px;">Loading posts...</div>';
+    
+    try {
+        // Try to load from Supabase first
+        const { data: supabasePosts, error } = await supabase
+            .from('wall_posts')
+            .select('*')
+            .eq('target_user', viewingUsername)
+            .order('created_at', { ascending: false });
+        
+        let allPosts = [];
+        
+        if (!error && supabasePosts) {
+            // Convert Supabase format to our app format
+            allPosts = supabasePosts.map(post => ({
+                id: post.id.toString(),
+                author: post.author,
+                targetUser: post.target_user,
+                content: post.content,
+                timestamp: post.created_at,
+                likes: post.likes || 0,
+                comments: post.comments || []
+            }));
+            console.log(`✅ Loaded ${allPosts.length} posts from Supabase for ${viewingUsername}`);
+        } else {
+            // Fallback to localStorage
+            const localPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+            allPosts = localPosts.filter(post => post.targetUser === viewingUsername);
+            console.log(`📋 Loaded ${allPosts.length} posts from localStorage for ${viewingUsername}`);
+        }
+        
+        // Display posts
+        wallPostsContainer.innerHTML = '';
+        
+        if (allPosts.length === 0) {
+            wallPostsContainer.innerHTML = `
+                <div style="color: #a8dfe8; text-align: center; padding: 20px;">
+                    No posts yet. Be the first to write something!
+                </div>
+            `;
+            return;
+        }
+        
+        allPosts.forEach(post => {
+            appendWallPost(post);
+        });
+        
+    } catch (err) {
+        console.error('Error loading wall posts:', err);
+        wallPostsContainer.innerHTML = '<div style="color: #ff3333; text-align: center; padding: 20px;">Error loading posts</div>';
+    }
+}
+
+// FIXED: Enhanced wall post display
+function appendWallPost(post) {
+    const wallPostsContainer = document.getElementById('wallPosts');
+    
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        
+        const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+        const postDiv = document.createElement('div');
+        postDiv.className = 'wall-post';
+        postDiv.dataset.postId = post.id;
+        
+        const time = new Date(post.timestamp).toLocaleString();
+        const isOwnPost = post.author === currentUsername;
+        
+        postDiv.innerHTML = `
+            <div class="wall-post-header">
+                <span class="wall-post-author" style="color: ${isOwnPost ? '#00ffff' : '#ff33cc'};">${post.author}</span>
+                <span class="wall-post-time">${time}</span>
+            </div>
+            <div class="wall-post-content">${escapeHtml(post.content)}</div>
+            <div class="wall-post-actions" style="margin-top: 10px; display: flex; gap: 15px; font-size: 0.8rem;">
+                <button class="like-btn" data-post="${post.id}" style="background: none; border: none; color: #a8dfe8; cursor: pointer;">
+                    ❤️ ${post.likes || 0}
+                </button>
+                ${isOwnPost ? `
+                    <button class="delete-post-btn" data-post="${post.id}" style="background: none; border: none; color: #ff3333; cursor: pointer;">
+                        🗑️ Delete
+                    </button>
+                ` : ''}
+            </div>
+        `;
+        
+        wallPostsContainer.appendChild(postDiv);
+        
+        // Add event listeners
+        const likeBtn = postDiv.querySelector('.like-btn');
+        const deleteBtn = postDiv.querySelector('.delete-post-btn');
+        
+        if (likeBtn) {
+            likeBtn.addEventListener('click', function() {
+                likeWallPost(post.id);
+            });
+        }
+        
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function() {
+                deleteWallPost(post.id);
+            });
+        }
+    });
+}
+
+function likeWallPost(postId) {
+    // Implement like functionality here
+    showQuickStatus('Like functionality coming soon!', 'info');
+}
+
+function deleteWallPost(postId) {
+    if (!confirm('Are you sure you want to delete this post?')) {
+        return;
+    }
+    
+    // Remove from localStorage
+    const wallPosts = JSON.parse(localStorage.getItem('rom-wall-posts') || '[]');
+    const updatedPosts = wallPosts.filter(post => post.id !== postId);
+    localStorage.setItem('rom-wall-posts', JSON.stringify(updatedPosts));
+    
+    // Remove from display
+    const postElement = document.querySelector(`[data-post-id="${postId}"]`);
+    if (postElement) {
+        postElement.remove();
+    }
+    
+    showQuickStatus('Post deleted!', 'success');
+    updateUserStats();
+}
+
 /* ---------- INITIALIZE CUSTOMIZATION SYSTEMS ---------- */
 function initCustomizationSystems() {
     initProfilePictureSystem();
@@ -8424,6 +8730,12 @@ function updateProfilePageDisplay(profileData, isOwnProfile) {
         updateRecentActivity(profileData.username);
     }
     
+    // Load wall posts for this user - only if element exists
+    const wallPostsElement = document.getElementById('profilePageWallPosts');
+    if (wallPostsElement) {
+        loadWallPostsForUsername(profileData.username, wallPostsElement);
+    }
+    
     // Update action buttons based on ownership
     updateProfileActions(isOwnProfile);
     
@@ -8527,98 +8839,40 @@ function updateProfileActions(isOwnProfile) {
         if (sendMessageBtn) sendMessageBtn.style.display = 'block';
         if (editBioBtn) editBioBtn.style.display = 'none';
         
-        // Update add friend button state if viewing another user's profile
+        // Update add friend button text if already friends or request sent
         updateAddFriendButtonState();
     }
 }
 
-async function postProfileComment() {
-    const commentText = document.getElementById('profileCommentText');
+function postProfileComment() {
+    const commentText = document.getElementById('profileCommentText').value.trim();
+    
     if (!commentText) return;
     
-    const text = commentText.value.trim();
-    
-    if (!text) {
-        showQuickStatus('Please enter a comment!', 'error');
-        return;
-    }
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        showQuickStatus('Please login to comment!', 'error');
-        return;
-    }
-    
-    const profileUsername = document.getElementById('profilePageUsername')?.textContent;
-    if (!profileUsername) {
-        showQuickStatus('Cannot determine profile!', 'error');
-        return;
-    }
-    
-    const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
-    
-    try {
-        // Save to Supabase profile_comments table
-        const { data, error } = await supabase
-            .from('profile_comments')
-            .insert([{
-                author_username: currentUsername,
-                target_username: profileUsername,
-                content: text,
-                created_at: new Date().toISOString()
-            }]);
-
-        if (error) {
-            console.error('❌ Supabase comment failed:', error);
-            showQuickStatus('Failed to post comment!', 'error');
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) {
+            showQuickStatus('Please login to comment!', 'error');
             return;
         }
-
-        console.log('✅ Comment saved to Supabase!');
         
-        // Clear the input field
-        commentText.value = '';
+        const profileUsername = document.getElementById('profilePageUsername').textContent;
+        const comment = {
+            id: Date.now().toString(),
+            author: user.user_metadata?.username || user.email.split('@')[0],
+            targetUser: profileUsername,
+            content: commentText,
+            timestamp: new Date().toISOString()
+        };
         
-        // Reload comments to show the new one
-        loadProfileComments(profileUsername);
+        // Save comment to localStorage (would be Supabase in production)
+        const comments = JSON.parse(localStorage.getItem('rom-profile-comments') || '[]');
+        comments.unshift(comment);
+        localStorage.setItem('rom-profile-comments', JSON.stringify(comments));
         
+        appendProfileComment(comment);
+        document.getElementById('profileCommentText').value = '';
         showQuickStatus('Comment posted!', 'success');
-        
-    } catch (err) {
-        console.error('❌ Comment error:', err);
-        showQuickStatus('Failed to post comment!', 'error');
-    }
-}
-
-async function loadProfileComments(profileUsername) {
-    const commentsList = document.getElementById('profileCommentsList');
-    if (!commentsList) return;
-    
-    try {
-        // Load comments from Supabase for this specific profile
-        const { data: comments, error } = await supabase
-            .from('profile_comments')
-            .select('*')
-            .eq('target_username', profileUsername)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        commentsList.innerHTML = '';
-        
-        if (!comments || comments.length === 0) {
-            commentsList.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No comments yet. Be the first to comment!</div>';
-            return;
-        }
-
-        comments.forEach(comment => {
-            appendProfileComment(comment);
-        });
-        
-    } catch (err) {
-        console.error('Error loading comments:', err);
-        commentsList.innerHTML = '<div style="text-align: center; color: #ff3333; padding: 20px;">Error loading comments</div>';
-    }
+    });
 }
 
 function appendProfileComment(comment) {
@@ -9990,6 +10244,7 @@ function initAllSystems() {
     initBioEditing();
     initGameLobbies();
     initPlayerSearchSystem();
+    initWallSystem(); // ✅ ADDED: Initialize the fixed wall system
     initProfileRouteSystem(); // ✅ NEW: Profile route system
     initURLRouting(); // ✅ NEW: URL routing system
     initProfileBackButton();
