@@ -3163,6 +3163,16 @@ body.sega-theme .music-btn:hover {
 <section class="matchmaking-dashboard" style="margin: 2rem auto; max-width: 1100px; padding: 0 4vw;">
     <h2 style="color: #00ffff; text-align: center; margin-bottom: 1.5rem; text-shadow: 0 0 8px rgba(0,255,255,0.08);">🎮 Live Matchmaking Dashboard</h2>
     
+    <!-- Connection Status Indicator (Added by JavaScript) -->
+    <!-- This will be automatically inserted here -->
+    
+    <!-- Manual Refresh Button -->
+    <div style="text-align: center; margin-bottom: 15px;">
+        <button onclick="loadDashboardData()" class="button" style="padding: 8px 16px; font-size: 0.9rem; background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;">
+            🔄 Refresh Now
+        </button>
+    </div>
+    
     <div class="dashboard-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
         <div class="stat-card" style="background: rgba(0, 30, 60, 0.7); padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #00ffff;">
             <div class="stat-number" id="activeGamesCount">0</div>
@@ -4052,20 +4062,46 @@ try {
         })
     };
 }
-/* ---------- MATCHMAKING API CONNECTION ---------- */
+/* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
 const MATCHMAKING_API_URL = 'http://localhost:5000/api';
+let apiRetryCount = 0;
+const MAX_RETRIES = 3;
 
-// Function to fetch data from your matchmaking API
+// Enhanced function to fetch data from your matchmaking API
 async function fetchMatchmakingData(endpoint) {
     try {
-        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}`);
+        // Add cache-busting parameter to prevent stale data
+        const cacheBuster = `?_t=${Date.now()}`;
+        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}${cacheBuster}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        });
+        
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`);
         }
-        return await response.json();
+        
+        const data = await response.json();
+        apiRetryCount = 0; // Reset retry count on success
+        return data;
+        
     } catch (error) {
-        console.error('Matchmaking API fetch failed:', error);
-        return null;
+        console.error(`Matchmaking API fetch failed (attempt ${apiRetryCount + 1}):`, error);
+        
+        // Retry logic
+        if (apiRetryCount < MAX_RETRIES) {
+            apiRetryCount++;
+            console.log(`Retrying API call in ${apiRetryCount * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, apiRetryCount * 1000));
+            return fetchMatchmakingData(endpoint);
+        } else {
+            apiRetryCount = 0;
+            return null;
+        }
     }
 }
 
@@ -4075,19 +4111,24 @@ async function updateEnhancedPlayerCount() {
     if (!playerCountElement) return;
 
     try {
-        // Get data from both sources
+        // Get data from both sources with timeout
         const [apiData, supabaseData] = await Promise.allSettled([
-            fetchMatchmakingData('/dashboard'),
+            Promise.race([
+                fetchMatchmakingData('/dashboard'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]),
             supabase.auth.getUser()
         ]);
 
         let displayCount = '0/0';
+        let isLiveData = false;
         
         // Try API first (real-time matchmaking data)
         if (apiData.status === 'fulfilled' && apiData.value) {
             const activeUsers = apiData.value.active_users || 0;
             const totalUsers = apiData.value.total_users || 0;
             displayCount = `${activeUsers}/${totalUsers}`;
+            isLiveData = true;
         } 
         // Fallback to Supabase count
         else if (supabaseData.status === 'fulfilled') {
@@ -4098,6 +4139,16 @@ async function updateEnhancedPlayerCount() {
         }
 
         playerCountElement.textContent = displayCount;
+        
+        // Visual feedback for live vs cached data
+        if (isLiveData) {
+            playerCountElement.style.color = '#00ffff';
+            playerCountElement.title = 'Live matchmaking data';
+        } else {
+            playerCountElement.style.color = '#ffff00';
+            playerCountElement.title = 'Cached data - reconnecting...';
+        }
+        
         playerCountElement.classList.add('player-count-animation');
         setTimeout(() => {
             playerCountElement.classList.remove('player-count-animation');
@@ -4106,7 +4157,56 @@ async function updateEnhancedPlayerCount() {
     } catch (error) {
         console.error('Enhanced player count error:', error);
         playerCountElement.textContent = '?/?';
+        playerCountElement.style.color = '#ff3333';
+        playerCountElement.title = 'Connection error';
     }
+}
+  /* ---------- VISIBILITY STATE DETECTION ---------- */
+function initVisibilityHandler() {
+    console.log('👀 Initializing visibility state handler...');
+    
+    // Handle tab visibility changes
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            console.log('🔄 Page became visible - refreshing all data');
+            // Force refresh all data when tab becomes visible
+            updateEnhancedPlayerCount();
+            if (window.loadDashboardData) {
+                loadDashboardData();
+            }
+            // Refresh chat if social hub is open
+            if (document.getElementById('socialHubModal')?.style.display === 'flex') {
+                if (window.loadChatMessages) {
+                    loadChatMessages();
+                }
+            }
+        }
+    });
+
+    // Handle window focus/blur
+    window.addEventListener('focus', function() {
+        console.log('🎯 Window focused - refreshing data');
+        updateEnhancedPlayerCount();
+        if (window.loadDashboardData) {
+            loadDashboardData();
+        }
+    });
+
+    // Detect RDP reconnection by checking mouse movement after being hidden
+    let wasHidden = document.hidden;
+    setInterval(() => {
+        const isHidden = document.hidden;
+        if (wasHidden && !isHidden) {
+            console.log('🖥️ RDP reconnection detected - force refreshing');
+            setTimeout(() => {
+                updateEnhancedPlayerCount();
+                if (window.loadDashboardData) {
+                    loadDashboardData();
+                }
+            }, 1000);
+        }
+        wasHidden = isHidden;
+    }, 1000);
 }
 /* ---------- FIXED PROFILE MUSIC PLAYER GLOBAL VARIABLES ---------- */
 // Profile music player variables - MUST be global to avoid conflicts with main music player
@@ -10283,146 +10383,113 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-/* ---------- MATCHMAKING DASHBOARD SYSTEM ---------- */
+/* ---------- ENHANCED MATCHMAKING DASHBOARD SYSTEM ---------- */
 function initMatchmakingDashboard() {
-    console.log('🎮 Initializing Matchmaking Dashboard...');
+    console.log('🎮 Initializing Enhanced Matchmaking Dashboard...');
+    
+    // Add connection status indicator
+    addConnectionStatusIndicator();
     
     // Load all dashboard data
     loadDashboardData();
     
-    // Refresh every 30 seconds
-    setInterval(loadDashboardData, 30000);
+    // Enhanced refresh with visibility check
+    setInterval(() => {
+        if (!document.hidden) {
+            loadDashboardData();
+        }
+    }, 30000);
+    
+    // Force refresh every 2 minutes regardless of visibility
+    setInterval(() => {
+        console.log('🔄 Force refresh dashboard data');
+        loadDashboardData();
+    }, 120000);
+}
+
+function addConnectionStatusIndicator() {
+    // Add status indicator to the dashboard
+    const dashboard = document.querySelector('.matchmaking-dashboard');
+    if (dashboard) {
+        const statusIndicator = document.createElement('div');
+        statusIndicator.id = 'apiStatusIndicator';
+        statusIndicator.innerHTML = `
+            <div style="text-align: center; margin-bottom: 10px;">
+                <span id="connectionStatus" style="color: #00ff00;">🟢 Live</span>
+                <small id="lastUpdate" style="color: #a8dfe8; margin-left: 10px;">Updating...</small>
+            </div>
+        `;
+        dashboard.insertBefore(statusIndicator, dashboard.firstChild);
+    }
+}
+
+function updateConnectionStatus(isConnected, message = '') {
+    const statusElement = document.getElementById('connectionStatus');
+    const lastUpdateElement = document.getElementById('lastUpdate');
+    
+    if (statusElement && lastUpdateElement) {
+        if (isConnected) {
+            statusElement.innerHTML = '🟢 Live';
+            statusElement.style.color = '#00ff00';
+        } else {
+            statusElement.innerHTML = '🔴 Offline';
+            statusElement.style.color = '#ff3333';
+        }
+        
+        lastUpdateElement.textContent = message || `Last: ${new Date().toLocaleTimeString()}`;
+    }
 }
 
 async function loadDashboardData() {
+    // Show loading state
+    updateConnectionStatus(true, 'Loading...');
+    
     try {
-        // Load all data in parallel
-        const [dashboardData, activeGames, leaderboard] = await Promise.all([
-            fetchMatchmakingData('/dashboard'),
-            fetchMatchmakingData('/active_games'),
-            fetchMatchmakingData('/leaderboard')
+        // Load all data in parallel with timeouts
+        const [dashboardData, activeGames, leaderboard] = await Promise.allSettled([
+            Promise.race([
+                fetchMatchmakingData('/dashboard'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+            ]),
+            Promise.race([
+                fetchMatchmakingData('/active_games'), 
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+            ]),
+            Promise.race([
+                fetchMatchmakingData('/leaderboard'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 8000))
+            ])
         ]);
 
+        let hasData = false;
+
         // Update stats
-        if (dashboardData) {
-            updateDashboardStats(dashboardData);
+        if (dashboardData.status === 'fulfilled' && dashboardData.value) {
+            updateDashboardStats(dashboardData.value);
+            hasData = true;
         }
         
         // Update active games
-        if (activeGames) {
-            updateActiveGamesList(activeGames);
+        if (activeGames.status === 'fulfilled' && activeGames.value) {
+            updateActiveGamesList(activeGames.value);
+            hasData = true;
         }
         
         // Update leaderboard
-        if (leaderboard) {
-            updateLeaderboardList(leaderboard);
+        if (leaderboard.status === 'fulfilled' && leaderboard.value) {
+            updateLeaderboardList(leaderboard.value);
+            hasData = true;
+        }
+
+        if (hasData) {
+            updateConnectionStatus(true, `Updated: ${new Date().toLocaleTimeString()}`);
+        } else {
+            updateConnectionStatus(false, 'No data received');
         }
 
     } catch (error) {
         console.error('Dashboard data load failed:', error);
-    }
-}
-
-function updateDashboardStats(data) {
-    const elements = {
-        activeGamesCount: document.getElementById('activeGamesCount'),
-        activePlayersCount: document.getElementById('activePlayersCount'),
-        recentWinsCount: document.getElementById('recentWinsCount'),
-        totalUsersCount: document.getElementById('totalUsersCount')
-    };
-
-    if (elements.activeGamesCount) elements.activeGamesCount.textContent = data.active_games || 0;
-    if (elements.activePlayersCount) elements.activePlayersCount.textContent = data.active_users || 0;
-    if (elements.recentWinsCount) elements.recentWinsCount.textContent = data.recent_wins || 0;
-    if (elements.totalUsersCount) elements.totalUsersCount.textContent = data.total_users || 0;
-
-    // Update popular games
-    updatePopularGames(data.popular_games || []);
-}
-
-function updateActiveGamesList(games) {
-    const container = document.getElementById('activeGamesList');
-    if (!container) return;
-
-    if (!games || games.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No active games right now</div>';
-        return;
-    }
-
-    container.innerHTML = games.map(game => `
-        <div class="active-game-item" style="background: rgba(0, 20, 40, 0.6); padding: 10px; margin: 8px 0; border-radius: 6px; border-left: 3px solid #00ffff;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="color: #00ffff; font-weight: bold;">${game.GameName || 'Unknown Game'}</div>
-                    <div style="color: #a8dfe8; font-size: 0.8rem;">${game.Username || 'Unknown Player'}</div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="color: #ffff00; font-size: 0.8rem;">${game.ConsoleName || 'Unknown'}</div>
-                    <div style="color: #a8dfe8; font-size: 0.7rem;">${formatGameTime(game.StartTime)}</div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function updateLeaderboardList(leaderboard) {
-    const container = document.getElementById('leaderboardList');
-    if (!container) return;
-
-    if (!leaderboard || leaderboard.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No leaderboard data available</div>';
-        return;
-    }
-
-    container.innerHTML = leaderboard.slice(0, 10).map((player, index) => `
-        <div class="leaderboard-item" style="background: rgba(0, 20, 40, 0.6); padding: 10px; margin: 6px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="color: #ffd700; font-weight: bold; width: 20px;">#${index + 1}</div>
-                <div style="color: #00ffff; font-weight: bold;">${player.Username || 'Unknown'}</div>
-            </div>
-            <div style="text-align: right;">
-                <div style="color: #ffff00; font-weight: bold;">${player.win_count || 0} wins</div>
-                <div style="color: #a8dfe8; font-size: 0.7rem;">${player.games_played || 0} games</div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function updatePopularGames(games) {
-    const container = document.getElementById('popularGamesList');
-    if (!container) return;
-
-    if (!games || games.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px; grid-column: 1 / -1;">No popular games data</div>';
-        return;
-    }
-
-    container.innerHTML = games.map(game => `
-        <div class="popular-game-item" style="background: rgba(0, 20, 40, 0.6); padding: 15px; border-radius: 6px; text-align: center; border: 1px solid rgba(0, 255, 255, 0.3);">
-            <div style="color: #00ffff; font-weight: bold; margin-bottom: 5px;">${game.Name || 'Unknown'}</div>
-            <div style="color: #ffff00; font-size: 0.9rem;">${game.active_count || 0} active</div>
-        </div>
-    `).join('');
-}
-
-function formatGameTime(timestamp) {
-    if (!timestamp) return 'Unknown';
-    
-    try {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        
-        const diffHours = Math.floor(diffMins / 60);
-        if (diffHours < 24) return `${diffHours}h ago`;
-        
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-        return 'Unknown';
+        updateConnectionStatus(false, `Error: ${error.message}`);
     }
 }
 /* ---------- INITIALIZE ALL SYSTEMS ---------- */
