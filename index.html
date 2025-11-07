@@ -10439,6 +10439,97 @@ function updateConnectionStatus(isConnected, message = '') {
         lastUpdateElement.textContent = message || `Last: ${new Date().toLocaleTimeString()}`;
     }
 }
+/* ---------- MISSING DASHBOARD FUNCTIONS ---------- */
+function updateDashboardStats(data) {
+    console.log('📊 Updating dashboard stats:', data);
+    
+    // Update stats cards
+    const activeGamesElement = document.getElementById('activeGamesCount');
+    const activePlayersElement = document.getElementById('activePlayersCount');
+    const recentWinsElement = document.getElementById('recentWinsCount');
+    const totalUsersElement = document.getElementById('totalUsersCount');
+    
+    if (activeGamesElement) activeGamesElement.textContent = data.active_games || 0;
+    if (activePlayersElement) activePlayersElement.textContent = data.active_users || 0;
+    if (recentWinsElement) recentWinsElement.textContent = data.recent_wins || 0;
+    if (totalUsersElement) totalUsersElement.textContent = data.total_users || 0;
+    
+    // Update popular games
+    updatePopularGamesList(data.popular_games || []);
+}
+
+function updateActiveGamesList(games) {
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+    
+    if (!games || games.length === 0) {
+        activeGamesList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                No active games right now
+            </div>
+        `;
+        return;
+    }
+    
+    activeGamesList.innerHTML = games.map(game => `
+        <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #00ffff;">
+            <div style="display: flex; justify-content: between; align-items: center;">
+                <div>
+                    <strong style="color: #00ffff;">${game.GameName || 'Unknown Game'}</strong>
+                    <div style="color: #a8dfe8; font-size: 0.8rem;">Player: ${game.Username || 'Unknown'}</div>
+                </div>
+                <span style="color: #ffff00; font-size: 0.8rem;">${game.Players || 1} players</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateLeaderboardList(leaderboard) {
+    const leaderboardList = document.getElementById('leaderboardList');
+    if (!leaderboardList) return;
+    
+    if (!leaderboard || leaderboard.length === 0) {
+        leaderboardList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                No leaderboard data available
+            </div>
+        `;
+        return;
+    }
+    
+    leaderboardList.innerHTML = leaderboard.map((player, index) => `
+        <div class="leaderboard-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#00ffff'};">
+            <div style="display: flex; justify-content: between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="color: #ffff00; font-weight: bold;">#${index + 1}</span>
+                    <strong style="color: #00ffff;">${player.Username || 'Unknown Player'}</strong>
+                </div>
+                <span style="color: #ff33cc; font-weight: bold;">${player.win_count || 0} wins</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updatePopularGamesList(popularGames) {
+    const popularGamesList = document.getElementById('popularGamesList');
+    if (!popularGamesList) return;
+    
+    if (!popularGames || popularGames.length === 0) {
+        popularGamesList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 20px; grid-column: 1 / -1;">
+                No popular games data
+            </div>
+        `;
+        return;
+    }
+    
+    popularGamesList.innerHTML = popularGames.map(game => `
+        <div class="popular-game-item" style="background: rgba(0, 30, 60, 0.7); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 255, 255, 0.3);">
+            <div style="color: #ff33cc; font-weight: bold; margin-bottom: 8px;">${game.Name || 'Unknown Game'}</div>
+            <div style="color: #00ffff; font-size: 0.9rem;">${game.active_count || 0} active players</div>
+        </div>
+    `).join('');
+}
 
 async function loadDashboardData() {
     // Show loading state
