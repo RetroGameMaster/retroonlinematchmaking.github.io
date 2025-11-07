@@ -3159,7 +3159,61 @@ body.sega-theme .music-btn:hover {
             </div>
           </div>
         </section>
+<!-- NEW: Live Matchmaking Dashboard -->
+<section class="matchmaking-dashboard" style="margin: 2rem auto; max-width: 1100px; padding: 0 4vw;">
+    <h2 style="color: #00ffff; text-align: center; margin-bottom: 1.5rem; text-shadow: 0 0 8px rgba(0,255,255,0.08);">🎮 Live Matchmaking Dashboard</h2>
+    
+    <div class="dashboard-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div class="stat-card" style="background: rgba(0, 30, 60, 0.7); padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #00ffff;">
+            <div class="stat-number" id="activeGamesCount">0</div>
+            <div class="stat-label">Active Games</div>
+        </div>
+        <div class="stat-card" style="background: rgba(0, 30, 60, 0.7); padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #ff33cc;">
+            <div class="stat-number" id="activePlayersCount">0</div>
+            <div class="stat-label">Players Online</div>
+        </div>
+        <div class="stat-card" style="background: rgba(0, 30, 60, 0.7); padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #00ff00;">
+            <div class="stat-number" id="recentWinsCount">0</div>
+            <div class="stat-label">Recent Wins (24h)</div>
+        </div>
+        <div class="stat-card" style="background: rgba(0, 30, 60, 0.7); padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #ffff00;">
+            <div class="stat-number" id="totalUsersCount">0</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+    </div>
 
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- Active Games Panel -->
+        <div class="dashboard-panel" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2);">
+            <h3 style="color: #00ffff; margin-bottom: 15px;">🎯 Active Games Right Now</h3>
+            <div id="activeGamesList" style="min-height: 200px; max-height: 300px; overflow-y: auto;">
+                <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                    Loading active games...
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Panel -->
+        <div class="dashboard-panel" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2);">
+            <h3 style="color: #00ffff; margin-bottom: 15px;">🏆 Top Players</h3>
+            <div id="leaderboardList" style="min-height: 200px; max-height: 300px; overflow-y: auto;">
+                <div style="text-align: center; color: #a8dfe8; padding: 20px;">
+                    Loading leaderboard...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Games -->
+    <div class="dashboard-panel" style="background: rgba(0, 30, 60, 0.7); border-radius: 8px; padding: 15px; border: 1px solid rgba(0, 255, 255, 0.2); margin-top: 20px;">
+        <h3 style="color: #00ffff; margin-bottom: 15px;">🔥 Popular Games This Week</h3>
+        <div id="popularGamesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+            <div style="text-align: center; color: #a8dfe8; padding: 20px; grid-column: 1 / -1;">
+                Loading popular games...
+            </div>
+        </div>
+    </div>
+</section>
         <!-- NEW: Clip of the Week Section -->
         <section class="clip-of-week">
           <h2>🎬 Clip of the Week</h2>
@@ -3998,7 +4052,62 @@ try {
         })
     };
 }
+/* ---------- MATCHMAKING API CONNECTION ---------- */
+const MATCHMAKING_API_URL = 'http://localhost:5000/api';
 
+// Function to fetch data from your matchmaking API
+async function fetchMatchmakingData(endpoint) {
+    try {
+        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Matchmaking API fetch failed:', error);
+        return null;
+    }
+}
+
+// Enhanced player count that combines Supabase + Matchmaking API
+async function updateEnhancedPlayerCount() {
+    const playerCountElement = document.getElementById('playerCount');
+    if (!playerCountElement) return;
+
+    try {
+        // Get data from both sources
+        const [apiData, supabaseData] = await Promise.allSettled([
+            fetchMatchmakingData('/dashboard'),
+            supabase.auth.getUser()
+        ]);
+
+        let displayCount = '0/0';
+        
+        // Try API first (real-time matchmaking data)
+        if (apiData.status === 'fulfilled' && apiData.value) {
+            const activeUsers = apiData.value.active_users || 0;
+            const totalUsers = apiData.value.total_users || 0;
+            displayCount = `${activeUsers}/${totalUsers}`;
+        } 
+        // Fallback to Supabase count
+        else if (supabaseData.status === 'fulfilled') {
+            const { count } = await supabase
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true });
+            displayCount = `?/${count || 0}`;
+        }
+
+        playerCountElement.textContent = displayCount;
+        playerCountElement.classList.add('player-count-animation');
+        setTimeout(() => {
+            playerCountElement.classList.remove('player-count-animation');
+        }, 1000);
+
+    } catch (error) {
+        console.error('Enhanced player count error:', error);
+        playerCountElement.textContent = '?/?';
+    }
+}
 /* ---------- FIXED PROFILE MUSIC PLAYER GLOBAL VARIABLES ---------- */
 // Profile music player variables - MUST be global to avoid conflicts with main music player
 let profileMusicPlayer = null;
@@ -4098,93 +4207,26 @@ function saveSignature() {
     });
 }
 
-/* ---------- FIXED REAL-TIME PLAYER COUNT ---------- */
-
-/* ---------- REAL-TIME PLAYER COUNT SYSTEM ---------- */
+/* ---------- ENHANCED REAL-TIME PLAYER COUNT SYSTEM ---------- */
 function initLivePlayerCount() {
     const playerCountElement = document.getElementById('playerCount');
     if (!playerCountElement) return;
     
-    let onlineSubscription = null;
+    // Update using the enhanced function that combines both data sources
+    updateEnhancedPlayerCount();
     
-    async function updateRealPlayerCount() {
-        try {
-            // Get total registered users
-            const { count: totalCount, error: totalError } = await supabase
-                .from('user_profiles')
-                .select('*', { count: 'exact', head: true });
-            
-            if (totalError) throw totalError;
-            
-            // Get online users (active in last 15 minutes)
-            const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-            const { count: onlineCount, error: onlineError } = await supabase
-                .from('user_profiles')
-                .select('*', { count: 'exact', head: true })
-                .gt('last_updated', fifteenMinutesAgo);
-            
-            if (onlineError) throw onlineError;
-            
-            // Update display
-            playerCountElement.textContent = `${onlineCount || 0}/${totalCount || 0}`;
-            
-            // Add visual feedback
-            playerCountElement.classList.add('player-count-animation');
-            setTimeout(() => {
-                playerCountElement.classList.remove('player-count-animation');
-            }, 1000);
-            
-            console.log(`📊 Real User Stats: ${onlineCount} online / ${totalCount} total`);
-            
-        } catch (error) {
-            console.error('Error updating player count:', error);
-        }
-    }
-    
-    // Subscribe to real-time updates
-    function subscribeToUserUpdates() {
-        if (onlineSubscription) return;
-        
-        onlineSubscription = supabase
-            .channel('online-users')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'user_profiles'
-                },
-                (payload) => {
-                    // Update count when any profile changes
-                    updateRealPlayerCount();
-                }
-            )
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log('✅ Subscribed to real-time user updates');
-                }
-            });
-    }
-    
-    // Update every 30 seconds and subscribe to real-time changes
-    setInterval(updateRealPlayerCount, 30000);
-    
-    // Initial update and subscription
-    updateRealPlayerCount();
-    subscribeToUserUpdates();
+    // Update every 30 seconds
+    setInterval(updateEnhancedPlayerCount, 30000);
     
     // Also update when social hub is opened
     const socialBtn = document.getElementById('socialHubBtn');
     if (socialBtn) {
-        socialBtn.addEventListener('click', updateRealPlayerCount);
+        socialBtn.addEventListener('click', updateEnhancedPlayerCount);
     }
     
-    // Cleanup subscription when needed
+    // Cleanup function (keep for compatibility)
     window.cleanupPlayerCount = function() {
-        if (onlineSubscription) {
-            supabase.removeChannel(onlineSubscription);
-            onlineSubscription = null;
-        }
+        console.log('Player count cleanup called');
     };
 }
 
@@ -8432,6 +8474,33 @@ function addClickablePlayerStyles() {
             color: #ff33cc;
             text-decoration: underline;
         }
+        /* Matchmaking Dashboard Styles */
+.matchmaking-dashboard .stat-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.matchmaking-dashboard .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 255, 255, 0.2);
+}
+
+.dashboard-panel {
+    transition: all 0.3s ease;
+}
+
+.dashboard-panel:hover {
+    border-color: rgba(0, 255, 255, 0.4) !important;
+}
+
+.active-game-item, .leaderboard-item, .popular-game-item {
+    transition: all 0.2s ease;
+}
+
+.active-game-item:hover, .leaderboard-item:hover, .popular-game-item:hover {
+    transform: translateX(5px);
+    border-color: rgba(0, 255, 255, 0.6) !important;
+}
     `;
     document.head.appendChild(style);
 }
@@ -10214,10 +10283,152 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+/* ---------- MATCHMAKING DASHBOARD SYSTEM ---------- */
+function initMatchmakingDashboard() {
+    console.log('🎮 Initializing Matchmaking Dashboard...');
+    
+    // Load all dashboard data
+    loadDashboardData();
+    
+    // Refresh every 30 seconds
+    setInterval(loadDashboardData, 30000);
+}
 
+async function loadDashboardData() {
+    try {
+        // Load all data in parallel
+        const [dashboardData, activeGames, leaderboard] = await Promise.all([
+            fetchMatchmakingData('/dashboard'),
+            fetchMatchmakingData('/active_games'),
+            fetchMatchmakingData('/leaderboard')
+        ]);
+
+        // Update stats
+        if (dashboardData) {
+            updateDashboardStats(dashboardData);
+        }
+        
+        // Update active games
+        if (activeGames) {
+            updateActiveGamesList(activeGames);
+        }
+        
+        // Update leaderboard
+        if (leaderboard) {
+            updateLeaderboardList(leaderboard);
+        }
+
+    } catch (error) {
+        console.error('Dashboard data load failed:', error);
+    }
+}
+
+function updateDashboardStats(data) {
+    const elements = {
+        activeGamesCount: document.getElementById('activeGamesCount'),
+        activePlayersCount: document.getElementById('activePlayersCount'),
+        recentWinsCount: document.getElementById('recentWinsCount'),
+        totalUsersCount: document.getElementById('totalUsersCount')
+    };
+
+    if (elements.activeGamesCount) elements.activeGamesCount.textContent = data.active_games || 0;
+    if (elements.activePlayersCount) elements.activePlayersCount.textContent = data.active_users || 0;
+    if (elements.recentWinsCount) elements.recentWinsCount.textContent = data.recent_wins || 0;
+    if (elements.totalUsersCount) elements.totalUsersCount.textContent = data.total_users || 0;
+
+    // Update popular games
+    updatePopularGames(data.popular_games || []);
+}
+
+function updateActiveGamesList(games) {
+    const container = document.getElementById('activeGamesList');
+    if (!container) return;
+
+    if (!games || games.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No active games right now</div>';
+        return;
+    }
+
+    container.innerHTML = games.map(game => `
+        <div class="active-game-item" style="background: rgba(0, 20, 40, 0.6); padding: 10px; margin: 8px 0; border-radius: 6px; border-left: 3px solid #00ffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="color: #00ffff; font-weight: bold;">${game.GameName || 'Unknown Game'}</div>
+                    <div style="color: #a8dfe8; font-size: 0.8rem;">${game.Username || 'Unknown Player'}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="color: #ffff00; font-size: 0.8rem;">${game.ConsoleName || 'Unknown'}</div>
+                    <div style="color: #a8dfe8; font-size: 0.7rem;">${formatGameTime(game.StartTime)}</div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateLeaderboardList(leaderboard) {
+    const container = document.getElementById('leaderboardList');
+    if (!container) return;
+
+    if (!leaderboard || leaderboard.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px;">No leaderboard data available</div>';
+        return;
+    }
+
+    container.innerHTML = leaderboard.slice(0, 10).map((player, index) => `
+        <div class="leaderboard-item" style="background: rgba(0, 20, 40, 0.6); padding: 10px; margin: 6px 0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="color: #ffd700; font-weight: bold; width: 20px;">#${index + 1}</div>
+                <div style="color: #00ffff; font-weight: bold;">${player.Username || 'Unknown'}</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: #ffff00; font-weight: bold;">${player.win_count || 0} wins</div>
+                <div style="color: #a8dfe8; font-size: 0.7rem;">${player.games_played || 0} games</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updatePopularGames(games) {
+    const container = document.getElementById('popularGamesList');
+    if (!container) return;
+
+    if (!games || games.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #a8dfe8; padding: 20px; grid-column: 1 / -1;">No popular games data</div>';
+        return;
+    }
+
+    container.innerHTML = games.map(game => `
+        <div class="popular-game-item" style="background: rgba(0, 20, 40, 0.6); padding: 15px; border-radius: 6px; text-align: center; border: 1px solid rgba(0, 255, 255, 0.3);">
+            <div style="color: #00ffff; font-weight: bold; margin-bottom: 5px;">${game.Name || 'Unknown'}</div>
+            <div style="color: #ffff00; font-size: 0.9rem;">${game.active_count || 0} active</div>
+        </div>
+    `).join('');
+}
+
+function formatGameTime(timestamp) {
+    if (!timestamp) return 'Unknown';
+    
+    try {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+        
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+        return 'Unknown';
+    }
+}
 /* ---------- INITIALIZE ALL SYSTEMS ---------- */
 function initAllSystems() {
     console.log('🚀 Initializing all systems...');
+    initMatchmakingDashboard(); // 🎮 Matchmaking API Dashboard
     initCursorAndCanvas();
     initCollapsibles();
     initFormControls();
