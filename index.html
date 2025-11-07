@@ -10530,7 +10530,23 @@ function updatePopularGamesList(popularGames) {
         </div>
     `).join('');
 }
-
+/* ---------- FALLBACK DATA HANDLER (EMPTY DATA) ---------- */
+function getFallbackData(endpoint) {
+    // Return EMPTY data instead of demo data
+    const emptyData = {
+        '/dashboard': {
+            active_games: 0,
+            active_users: 0,
+            recent_wins: 0,
+            total_users: 0,
+            popular_games: []
+        },
+        '/active_games': [],
+        '/leaderboard': []
+    };
+    
+    return emptyData[endpoint] || null;
+}
 async function loadDashboardData() {
     // Show loading state
     updateConnectionStatus(true, 'Loading...');
