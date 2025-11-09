@@ -11150,32 +11150,6 @@ function showNoGamesMessage() {
     `;
 }
 
-// Helper function to update Discord stats
-function updateDiscordStats(data) {
-    const discordLobbies = document.getElementById('discordActiveLobbies');
-    const discordUsers = document.getElementById('discordOnlineUsers');
-    const discordRecent = document.getElementById('discordRecentGames');
-    const discordStatus = document.getElementById('discordConnectionStatus');
-    const discordUpdate = document.getElementById('discordLastUpdate');
-
-    if (discordLobbies) discordLobbies.textContent = data.total_lobbies || 0;
-    if (discordUsers) discordUsers.textContent = data.online_users || 0;
-    if (discordRecent) discordRecent.textContent = data.recent_games ? data.recent_games.length : 0;
-    
-    if (discordStatus) {
-        if (data.total_lobbies > 0) {
-            discordStatus.innerHTML = '🟢 Live Game Invites';
-            discordStatus.style.color = '#00ff00';
-        } else {
-            discordStatus.innerHTML = '🟡 No Active Games';
-            discordStatus.style.color = '#ffff00';
-        }
-    }
-    
-    if (discordUpdate) {
-        discordUpdate.textContent = `Last: ${new Date().toLocaleTimeString()}`;
-    }
-}
 // NEW: Process real Discord bot data
 function processDiscordBotData(discordData) {
     console.log('🎯 Processing Discord bot data:', discordData);
