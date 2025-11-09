@@ -11041,46 +11041,49 @@ function getFallbackData(endpoint) {
     
     return emptyData[endpoint] || null;
 }
-// ENHANCED: Load real LFG data
-async function loadDashboardData() {
+// FIXED: Load real LFG data - No async/await issues
+function loadDashboardData() {
     console.log('🔄 Loading REAL LFG data...');
     
-    try {
-        // Load active LFG games
-        const lfgData = await fetchMatchmakingData('/live_games');
-        
-        if (lfgData && lfgData.length > 0) {
-            console.log('📨 Found LFG games:', lfgData.length);
-            processLfgGames(lfgData);
-            
-            // Update Discord stats
-            updateDiscordStats({
-                total_lobbies: lfgData.length,
-                online_users: new Set(lfgData.map(game => game.UserId)).size,
-                recent_games: lfgData.slice(0, 5)
-            });
-        } else {
-            // Fallback to active games endpoint
-            const activeGames = await fetchMatchmakingData('/active_games');
-            if (activeGames && activeGames.length > 0) {
-                processLfgGames(activeGames);
+    // Use .then() instead of async/await to avoid the error
+    fetchMatchmakingData('/live_games')
+        .then(lfgData => {
+            if (lfgData && lfgData.length > 0) {
+                console.log('📨 Found LFG games:', lfgData.length);
+                processLfgGames(lfgData);
+                
+                // Update Discord stats
                 updateDiscordStats({
-                    total_lobbies: activeGames.length,
-                    online_users: new Set(activeGames.map(game => game.UserId)).size,
-                    recent_games: activeGames.slice(0, 5)
+                    total_lobbies: lfgData.length,
+                    online_users: new Set(lfgData.map(game => game.UserId)).size,
+                    recent_games: lfgData.slice(0, 5)
                 });
+                
+                showQuickStatus('✅ LFG data loaded!', 'success');
             } else {
-                showNoGamesMessage();
+                // Fallback to active games endpoint
+                return fetchMatchmakingData('/active_games')
+                    .then(activeGames => {
+                        if (activeGames && activeGames.length > 0) {
+                            processLfgGames(activeGames);
+                            updateDiscordStats({
+                                total_lobbies: activeGames.length,
+                                online_users: new Set(activeGames.map(game => game.UserId)).size,
+                                recent_games: activeGames.slice(0, 5)
+                            });
+                            showQuickStatus('✅ LFG data loaded!', 'success');
+                        } else {
+                            showNoGamesMessage();
+                            showQuickStatus('❌ No active games found', 'info');
+                        }
+                    });
             }
-        }
-        
-        showQuickStatus('✅ LFG data loaded!', 'success');
-    } catch (error) {
-        console.error('LFG data load failed:', error);
-        showQuickStatus('❌ Failed to load LFG data', 'error');
-    }
+        })
+        .catch(error => {
+            console.error('LFG data load failed:', error);
+            showQuickStatus('❌ Failed to load LFG data', 'error');
+        });
 }
-
 // NEW: Process LFG games properly
 function processLfgGames(lfgGames) {
     const activeGamesList = document.getElementById('activeGamesList');
