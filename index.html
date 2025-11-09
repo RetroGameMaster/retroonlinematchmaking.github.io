@@ -11151,7 +11151,7 @@ function showNoGamesMessage() {
 }
 
         // Load leaderboard and other data
-        const [leaderboard, dashboard] = await Promise.allSettled([
+        const [leaderboard, dashboard] = Promise.allSettled([
             fetchMatchmakingData('/leaderboard'),
             fetchMatchmakingData('/dashboard')
         ]);
