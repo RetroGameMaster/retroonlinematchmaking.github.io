@@ -11150,28 +11150,6 @@ function showNoGamesMessage() {
     `;
 }
 
-        // Load leaderboard and other data
-        const [leaderboard, dashboard] = Promise.allSettled([
-            fetchMatchmakingData('/leaderboard'),
-            fetchMatchmakingData('/dashboard')
-        ]);
-
-        if (leaderboard.status === 'fulfilled' && leaderboard.value) {
-            updateLeaderboardList(leaderboard.value);
-        }
-
-        showQuickStatus('✅ Game data refreshed!', 'success');
-
-    } catch (error) {
-        console.error('Game data load failed:', error);
-        if (discordStatus) {
-            discordStatus.innerHTML = '🔴 Load failed';
-            discordStatus.style.color = '#ff3333';
-        }
-        showQuickStatus('❌ Failed to load game data', 'error');
-    }
-}
-
 // Helper function to update Discord stats
 function updateDiscordStats(data) {
     const discordLobbies = document.getElementById('discordActiveLobbies');
