@@ -4113,7 +4113,7 @@ try {
     };
 }
 /* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
-const MATCHMAKING_API_URL = 'http://localhost:5000/api';
+const MATCHMAKING_API_URL = 'http://10.60.1.40:5000/api';
 let apiRetryCount = 0;
 const MAX_RETRIES = 3;
 
@@ -11041,68 +11041,95 @@ function getFallbackData(endpoint) {
     
     return emptyData[endpoint] || null;
 }
+// ENHANCED: Load real LFG data
 async function loadDashboardData() {
-    console.log('🔄 Loading REAL Discord game invites...');
+    console.log('🔄 Loading REAL LFG data...');
     
-    // Show loading state
-    const discordStatus = document.getElementById('discordConnectionStatus');
-    if (discordStatus) {
-        discordStatus.innerHTML = '🟡 Loading game invites...';
-        discordStatus.style.color = '#ffff00';
-    }
-
     try {
-        // 1. FIRST PRIORITY: Check for LFG Messages (Game Invites)
-        const lfgData = await fetchMatchmakingData('/table/LfgMessages');
+        // Load active LFG games
+        const lfgData = await fetchMatchmakingData('/live_games');
         
-        if (lfgData && lfgData.data && lfgData.data.length > 0) {
-            console.log('📨 Found LFG messages:', lfgData.data.length);
-            processLfgMessages(lfgData.data);
+        if (lfgData && lfgData.length > 0) {
+            console.log('📨 Found LFG games:', lfgData.length);
+            processLfgGames(lfgData);
             
             // Update Discord stats
             updateDiscordStats({
-                total_lobbies: lfgData.data.filter(lfg => !lfg.Expired).length,
-                online_users: lfgData.data.length,
-                recent_games: lfgData.data.slice(0, 5)
+                total_lobbies: lfgData.length,
+                online_users: new Set(lfgData.map(game => game.UserId)).size,
+                recent_games: lfgData.slice(0, 5)
             });
-            
         } else {
-            // 2. FALLBACK: Check ActiveGames table
-            const activeGames = await fetchMatchmakingData('/table/ActiveGames');
-            if (activeGames && activeGames.data && activeGames.data.length > 0) {
-                console.log('🎮 Found ActiveGames:', activeGames.data.length);
-                processActiveGames(activeGames.data);
-                
+            // Fallback to active games endpoint
+            const activeGames = await fetchMatchmakingData('/active_games');
+            if (activeGames && activeGames.length > 0) {
+                processLfgGames(activeGames);
                 updateDiscordStats({
-                    total_lobbies: activeGames.data.length,
-                    online_users: activeGames.data.length,
-                    recent_games: activeGames.data.slice(0, 5)
+                    total_lobbies: activeGames.length,
+                    online_users: new Set(activeGames.map(game => game.UserId)).size,
+                    recent_games: activeGames.slice(0, 5)
                 });
             } else {
-                // 3. FINAL FALLBACK: Show no data message
-                const activeGamesList = document.getElementById('activeGamesList');
-                if (activeGamesList) {
-                    activeGamesList.innerHTML = `
-                        <div style="text-align: center; color: #a8dfe8; padding: 40px;">
-                            <div style="font-size: 3rem; margin-bottom: 15px;">🎮</div>
-                            <div>No active game invites found</div>
-                            <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
-                                Game invites will appear here when players use the !lfg command
-                            </div>
-                            <button onclick="testDiscordConnection()" class="button" style="margin-top: 15px; background: rgba(0, 255, 255, 0.1);">
-                                🧪 Scan Database for Data
-                            </button>
-                        </div>
-                    `;
-                }
-                
-                updateDiscordStats({
-                    total_lobbies: 0,
-                    online_users: 0,
-                    recent_games: []
-                });
+                showNoGamesMessage();
             }
         }
+        
+        showQuickStatus('✅ LFG data loaded!', 'success');
+    } catch (error) {
+        console.error('LFG data load failed:', error);
+        showQuickStatus('❌ Failed to load LFG data', 'error');
+    }
+}
+
+// NEW: Process LFG games properly
+function processLfgGames(lfgGames) {
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+
+    activeGamesList.innerHTML = lfgGames.map(game => {
+        const gameName = game.GameName || 'Unknown Game';
+        const platform = game.Platform || game.Console || 'Unknown';
+        const players = game.Players || game.PlayerCount || 1;
+        const connectionInfo = game.ConnectionInfo || game.AdditionalNotes || '';
+        const userId = game.UserId || 'Unknown';
+        
+        return `
+            <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #00ff00;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <strong style="color: #00ffff;">${gameName}</strong>
+                        <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
+                            🎮 ${platform} | 👤 User: ${userId} | 👥 Players: ${players}
+                        </div>
+                        ${connectionInfo ? `<div style="color: #ffff00; font-size: 0.8rem; margin-top: 2px;">🔗 ${connectionInfo}</div>` : ''}
+                    </div>
+                    <span style="color: #00ff00; font-size: 0.8rem;">🟢 LFG</span>
+                </div>
+                ${game.ExpireDateTime ? `
+                <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 8px; border-top: 1px solid rgba(0,255,255,0.2); padding-top: 4px;">
+                    Expires: ${new Date(game.ExpireDateTime).toLocaleString()}
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// Helper function for no games message
+function showNoGamesMessage() {
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+    
+    activeGamesList.innerHTML = `
+        <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🎮</div>
+            <div>No active game invites found</div>
+            <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                Game invites will appear here when players use the !lfg command
+            </div>
+        </div>
+    `;
+}
 
         // Load leaderboard and other data
         const [leaderboard, dashboard] = await Promise.allSettled([
