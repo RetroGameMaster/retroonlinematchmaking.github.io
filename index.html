@@ -11041,48 +11041,64 @@ function getFallbackData(endpoint) {
     
     return emptyData[endpoint] || null;
 }
-// FIXED: Load real LFG data - No async/await issues
-function loadDashboardData() {
+// FIXED: Add async keyword to the function
+async function loadDashboardData() {
     console.log('🔄 Loading REAL LFG data...');
     
-    // Use .then() instead of async/await to avoid the error
-    fetchMatchmakingData('/live_games')
-        .then(lfgData => {
-            if (lfgData && lfgData.length > 0) {
-                console.log('📨 Found LFG games:', lfgData.length);
-                processLfgGames(lfgData);
-                
-                // Update Discord stats
+    try {
+        // Use .then() instead of async/await to avoid the error
+        const lfgData = await fetchMatchmakingData('/live_games');
+        
+        if (lfgData && lfgData.length > 0) {
+            console.log('📨 Found LFG games:', lfgData.length);
+            processLfgGames(lfgData);
+            
+            // Update Discord stats
+            updateDiscordStats({
+                total_lobbies: lfgData.length,
+                online_users: new Set(lfgData.map(game => game.UserId)).size,
+                recent_games: lfgData.slice(0, 5)
+            });
+            
+            showQuickStatus('✅ LFG data loaded!', 'success');
+        } else {
+            // Fallback to active games endpoint
+            const activeGames = await fetchMatchmakingData('/active_games');
+            if (activeGames && activeGames.length > 0) {
+                processLfgGames(activeGames);
                 updateDiscordStats({
-                    total_lobbies: lfgData.length,
-                    online_users: new Set(lfgData.map(game => game.UserId)).size,
-                    recent_games: lfgData.slice(0, 5)
+                    total_lobbies: activeGames.length,
+                    online_users: new Set(activeGames.map(game => game.UserId)).size,
+                    recent_games: activeGames.slice(0, 5)
                 });
-                
                 showQuickStatus('✅ LFG data loaded!', 'success');
             } else {
-                // Fallback to active games endpoint
-                return fetchMatchmakingData('/active_games')
-                    .then(activeGames => {
-                        if (activeGames && activeGames.length > 0) {
-                            processLfgGames(activeGames);
-                            updateDiscordStats({
-                                total_lobbies: activeGames.length,
-                                online_users: new Set(activeGames.map(game => game.UserId)).size,
-                                recent_games: activeGames.slice(0, 5)
-                            });
-                            showQuickStatus('✅ LFG data loaded!', 'success');
-                        } else {
-                            showNoGamesMessage();
-                            showQuickStatus('❌ No active games found', 'info');
-                        }
-                    });
+                showNoGamesMessage();
+                showQuickStatus('❌ No active games found', 'info');
             }
-        })
-        .catch(error => {
-            console.error('LFG data load failed:', error);
-            showQuickStatus('❌ Failed to load LFG data', 'error');
-        });
+        }
+
+        // Load leaderboard and other data
+        const [leaderboard, dashboard] = await Promise.allSettled([
+            fetchMatchmakingData('/leaderboard'),
+            fetchMatchmakingData('/dashboard')
+        ]);
+
+        if (leaderboard.status === 'fulfilled' && leaderboard.value) {
+            updateLeaderboardList(leaderboard.value);
+        }
+
+        showQuickStatus('✅ Game data refreshed!', 'success');
+
+    } catch (error) {
+        console.error('Game data load failed:', error);
+        const discordStatus = document.getElementById('discordConnectionStatus');
+        if (discordStatus) {
+            discordStatus.innerHTML = '🔴 Load failed';
+            discordStatus.style.color = '#ff3333';
+        }
+        showQuickStatus('❌ Failed to load game data', 'error');
+    }
 }
 // NEW: Process LFG games properly
 function processLfgGames(lfgGames) {
