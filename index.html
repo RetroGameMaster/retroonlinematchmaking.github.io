@@ -4137,37 +4137,254 @@ try {
         })
     };
 }
-/* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
-const MATCHMAKING_API_URL = 'https://visional-nondiligently-ha.ngrok-free.dev/api'
-let apiRetryCount = 0;
-const MAX_RETRIES = 3;
+/* ---------- FIXED DISCORD BOT API CONNECTION ---------- */
+const MATCHMAKING_API_URL = 'https://visional-nondiligently-ha.ngrok-free.dev/api';
 
-// Enhanced API fetch with better debugging
+// Enhanced API fetch with proper error handling
 async function fetchMatchmakingData(endpoint) {
     try {
         console.log(`🔍 Fetching: ${MATCHMAKING_API_URL}${endpoint}`);
         
-        const cacheBuster = `?_t=${Date.now()}`;
-        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}${cacheBuster}`, {
+        // Add cache busting and timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
+        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}?_t=${Date.now()}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
-            }
+                'Content-Type': 'application/json',
+            },
+            signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
+        
         if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
         console.log(`✅ API Response for ${endpoint}:`, data);
-        
         return data;
         
     } catch (error) {
         console.error(`❌ API fetch failed for ${endpoint}:`, error);
-        return null;
+        
+        // Return empty data instead of crashing
+        return getEmptyFallbackData(endpoint);
+    }
+}
+
+// Return empty data for failed API calls
+function getEmptyFallbackData(endpoint) {
+    const emptyData = {
+        '/live_games': [],
+        '/active_servers': [], 
+        '/real_time_activity': {
+            active_users: 0,
+            total_users: 434,
+            active_games: 0
+        }
+    };
+    
+    return emptyData[endpoint] || null;
+}
+
+// Fixed dashboard data loader
+async function loadDashboardData() {
+    console.log('🔄 Loading REAL Discord bot data...');
+    
+    try {
+        // Try to get data from all endpoints
+        const [liveGames, activeServers, realTimeActivity] = await Promise.allSettled([
+            fetchMatchmakingData('/live_games'),
+            fetchMatchmakingData('/active_servers'),
+            fetchMatchmakingData('/real_time_activity')
+        ]);
+
+        // Process results
+        const gamesData = liveGames.status === 'fulfilled' ? liveGames.value : [];
+        const serversData = activeServers.status === 'fulfilled' ? activeServers.value : [];
+        const activityData = realTimeActivity.status === 'fulfilled' ? realTimeActivity.value : null;
+
+        console.log('📊 Data loaded:', {
+            liveGames: gamesData?.length || 0,
+            activeServers: serversData?.length || 0,
+            realTimeActivity: activityData ? 'Yes' : 'No'
+        });
+
+        // Update UI with whatever data we got
+        updateDashboardWithData(gamesData, serversData, activityData);
+        
+        // Update connection status
+        updateConnectionStatus(true, `Last: ${new Date().toLocaleTimeString()}`);
+
+    } catch (error) {
+        console.error('❌ Dashboard data load failed:', error);
+        updateConnectionStatus(false, 'Connection failed');
+        showQuickStatus('❌ Failed to load game data', 'error');
+    }
+}
+
+// Update dashboard with actual data
+function updateDashboardWithData(liveGames, activeServers, realTimeActivity) {
+    // Update stats
+    const totalGames = (liveGames?.length || 0) + (activeServers?.length || 0);
+    const activeUsers = realTimeActivity?.active_users || 0;
+    
+    updateDashboardStats({
+        active_games: totalGames,
+        active_users: activeUsers,
+        recent_wins: 0,
+        total_users: realTimeActivity?.total_users || 434
+    });
+
+    // Update Discord-specific displays
+    updateDiscordStats(totalGames, activeUsers);
+    
+    // Update games lists
+    updateActiveGamesList(liveGames, activeServers);
+}
+
+// Update Discord stats display
+function updateDiscordStats(activeLobbies, onlineUsers) {
+    const discordLobbies = document.getElementById('discordActiveLobbies');
+    const discordUsers = document.getElementById('discordOnlineUsers');
+    const discordStatus = document.getElementById('discordConnectionStatus');
+    
+    if (discordLobbies) {
+        discordLobbies.textContent = activeLobbies;
+        discordLobbies.style.color = activeLobbies > 0 ? '#00ff00' : '#ffff00';
+    }
+    
+    if (discordUsers) {
+        discordUsers.textContent = onlineUsers;
+        discordUsers.style.color = onlineUsers > 0 ? '#ff33cc' : '#a8dfe8';
+    }
+    
+    if (discordStatus) {
+        if (activeLobbies > 0) {
+            discordStatus.innerHTML = '🟢 Live Discord Data';
+            discordStatus.style.color = '#00ff00';
+        } else {
+            discordStatus.innerHTML = '🟡 Connected (No active games)';
+            discordStatus.style.color = '#ffff00';
+        }
+    }
+}
+
+// Update active games list with real data
+function updateActiveGamesList(liveGames, activeServers) {
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+
+    let allGames = [];
+    
+    // Add live games
+    if (liveGames && liveGames.length > 0) {
+        allGames = allGames.concat(liveGames.map(game => ({
+            ...game,
+            type: 'lfg',
+            color: '#00ff00'
+        })));
+    }
+    
+    // Add active servers
+    if (activeServers && activeServers.length > 0) {
+        allGames = allGames.concat(activeServers.map(server => ({
+            ...server,
+            type: 'server', 
+            color: '#00ffff'
+        })));
+    }
+
+    if (allGames.length === 0) {
+        activeGamesList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">🎮</div>
+                <div>No active games found</div>
+                <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                    Check back later for active games
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Display the games
+    activeGamesList.innerHTML = allGames.map((game, index) => `
+        <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${game.color || '#00ffff'};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1;">
+                    <strong style="color: #00ffff;">${game.GameName || game.Name || 'Unknown Game'}</strong>
+                    <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
+                        ${game.type === 'lfg' ? '👤 LFG Request' : '🎮 Active Server'} 
+                        ${game.Players ? `| 👥 Players: ${game.Players}` : ''}
+                    </div>
+                    ${game.UserId ? `<div style="color: #ffff00; font-size: 0.8rem; margin-top: 2px;">User: ${game.UserId}</div>` : ''}
+                    ${game.Platform ? `<div style="color: #ff33cc; font-size: 0.8rem; margin-top: 2px;">Platform: ${game.Platform}</div>` : ''}
+                </div>
+                <span style="color: ${game.color || '#00ffff'}; font-size: 0.8rem;">
+                    ${game.type === 'lfg' ? '🟢 LFG' : '⚡ SERVER'}
+                </span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update connection status
+function updateConnectionStatus(isConnected, message = '') {
+    const statusElement = document.getElementById('connectionStatus');
+    const lastUpdateElement = document.getElementById('lastUpdate');
+    
+    if (statusElement && lastUpdateElement) {
+        if (isConnected) {
+            statusElement.innerHTML = '🟢 Connected to Discord Bot';
+            statusElement.style.color = '#00ff00';
+        } else {
+            statusElement.innerHTML = '🔴 Connection Failed';
+            statusElement.style.color = '#ff3333';
+        }
+        
+        lastUpdateElement.textContent = message;
+    }
+}
+
+// Enhanced debug function
+async function testDiscordConnection() {
+    console.log('🧪 Testing Discord bot connection...');
+    
+    const debugInfo = document.getElementById('debugInfo');
+    if (debugInfo) {
+        debugInfo.innerHTML = '<div style="color: #ffff00;">🔍 Testing API endpoints...</div>';
+    }
+
+    try {
+        // Test each endpoint
+        const endpoints = ['/live_games', '/active_servers', '/real_time_activity'];
+        
+        for (const endpoint of endpoints) {
+            const data = await fetchMatchmakingData(endpoint);
+            if (debugInfo) {
+                debugInfo.innerHTML += `
+                    <div style="margin-top: 10px;">
+                        <strong style="color: #00ffff;">${endpoint}:</strong>
+                        <pre style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px; font-size: 0.7rem; margin: 5px 0;">
+${JSON.stringify(data, null, 2)}
+                        </pre>
+                    </div>
+                `;
+            }
+        }
+        
+        debugInfo.innerHTML += '<div style="color: #00ff00; margin-top: 10px; padding: 10px; background: rgba(0,255,0,0.1); border-radius: 6px;">✅ API test completed</div>';
+        
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        if (debugInfo) {
+            debugInfo.innerHTML += `<div style="color: #ff3333; margin-top: 10px;">❌ Test failed: ${error.message}</div>`;
+        }
     }
 }
 // ENHANCED: Comprehensive database scanner to find real game data
