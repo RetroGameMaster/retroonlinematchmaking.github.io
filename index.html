@@ -4138,7 +4138,7 @@ try {
     };
 }
 /* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
-const MATCHMAKING_API_URL = 'https://visional-nondiligently-ha.ngrok-free.dev/api';
+const MATCHMAKING_API_URL = 'http://localhost:5000/api';
 let apiRetryCount = 0;
 const MAX_RETRIES = 3;
 
@@ -4162,25 +4162,12 @@ async function fetchMatchmakingData(endpoint) {
         
         const data = await response.json();
         console.log(`✅ API Response for ${endpoint}:`, data);
+        
         return data;
         
     } catch (error) {
         console.error(`❌ API fetch failed for ${endpoint}:`, error);
-        
-        // RETURN EMPTY DATA INSTEAD OF NULL
-        switch(endpoint) {
-            case '/live_games':
-            case '/active_games':
-                return [];
-            case '/dashboard':
-                return { active_games: 0, active_users: 0, recent_wins: 0, total_users: 0, popular_games: [] };
-            case '/real_time_activity':
-                return { active_lfg_games: 0, active_users: 0, active_games: [] };
-            case '/leaderboard':
-                return [];
-            default:
-                return {};
-        }
+        return null;
     }
 }
 // ENHANCED: Comprehensive database scanner to find real game data
