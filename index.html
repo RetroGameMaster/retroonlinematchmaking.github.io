@@ -4137,170 +4137,363 @@ try {
         })
     };
 }
-/* ---------- FIXED DISCORD BOT API CONNECTION ---------- */
+/* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
 const MATCHMAKING_API_URL = 'https://visional-nondiligently-ha.ngrok-free.dev/api';
+let apiRetryCount = 0;
+const MAX_RETRIES = 3;
 
-// Completely rewritten API fetch with HTML detection
+// Enhanced API fetch with better debugging
 async function fetchMatchmakingData(endpoint) {
     try {
         console.log(`🔍 Fetching: ${MATCHMAKING_API_URL}${endpoint}`);
         
-        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}`, {
+        const cacheBuster = `?_t=${Date.now()}`;
+        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}${cacheBuster}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-            },
-            // Don't include Content-Type for GET requests
+                'Cache-Control': 'no-cache'
+            }
         });
-
-        // FIRST check if response is HTML before trying to parse as JSON
-        const responseText = await response.text();
         
-        // Check if the response is HTML (starts with <!DOCTYPE or <html)
-        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html') || responseText.includes('</html>')) {
-            console.error(`❌ Server returned HTML instead of JSON for ${endpoint}`);
-            console.log('HTML Response preview:', responseText.substring(0, 200) + '...');
-            return getEmptyFallbackData(endpoint);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
         }
-
-        // If we got here, it's probably JSON - try to parse it
-        try {
-            const data = JSON.parse(responseText);
-            console.log(`✅ API Response for ${endpoint}:`, data);
-            return data;
-        } catch (parseError) {
-            console.error(`❌ JSON parse failed for ${endpoint}:`, parseError);
-            console.log('Response text:', responseText.substring(0, 500));
-            return getEmptyFallbackData(endpoint);
-        }
+        
+        const data = await response.json();
+        console.log(`✅ API Response for ${endpoint}:`, data);
+        
+        return data;
         
     } catch (error) {
         console.error(`❌ API fetch failed for ${endpoint}:`, error);
-        return getEmptyFallbackData(endpoint);
+        return null;
     }
 }
+// ENHANCED: Comprehensive database scanner to find real game data
+async function testDiscordConnection() {
+    console.log('🧪 SCANNING FOR REAL GAME DATA...');
+    
+    const debugInfo = document.getElementById('debugInfo');
+    if (debugInfo) {
+        debugInfo.innerHTML = '<div style="color: #ffff00;">🔍 Scanning database for game invites and LFG data...</div>';
+    }
 
-// Return proper empty data structure
-function getEmptyFallbackData(endpoint) {
-    const emptyData = {
-        '/live_games': [],
-        '/active_servers': [], 
-        '/real_time_activity': {
-            active_users: 0,
-            total_users: 434,
-            active_games: 0,
-            recent_activity: 0
-        },
-        '/dashboard': {
-            active_games: 0,
-            active_users: 0,
-            recent_wins: 0,
-            total_users: 434,
-            popular_games: []
-        }
-    };
-    
-    return emptyData[endpoint] || null;
-}
-
-// Fixed dashboard data loader
-async function loadDashboardData() {
-    console.log('🔄 Loading Discord bot data...');
-    
-    // Show loading state
-    updateConnectionStatus(true, 'Loading...');
-    
     try {
-        // Use Promise.allSettled to handle individual failures
-        const results = await Promise.allSettled([
-            fetchMatchmakingData('/live_games'),
-            fetchMatchmakingData('/active_servers'),
-            fetchMatchmakingData('/real_time_activity')
-        ]);
-
-        // Extract values from results
-        const liveGames = results[0].status === 'fulfilled' ? results[0].value : [];
-        const activeServers = results[1].status === 'fulfilled' ? results[1].value : [];
-        const realTimeActivity = results[2].status === 'fulfilled' ? results[2].value : getEmptyFallbackData('/real_time_activity');
-
-        console.log('📊 Final data loaded:', {
-            liveGames: Array.isArray(liveGames) ? liveGames.length : 0,
-            activeServers: Array.isArray(activeServers) ? activeServers.length : 0,
-            realTimeActivity: realTimeActivity ? 'Yes' : 'No'
-        });
-
-        // Update UI with the data
-        updateDashboardWithData(liveGames, activeServers, realTimeActivity);
+        // Get complete debug info to see ALL tables
+        const debug = await fetchMatchmakingData('/debug');
+        updateDebugInfo('📊 FULL DATABASE SCAN:', debug);
         
-        // Update connection status based on whether we got any real data
-        const hasRealData = (Array.isArray(liveGames) && liveGames.length > 0) || 
-                           (Array.isArray(activeServers) && activeServers.length > 0);
+        if (!debug || !debug.table_counts) {
+            updateDebugInfo('❌ No database tables found', null, false);
+            return;
+        }
+
+        // SCAN EACH TABLE FOR GAME DATA
+        let foundGameData = false;
         
-        updateConnectionStatus(true, `Last: ${new Date().toLocaleTimeString()}`);
-        
-        if (hasRealData) {
-            showQuickStatus('✅ Live data loaded!', 'success');
+        // 1. Check LfgMessages table (Most likely for game invites)
+        if (debug.table_counts.LfgMessages > 0) {
+            console.log('🎯 Found LfgMessages table! Scanning for game invites...');
+            const lfgData = await fetchMatchmakingData('/table/LfgMessages');
+            updateDebugInfo('📨 LFG MESSAGES (Game Invites):', lfgData);
+            
+            if (lfgData && lfgData.data && lfgData.data.length > 0) {
+                foundGameData = true;
+                processLfgMessages(lfgData.data);
+            }
+        }
+
+        // 2. Check ActiveGames table 
+        if (debug.table_counts.ActiveGames > 0) {
+            console.log('🎯 Found ActiveGames table!');
+            const activeGames = await fetchMatchmakingData('/table/ActiveGames');
+            updateDebugInfo('🎮 ACTIVE GAMES TABLE:', activeGames);
+            
+            if (activeGames && activeGames.data && activeGames.data.length > 0) {
+                foundGameData = true;
+                processActiveGames(activeGames.data);
+            }
+        }
+
+        // 3. Check ActiveGameRecords table
+        if (debug.table_counts.ActiveGameRecords > 0) {
+            console.log('🎯 Found ActiveGameRecords table!');
+            const gameRecords = await fetchMatchmakingData('/table/ActiveGameRecords');
+            updateDebugInfo('📝 ACTIVE GAME RECORDS:', gameRecords);
+            
+            if (gameRecords && gameRecords.data && gameRecords.data.length > 0) {
+                foundGameData = true;
+                processGameRecords(gameRecords.data);
+            }
+        }
+
+        // 4. Check other potential tables
+        const potentialGameTables = ['GameSessions', 'MultiplayerSessions', 'GameLobbies', 'PlayerSessions'];
+        for (const table of potentialGameTables) {
+            if (debug.table_counts[table] > 0) {
+                console.log(`🎯 Found ${table} table!`);
+                const tableData = await fetchMatchmakingData(`/table/${table}`);
+                updateDebugInfo(`🕹️ ${table.toUpperCase()}:`, tableData);
+                
+                if (tableData && tableData.data && tableData.data.length > 0) {
+                    foundGameData = true;
+                    processGenericGameData(tableData.data, table);
+                }
+            }
+        }
+
+        // SUMMARY
+        if (foundGameData) {
+            updateDebugInfo('<div style="margin-top: 15px; padding: 10px; background: rgba(0, 255, 0, 0.2); border-radius: 6px; color: #00ff00;">🎉 GAME DATA FOUND! Check the Active Games panel above.</div>', null, false);
         } else {
-            showQuickStatus('ℹ️ No active games found', 'info');
+            updateDebugInfo('<div style="margin-top: 15px; padding: 10px; background: rgba(255, 0, 0, 0.2); border-radius: 6px; color: #ff3333;">❌ No active game data found in any table. The bot might not have active games right now.</div>', null, false);
         }
 
     } catch (error) {
-        console.error('❌ Dashboard data load failed:', error);
-        updateConnectionStatus(false, 'Connection failed');
-        showQuickStatus('❌ Failed to load game data', 'error');
-        
-        // Still update with empty data to show something
-        updateDashboardWithData([], [], getEmptyFallbackData('/real_time_activity'));
+        console.error('❌ Database scan failed:', error);
+        updateDebugInfo(`❌ SCAN FAILED: ${error.message}`, null, false);
     }
 }
 
-// Update dashboard with actual data
-function updateDashboardWithData(liveGames, activeServers, realTimeActivity) {
-    // Ensure we have arrays
-    const gamesArray = Array.isArray(liveGames) ? liveGames : [];
-    const serversArray = Array.isArray(activeServers) ? activeServers : [];
+// PROCESS LFG MESSAGES (Game Invites)
+function processLfgMessages(lfgData) {
+    console.log('📨 Processing LFG Messages:', lfgData);
     
-    const totalGames = gamesArray.length + serversArray.length;
-    const activeUsers = realTimeActivity?.active_users || 0;
-    
-    // Update main dashboard stats
-    updateDashboardStats({
-        active_games: totalGames,
-        active_users: activeUsers,
-        recent_wins: realTimeActivity?.recent_wins || 0,
-        total_users: realTimeActivity?.total_users || 434
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+
+    // Filter active LFG messages (not expired)
+    const activeLfg = lfgData.filter(lfg => {
+        // Check if message is not expired
+        if (lfg.Expired === 1 || lfg.Expired === true) return false;
+        
+        // Check if expiration time is in future
+        if (lfg.ExpireDateTime) {
+            const expireTime = new Date(lfg.ExpireDateTime);
+            return expireTime > new Date();
+        }
+        
+        return true; // Assume active if no expiration check
     });
 
-    // Update Discord-specific displays
-    updateDiscordStats(totalGames, activeUsers);
-    
-    // Update games lists
-    updateActiveGamesList(gamesArray, serversArray);
+    if (activeLfg.length === 0) {
+        activeGamesList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 30px;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📨</div>
+                <div>No active game invites right now</div>
+                <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                    Check Discord for new LFG messages
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Display active LFG messages as games
+    activeGamesList.innerHTML = activeLfg.map((lfg, index) => {
+        const gameName = lfg.GameName || lfg.ConnectionMethods || 'Unknown Game';
+        const playersNeeded = lfg.MinimumPlayersNeeded || '?';
+        const userId = lfg.UserId || 'Unknown';
+        
+        return `
+            <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #00ff00;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <strong style="color: #00ffff;">${gameName}</strong>
+                        <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
+                            👤 User: ${userId} | 👥 Players: ${playersNeeded}
+                        </div>
+                        ${lfg.ConnectionMethods ? `<div style="color: #ffff00; font-size: 0.8rem; margin-top: 2px;">Method: ${lfg.ConnectionMethods}</div>` : ''}
+                        ${lfg.RoleName ? `<div style="color: #ff33cc; font-size: 0.8rem; margin-top: 2px;">Role: ${lfg.RoleName}</div>` : ''}
+                        ${lfg.AdditionalNotes ? `<div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 2px;">Notes: ${lfg.AdditionalNotes}</div>` : ''}
+                    </div>
+                    <span style="color: #00ff00; font-size: 0.8rem;">🟢 LFG</span>
+                </div>
+                ${lfg.ExpireDateTime ? `
+                <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 8px; border-top: 1px solid rgba(0,255,255,0.2); padding-top: 4px;">
+                    Expires: ${new Date(lfg.ExpireDateTime).toLocaleString()}
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
 }
 
-// Update Discord stats display
-function updateDiscordStats(activeLobbies, onlineUsers) {
+// PROCESS ACTIVE GAMES TABLE
+function processActiveGames(gamesData) {
+    console.log('🎮 Processing ActiveGames:', gamesData);
+    
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+
+    const activeGames = gamesData.filter(game => 
+        game.Status === 'active' || game.Status === 'in_progress' || !game.Status
+    );
+
+    if (activeGames.length === 0) {
+        activeGamesList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 30px;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🎮</div>
+                <div>No active games in ActiveGames table</div>
+            </div>
+        `;
+        return;
+    }
+
+    activeGamesList.innerHTML = activeGames.map((game, index) => {
+        const gameId = game.GameId || 'Unknown';
+        const players = game.PlayersOnline || game.Players || 1;
+        
+        return `
+            <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #00ffff;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <strong style="color: #00ffff;">Game ID: ${gameId}</strong>
+                        <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
+                            👥 Players: ${players} | User: ${game.UserId || 'Unknown'}
+                        </div>
+                        ${game.ConnectionTypeId ? `<div style="color: #ffff00; font-size: 0.8rem; margin-top: 2px;">Connection Type: ${game.ConnectionTypeId}</div>` : ''}
+                    </div>
+                    <span style="color: #00ff00; font-size: 0.8rem;">🟢 ACTIVE</span>
+                </div>
+                ${game.StartTime ? `
+                <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 8px; border-top: 1px solid rgba(0,255,255,0.2); padding-top: 4px;">
+                    Started: ${new Date(game.StartTime).toLocaleString()}
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// PROCESS GAME RECORDS
+function processGameRecords(records) {
+    console.log('📝 Processing Game Records:', records);
+    
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+
+    // Show recent game records (last 1 hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentRecords = records.filter(record => {
+        if (record.Timestamp) {
+            return new Date(record.Timestamp) > oneHourAgo;
+        }
+        return true; // Show all if no timestamp
+    });
+
+    if (recentRecords.length === 0) {
+        activeGamesList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 30px;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📝</div>
+                <div>No recent game records</div>
+            </div>
+        `;
+        return;
+    }
+
+    activeGamesList.innerHTML = recentRecords.map((record, index) => {
+        const gameName = record.GameName || record.FullGameName || 'Unknown Game';
+        const players = record.TotalHostedGames || record.TotalActivePlayers || 1;
+        
+        return `
+            <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #ff33cc;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <strong style="color: #00ffff;">${gameName}</strong>
+                        <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
+                            👥 Players: ${players} | Guild: ${record.GuildId || 'Unknown'}
+                        </div>
+                    </div>
+                    <span style="color: #ff33cc; font-size: 0.8rem;">📊 RECENT</span>
+                </div>
+                ${record.Timestamp ? `
+                <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 8px; border-top: 1px solid rgba(0,255,255,0.2); padding-top: 4px;">
+                    Recorded: ${new Date(record.Timestamp).toLocaleString()}
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// PROCESS GENERIC GAME DATA
+function processGenericGameData(gameData, tableName) {
+    console.log(`🕹️ Processing ${tableName}:`, gameData);
+    
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+
+    activeGamesList.innerHTML += gameData.map((game, index) => {
+        const gameName = game.GameName || game.Name || `Game from ${tableName}`;
+        
+        return `
+            <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #ffff00;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <strong style="color: #00ffff;">${gameName}</strong>
+                        <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
+                            Source: ${tableName} | ID: ${game.Id || 'Unknown'}
+                        </div>
+                    </div>
+                    <span style="color: #ffff00; font-size: 0.8rem;">⚡ ${tableName}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+// Enhanced debug info display
+function updateDebugInfo(message, data = null, isJson = true) {
+    const debugInfo = document.getElementById('debugInfo');
+    if (!debugInfo) return;
+
+    let content = '';
+    
+    if (isJson && data) {
+        content += `<div style="color: #00ffff; margin-top: 8px;">${message}</div>`;
+        content += `<pre style="background: rgba(0, 0, 0, 0.3); padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 0.7rem; margin: 5px 0;">${JSON.stringify(data, null, 2)}</pre>`;
+    } else {
+        content += message;
+    }
+
+    debugInfo.innerHTML += content;
+}
+
+// Enhanced Discord data processor
+function processDiscordBotData(discordData) {
+    console.log('🎯 Processing REAL Discord bot data:', discordData);
+    
+    // Update Discord-specific display
     const discordLobbies = document.getElementById('discordActiveLobbies');
     const discordUsers = document.getElementById('discordOnlineUsers');
     const discordRecent = document.getElementById('discordRecentGames');
+    const discordTotal = document.getElementById('discordTotalUsers');
     const discordStatus = document.getElementById('discordConnectionStatus');
-    
+    const discordUpdate = document.getElementById('discordLastUpdate');
+
+    // Update Discord stats
     if (discordLobbies) {
-        discordLobbies.textContent = activeLobbies;
-        discordLobbies.style.color = activeLobbies > 0 ? '#00ff00' : '#ffff00';
+        discordLobbies.textContent = discordData.total_lobbies || 0;
+        discordLobbies.style.color = discordData.total_lobbies > 0 ? '#00ff00' : '#ffff00';
     }
     
     if (discordUsers) {
-        discordUsers.textContent = onlineUsers;
-        discordUsers.style.color = onlineUsers > 0 ? '#ff33cc' : '#a8dfe8';
+        discordUsers.textContent = discordData.online_users || 0;
+        discordUsers.style.color = discordData.online_users > 0 ? '#ff33cc' : '#a8dfe8';
     }
     
     if (discordRecent) {
-        discordRecent.textContent = activeLobbies; // Use active lobbies as recent count
+        discordRecent.textContent = discordData.recent_games ? discordData.recent_games.length : 0;
     }
     
+    if (discordTotal) {
+        discordTotal.textContent = '434'; // From your API response
+    }
+
+    // Update connection status
     if (discordStatus) {
-        if (activeLobbies > 0) {
+        if (discordData.active_lobbies && discordData.active_lobbies.length > 0) {
             discordStatus.innerHTML = '🟢 Live Discord Data';
             discordStatus.style.color = '#00ff00';
         } else {
@@ -4308,160 +4501,174 @@ function updateDiscordStats(activeLobbies, onlineUsers) {
             discordStatus.style.color = '#ffff00';
         }
     }
+
+    if (discordUpdate) {
+        discordUpdate.textContent = `Last: ${new Date().toLocaleTimeString()}`;
+    }
+
+    // Update main dashboard with Discord data
+    updateMainDashboardWithDiscordData(discordData);
+    
+    // Update games list with real Discord data
+    updateActiveGamesWithDiscordData(discordData.active_lobbies || []);
+    
+    // Update recent games
+    updatePopularGamesWithDiscordData(discordData.recent_games || []);
 }
 
-// Update active games list with real data
-function updateActiveGamesList(liveGames, activeServers) {
+// Update main dashboard stats
+function updateMainDashboardWithDiscordData(discordData) {
+    const activeGamesElement = document.getElementById('activeGamesCount');
+    const activePlayersElement = document.getElementById('activePlayersCount');
+    const totalUsersElement = document.getElementById('totalUsersCount');
+
+    if (activeGamesElement) {
+        activeGamesElement.textContent = discordData.total_lobbies || 0;
+        activeGamesElement.style.color = discordData.total_lobbies > 0 ? '#00ffff' : '#a8dfe8';
+    }
+    
+    if (activePlayersElement) {
+        activePlayersElement.textContent = discordData.online_users || 0;
+        activePlayersElement.style.color = discordData.online_users > 0 ? '#ff33cc' : '#a8dfe8';
+    }
+    
+    if (totalUsersElement) {
+        totalUsersElement.textContent = '434'; // From your API
+        totalUsersElement.style.color = '#ffff00';
+    }
+}
+
+// Enhanced games list with Discord data
+function updateActiveGamesWithDiscordData(discordLobbies) {
     const activeGamesList = document.getElementById('activeGamesList');
     if (!activeGamesList) return;
 
-    let allGames = [];
-    
-    // Process live games
-    if (Array.isArray(liveGames)) {
-        allGames = allGames.concat(liveGames.map(game => ({
-            name: game.GameName || game.name || 'Unknown Game',
-            players: game.Players || game.PlayerCount || 1,
-            user: game.UserId || game.user || 'Unknown',
-            platform: game.Platform || game.platform || 'Unknown',
-            type: 'lfg',
-            color: '#00ff00',
-            connection: game.ConnectionInfo || game.connection || ''
-        })));
-    }
-    
-    // Process active servers
-    if (Array.isArray(activeServers)) {
-        allGames = allGames.concat(activeServers.map(server => ({
-            name: server.GameName || server.name || 'Unknown Server',
-            players: server.PlayerCount || server.players || 1,
-            user: 'Server',
-            platform: server.Platform || server.platform || 'Unknown',
-            type: 'server',
-            color: '#00ffff',
-            connection: server.server_type || 'active'
-        })));
-    }
+    const realLobbies = discordLobbies.filter(lobby => lobby && lobby.source);
 
-    // Display the games or show empty state
-    if (allGames.length === 0) {
+    if (realLobbies.length === 0) {
         activeGamesList.innerHTML = `
-            <div style="text-align: center; color: #a8dfe8; padding: 40px;">
-                <div style="font-size: 3rem; margin-bottom: 15px;">🎮</div>
-                <div>No active games found right now</div>
+            <div style="text-align: center; color: #a8dfe8; padding: 30px;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">🎮</div>
+                <div>No active Discord games right now</div>
                 <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
-                    Game invites will appear here when players use the !lfg command
+                    Games will appear here when players start lobbies
                 </div>
             </div>
         `;
         return;
     }
 
-    // Display the actual games
-    activeGamesList.innerHTML = allGames.map((game, index) => `
-        <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${game.color};">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="flex: 1;">
-                    <strong style="color: #00ffff;">${game.name}</strong>
-                    <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
-                        ${game.type === 'lfg' ? '👤 LFG Request' : '🎮 Active Server'} 
-                        | 👥 Players: ${game.players}
+    activeGamesList.innerHTML = realLobbies.map((lobby, index) => {
+        const isActive = lobby.Status === 'active' || lobby.Status === 'in_progress';
+        const borderColor = isActive ? '#00ff00' : '#ffff00';
+        const statusText = isActive ? '🟢 LIVE' : '⚫ OFFLINE';
+        
+        return `
+            <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${borderColor};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <strong style="color: #00ffff;">Discord Lobby #${index + 1}</strong>
+                        <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
+                            Source: ${lobby.source} | Status: ${lobby.Status}
+                        </div>
+                        ${lobby.GameId ? `<div style="color: #ffff00; font-size: 0.8rem; margin-top: 2px;">Game ID: ${lobby.GameId}</div>` : ''}
+                        ${lobby.UserId ? `<div style="color: #ff33cc; font-size: 0.8rem; margin-top: 2px;">User ID: ${lobby.UserId}</div>` : ''}
                     </div>
-                    <div style="color: #ffff00; font-size: 0.8rem; margin-top: 2px;">
-                        User: ${game.user} | Platform: ${game.platform}
-                    </div>
-                    ${game.connection ? `<div style="color: #ff33cc; font-size: 0.7rem; margin-top: 2px;">${game.connection}</div>` : ''}
+                    <span style="color: ${isActive ? '#00ff00' : '#a8dfe8'}; font-size: 0.8rem;">${statusText}</span>
                 </div>
-                <span style="color: ${game.color}; font-size: 0.8rem;">
-                    ${game.type === 'lfg' ? '🟢 LFG' : '⚡ SERVER'}
-                </span>
+                ${lobby.StartTime ? `
+                <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 8px; border-top: 1px solid rgba(0,255,255,0.2); padding-top: 4px;">
+                    Started: ${new Date(lobby.StartTime).toLocaleString()}
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// Enhanced popular games with Discord data
+function updatePopularGamesWithDiscordData(recentGames) {
+    const popularGamesList = document.getElementById('popularGamesList');
+    if (!popularGamesList) return;
+
+    if (!recentGames || recentGames.length === 0) {
+        popularGamesList.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; padding: 30px; grid-column: 1 / -1;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📊</div>
+                <div>No recent Discord activity</div>
+                <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                    Recent games will appear here as players are active
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    popularGamesList.innerHTML = recentGames.map(game => `
+        <div class="popular-game-item" style="background: rgba(0, 30, 60, 0.7); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 255, 255, 0.3);">
+            <div style="color: #ff33cc; font-weight: bold; margin-bottom: 8px; font-size: 0.9rem;">${game.GameName || 'Recent Game'}</div>
+            <div style="color: #00ffff; font-size: 0.9rem;">${game.activity_count || 1} activities</div>
+            <div style="color: #a8dfe8; font-size: 0.7rem; margin-top: 5px;">
+                Last: ${new Date(game.last_activity).toLocaleTimeString()}
             </div>
         </div>
     `).join('');
 }
-
-// Update connection status
-function updateConnectionStatus(isConnected, message = '') {
-    const statusElement = document.getElementById('connectionStatus');
-    const lastUpdateElement = document.getElementById('lastUpdate');
-    
-    if (statusElement && lastUpdateElement) {
-        if (isConnected) {
-            statusElement.innerHTML = '🟢 Connected to Discord Bot';
-            statusElement.style.color = '#00ff00';
-        } else {
-            statusElement.innerHTML = '🔴 Connection Failed';
-            statusElement.style.color = '#ff3333';
-        }
-        
-        lastUpdateElement.textContent = message;
-    }
-}
-
-// Enhanced debug function to test the API
-async function testDiscordConnection() {
-    console.log('🧪 Testing Discord bot API connection...');
-    
-    const debugInfo = document.getElementById('debugInfo');
-    if (debugInfo) {
-        debugInfo.innerHTML = '<div style="color: #ffff00;">🔍 Testing API connection to Discord bot...</div>';
-    }
+// Enhanced player count that combines Supabase + Matchmaking API
+async function updateEnhancedPlayerCount() {
+    const playerCountElement = document.getElementById('playerCount');
+    if (!playerCountElement) return;
 
     try {
-        // Test the base API endpoint first
-        const testResponse = await fetch(MATCHMAKING_API_URL);
-        const testText = await testResponse.text();
-        
-        let debugHTML = `
-            <div style="margin-top: 10px;">
-                <strong style="color: #00ffff;">API Base URL Test:</strong>
-                <div style="color: #a8dfe8; font-size: 0.8rem;">
-                    Status: ${testResponse.status} ${testResponse.statusText}
-                </div>
-                <div style="color: #ffff00; font-size: 0.7rem; margin-top: 5px;">
-                    Response preview: ${testText.substring(0, 100)}...
-                </div>
-            </div>
-        `;
+        // Get data from both sources with timeout
+        const [apiData, supabaseData] = await Promise.allSettled([
+            Promise.race([
+                fetchMatchmakingData('/dashboard'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]),
+            supabase.auth.getUser()
+        ]);
 
-        // Test each endpoint
-        const endpoints = ['/live_games', '/active_servers', '/real_time_activity'];
+        let displayCount = '0/0';
+        let isLiveData = false;
         
-        for (const endpoint of endpoints) {
-            const data = await fetchMatchmakingData(endpoint);
-            debugHTML += `
-                <div style="margin-top: 10px;">
-                    <strong style="color: #00ffff;">${endpoint}:</strong>
-                    <div style="color: #a8dfe8; font-size: 0.8rem;">
-                        Data Type: ${Array.isArray(data) ? 'Array' : typeof data}
-                        ${Array.isArray(data) ? ` | Length: ${data.length}` : ''}
-                    </div>
-                    <pre style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px; font-size: 0.7rem; margin: 5px 0; max-height: 150px; overflow-y: auto;">
-${JSON.stringify(data, null, 2)}
-                    </pre>
-                </div>
-            `;
+        // Try API first (real-time matchmaking data)
+        if (apiData.status === 'fulfilled' && apiData.value) {
+            const activeUsers = apiData.value.active_users || 0;
+            const totalUsers = apiData.value.total_users || 0;
+            displayCount = `${activeUsers}/${totalUsers}`;
+            isLiveData = true;
+        } 
+        // Fallback to Supabase count
+        else if (supabaseData.status === 'fulfilled') {
+            const { count } = await supabase
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true });
+            displayCount = `?/${count || 0}`;
+        }
+
+        playerCountElement.textContent = displayCount;
+        
+        // Visual feedback for live vs cached data
+        if (isLiveData) {
+            playerCountElement.style.color = '#00ffff';
+            playerCountElement.title = 'Live matchmaking data';
+        } else {
+            playerCountElement.style.color = '#ffff00';
+            playerCountElement.title = 'Cached data - reconnecting...';
         }
         
-        debugHTML += '<div style="color: #00ff00; margin-top: 10px; padding: 10px; background: rgba(0,255,0,0.1); border-radius: 6px;">✅ API test completed - Check console for detailed logs</div>';
-        
-        if (debugInfo) {
-            debugInfo.innerHTML = debugHTML;
-        }
-        
+        playerCountElement.classList.add('player-count-animation');
+        setTimeout(() => {
+            playerCountElement.classList.remove('player-count-animation');
+        }, 1000);
+
     } catch (error) {
-        console.error('Connection test failed:', error);
-        if (debugInfo) {
-            debugInfo.innerHTML += `<div style="color: #ff3333; margin-top: 10px; padding: 10px; background: rgba(255,0,0,0.1); border-radius: 6px;">❌ Test failed: ${error.message}</div>`;
-        }
+        console.error('Enhanced player count error:', error);
+        playerCountElement.textContent = '?/?';
+        playerCountElement.style.color = '#ff3333';
+        playerCountElement.title = 'Connection error';
     }
-}
-
-// Manual refresh function
-function manualRefreshDashboard() {
-    console.log('🔄 Manual refresh triggered');
-    showQuickStatus('Refreshing data...', 'info');
-    loadDashboardData();
 }
   /* ---------- VISIBILITY STATE DETECTION ---------- */
 function initVisibilityHandler() {
@@ -11007,29 +11214,12 @@ async function loadDashboardData() {
     console.log('🔄 Loading REAL LFG data...');
     
     try {
-        // Update connection status
-        updateConnectionStatus(true, 'Connected to Discord Bot API');
+        // Try live games first
+        const liveGames = await fetchMatchmakingData('/live_games');
         
-        // Try multiple data sources
-        const [liveGames, activeServers, realTimeActivity] = await Promise.all([
-            fetchMatchmakingData('/live_games'),
-            fetchMatchmakingData('/active_servers'), 
-            fetchMatchmakingData('/real_time_activity')
-        ]);
-        
-        console.log('📊 Data loaded:', {
-            liveGames: liveGames?.length || 0,
-            activeServers: activeServers?.length || 0,
-            realTimeActivity: realTimeActivity ? 'Yes' : 'No'
-        });
-
-        let hasData = false;
-        
-        // Process live games (LFG messages)
         if (liveGames && liveGames.length > 0) {
             console.log('📨 Found live games:', liveGames.length);
             processLfgGames(liveGames);
-            hasData = true;
             
             // Update dashboard stats
             updateDashboardStats({
@@ -11038,158 +11228,49 @@ async function loadDashboardData() {
                 recent_wins: 0,
                 total_users: 434
             });
-        }
-        
-        // Process active servers (Rewired, SOCOM, etc.)
-        if (activeServers && activeServers.length > 0) {
-            console.log('🎮 Found active servers:', activeServers.length);
-            processActiveServers(activeServers);
-            hasData = true;
             
-            // Update stats if we didn't get them from live games
-            if (!liveGames || liveGames.length === 0) {
+            showQuickStatus('✅ Live data loaded!', 'success');
+        } else {
+            // Fallback to active games
+            const activeGames = await fetchMatchmakingData('/active_games');
+            if (activeGames && activeGames.length > 0) {
+                processLfgGames(activeGames);
                 updateDashboardStats({
-                    active_games: activeServers.length,
-                    active_users: activeServers.reduce((sum, server) => sum + (server.PlayerCount || 1), 0),
+                    active_games: activeGames.length,
+                    active_users: new Set(activeGames.map(game => game.UserId)).size,
                     recent_wins: 0,
                     total_users: 434
                 });
+                showQuickStatus('✅ Active games loaded!', 'success');
+            } else {
+                showNoGamesMessage();
+                showQuickStatus('❌ No active games found', 'info');
             }
-        }
-        
-        // Process real-time activity
-        if (realTimeActivity && !realTimeActivity.error) {
-            console.log('📈 Real-time activity:', realTimeActivity);
-            updateRealTimeActivity(realTimeActivity);
-            hasData = true;
         }
 
-        if (hasData) {
-            showQuickStatus('✅ Live data loaded!', 'success');
-            
-            // Update Discord connection status
-            const discordStatus = document.getElementById('discordConnectionStatus');
-            if (discordStatus) {
-                discordStatus.innerHTML = '🟢 Live Discord Data';
-                discordStatus.style.color = '#00ff00';
-            }
-        } else {
-            showNoGamesMessage();
-            showQuickStatus('ℹ️ No active games found', 'info');
-            
-            // Update Discord connection status
-            const discordStatus = document.getElementById('discordConnectionStatus');
-            if (discordStatus) {
-                discordStatus.innerHTML = '🟡 Connected (No active games)';
-                discordStatus.style.color = '#ffff00';
-            }
-            
-            // Set default stats
-            updateDashboardStats({
-                active_games: 0,
-                active_users: 0,
-                recent_wins: 0,
-                total_users: 434
-            });
+        // Load real-time activity
+        const activityData = await fetchMatchmakingData('/real_time_activity');
+        if (activityData && !activityData.error) {
+            updateRealTimeActivity(activityData);
         }
 
-        // Update last update time
-        const lastUpdate = document.getElementById('discordLastUpdate');
-        if (lastUpdate) {
-            lastUpdate.textContent = `Last: ${new Date().toLocaleTimeString()}`;
+        // Load leaderboard
+        const leaderboard = await fetchMatchmakingData('/leaderboard');
+        if (leaderboard && !leaderboard.error) {
+            updateLeaderboardList(leaderboard);
         }
 
     } catch (error) {
         console.error('Dashboard data load failed:', error);
         const discordStatus = document.getElementById('discordConnectionStatus');
         if (discordStatus) {
-            discordStatus.innerHTML = '🔴 Connection Failed';
+            discordStatus.innerHTML = '🔴 Load failed';
             discordStatus.style.color = '#ff3333';
         }
         showQuickStatus('❌ Failed to load game data', 'error');
-        updateConnectionStatus(false, 'Failed to connect to API');
     }
 }
-// NEW: Process active servers (Rewired, SOCOM, OpenSpy)
-function processActiveServers(servers) {
-    const activeGamesList = document.getElementById('activeGamesList');
-    if (!activeGamesList) return;
 
-    activeGamesList.innerHTML = servers.map(server => {
-        const gameName = server.GameName || 'Unknown Game';
-        const playerCount = server.PlayerCount || 1;
-        const serverType = server.server_type || 'unknown';
-        
-        let typeColor = '#00ffff';
-        let typeText = 'SERVER';
-        
-        if (serverType === 'rewired') {
-            typeColor = '#ff33cc';
-            typeText = 'REWIRED';
-        } else if (serverType === 'socom') {
-            typeColor = '#ffff00';
-            typeText = 'SOCOM';
-        } else if (serverType === 'openspy') {
-            typeColor = '#00ff00';
-            typeText = 'OPENSPY';
-        }
-        
-        return `
-            <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${typeColor};">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="flex: 1;">
-                        <strong style="color: #00ffff;">${gameName}</strong>
-                        <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
-                            👥 Players: ${playerCount} | Type: ${serverType.toUpperCase()}
-                        </div>
-                        ${server.Platform ? `<div style="color: #ffff00; font-size: 0.8rem; margin-top: 2px;">🎮 ${server.Platform}</div>` : ''}
-                    </div>
-                    <span style="color: ${typeColor}; font-size: 0.8rem;">${typeText}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// NEW: Process Rewired games
-function processRewiredGames(rewiredGames) {
-    const activeGamesList = document.getElementById('activeGamesList');
-    if (!activeGamesList) return;
-
-    activeGamesList.innerHTML += rewiredGames.map(game => `
-        <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #ff33cc;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="flex: 1;">
-                    <strong style="color: #00ffff;">${game.ActiveGameName}</strong>
-                    <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
-                        👥 Players: ${game.TotalActivePlayers} | Type: REWIRED
-                    </div>
-                </div>
-                <span style="color: #ff33cc; font-size: 0.8rem;">REWIRED</span>
-            </div>
-        </div>
-    `).join('');
-}
-
-// NEW: Process SOCOM games
-function processSocomGames(socomGames) {
-    const activeGamesList = document.getElementById('activeGamesList');
-    if (!activeGamesList) return;
-
-    activeGamesList.innerHTML += socomGames.map(game => `
-        <div class="active-game-item" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #ffff00;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="flex: 1;">
-                    <strong style="color: #00ffff;">${game.ActiveGameName}</strong>
-                    <div style="color: #a8dfe8; font-size: 0.8rem; margin-top: 4px;">
-                        👥 Players: ${game.TotalActivePlayers} | Type: SOCOM
-                    </div>
-                </div>
-                <span style="color: #ffff00; font-size: 0.8rem;">SOCOM</span>
-            </div>
-        </div>
-    `).join('');
-}
 // NEW: Update real-time activity
 function updateRealTimeActivity(activityData) {
     const discordLobbies = document.getElementById('discordActiveLobbies');
