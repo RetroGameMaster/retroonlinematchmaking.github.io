@@ -7168,6 +7168,13 @@ function initSocialTabs() {
       });
       document.getElementById(tabId).classList.add('active');
       
+      // RE-ATTACH LOBBY BUTTON HANDLERS WHEN TAB IS CLICKED
+      if (tabId === 'lobby-chat') {
+        console.log('🔄 Re-attaching lobby button handlers');
+        setTimeout(addLobbyButtonHandlers, 100);
+        loadActiveLobbies();
+      }
+      
       if (tabId === 'my-profile') {
         loadUserProfileForDisplay();
       } else {
@@ -7527,28 +7534,79 @@ function initUserFavorites() {
     });
 }
 
-/* ---------- FIXED GAME LOBBIES SYSTEM ---------- */
+/* ---------- IMMEDIATE FIX FOR LOBBY BUTTONS ---------- */
 function initGameLobbies() {
-    console.log('🎮 Initializing Game Lobbies...');
+    console.log('🎮 INIT: Game Lobbies - Adding click handlers');
     
-    // Create lobby creation button if it doesn't exist
-    const lobbyTab = document.getElementById('lobby-chat');
-    if (lobbyTab && !document.getElementById('createLobbyBtn')) {
-        const createBtn = document.createElement('button');
-        createBtn.id = 'createLobbyBtn';
-        createBtn.className = 'button';
-        createBtn.textContent = 'Create New Lobby';
-        createBtn.style.margin = '20px';
-        createBtn.style.display = 'block';
-        createBtn.style.marginLeft = 'auto';
-        createBtn.style.marginRight = 'auto';
-        
-        lobbyTab.querySelector('.lobby-actions')?.appendChild(createBtn) || 
-        lobbyTab.appendChild(createBtn);
+    // Add click handlers immediately
+    addLobbyButtonHandlers();
+    
+    // Load lobbies
+    loadActiveLobbies();
+}
+
+function addLobbyButtonHandlers() {
+    console.log('🔧 Adding click handlers to lobby buttons...');
+    
+    // Method 1: Direct onclick assignment (most reliable)
+    const createBtn = document.getElementById('createLobbyBtn');
+    if (createBtn) {
+        console.log('✅ Adding handler to createLobbyBtn');
+        createBtn.onclick = createNewLobby;
     }
     
-    loadActiveLobbies();
-    initLobbyCreation();
+    const firstLobbyBtn = document.getElementById('createFirstLobby');
+    if (firstLobbyBtn) {
+        console.log('✅ Adding handler to createFirstLobby');
+        firstLobbyBtn.onclick = createNewLobby;
+    }
+    
+    // Method 2: Also add event listeners for good measure
+    if (createBtn) {
+        createBtn.addEventListener('click', createNewLobby);
+    }
+    if (firstLobbyBtn) {
+        firstLobbyBtn.addEventListener('click', createNewLobby);
+    }
+}
+
+// SIMPLE createNewLobby function for testing
+function createNewLobby() {
+    console.log('🎯 LOBBY BUTTON CLICKED! SUCCESS!');
+    alert('Lobby button clicked! This is working!');
+    
+    // Add your actual lobby creation logic here
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) {
+            showQuickStatus('Please login to create a lobby!', 'error');
+            document.getElementById('loginModal').style.display = 'flex';
+            return;
+        }
+
+        const game = prompt('Enter game name:');
+        if (!game) return;
+
+        const maxPlayers = parseInt(prompt('Maximum players (2-8):', '4')) || 4;
+        const connectionMethod = prompt('Connection method:', 'Parsec') || 'Parsec';
+        
+        const newLobby = {
+            id: Date.now().toString(),
+            game: game,
+            host: user.user_metadata?.username || user.email.split('@')[0],
+            maxPlayers: Math.max(2, Math.min(8, maxPlayers)),
+            players: [user.user_metadata?.username || user.email.split('@')[0]],
+            connectionMethod: connectionMethod,
+            status: 'Waiting for players',
+            created: new Date().toISOString()
+        };
+
+        const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+        lobbies.push(newLobby);
+        localStorage.setItem('rom-game-lobbies', JSON.stringify(lobbies));
+        
+        showQuickStatus(`Lobby created for ${game}!`, 'success');
+        loadActiveLobbies();
+    });
 }
 
 function loadActiveLobbies() {
