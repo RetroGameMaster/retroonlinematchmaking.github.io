@@ -4138,7 +4138,7 @@ try {
     };
 }
 /* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
-const MATCHMAKING_API_URL = 'http://10.60.1.40:5000/api';
+const MATCHMAKING_API_URL = 'http://localhost:5000/api';
 let apiRetryCount = 0;
 const MAX_RETRIES = 3;
 
@@ -4163,21 +4163,11 @@ async function fetchMatchmakingData(endpoint) {
         const data = await response.json();
         console.log(`✅ API Response for ${endpoint}:`, data);
         
-        apiRetryCount = 0;
         return data;
         
     } catch (error) {
         console.error(`❌ API fetch failed for ${endpoint}:`, error);
-        
-        if (apiRetryCount < MAX_RETRIES) {
-            apiRetryCount++;
-            console.log(`Retrying ${endpoint} in ${apiRetryCount * 1000}ms...`);
-            await new Promise(resolve => setTimeout(resolve, apiRetryCount * 1000));
-            return fetchMatchmakingData(endpoint);
-        } else {
-            apiRetryCount = 0;
-            return null;
-        }
+        return null;
     }
 }
 // ENHANCED: Comprehensive database scanner to find real game data
@@ -11219,57 +11209,59 @@ function getFallbackData(endpoint) {
     
     return emptyData[endpoint] || null;
 }
-// FIXED: Add async keyword to the function
+// UPDATED: Load dashboard data with correct endpoints
 async function loadDashboardData() {
     console.log('🔄 Loading REAL LFG data...');
     
     try {
-        // Use .then() instead of async/await to avoid the error
-        const lfgData = await fetchMatchmakingData('/live_games');
+        // Try live games first
+        const liveGames = await fetchMatchmakingData('/live_games');
         
-        if (lfgData && lfgData.length > 0) {
-            console.log('📨 Found LFG games:', lfgData.length);
-            processLfgGames(lfgData);
+        if (liveGames && liveGames.length > 0) {
+            console.log('📨 Found live games:', liveGames.length);
+            processLfgGames(liveGames);
             
-            // Update Discord stats
-            updateDiscordStats({
-                total_lobbies: lfgData.length,
-                online_users: new Set(lfgData.map(game => game.UserId)).size,
-                recent_games: lfgData.slice(0, 5)
+            // Update dashboard stats
+            updateDashboardStats({
+                active_games: liveGames.length,
+                active_users: new Set(liveGames.map(game => game.UserId)).size,
+                recent_wins: 0,
+                total_users: 434
             });
             
-            showQuickStatus('✅ LFG data loaded!', 'success');
+            showQuickStatus('✅ Live data loaded!', 'success');
         } else {
-            // Fallback to active games endpoint
+            // Fallback to active games
             const activeGames = await fetchMatchmakingData('/active_games');
             if (activeGames && activeGames.length > 0) {
                 processLfgGames(activeGames);
-                updateDiscordStats({
-                    total_lobbies: activeGames.length,
-                    online_users: new Set(activeGames.map(game => game.UserId)).size,
-                    recent_games: activeGames.slice(0, 5)
+                updateDashboardStats({
+                    active_games: activeGames.length,
+                    active_users: new Set(activeGames.map(game => game.UserId)).size,
+                    recent_wins: 0,
+                    total_users: 434
                 });
-                showQuickStatus('✅ LFG data loaded!', 'success');
+                showQuickStatus('✅ Active games loaded!', 'success');
             } else {
                 showNoGamesMessage();
                 showQuickStatus('❌ No active games found', 'info');
             }
         }
 
-        // Load leaderboard and other data
-        const [leaderboard, dashboard] = await Promise.allSettled([
-            fetchMatchmakingData('/leaderboard'),
-            fetchMatchmakingData('/dashboard')
-        ]);
-
-        if (leaderboard.status === 'fulfilled' && leaderboard.value) {
-            updateLeaderboardList(leaderboard.value);
+        // Load real-time activity
+        const activityData = await fetchMatchmakingData('/real_time_activity');
+        if (activityData && !activityData.error) {
+            updateRealTimeActivity(activityData);
         }
 
-        showQuickStatus('✅ Game data refreshed!', 'success');
+        // Load leaderboard
+        const leaderboard = await fetchMatchmakingData('/leaderboard');
+        if (leaderboard && !leaderboard.error) {
+            updateLeaderboardList(leaderboard);
+        }
 
     } catch (error) {
-        console.error('Game data load failed:', error);
+        console.error('Dashboard data load failed:', error);
         const discordStatus = document.getElementById('discordConnectionStatus');
         if (discordStatus) {
             discordStatus.innerHTML = '🔴 Load failed';
@@ -11277,6 +11269,44 @@ async function loadDashboardData() {
         }
         showQuickStatus('❌ Failed to load game data', 'error');
     }
+}
+
+// NEW: Update real-time activity
+function updateRealTimeActivity(activityData) {
+    const discordLobbies = document.getElementById('discordActiveLobbies');
+    const discordUsers = document.getElementById('discordOnlineUsers');
+    const discordRecent = document.getElementById('discordRecentGames');
+    
+    if (discordLobbies) discordLobbies.textContent = activityData.active_lfg_games || 0;
+    if (discordUsers) discordUsers.textContent = activityData.active_users || 0;
+    if (discordRecent) discordRecent.textContent = activityData.recent_activity || 0;
+    
+    // Update popular games
+    if (activityData.popular_games) {
+        updatePopularGamesList(activityData.popular_games);
+    }
+}
+  // NEW: Update dashboard stats
+function updateDashboardStats(data) {
+    console.log('📊 Updating dashboard stats:', data);
+    
+    // Update stats cards
+    const activeGamesElement = document.getElementById('activeGamesCount');
+    const activePlayersElement = document.getElementById('activePlayersCount');
+    const recentWinsElement = document.getElementById('recentWinsCount');
+    const totalUsersElement = document.getElementById('totalUsersCount');
+    
+    if (activeGamesElement) activeGamesElement.textContent = data.active_games || 0;
+    if (activePlayersElement) activePlayersElement.textContent = data.active_users || 0;
+    if (recentWinsElement) recentWinsElement.textContent = data.recent_wins || 0;
+    if (totalUsersElement) totalUsersElement.textContent = data.total_users || 434; // Default to 434
+    
+    // Update Discord stats display
+    const discordLobbies = document.getElementById('discordActiveLobbies');
+    const discordUsers = document.getElementById('discordOnlineUsers');
+    
+    if (discordLobbies) discordLobbies.textContent = data.active_games || 0;
+    if (discordUsers) discordUsers.textContent = data.active_users || 0;
 }
 // NEW: Process LFG games properly
 function processLfgGames(lfgGames) {
