@@ -4113,7 +4113,7 @@ try {
     };
 }
 /* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
-const MATCHMAKING_API_URL = 'http://64.110.29.44:5000/api';
+const MATCHMAKING_API_URL = 'http://10.60.1.40:5000/api';
 let apiRetryCount = 0;
 const MAX_RETRIES = 3;
 
@@ -10923,10 +10923,10 @@ function updateConnectionStatus(isConnected, message = '') {
     
     if (statusElement && lastUpdateElement) {
         if (isConnected) {
-            statusElement.innerHTML = '🟢 Live';
+            statusElement.innerHTML = '🟢 Connected to 10.60.1.40';
             statusElement.style.color = '#00ff00';
         } else {
-            statusElement.innerHTML = '🔴 Offline';
+            statusElement.innerHTML = '🔴 Disconnected from 10.60.1.40';
             statusElement.style.color = '#ff3333';
         }
         
