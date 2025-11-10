@@ -4162,12 +4162,25 @@ async function fetchMatchmakingData(endpoint) {
         
         const data = await response.json();
         console.log(`✅ API Response for ${endpoint}:`, data);
-        
         return data;
         
     } catch (error) {
         console.error(`❌ API fetch failed for ${endpoint}:`, error);
-        return null;
+        
+        // RETURN EMPTY DATA INSTEAD OF NULL
+        switch(endpoint) {
+            case '/live_games':
+            case '/active_games':
+                return [];
+            case '/dashboard':
+                return { active_games: 0, active_users: 0, recent_wins: 0, total_users: 0, popular_games: [] };
+            case '/real_time_activity':
+                return { active_lfg_games: 0, active_users: 0, active_games: [] };
+            case '/leaderboard':
+                return [];
+            default:
+                return {};
+        }
     }
 }
 // ENHANCED: Comprehensive database scanner to find real game data
