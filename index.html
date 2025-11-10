@@ -955,36 +955,46 @@ canvas#retroCanvas{ position:fixed; top:0; left:0; width:100%; height:100%; z-in
 
 .status-dot.online { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
 .status-dot.offline { background: #ff3333; box-shadow: 0 0 8px #ff3333; }
-/* ADDED: Enhanced Lobby Styles */
+/* Enhanced Lobby Styles */
 .lobby-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    border-left: 4px solid #00ffff !important;
 }
 
 .lobby-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 255, 255, 0.1);
+    border-left-color: #ff33cc !important;
 }
 
-.close-lobby-btn {
-  padding: 8px 12px;
-  background: rgba(255, 51, 102, 0.2);
-  border: 1px solid rgba(255, 51, 102, 0.4);
-  border-radius: 6px;
-  color: #ff3366;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.lobby-card.full {
+    border-left-color: #ff3333 !important;
+    opacity: 0.8;
+}
+
+.lobby-card.joined {
+    border-left-color: #00ff00 !important;
+}
+
+.join-lobby-btn, .close-lobby-btn {
+    transition: all 0.2s ease;
+}
+
+.join-lobby-btn:hover {
+    background: rgba(0, 255, 255, 0.2) !important;
+    transform: translateY(-1px);
 }
 
 .close-lobby-btn:hover {
-  background: rgba(255, 51, 102, 0.3);
-  transform: scale(1.05);
+    background: rgba(255, 51, 102, 0.2) !important;
+    transform: scale(1.05);
 }
 
 .lobby-players-list {
-  border-top: 1px solid rgba(0, 255, 255, 0.2);
-  padding-top: 8px;
-  margin-top: 8px;
+    border-top: 1px solid rgba(0, 255, 255, 0.2);
+    padding-top: 8px;
+    margin-top: 8px;
 }
 /* Music Player */
 .music-player {
@@ -3991,22 +4001,37 @@ body.sega-theme .music-btn:hover {
 </div>
         
         <!-- Game Lobbies Tab -->
-        <div id="lobby-chat" class="social-tab">
-          <div style="padding: 20px;">
-            <h3 style="color: #00ffff;">Game Lobbies</h3>
-            <div class="lobby-list">
-              <div class="lobby-category">
-                <h4>🎮 Active Lobbies</h4>
-                <div class="lobby-grid" id="activeLobbies" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                  <!-- Lobbies will be populated here -->
+<div id="lobby-chat" class="social-tab">
+    <div style="padding: 20px;">
+        <h3 style="color: #00ffff; text-align: center; margin-bottom: 20px;">🎮 Game Lobbies</h3>
+        
+        <div class="lobby-list">
+            <div class="lobby-category">
+                <h4 style="color: #00ffff; border-bottom: 2px solid #00ffff; padding-bottom: 8px;">
+                    🎯 Active Lobbies
+                    <span id="activeLobbiesCount" style="background: #00ffff; color: #000; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-left: 8px;">0</span>
+                </h4>
+                <div class="lobby-grid" id="activeLobbies" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <!-- Lobbies will be populated here -->
                 </div>
-              </div>
-              <div class="lobby-actions">
-                <button class="button" id="createLobbyBtn">Create New Lobby</button>
-              </div>
             </div>
-          </div>
+            
+            <div class="lobby-actions" style="text-align: center; margin-top: 20px;">
+                <button class="button" id="createLobbyBtn" style="margin: 0 auto;">Create New Lobby</button>
+            </div>
         </div>
+        
+        <div class="lobby-help" style="background: rgba(0, 30, 60, 0.6); padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid rgba(0, 255, 255, 0.2);">
+            <h4 style="color: #00ffff; margin-bottom: 10px;">💡 How to Use Game Lobbies</h4>
+            <div style="color: #a8dfe8; font-size: 0.9rem;">
+                <p><strong>1.</strong> Create a lobby for the game you want to play</p>
+                <p><strong>2.</strong> Share the connection method (Parsec, RetroArch, etc.)</p>
+                <p><strong>3.</strong> Other players can join your lobby</p>
+                <p><strong>4.</strong> Coordinate in the lobby and start playing!</p>
+            </div>
+        </div>
+    </div>
+</div>
         
        <div id="find-players" class="social-tab">
   <div style="padding: 20px;">
@@ -7502,55 +7527,108 @@ function initUserFavorites() {
     });
 }
 
-/* ---------- GAME LOBBIES SYSTEM ---------- */
+/* ---------- FIXED GAME LOBBIES SYSTEM ---------- */
 function initGameLobbies() {
-    // Add game-specific lobbies with actual functionality
-    const lobbyChat = document.getElementById('lobby-chat');
-    if (lobbyChat) {
-        loadActiveLobbies();
-        initLobbyCreation();
+    console.log('🎮 Initializing Game Lobbies...');
+    
+    // Create lobby creation button if it doesn't exist
+    const lobbyTab = document.getElementById('lobby-chat');
+    if (lobbyTab && !document.getElementById('createLobbyBtn')) {
+        const createBtn = document.createElement('button');
+        createBtn.id = 'createLobbyBtn';
+        createBtn.className = 'button';
+        createBtn.textContent = 'Create New Lobby';
+        createBtn.style.margin = '20px';
+        createBtn.style.display = 'block';
+        createBtn.style.marginLeft = 'auto';
+        createBtn.style.marginRight = 'auto';
+        
+        lobbyTab.querySelector('.lobby-actions')?.appendChild(createBtn) || 
+        lobbyTab.appendChild(createBtn);
     }
+    
+    loadActiveLobbies();
+    initLobbyCreation();
 }
 
 function loadActiveLobbies() {
-    const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
     const activeLobbies = document.getElementById('activeLobbies');
+    if (!activeLobbies) {
+        console.log('❌ Active lobbies container not found');
+        return;
+    }
     
-    if (!activeLobbies) return;
+    // Get lobbies from localStorage
+    const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
     
     supabase.auth.getUser().then(({ data: { user } }) => {
-        if (!user) return;
+        if (!user) {
+            activeLobbies.innerHTML = `
+                <div style="text-align: center; color: #a8dfe8; padding: 40px; grid-column: 1 / -1;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🔒</div>
+                    <div>Please login to view and create game lobbies</div>
+                    <button class="button" onclick="document.getElementById('loginModal').style.display='flex'" 
+                            style="margin-top: 15px;">
+                        Login / Register
+                    </button>
+                </div>
+            `;
+            return;
+        }
         
         const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
         
         if (lobbies.length === 0) {
-            activeLobbies.innerHTML = '<p style="color: #a8dfe8; text-align: center; grid-column: 1 / -1;">No active lobbies. Create one!</p>';
+            activeLobbies.innerHTML = `
+                <div style="text-align: center; color: #a8dfe8; padding: 40px; grid-column: 1 / -1;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🎮</div>
+                    <div>No active lobbies. Create one to start playing!</div>
+                    <button class="button" id="createFirstLobby" style="margin-top: 15px;">
+                        Create Your First Lobby
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('createFirstLobby')?.addEventListener('click', createNewLobby);
             return;
         }
 
-        activeLobbies.innerHTML = lobbies.map(lobby => `
-            <div class="lobby-card" style="background: rgba(0, 30, 60, 0.7); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 15px;">
-                <div class="lobby-header" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span class="lobby-game" style="color: #ff33cc; font-weight: bold;">${lobby.game}</span>
-                    <span class="lobby-players" style="color: #00ffff;">${lobby.players.length}/${lobby.maxPlayers}</span>
-                </div>
-                <div class="lobby-info" style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem;">
-                    <span class="lobby-host" style="color: #a8dfe8;">Host: ${lobby.host}</span>
-                    <span class="lobby-status" style="color: #00ff00;">${lobby.status}</span>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="button join-lobby-btn" data-lobby="${lobby.id}" style="flex: 1;">Join Lobby</button>
-                    ${currentUsername === lobby.host ? 
-                    `<button class="button muted close-lobby-btn" data-lobby="${lobby.id}" style="flex: 0 0 auto;">❌</button>` : 
-                    ''}
-                </div>
-                ${lobby.players.length > 0 ? `
-                    <div class="lobby-players-list" style="margin-top: 10px; font-size: 0.8rem; color: #a8dfe8;">
-                        <strong>Players:</strong> ${lobby.players.join(', ')}
+        // Display active lobbies
+        activeLobbies.innerHTML = lobbies.map(lobby => {
+            const isHost = lobby.host === currentUsername;
+            const isInLobby = lobby.players.includes(currentUsername);
+            const canJoin = !isInLobby && lobby.players.length < lobby.maxPlayers;
+            
+            return `
+                <div class="lobby-card" style="background: rgba(0, 30, 60, 0.7); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 15px;">
+                    <div class="lobby-header" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span class="lobby-game" style="color: #ff33cc; font-weight: bold;">${lobby.game}</span>
+                        <span class="lobby-players" style="color: #00ffff;">${lobby.players.length}/${lobby.maxPlayers}</span>
                     </div>
-                ` : ''}
-            </div>
-        `).join('');
+                    <div class="lobby-info" style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem;">
+                        <span class="lobby-host" style="color: #a8dfe8;">Host: ${lobby.host}</span>
+                        <span class="lobby-status" style="color: ${lobby.players.length >= lobby.maxPlayers ? '#ff3333' : '#00ff00'};">${lobby.players.length >= lobby.maxPlayers ? 'FULL' : 'OPEN'}</span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        ${canJoin ? 
+                            `<button class="button join-lobby-btn" data-lobby="${lobby.id}" style="flex: 1;">Join Lobby</button>` :
+                            isInLobby ?
+                            `<button class="button" style="flex: 1; background: rgba(0, 255, 0, 0.2); border-color: #00ff00;" disabled>Already Joined</button>` :
+                            `<button class="button" style="flex: 1; background: rgba(255, 0, 0, 0.2); border-color: #ff3333;" disabled>Lobby Full</button>`
+                        }
+                        ${isHost ? 
+                            `<button class="button muted close-lobby-btn" data-lobby="${lobby.id}" style="flex: 0 0 auto;">❌</button>` : 
+                            ''
+                        }
+                    </div>
+                    ${lobby.players.length > 0 ? `
+                        <div class="lobby-players-list" style="margin-top: 10px; font-size: 0.8rem; color: #a8dfe8;">
+                            <strong>Players:</strong> ${lobby.players.join(', ')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
 
         // Add event listeners to join buttons
         document.querySelectorAll('.join-lobby-btn').forEach(btn => {
@@ -7572,36 +7650,48 @@ function initLobbyCreation() {
     const createBtn = document.getElementById('createLobbyBtn');
     if (!createBtn) return;
 
-    createBtn.addEventListener('click', function() {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (!user) {
-                showQuickStatus('Please login to create a lobby!', 'error');
-                return;
-            }
+    // Remove existing listeners and add new one
+    createBtn.replaceWith(createBtn.cloneNode(true));
+    const newCreateBtn = document.getElementById('createLobbyBtn');
+    newCreateBtn.addEventListener('click', createNewLobby);
+}
 
-            // Simple lobby creation - you can expand this with a form
-            const game = prompt('Enter game name:');
-            if (!game) return;
+function createNewLobby() {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) {
+            showQuickStatus('Please login to create a lobby!', 'error');
+            document.getElementById('loginModal').style.display = 'flex';
+            return;
+        }
 
-            const maxPlayers = parseInt(prompt('Maximum players (2-8):', '4')) || 4;
-            
-            const newLobby = {
-                id: Date.now().toString(),
-                game: game,
-                host: user.user_metadata?.username || user.email.split('@')[0],
-                maxPlayers: Math.max(2, Math.min(8, maxPlayers)),
-                players: [user.user_metadata?.username || user.email.split('@')[0]],
-                status: 'Waiting for players',
-                created: new Date().toISOString()
-            };
+        // Simple lobby creation with prompts
+        const game = prompt('Enter game name:');
+        if (!game) return;
 
-            const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
-            lobbies.push(newLobby);
-            localStorage.setItem('rom-game-lobbies', JSON.stringify(lobbies));
-            
-            showQuickStatus(`Lobby created for ${game}!`, 'success');
-            loadActiveLobbies();
-        });
+        const maxPlayers = parseInt(prompt('Maximum players (2-8):', '4')) || 4;
+        const connectionMethod = prompt('Connection method (e.g., Parsec, RetroArch, etc.):', 'Parsec') || 'Parsec';
+        
+        const newLobby = {
+            id: Date.now().toString(),
+            game: game,
+            host: user.user_metadata?.username || user.email.split('@')[0],
+            maxPlayers: Math.max(2, Math.min(8, maxPlayers)),
+            players: [user.user_metadata?.username || user.email.split('@')[0]],
+            connectionMethod: connectionMethod,
+            status: 'Waiting for players',
+            created: new Date().toISOString()
+        };
+
+        const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+        lobbies.push(newLobby);
+        localStorage.setItem('rom-game-lobbies', JSON.stringify(lobbies));
+        
+        showQuickStatus(`Lobby created for ${game}!`, 'success');
+        loadActiveLobbies();
+        
+        // Switch to lobby tab if not already there
+        const lobbyTabBtn = document.querySelector('[data-tab="lobby-chat"]');
+        if (lobbyTabBtn) lobbyTabBtn.click();
     });
 }
 
@@ -7617,24 +7707,33 @@ function joinLobby(lobbyId) {
         
         if (!lobby) {
             showQuickStatus('Lobby not found!', 'error');
+            loadActiveLobbies(); // Refresh the list
             return;
         }
 
-        if (lobby.players.includes(user.user_metadata?.username || user.email.split('@')[0])) {
+        const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
+        
+        if (lobby.players.includes(currentUsername)) {
             showQuickStatus('You are already in this lobby!', 'info');
             return;
         }
 
         if (lobby.players.length >= lobby.maxPlayers) {
             showQuickStatus('Lobby is full!', 'error');
+            loadActiveLobbies(); // Refresh to show updated status
             return;
         }
 
-        lobby.players.push(user.user_metadata?.username || user.email.split('@')[0]);
+        lobby.players.push(currentUsername);
         localStorage.setItem('rom-game-lobbies', JSON.stringify(lobbies));
         
         showQuickStatus(`Joined ${lobby.game} lobby!`, 'success');
         loadActiveLobbies();
+        
+        // Show connection info
+        setTimeout(() => {
+            showQuickStatus(`Connection Method: ${lobby.connectionMethod} | Host: ${lobby.host}`, 'info');
+        }, 1000);
     });
 }
 
@@ -7650,13 +7749,15 @@ function closeLobby(lobbyId) {
         
         if (lobbyIndex === -1) {
             showQuickStatus('Lobby not found!', 'error');
+            loadActiveLobbies();
             return;
         }
 
         const lobby = lobbies[lobbyIndex];
+        const currentUsername = user.user_metadata?.username || user.email.split('@')[0];
         
         // Only host can close the lobby
-        if (lobby.host !== (user.user_metadata?.username || user.email.split('@')[0])) {
+        if (lobby.host !== currentUsername) {
             showQuickStatus('Only the lobby host can close the lobby!', 'error');
             return;
         }
@@ -7674,7 +7775,26 @@ function closeLobby(lobbyId) {
     });
 }
 
-/* ---------- FRIEND SYSTEM ---------- */
+// Enhanced lobby management with auto-cleanup
+function cleanupOldLobbies() {
+    const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+    const now = new Date();
+    const activeLobbies = lobbies.filter(lobby => {
+        const created = new Date(lobby.created);
+        const hoursSinceCreation = (now - created) / (1000 * 60 * 60);
+        return hoursSinceCreation < 24; // Keep lobbies for 24 hours max
+    });
+    
+    if (activeLobbies.length !== lobbies.length) {
+        localStorage.setItem('rom-game-lobbies', JSON.stringify(activeLobbies));
+        console.log(`🧹 Cleaned up ${lobbies.length - activeLobbies.length} old lobbies`);
+    }
+}
+
+// Run cleanup on startup and every hour
+setInterval(cleanupOldLobbies, 60 * 60 * 1000);
+cleanupOldLobbies();
+
 /* ---------- ENHANCED FRIENDS SYSTEM ---------- */
 function initFriendSystem() {
     console.log('👥 Initializing enhanced friends system...');
