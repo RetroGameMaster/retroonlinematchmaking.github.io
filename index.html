@@ -7526,46 +7526,72 @@ function initUserFavorites() {
 
 /* ---------- IMMEDIATE FIX FOR LOBBY BUTTONS ---------- */
 function initGameLobbies() {
-    console.log('🎮 INIT: Game Lobbies - Adding click handlers');
+    console.log('🎮 INIT: Game Lobbies System');
     
-    // Add click handlers immediately
-    addLobbyButtonHandlers();
+    // Force button handlers to be added immediately
+    setTimeout(() => {
+        console.log('🔧 Adding lobby button handlers...');
+        addLobbyButtonHandlers();
+    }, 100);
     
-    // Load lobbies
-    loadActiveLobbies();
+    // Add them again after lobby list loads
+    setTimeout(() => {
+        addLobbyButtonHandlers();
+        loadActiveLobbies();
+    }, 500);
 }
 
 function addLobbyButtonHandlers() {
-    console.log('🔧 Adding click handlers to lobby buttons...');
+    console.log('🔧 FORCE: Adding ALL lobby button handlers');
     
-    // Method 1: Direct onclick assignment (most reliable)
+    // Method 1: Direct onclick for createLobbyBtn
     const createBtn = document.getElementById('createLobbyBtn');
     if (createBtn) {
-        console.log('✅ Adding handler to createLobbyBtn');
-        createBtn.onclick = createNewLobby;
+        console.log('✅ Found createLobbyBtn - adding handler');
+        createBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎯 CREATE LOBBY CLICKED!');
+            createNewLobby();
+        };
+        createBtn.addEventListener('click', createNewLobby);
+        createBtn.style.display = 'inline-block';
+        createBtn.style.visibility = 'visible';
+        createBtn.style.pointerEvents = 'auto';
+    } else {
+        console.log('❌ createLobbyBtn NOT FOUND');
     }
     
+    // Method 2: createFirstLobby button
     const firstLobbyBtn = document.getElementById('createFirstLobby');
     if (firstLobbyBtn) {
-        console.log('✅ Adding handler to createFirstLobby');
-        firstLobbyBtn.onclick = createNewLobby;
+        console.log('✅ Found createFirstLobby - adding handler');
+        firstLobbyBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎯 CREATE FIRST LOBBY CLICKED!');
+            createNewLobby();
+        };
+        firstLobbyBtn.addEventListener('click', createNewLobby);
     }
     
-    // Method 2: Also add event listeners for good measure
-    if (createBtn) {
-        createBtn.addEventListener('click', createNewLobby);
-    }
-    if (firstLobbyBtn) {
-        firstLobbyBtn.addEventListener('click', createNewLobby);
+    // Method 3: Event delegation on parent container
+    const lobbyContainer = document.getElementById('activeLobbies');
+    if (lobbyContainer) {
+        lobbyContainer.addEventListener('click', function(e) {
+            if (e.target && (e.target.id === 'createLobbyBtn' || e.target.id === 'createFirstLobby')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🎯 LOBBY BUTTON CLICKED VIA DELEGATION!');
+                createNewLobby();
+            }
+        });
     }
 }
 
-// SIMPLE createNewLobby function for testing
 function createNewLobby() {
-    console.log('🎯 LOBBY BUTTON CLICKED! SUCCESS!');
-    alert('Lobby button clicked! This is working!');
+    console.log('🎯 CREATE NEW LOBBY FUNCTION CALLED!');
     
-    // Add your actual lobby creation logic here
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) {
             showQuickStatus('Please login to create a lobby!', 'error');
@@ -7600,14 +7626,17 @@ function createNewLobby() {
 }
 
 function loadActiveLobbies() {
+    console.log('📋 Loading active lobbies...');
     const activeLobbies = document.getElementById('activeLobbies');
+    const activeLobbiesCount = document.getElementById('activeLobbiesCount');
+    
     if (!activeLobbies) {
         console.log('❌ Active lobbies container not found');
         return;
     }
     
-    // Get lobbies from localStorage
     const lobbies = JSON.parse(localStorage.getItem('rom-game-lobbies') || '[]');
+    console.log('📊 Found lobbies:', lobbies.length);
     
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) {
@@ -7621,6 +7650,7 @@ function loadActiveLobbies() {
                     </button>
                 </div>
             `;
+            if (activeLobbiesCount) activeLobbiesCount.textContent = '0';
             return;
         }
         
@@ -7631,17 +7661,26 @@ function loadActiveLobbies() {
                 <div style="text-align: center; color: #a8dfe8; padding: 40px; grid-column: 1 / -1;">
                     <div style="font-size: 2rem; margin-bottom: 10px;">🎮</div>
                     <div>No active lobbies. Create one to start playing!</div>
-                    <button class="button" id="createFirstLobby" style="margin-top: 15px;">
+                    <button class="button" id="createFirstLobby" style="margin-top: 15px; display: inline-block !important; visibility: visible !important;">
                         Create Your First Lobby
                     </button>
                 </div>
             `;
             
-            document.getElementById('createFirstLobby')?.addEventListener('click', createNewLobby);
+            if (activeLobbiesCount) activeLobbiesCount.textContent = '0';
+            
+            // FORCE attach handler immediately
+            setTimeout(() => {
+                const btn = document.getElementById('createFirstLobby');
+                if (btn) {
+                    btn.onclick = createNewLobby;
+                    console.log('✅ Attached handler to createFirstLobby');
+                }
+            }, 50);
             return;
         }
 
-        // Display active lobbies
+        // Display lobbies
         activeLobbies.innerHTML = lobbies.map(lobby => {
             const isHost = lobby.host === currentUsername;
             const isInLobby = lobby.players.includes(currentUsername);
@@ -7678,19 +7717,22 @@ function loadActiveLobbies() {
             `;
         }).join('');
 
-        // Add event listeners to join buttons
+        if (activeLobbiesCount) activeLobbiesCount.textContent = lobbies.length.toString();
+
+        // Add event listeners
         document.querySelectorAll('.join-lobby-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 joinLobby(this.dataset.lobby);
             });
         });
 
-        // Add event listeners to close buttons
         document.querySelectorAll('.close-lobby-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 closeLobby(this.dataset.lobby);
             });
         });
+        
+        console.log('✅ Lobbies displayed and handlers attached');
     });
 }
 
@@ -10802,34 +10844,30 @@ function showMessage(text, type = 'info') {
 }
 
 /* ---------- FIXED Clip of the Week System ---------- */
-function initClipOfWeek() {
+async function initClipOfWeek() {
     console.log('📹 Initializing Clip of the Week...');
     
-    // Load clip data from localStorage or use defaults
-    let currentClip = JSON.parse(localStorage.getItem('rom-current-clip'));
+    // FIXED: Load from Supabase first, fallback to localStorage
+    let currentClip = await loadClipFromSupabase();
     
     if (!currentClip) {
-        // Default clip data - USING CORRECT EMBED FORMAT
         currentClip = {
             videoId: '62EPffzEC4s',
-            title: 'Street Fighter EX Plus Alpha | PS1 Online Multiplayer | Join Our Discord Community',
-            description: 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!',
+            title: 'Street Fighter EX Plus Alpha | PS1 Online Multiplayer',
+            description: 'Check out this amazing retro gaming moment!',
             author: 'RetroOnlineMatchmaking',
             date: 'Nov 7th',
             game: 'Street Fighter EX Plus Alpha'
         };
-        localStorage.setItem('rom-current-clip', JSON.stringify(currentClip));
-        console.log('✅ Created default clip data');
+        // Save default to Supabase
+        await saveClipToSupabase(currentClip);
     }
     
-    // Update the video embed - FIXED: Proper YouTube embed URL
+    // Update the video embed
     const iframe = document.querySelector('.video-container iframe');
     if (iframe && currentClip.videoId) {
-        // CORRECTED: Use embed format, not watch format
         iframe.src = `https://www.youtube.com/embed/${currentClip.videoId}?rel=0&modestbranding=1&autoplay=0`;
         console.log('✅ Updated video embed with ID:', currentClip.videoId);
-    } else {
-        console.error('❌ Could not find iframe or videoId');
     }
     
     // Update clip info
@@ -10843,33 +10881,15 @@ function initClipOfWeek() {
     if (clipDate) clipDate.textContent = ' ' + currentClip.date;
     if (clipAuthor) clipAuthor.textContent = ' ' + currentClip.author;
     
-    // Enhanced update function for Supabase integration
-    window.updateClipOfWeek = function(newClipData) {
-        console.log('🔄 Updating Clip of the Week:', newClipData);
-        
-        const updatedClip = {
-            ...currentClip,
-            ...newClipData,
-            lastUpdated: new Date().toISOString()
-        };
-        
-        // Save to localStorage
-        localStorage.setItem('rom-current-clip', JSON.stringify(updatedClip));
-        
-        // If using Supabase, save there too
-        saveClipToSupabase(updatedClip);
-        
-        // Reload the clip
+    window.updateClipOfWeek = async function(newClipData) {
+        const updatedClip = { ...currentClip, ...newClipData, lastUpdated: new Date().toISOString() };
+        await saveClipToSupabase(updatedClip);
         initClipOfWeek();
-        showQuickStatus('🎬 Clip of the Week updated!', 'success');
-        
-        console.log('✅ Clip updated:', updatedClip);
+        showQuickStatus('🎬 Clip updated across all devices!', 'success');
     };
-    
-    console.log('📹 Clip of the Week loaded:', currentClip);
 }
 
-// Save clip to Supabase (optional - for multi-admin support)
+// FIXED: Enhanced Supabase functions
 async function saveClipToSupabase(clipData) {
     try {
         const { data, error } = await supabase
@@ -10878,42 +10898,19 @@ async function saveClipToSupabase(clipData) {
                 id: 'clip_of_the_week',
                 content: clipData,
                 updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'id'
             });
 
-        if (error) {
-            console.error('❌ Supabase save failed:', error);
-        } else {
-            console.log('✅ Clip saved to Supabase');
-        }
+        if (error) throw error;
+        console.log('✅ Clip saved to Supabase - synced across devices');
+        return true;
     } catch (err) {
-        console.error('❌ Supabase error:', err);
+        console.error('❌ Supabase save failed:', err);
+        return false;
     }
 }
 
-// Easy console command to update clips
-window.updateClip = function(videoUrlOrId, title, author, date, description) {
-    let videoId;
-    
-    // Extract video ID from various YouTube URL formats
-    if (videoUrlOrId.includes('youtube.com') || videoUrlOrId.includes('youtu.be')) {
-        const match = videoUrlOrId.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-        videoId = match ? match[1] : videoUrlOrId;
-    } else {
-        videoId = videoUrlOrId; // Assume it's already just the ID
-    }
-    
-    const newClipData = {
-        videoId: videoId,
-        title: title || 'This Week\'s Featured Gameplay',
-        author: author || 'Community Member',
-        date: date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        description: description || 'Check out this amazing retro gaming moment from our community! Want to be featured next? Share your clips in our Discord!'
-    };
-    
-    window.updateClipOfWeek(newClipData);
-};
-
-// Load clip from Supabase on startup
 async function loadClipFromSupabase() {
     try {
         const { data, error } = await supabase
@@ -10923,14 +10920,14 @@ async function loadClipFromSupabase() {
             .single();
 
         if (!error && data && data.content) {
-            console.log('✅ Loaded clip from Supabase');
-            localStorage.setItem('rom-current-clip', JSON.stringify(data.content));
+            console.log('✅ Loaded clip from Supabase - synced across devices');
+            return data.content;
         }
     } catch (err) {
-        console.log('ℹ️ No Supabase clip found, using local storage');
+        console.log('ℹ️ No Supabase clip found');
     }
+    return null;
 }
-
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
     const cursor = document.getElementById('customCursor');
