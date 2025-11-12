@@ -2856,9 +2856,52 @@ body.sega-theme .music-btn:hover {
               <div class="profile-background-section">
                 <h3 style="color: #00ffff; margin-bottom: 15px;">🎨 Profile Background</h3>
                 
-                <div class="profile-background-preview" id="profilePageBackgroundPreview">
-                  <span id="profilePageBackgroundPreviewText">Profile Background Preview</span>
-                </div>
+                <!-- Enhanced Profile Background with Profile Pic Overlay -->
+<div class="profile-background-container" style="position: relative; width: 100%; height: 300px; border: 2px solid #00ffff; border-radius: 12px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);">
+  
+  <!-- Background Image/Color Layer -->
+  <div class="profile-background-preview" 
+       id="profilePageBackgroundPreview" 
+       style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e); transition: all 0.5s ease;">
+    <!-- Background will be dynamically set here -->
+  </div>
+  
+  <!-- Overlay for better text visibility -->
+  <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%); z-index: 1;"></div>
+  
+  <!-- Profile Content Overlay (Centered) -->
+  <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 2; width: 100%;">
+    
+    <!-- Profile Avatar (Larger and with glow) -->
+    <div class="profile-avatar-xlarge" 
+         id="profilePageAvatarOverlay" 
+         style="width: 140px; height: 140px; border: 4px solid #00ffff; background: rgba(0, 0, 0, 0.7); border-radius: 50%; margin: 0 auto 20px; overflow: hidden; box-shadow: 0 0 25px rgba(0, 255, 255, 0.5); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-weight: bold; color: #00ffff;">
+      <span id="profilePageAvatarTextOverlay">U</span>
+    </div>
+    
+    <!-- Username with glow effect -->
+    <h2 style="color: #00ffff; margin: 0 0 10px 0; text-shadow: 2px 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(0, 255, 255, 0.7); font-size: 2.2rem;" 
+        id="profilePageUsernameOverlay">Username</h2>
+    
+    <!-- Status -->
+    <p style="color: #ff33cc; margin: 0; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); font-size: 1.1rem; font-weight: bold;" 
+       id="profilePageStatusOverlay">💻 Online</p>
+       
+    <!-- Signature Preview -->
+    <div style="color: #a8dfe8; margin: 15px auto 0; max-width: 80%; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); font-style: italic; font-size: 0.95rem; background: rgba(0, 0, 0, 0.5); padding: 8px 15px; border-radius: 20px; border: 1px solid rgba(0, 255, 255, 0.3);" 
+         id="profilePageSignatureOverlay">
+      This user hasn't set a signature yet.
+    </div>
+  </div>
+</div>
+
+<!-- Background Options (Keep this part - it stays the same) -->
+<div class="background-options">
+  <div class="background-option color" data-background="linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)" style="background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);">
+    Cyber Space
+  </div>
+  <!-- ... rest of your background options remain the same ... -->
+</div>
                 
                 <div class="background-options">
                   <div class="background-option color" data-background="linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)" style="background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);">
@@ -3074,21 +3117,20 @@ body.sega-theme .music-btn:hover {
           <a class="button" id="socialHubBtn">Social Hub</a>
           
           <!-- User Account Section -->
-          <div class="user-section" style="display: none;">
-            <div class="user-menu">
-              <span class="username" id="userDisplayName">Guest</span>
-              <div class="user-dropdown">
-                <button id="profileBtn">Profile</button>
-                <button id="changeUsernameBtn">Change Username</button>
-                <button id="favoritesBtn">My Favorites</button>
-                <button id="dataManagementBtn">Data Management</button>
-                <button id="logoutBtn">Logout</button>
-              </div>
-            </div>
-          </div>
-          <button class="button" id="loginBtn">Login / Register</button>
-        </nav>
-      </header>
+<div class="user-section" style="display: none;">
+    <div class="user-menu">
+        <span class="username" id="userDisplayName">Guest</span>
+        <div class="user-dropdown">
+            <button id="profileBtn">👤 Public Profile</button>
+            <button id="customizationBtn">🎨 Profile Customization</button>
+            <button id="changeUsernameBtn">✏️ Change Username</button>
+            <button id="favoritesBtn">⭐ My Favorites</button>
+            <button id="dataManagementBtn">💾 Data Management</button>
+            <div class="dropdown-divider"></div>
+            <button id="logoutBtn">🚪 Logout</button>
+        </div>
+    </div>
+</div>
 
       <!-- Status Bar - UPDATED: Removed Ping -->
       <div class="status-bar">
@@ -4109,8 +4151,149 @@ body.sega-theme .music-btn:hover {
       </div>
     </div>
   </div>
+<!-- Profile Customization Modal -->
+<div id="profileCustomizationModal" class="modal" style="display: none;">
+    <div class="social-hub-content" style="background: rgba(0, 20, 40, 0.95); max-width: 1000px; width: 95%; height: 85vh; border-radius: 12px; display: flex; overflow: hidden;">
+        <span class="close-btn" id="closeCustomization">&times;</span>
+        
+        <!-- Sidebar -->
+        <div class="social-sidebar" style="width: 250px; background: rgba(0, 30, 60, 0.8); padding: 20px; border-right: 1px solid #00ffff;">
+            <h3 style="color: #00ffff; margin-bottom: 20px;">🎨 Customization</h3>
+            <nav class="social-nav">
+                <button class="social-nav-btn active" data-tab="profile-music">🎵 Profile Music</button>
+                <button class="social-nav-btn" data-tab="profile-background">🖼️ Profile Background</button>
+                <button class="social-nav-btn" data-tab="profile-appearance">👤 Profile Appearance</button>
+            </nav>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="social-main" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+            <!-- Profile Music Tab -->
+            <div id="profile-music" class="social-tab active">
+                <div class="profile-music-section" style="padding: 20px;">
+                    <h3 style="color: #00ffff; margin-bottom: 20px;">🎵 Profile Music</h3>
+                    
+                    <div class="profile-music-preview" id="customizationMusicPreview" style="width: 100%; padding: 15px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px;">
+                        <div class="profile-music-info" style="flex: 1;">
+                            <div class="profile-music-title" id="customizationMusicTitle">No music selected</div>
+                            <div class="profile-music-artist" id="customizationMusicArtist">Add a YouTube URL below</div>
+                        </div>
+                        <div class="profile-music-controls">
+                            <button class="profile-music-btn" id="customizationPlayPause">▶️</button>
+                            <button class="profile-music-btn" id="customizationStopMusic">⏹️</button>
+                        </div>
+                    </div>
 
-  <!-- Custom cursor -->
+                    <!-- YouTube URL Input -->
+                    <div class="music-url-input" style="margin-bottom: 20px;">
+                        <label style="color: #00ffff; display: block; margin-bottom: 8px;">🎵 YouTube URL</label>
+                        <input type="text" id="customizationYoutubeUrlInput" placeholder="Paste YouTube URL here..." 
+                               style="width: 100%; padding: 12px; background: rgba(0, 20, 40, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 6px;">
+                        <button id="customizationSetMusicUrl" class="button" style="width: 100%; margin-top: 10px;">Set Profile Music</button>
+                    </div>
+
+                    <!-- Music Info Display -->
+                    <div class="current-music-info" style="background: rgba(0, 30, 60, 0.6); padding: 12px; border-radius: 6px; margin-bottom: 15px; display: none;" id="customizationCurrentMusicInfo">
+                        <div style="color: #00ffff; font-weight: bold;" id="customizationCurrentMusicTitle">Current Music</div>
+                        <div style="color: #a8dfe8; font-size: 0.9rem;" id="customizationCurrentMusicUrl"></div>
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <button class="button muted" id="customizationDisableProfileMusic" style="margin-top: 10px;">Disable Profile Music</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Background Tab -->
+            <div id="profile-background" class="social-tab">
+                <div class="profile-background-section" style="padding: 20px;">
+                    <h3 style="color: #00ffff; margin-bottom: 20px;">🖼️ Profile Background</h3>
+                    
+                    <div class="profile-background-preview" id="customizationBackgroundPreview" style="width: 100%; height: 200px; border: 2px solid #00ffff; border-radius: 8px; margin-bottom: 20px; overflow: hidden; background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e); position: relative; display: flex; align-items: center; justify-content: center; color: #00ffff; font-weight: bold;">
+                        <span id="customizationBackgroundPreviewText">Profile Background Preview</span>
+                    </div>
+                    
+                    <div class="background-options">
+                        <div class="background-option color" data-background="linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e)" style="background: linear-gradient(135deg, #0a0a0a, #1a1a2e, #16213e);">
+                            Cyber Space
+                        </div>
+                        <div class="background-option color" data-background="linear-gradient(135deg, #1e3c72, #2a5298)" style="background: linear-gradient(135deg, #1e3c72, #2a5298);">
+                            Deep Blue
+                        </div>
+                        <div class="background-option color" data-background="linear-gradient(135deg, #667eea, #764ba2)" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            Purple Haze
+                        </div>
+                        <div class="background-option color" data-background="linear-gradient(135deg, #f093fb, #f5576c)" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                            Pink Dream
+                        </div>
+                        <div class="background-option color" data-background="linear-gradient(135deg, #4facfe, #00f2fe)" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                            Ocean Breeze
+                        </div>
+                        <div class="background-option color" data-background="linear-gradient(135deg, #43e97b, #38f9d7)" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                            Green Matrix
+                        </div>
+                        <div class="background-option custom" id="customizationCustomBackgroundOption">
+                            <span>🖼️ Custom</span>
+                            <small>Upload Image</small>
+                        </div>
+                    </div>
+                    
+                    <input type="file" id="customizationBackgroundImageUpload" accept="image/*" style="display: none;">
+                    <button onclick="document.getElementById('customizationBackgroundImageUpload').click()" class="button" style="width: 100%; margin-top: 15px;">Upload Custom Background</button>
+                    <p style="color: #a8dfe8; font-size: 0.8rem; text-align: center; margin-top: 8px;">Max 100KB • JPG/PNG recommended</p>
+                </div>
+            </div>
+            
+            <!-- Profile Appearance Tab -->
+            <div id="profile-appearance" class="social-tab">
+                <div style="padding: 20px;">
+                    <h3 style="color: #00ffff; margin-bottom: 20px;">👤 Profile Appearance</h3>
+                    
+                    <!-- Profile Picture Section -->
+                    <div class="profile-pic-container" style="margin-bottom: 25px;">
+                        <div class="profile-pic-preview" id="customizationProfilePicPreview" style="width: 100px; height: 100px;">
+                            <span id="customizationProfilePicText">U</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <input type="file" id="customizationProfilePicUpload" accept="image/*" style="display: none;">
+                            <button onclick="document.getElementById('customizationProfilePicUpload').click()" class="button" style="margin-bottom: 10px;">Upload Profile Picture</button>
+                            <p style="color: #a8dfe8; font-size: 0.8rem; margin: 5px 0;">Max 50KB • JPG/PNG recommended</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Selector -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: #00ffff; display: block; margin-bottom: 8px;">🎯 Status</label>
+                        <select class="status-selector" id="customizationUserStatus" style="width: 100%;">
+                            <option value="">Select Status...</option>
+                            <option value="🎮 Gaming">🎮 Gaming</option>
+                            <option value="💻 Online">💻 Online</option>
+                            <option value="🟡 Away">🟡 Away</option>
+                            <option value="🚫 Do Not Disturb">🚫 Do Not Disturb</option>
+                            <option value="🤝 Looking to Play">🤝 Looking to Play</option>
+                            <option value="🎯 Competitive">🎯 Competitive</option>
+                            <option value="😎 Chilling">😎 Chilling</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Signature Editor -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: #00ffff; display: block; margin-bottom: 8px;">✍️ Signature</label>
+                        <textarea class="signature-input" id="customizationSignatureInput" placeholder="Enter your signature..." style="width: 100%; height: 80px;"></textarea>
+                        <div style="text-align: right; color: #a8dfe8; font-size: 0.8rem; margin-top: 5px;">
+                            <span id="customizationSignatureCount">0</span>/120 characters
+                        </div>
+                    </div>
+                    
+                    <!-- Save Button -->
+                    <button class="button" id="saveCustomization" style="width: 100%; padding: 12px; font-size: 1.1rem;">💾 Save All Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+ 
+    <!-- Custom cursor -->
   <img id="customCursor" src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaWZnOXpucnlxdXB5cDNteHJ0ZjJtOGZvOXl1cGoxbms2YTV0Njc4MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LrR1cXPmuyYUUMS1W5/giphy.gif" alt="" aria-hidden="true">
 
 <script>
@@ -9912,7 +10095,7 @@ function initProfileBackButton() {
 function initWorkingSaltyBet() {
     console.log('🎮 Initializing Working Salty Bet integration...');
     
-    // Load Twitch embed
+    // Load Twitch embed with mobile detection
     loadTwitchEmbed();
     
     // Initialize embedded version toggle
@@ -9920,20 +10103,33 @@ function initWorkingSaltyBet() {
 }
 
 function loadTwitchEmbed() {
-    // Only load on desktop
-    if (window.innerWidth < 768) {
-        document.getElementById('twitch-embed').innerHTML = `
-            <div style="padding: 40px; text-align: center; color: #a8dfe8; height: 100%; display: flex; flex-direction: column; justify-content: center;">
-                <div style="font-size: 3rem; margin-bottom: 20px;">📺</div>
-                <h3 style="color: #00ffff;">Salty Bet Live Stream</h3>
-                <p>For best experience on mobile, open directly:</p>
-                <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5); margin: 10px auto; display: inline-block;">Watch on Twitch</a>
+    const twitchEmbed = document.getElementById('twitch-embed');
+    if (!twitchEmbed) return;
+    
+    // Mobile detection and alternative
+    if (window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        twitchEmbed.innerHTML = `
+            <div style="padding: 40px; text-align: center; color: #a8dfe8; height: 100%; display: flex; flex-direction: column; justify-content: center; background: rgba(0, 30, 60, 0.8); border-radius: 8px;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">📱</div>
+                <h3 style="color: #00ffff;">Salty Bet Live</h3>
+                <p style="margin: 15px 0;">For best mobile experience:</p>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                    <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5); text-decoration: none; text-align: center;">
+                        📺 Watch on Twitch App
+                    </a>
+                    <a href="https://www.saltybet.com" target="_blank" class="button" style="background: linear-gradient(180deg, #ff3366, #cc0066); text-decoration: none; text-align: center;">
+                        🎰 Bet on SaltyBet.com
+                    </a>
+                </div>
+                <p style="font-size: 0.8rem; color: #ffff00; margin-top: 15px;">
+                    Mobile browsers may block embedded streams
+                </p>
             </div>
         `;
         return;
     }
     
-    // Load Twitch Embed Script
+    // Desktop Twitch embed
     const script = document.createElement('script');
     script.src = 'https://embed.twitch.tv/embed/v1.js';
     script.onload = function() {
@@ -9944,60 +10140,17 @@ function loadTwitchEmbed() {
                 channel: 'saltybet',
                 layout: 'video',
                 autoplay: false,
-                muted: true,
-                parent: ['localhost', 'retroonlinematchmaking.com'] // Update with your domain
+                muted: false, // Allow sound on desktop
+                parent: ['localhost', 'retroonlinematchmaking.com', window.location.hostname]
             });
             console.log('✅ Twitch embed loaded');
         } catch (error) {
+            console.error('Twitch embed failed:', error);
             showFallbackStream();
         }
     };
     script.onerror = showFallbackStream;
     document.head.appendChild(script);
-}
-
-function showFallbackStream() {
-    document.getElementById('twitch-embed').innerHTML = `
-        <div style="padding: 40px; text-align: center; color: #a8dfe8; height: 100%; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 3rem; margin-bottom: 20px;">📺</div>
-            <h3 style="color: #00ffff;">Salty Bet Live Stream</h3>
-            <p>Watch the live stream directly on Twitch:</p>
-            <a href="https://www.twitch.tv/saltybet" target="_blank" class="button" style="background: linear-gradient(180deg, #9146ff, #6441a5); margin: 10px auto; display: inline-block;">Watch on Twitch</a>
-        </div>
-    `;
-}
-
-function initEmbeddedToggle() {
-    const showEmbeddedBtn = document.getElementById('showEmbedded');
-    
-    if (showEmbeddedBtn) {
-        showEmbeddedBtn.addEventListener('click', function() {
-            const loginPanel = document.querySelector('.betting-panel > div:first-child');
-            const embeddedPanel = document.getElementById('embeddedSaltyBet');
-            
-            if (loginPanel && embeddedPanel) {
-                loginPanel.style.display = 'none';
-                embeddedPanel.style.display = 'block';
-                this.textContent = '← Back to Instructions';
-                this.style.background = 'rgba(255, 51, 102, 0.1)';
-                this.style.borderColor = '#ff3366';
-                this.style.color = '#ff3366';
-                
-                showQuickStatus('⚠️ Embedded version may have login issues due to browser security', 'info');
-            }
-        });
-    }
-    
-    // Check if user has visited Salty Bet before
-    const hasVisited = localStorage.getItem('saltyBetHelpShown');
-    
-    if (!hasVisited) {
-        // Show helpful tip first time
-        setTimeout(() => {
-            showQuickStatus('💡 Click "Login to Salty Bet" to start betting while watching the stream here!', 'info');
-            localStorage.setItem('saltyBetHelpShown', 'true');
-        }, 3000);
-    }
 }
     
 /* ---------- Splash + progress ---------- */
@@ -10931,11 +11084,27 @@ async function loadClipFromSupabase() {
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
     const cursor = document.getElementById('customCursor');
+    
+    // FIX CURSOR DISAPPEARANCE - Force cursor to show and track properly
     if(cursor && window.innerWidth > 768) {
         cursor.style.display = 'block';
+        cursor.style.visibility = 'visible';
+        cursor.style.opacity = '1';
+        cursor.style.pointerEvents = 'none';
+        cursor.style.zIndex = '9999';
+        
         document.addEventListener('mousemove', function(e){
-            cursor.style.left = e.clientX + 'px';
-            cursor.style.top = e.clientY + 'px';
+            cursor.style.left = (e.clientX - 20) + 'px';
+            cursor.style.top = (e.clientY - 20) + 'px';
+        });
+        
+        // Ensure cursor stays visible during interactions
+        document.addEventListener('mouseenter', function() {
+            cursor.style.display = 'block';
+        });
+        
+        document.addEventListener('mouseleave', function() {
+            cursor.style.display = 'block';
         });
     } else if (cursor) {
         cursor.style.display = 'none';
@@ -11452,6 +11621,108 @@ async function showDebugData() {
         console.error('Debug data load failed:', error);
     }
 }
+  /* ---------- PROFILE CUSTOMIZATION SYSTEM ---------- */
+function initProfileCustomizationSystem() {
+    console.log('🎨 Initializing profile customization system...');
+    
+    const customizationBtn = document.getElementById('customizationBtn');
+    const customizationModal = document.getElementById('profileCustomizationModal');
+    const closeCustomization = document.getElementById('closeCustomization');
+    
+    // Open customization modal
+    if (customizationBtn) {
+        customizationBtn.addEventListener('click', function() {
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (!user) {
+                    showQuickStatus('Please login to customize your profile!', 'error');
+                    document.getElementById('loginModal').style.display = 'flex';
+                    return;
+                }
+                
+                customizationModal.style.display = 'flex';
+                loadCustomizationData();
+            });
+        });
+    }
+    
+    // Close modal
+    if (closeCustomization) {
+        closeCustomization.addEventListener('click', function() {
+            customizationModal.style.display = 'none';
+        });
+    }
+    
+    // Close modal when clicking outside
+    if (customizationModal) {
+        customizationModal.addEventListener('click', function(e) {
+            if (e.target === customizationModal) {
+                customizationModal.style.display = 'none';
+            }
+        });
+    }
+    
+    // Initialize customization tabs
+    initCustomizationTabs();
+    
+    // Initialize customization functionality
+    initCustomizationMusic();
+    initCustomizationBackground();
+    initCustomizationAppearance();
+}
+
+function initCustomizationTabs() {
+    const tabBtns = document.querySelectorAll('#profileCustomizationModal .social-nav-btn');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const tabId = this.getAttribute('data-tab');
+            document.querySelectorAll('#profileCustomizationModal .social-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+}
+
+function loadCustomizationData() {
+    // Load current user's customization settings
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+            loadUserProfile().then(profile => {
+                if (profile) {
+                    // Load music
+                    if (profile.music) {
+                        document.getElementById('customizationYoutubeUrlInput').value = profile.music.url || '';
+                        updateCustomizationMusicPreview(profile.music);
+                    }
+                    
+                    // Load background
+                    if (profile.background) {
+                        updateCustomizationBackgroundPreview(profile.background);
+                    }
+                    
+                    // Load appearance
+                    if (profile.profilePic) {
+                        const preview = document.getElementById('customizationProfilePicPreview');
+                        preview.innerHTML = `<img src="${profile.profilePic}" alt="${user.email}" style="width:100%;height:100%;object-fit:cover;">`;
+                    }
+                    
+                    if (profile.status) {
+                        document.getElementById('customizationUserStatus').value = profile.status;
+                    }
+                    
+                    if (profile.signature) {
+                        document.getElementById('customizationSignatureInput').value = profile.signature;
+                        updateCustomizationSignatureCount();
+                    }
+                }
+            });
+        }
+    });
+}
 /* ---------- INITIALIZE ALL SYSTEMS ---------- */
 function initAllSystems() {
     console.log('🚀 Initializing all systems...');
@@ -11475,6 +11746,7 @@ function initAllSystems() {
     initEngagementFeatures();
     initClipOfWeek();
     initCustomizationSystems();
+    initProfileCustomizationSystem(); // 🎨 ADD THIS LINE - Profile customization modal
     initProfileMusicSystem(); // For current user's music settings
     initProfilePageMusicSystem(); // For viewing other profiles' music
     initEnhancedFriendSystem();
@@ -11489,6 +11761,315 @@ function initAllSystems() {
     initWorkingSaltyBet();
     console.log('✅ All systems initialized');
 }
+      initWorkingSaltyBet();
+    console.log('✅ All systems initialized');
+}
+
+/* ---------- PROFILE CUSTOMIZATION SYSTEM ---------- */
+function initProfileCustomizationSystem() {
+    console.log('🎨 Initializing profile customization system...');
+    
+    const customizationBtn = document.getElementById('customizationBtn');
+    const customizationModal = document.getElementById('profileCustomizationModal');
+    const closeCustomization = document.getElementById('closeCustomization');
+    
+    // Open customization modal
+    if (customizationBtn) {
+        customizationBtn.addEventListener('click', function() {
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (!user) {
+                    showQuickStatus('Please login to customize your profile!', 'error');
+                    document.getElementById('loginModal').style.display = 'flex';
+                    return;
+                }
+                
+                customizationModal.style.display = 'flex';
+                loadCustomizationData();
+            });
+        });
+    }
+    
+    // Close modal
+    if (closeCustomization) {
+        closeCustomization.addEventListener('click', function() {
+            customizationModal.style.display = 'none';
+        });
+    }
+    
+    // Close modal when clicking outside
+    if (customizationModal) {
+        customizationModal.addEventListener('click', function(e) {
+            if (e.target === customizationModal) {
+                customizationModal.style.display = 'none';
+            }
+        });
+    }
+    
+    // Initialize customization tabs
+    initCustomizationTabs();
+    
+    // Initialize customization functionality
+    initCustomizationMusic();
+    initCustomizationBackground();
+    initCustomizationAppearance();
+}
+
+function initCustomizationTabs() {
+    const tabBtns = document.querySelectorAll('#profileCustomizationModal .social-nav-btn');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const tabId = this.getAttribute('data-tab');
+            document.querySelectorAll('#profileCustomizationModal .social-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+}
+
+function loadCustomizationData() {
+    // Load current user's customization settings
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+            loadUserProfile().then(profile => {
+                if (profile) {
+                    // Load music
+                    if (profile.music) {
+                        document.getElementById('customizationYoutubeUrlInput').value = profile.music.url || '';
+                        updateCustomizationMusicPreview(profile.music);
+                    }
+                    
+                    // Load background
+                    if (profile.background) {
+                        updateCustomizationBackgroundPreview(profile.background);
+                    }
+                    
+                    // Load appearance
+                    if (profile.profilePic) {
+                        const preview = document.getElementById('customizationProfilePicPreview');
+                        preview.innerHTML = `<img src="${profile.profilePic}" alt="${user.email}" style="width:100%;height:100%;object-fit:cover;">`;
+                    }
+                    
+                    if (profile.status) {
+                        document.getElementById('customizationUserStatus').value = profile.status;
+                    }
+                    
+                    if (profile.signature) {
+                        document.getElementById('customizationSignatureInput').value = profile.signature;
+                        updateCustomizationSignatureCount();
+                    }
+                }
+            });
+        }
+    });
+}
+
+function initCustomizationMusic() {
+    const youtubeUrlInput = document.getElementById('customizationYoutubeUrlInput');
+    const setMusicBtn = document.getElementById('customizationSetMusicUrl');
+    const playPauseBtn = document.getElementById('customizationPlayPause');
+    const stopBtn = document.getElementById('customizationStopMusic');
+    const disableBtn = document.getElementById('customizationDisableProfileMusic');
+    
+    if (setMusicBtn) {
+        setMusicBtn.addEventListener('click', function() {
+            const youtubeUrl = youtubeUrlInput.value.trim();
+            
+            if (!youtubeUrl) {
+                showQuickStatus('Please enter a YouTube URL!', 'error');
+                return;
+            }
+            
+            const videoId = extractYouTubeId(youtubeUrl);
+            
+            if (!videoId) {
+                showQuickStatus('Invalid YouTube URL!', 'error');
+                return;
+            }
+            
+            const musicData = {
+                id: videoId,
+                url: youtubeUrl,
+                title: 'Custom YouTube Music',
+                type: 'youtube'
+            };
+            
+            updateCustomizationMusicPreview(musicData);
+            saveUserProfile({ music: musicData });
+            
+            showQuickStatus('Profile music set!', 'success');
+        });
+    }
+    
+    // Music control buttons
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', function() {
+            showQuickStatus('Music controls will play the selected track', 'info');
+        });
+    }
+    
+    if (stopBtn) {
+        stopBtn.addEventListener('click', function() {
+            showQuickStatus('Music stopped', 'info');
+        });
+    }
+    
+    if (disableBtn) {
+        disableBtn.addEventListener('click', function() {
+            saveUserProfile({ music: null });
+            updateCustomizationMusicPreview(null);
+            youtubeUrlInput.value = '';
+            showQuickStatus('Profile music disabled!', 'info');
+        });
+    }
+}
+
+function initCustomizationBackground() {
+    const backgroundOptions = document.querySelectorAll('#profileCustomizationModal .background-option');
+    const backgroundUpload = document.getElementById('customizationBackgroundImageUpload');
+    
+    backgroundOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            if (this.id === 'customizationCustomBackgroundOption') {
+                backgroundUpload.click();
+                return;
+            }
+            
+            const background = this.dataset.background;
+            updateCustomizationBackgroundPreview(background);
+            saveUserProfile({ background: background });
+            showQuickStatus('Background updated!', 'success');
+        });
+    });
+    
+    backgroundUpload.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 100 * 1024) {
+            showQuickStatus('Background image too large! Max 100KB.', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const customBackground = e.target.result;
+            updateCustomizationBackgroundPreview(`url(${customBackground})`);
+            saveUserProfile({ background: customBackground });
+            showQuickStatus('Custom background saved!', 'success');
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function initCustomizationAppearance() {
+    const profilePicUpload = document.getElementById('customizationProfilePicUpload');
+    const signatureInput = document.getElementById('customizationSignatureInput');
+    const statusSelector = document.getElementById('customizationUserStatus');
+    const saveBtn = document.getElementById('saveCustomization');
+    
+    // Profile picture upload
+    if (profilePicUpload) {
+        profilePicUpload.addEventListener('change', handleCustomizationProfilePicUpload);
+    }
+    
+    // Signature character count
+    if (signatureInput) {
+        signatureInput.addEventListener('input', updateCustomizationSignatureCount);
+    }
+    
+    // Status change
+    if (statusSelector) {
+        statusSelector.addEventListener('change', function() {
+            saveUserProfile({ status: this.value });
+            showQuickStatus('Status updated!', 'success');
+        });
+    }
+    
+    // Save all button
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            // Save signature
+            const signature = signatureInput.value.trim();
+            if (signature) {
+                saveUserProfile({ signature: signature });
+            }
+            
+            showQuickStatus('All changes saved!', 'success');
+            setTimeout(() => {
+                const modal = document.getElementById('profileCustomizationModal');
+                if (modal) modal.style.display = 'none';
+            }, 1000);
+        });
+    }
+}
+
+function updateCustomizationMusicPreview(musicData) {
+    const titleElement = document.getElementById('customizationMusicTitle');
+    const artistElement = document.getElementById('customizationMusicArtist');
+    
+    if (!musicData) {
+        titleElement.textContent = 'No music selected';
+        artistElement.textContent = 'Add a YouTube URL above';
+        return;
+    }
+    
+    titleElement.textContent = musicData.title;
+    artistElement.textContent = musicData.artist;
+}
+
+function updateCustomizationBackgroundPreview(background) {
+    const preview = document.getElementById('customizationBackgroundPreview');
+    if (!preview) return;
+    
+    if (background.startsWith('url(') || background.startsWith('data:')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else if (background.startsWith('linear-gradient')) {
+        preview.style.backgroundImage = background;
+        preview.innerHTML = '';
+    } else {
+        preview.style.backgroundImage = `url(${background})`;
+        preview.innerHTML = '';
+    }
+}
+
+function updateCustomizationSignatureCount() {
+    const signatureInput = document.getElementById('customizationSignatureInput');
+    const countElement = document.getElementById('customizationSignatureCount');
+    
+    if (signatureInput && countElement) {
+        const length = signatureInput.value.length;
+        countElement.textContent = length;
+        countElement.style.color = length > 100 ? '#ff3333' : length > 80 ? '#ffff00' : '#a8dfe8';
+    }
+}
+
+function handleCustomizationProfilePicUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (file.size > 50 * 1024) {
+        showQuickStatus('Image too large! Max 50KB.', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const preview = document.getElementById('customizationProfilePicPreview');
+        preview.innerHTML = `<img src="${e.target.result}" alt="Profile" style="width:100%;height:100%;object-fit:cover;">`;
+        
+        // Save to profile
+        saveUserProfile({ profilePic: e.target.result });
+        showQuickStatus('Profile picture updated!', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+
 </script>
 </body>
 </html>
