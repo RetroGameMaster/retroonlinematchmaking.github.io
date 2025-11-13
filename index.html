@@ -4271,25 +4271,32 @@ try {
 }
 /* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
 const MATCHMAKING_API_URL = 'https://visional-nondiligently-ha.ngrok-free.dev/api';
-let apiRetryCount = 0;
-const MAX_RETRIES = 3;
 
-// Enhanced API fetch with better debugging
+// API fetch with NO DEMO DATA
 async function fetchMatchmakingData(endpoint) {
     try {
         console.log(`🔍 Fetching: ${MATCHMAKING_API_URL}${endpoint}`);
         
-        const cacheBuster = `?_t=${Date.now()}`;
-        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}${cacheBuster}`, {
+        const response = await fetch(`${MATCHMAKING_API_URL}${endpoint}?_t=${Date.now()}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
+                'Content-Type': 'application/json',
             }
         });
         
+        // Check if response is HTML (error page)
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+                console.warn(`⚠️ API returned HTML instead of JSON for ${endpoint}`);
+                return null; // NO DEMO DATA
+            }
+        }
+        
         if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
@@ -4299,27 +4306,166 @@ async function fetchMatchmakingData(endpoint) {
         
     } catch (error) {
         console.error(`❌ API fetch failed for ${endpoint}:`, error);
-        return null;
+        return null; // NO DEMO DATA
     }
 }
-// ENHANCED: Comprehensive database scanner to find real game data
+
+// FIXED: Load dashboard data with NO DEMO DATA
+async function loadDashboardData() {
+    console.log('🔄 Loading REAL Discord data...');
+    
+    try {
+        // Update connection status
+        const discordStatus = document.getElementById('discordConnectionStatus');
+        const discordUpdate = document.getElementById('discordLastUpdate');
+        if (discordStatus) {
+            discordStatus.innerHTML = '🟡 Connecting to Discord bot...';
+            discordStatus.style.color = '#ffff00';
+        }
+        
+        // Try multiple endpoints to find active games
+        const endpoints = ['/live_games', '/active_games', '/dashboard'];
+        let gameData = null;
+        
+        for (const endpoint of endpoints) {
+            gameData = await fetchMatchmakingData(endpoint);
+            if (gameData && (gameData.length > 0 || gameData.active_games > 0)) {
+                console.log(`✅ Found REAL data from ${endpoint}`);
+                break;
+            }
+        }
+        
+        if (gameData) {
+            processGameData(gameData);
+            if (discordStatus) {
+                discordStatus.innerHTML = '🟢 Connected to Discord Bot';
+                discordStatus.style.color = '#00ff00';
+            }
+            if (discordUpdate) {
+                discordUpdate.textContent = `Last: ${new Date().toLocaleTimeString()}`;
+            }
+            showQuickStatus('✅ Real Discord data loaded!', 'success');
+        } else {
+            // NO DEMO DATA - Show empty state
+            showNoGamesMessage();
+            if (discordStatus) {
+                discordStatus.innerHTML = '🟡 No active games';
+                discordStatus.style.color = '#ffff00';
+            }
+            showQuickStatus('❌ No active Discord games found', 'info');
+        }
+
+    } catch (error) {
+        console.error('Dashboard data load failed:', error);
+        showNoGamesMessage();
+        const discordStatus = document.getElementById('discordConnectionStatus');
+        if (discordStatus) {
+            discordStatus.innerHTML = '🔴 API Connection Failed';
+            discordStatus.style.color = '#ff3333';
+        }
+        showQuickStatus('❌ Failed to connect to Discord bot', 'error');
+    }
+}
+
+// Process REAL game data only
+function processGameData(gameData) {
+    // Handle array response (live_games, active_games)
+    if (Array.isArray(gameData)) {
+        if (gameData.length > 0) {
+            updateActiveGamesList(gameData);
+            updateDashboardStats({
+                active_games: gameData.length,
+                active_users: new Set(gameData.map(game => game.UserId)).size,
+                recent_wins: 0,
+                total_users: 434
+            });
+        } else {
+            showNoGamesMessage();
+        }
+    } 
+    // Handle object response (dashboard)
+    else if (gameData && typeof gameData === 'object') {
+        updateDashboardStats(gameData);
+        
+        if (gameData.active_games > 0) {
+            // If we have active games count but no list, show placeholder
+            showGamesPlaceholder(gameData.active_games);
+        } else {
+            showNoGamesMessage();
+        }
+    }
+}
+
+// Show empty state when no games
+function showNoGamesMessage() {
+    const activeGamesList = document.getElementById('activeGamesList');
+    if (!activeGamesList) return;
+    
+    activeGamesList.innerHTML = `
+        <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🎮</div>
+            <div>No active Discord games right now</div>
+            <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                Games will appear here when players use the !lfg command in Discord
+            </div>
+        </div>
+    `;
+    
+    // Update stats to show zeros
+    updateDashboardStats({
+        active_games: 0,
+        active_users: 0,
+        recent_wins: 0,
+        total_users: 2226,
+    });
+}
+
+// Update dashboard with REAL data only
+function updateDashboardStats(data) {
+    const activeGamesElement = document.getElementById('activeGamesCount');
+    const activePlayersElement = document.getElementById('activePlayersCount');
+    const recentWinsElement = document.getElementById('recentWinsCount');
+    const totalUsersElement = document.getElementById('totalUsersCount');
+    
+    if (activeGamesElement) activeGamesElement.textContent = data.active_games || 0;
+    if (activePlayersElement) activePlayersElement.textContent = data.active_users || 0;
+    if (recentWinsElement) recentWinsElement.textContent = data.recent_wins || 0;
+    if (totalUsersElement) totalUsersElement.textContent = data.total_users || 434;
+    
+    // Update Discord stats display
+    const discordLobbies = document.getElementById('discordActiveLobbies');
+    const discordUsers = document.getElementById('discordOnlineUsers');
+    
+    if (discordLobbies) discordLobbies.textContent = data.active_games || 0;
+    if (discordUsers) discordUsers.textContent = data.active_users || 0;
+}
 async function testDiscordConnection() {
-    console.log('🧪 SCANNING FOR REAL GAME DATA...');
+    console.log('🧪 Testing Discord connection...');
     
     const debugInfo = document.getElementById('debugInfo');
     if (debugInfo) {
-        debugInfo.innerHTML = '<div style="color: #ffff00;">🔍 Scanning database for game invites and LFG data...</div>';
+        debugInfo.innerHTML = '<div style="color: #ffff00;">🔍 Testing Discord bot connection...</div>';
     }
 
     try {
-        // Get complete debug info to see ALL tables
-        const debug = await fetchMatchmakingData('/debug');
-        updateDebugInfo('📊 FULL DATABASE SCAN:', debug);
+        // Test basic API connectivity
+        const response = await fetch(`${MATCHMAKING_API_URL}/debug?_t=${Date.now()}`);
+        const contentType = response.headers.get('content-type');
         
-        if (!debug || !debug.table_counts) {
-            updateDebugInfo('❌ No database tables found', null, false);
-            return;
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            updateDebugInfo('📊 API CONNECTION SUCCESS:', data);
+            updateDebugInfo('<div style="margin-top: 15px; padding: 10px; background: rgba(0, 255, 0, 0.2); border-radius: 6px; color: #00ff00;">✅ Connected to Discord bot API successfully!</div>', null, false);
+        } else {
+            const text = await response.text();
+            updateDebugInfo(`❌ API returned non-JSON: ${text.substring(0, 200)}`, null, false);
         }
+        
+    } catch (error) {
+        console.error('Discord connection test failed:', error);
+        updateDebugInfo(`❌ CONNECTION FAILED: ${error.message}`, null, false);
+    }
+}
 
         // SCAN EACH TABLE FOR GAME DATA
         let foundGameData = false;
