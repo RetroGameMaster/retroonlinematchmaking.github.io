@@ -2770,6 +2770,76 @@ body.sega-theme .music-btn:hover {
     font-size: 0.8rem;
     margin-top: 5px;
 }
+  /* Events Feed Styles */
+.live-events-feed {
+    margin: 2rem auto;
+    max-width: 1100px;
+    padding: 0 4vw;
+}
+
+.event-item {
+    background: rgba(0, 30, 60, 0.7);
+    border: 1px solid rgba(255, 51, 204, 0.3);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    border-left: 4px solid #ff33cc;
+}
+
+.event-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 51, 204, 0.2);
+    border-color: #ff33cc;
+}
+
+.event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.event-game {
+    color: #00ffff;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.event-platform {
+    color: #ffff00;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 0, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.event-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.event-type {
+    color: #ff33cc;
+    font-weight: bold;
+}
+
+.event-time {
+    color: #a8dfe8;
+    text-align: right;
+}
+
+.event-countdown {
+    background: rgba(0, 255, 255, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    color: #00ffff;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+}
 </style>
 </style>
 </head>
@@ -3169,6 +3239,68 @@ body.sega-theme .music-btn:hover {
             </div>
           </div>
         </section>
+        
+        <!-- NEW: Live Events Feed -->
+<section class="live-events-feed" style="margin: 2rem auto; max-width: 1100px; padding: 0 4vw;">
+    <h2 style="color: #00ffff; text-align: center; margin-bottom: 1.5rem; text-shadow: 0 0 8px rgba(0,255,255,0.08);">📅 Live Events Feed</h2>
+    
+    <div class="events-header" style="background: rgba(0, 30, 60, 0.8); border: 2px solid #ff33cc; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+            <span style="font-size: 1.5rem;">🎯</span>
+            <h3 style="color: #ff33cc; margin: 0;">Database Events</h3>
+        </div>
+        
+        <!-- Real-time Events Stats -->
+        <div class="events-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px;">
+            <div class="event-stat" style="background: rgba(255, 51, 204, 0.2); padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="color: #00ffff; font-size: 1.8rem; font-weight: bold;" id="totalEvents">0</div>
+                <div style="color: #a8dfe8; font-size: 0.9rem;">Total Events</div>
+            </div>
+            <div class="event-stat" style="background: rgba(255, 51, 204, 0.2); padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="color: #ffff00; font-size: 1.8rem; font-weight: bold;" id="upcomingEvents">0</div>
+                <div style="color: #a8dfe8; font-size: 0.9rem;">Upcoming</div>
+            </div>
+        </div>
+        
+        <!-- Connection Status -->
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 0.9rem;">
+            <span id="eventsConnectionStatus" style="color: #00ff00;">🟢 Connected to Events Database</span>
+            <span style="color: #a8dfe8;">•</span>
+            <span id="eventsLastUpdate" style="color: #ffff00;">Last: Never</span>
+        </div>
+    </div>
+
+    <!-- Manual Refresh Button -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <button onclick="loadEventsData()" class="button" style="background: linear-gradient(180deg, #ff33cc, #cc0099); border: 1px solid #ff33cc; padding: 10px 20px;">
+            🔄 Refresh Events Data
+        </button>
+        <button onclick="testEventsConnection()" class="button" style="background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; padding: 10px 20px; margin-left: 10px;">
+            🧪 Test Events Connection
+        </button>
+    </div>
+
+    <!-- Events List -->
+    <div class="events-list-container">
+        <div class="events-list" id="eventsList" style="min-height: 200px;">
+            <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">📅</div>
+                <div>Loading events data...</div>
+                <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                    Events from the database will appear here
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Debug Info -->
+    <details style="margin-top: 20px; background: rgba(0, 20, 40, 0.8); border-radius: 8px; padding: 10px;">
+        <summary style="color: #ffff00; cursor: pointer; font-size: 0.9rem;">🐛 Events Debug Information</summary>
+        <div id="eventsDebugInfo" style="color: #a8dfe8; font-size: 0.8rem; margin-top: 10px; font-family: monospace;">
+            Click "Test Events Connection" to see debug data...
+        </div>
+    </details>
+</section>
 <!-- ENHANCED: Live Discord Matchmaking Dashboard -->
 <section class="matchmaking-dashboard" style="margin: 2rem auto; max-width: 1100px; padding: 0 4vw;">
     <h2 style="color: #00ffff; text-align: center; margin-bottom: 1.5rem; text-shadow: 0 0 8px rgba(0,255,255,0.08);">🎮 Live Discord Matchmaking</h2>
@@ -4138,7 +4270,7 @@ try {
     };
 }
 /* ---------- ENHANCED MATCHMAKING API CONNECTION ---------- */
-const MATCHMAKING_API_URL = 'http://localhost:5000/api';
+const MATCHMAKING_API_URL = 'https://visional-nondiligently-ha.ngrok-free.dev/api';
 let apiRetryCount = 0;
 const MAX_RETRIES = 3;
 
@@ -4668,6 +4800,178 @@ async function updateEnhancedPlayerCount() {
         playerCountElement.textContent = '?/?';
         playerCountElement.style.color = '#ff3333';
         playerCountElement.title = 'Connection error';
+    }
+}
+  /* ---------- EVENTS DATA SYSTEM ---------- */
+async function loadEventsData() {
+    console.log('📅 Loading events data...');
+    
+    try {
+        const eventsData = await fetchMatchmakingData('/events');
+        const upcomingEvents = await fetchMatchmakingData('/upcoming_events');
+        
+        if (eventsData && !eventsData.error) {
+            processEventsData(eventsData);
+            updateEventsConnectionStatus(true, 'Data loaded successfully');
+        } else {
+            showNoEventsMessage();
+            updateEventsConnectionStatus(false, 'No events data available');
+        }
+        
+        // Update real-time activity with events count
+        if (eventsData && eventsData.total_events !== undefined) {
+            updateEventsStats(eventsData.total_events, upcomingEvents ? upcomingEvents.length : 0);
+        }
+        
+    } catch (error) {
+        console.error('Events data load failed:', error);
+        updateEventsConnectionStatus(false, 'Load failed: ' + error.message);
+        showQuickStatus('❌ Failed to load events data', 'error');
+    }
+}
+
+function processEventsData(eventsData) {
+    console.log('📅 Processing events data:', eventsData);
+    
+    const eventsList = document.getElementById('eventsList');
+    if (!eventsList) return;
+    
+    const events = eventsData.events || [];
+    
+    if (events.length === 0) {
+        showNoEventsMessage();
+        return;
+    }
+    
+    eventsList.innerHTML = events.map(event => {
+        const eventTime = new Date(event.EventEndDateTimeUtc);
+        const now = new Date();
+        const timeDiff = eventTime - now;
+        const hoursRemaining = Math.floor(timeDiff / (1000 * 60 * 60));
+        const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let countdownText = 'Starting soon';
+        if (hoursRemaining > 0) {
+            countdownText = `In ${hoursRemaining}h ${minutesRemaining}m`;
+        } else if (minutesRemaining > 0) {
+            countdownText = `In ${minutesRemaining}m`;
+        } else {
+            countdownText = 'Live now!';
+        }
+        
+        return `
+            <div class="event-item">
+                <div class="event-header">
+                    <span class="event-game">${event.Title || 'Unknown Game'}</span>
+                    <span class="event-platform">${event.Abbreviation || 'Unknown'}</span>
+                </div>
+                <div class="event-details">
+                    <div class="event-type">${event.RoleName || 'Event'}</div>
+                    <div class="event-time">${eventTime.toLocaleString()}</div>
+                </div>
+                <div class="event-countdown">
+                    ${countdownText}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function showNoEventsMessage() {
+    const eventsList = document.getElementById('eventsList');
+    if (!eventsList) return;
+    
+    eventsList.innerHTML = `
+        <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">📅</div>
+            <div>No upcoming events found</div>
+            <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                Events will appear here when scheduled in the database
+            </div>
+        </div>
+    `;
+}
+
+function updateEventsStats(totalEvents, upcomingEvents) {
+    const totalEventsElement = document.getElementById('totalEvents');
+    const upcomingEventsElement = document.getElementById('upcomingEvents');
+    
+    if (totalEventsElement) totalEventsElement.textContent = totalEvents;
+    if (upcomingEventsElement) upcomingEventsElement.textContent = upcomingEvents;
+}
+
+function updateEventsConnectionStatus(isConnected, message = '') {
+    const statusElement = document.getElementById('eventsConnectionStatus');
+    const lastUpdateElement = document.getElementById('eventsLastUpdate');
+    
+    if (statusElement && lastUpdateElement) {
+        if (isConnected) {
+            statusElement.innerHTML = '🟢 Connected to Events Database';
+            statusElement.style.color = '#00ff00';
+        } else {
+            statusElement.innerHTML = '🔴 Events Database Unavailable';
+            statusElement.style.color = '#ff3333';
+        }
+        
+        lastUpdateElement.textContent = `Last: ${new Date().toLocaleTimeString()}`;
+    }
+}
+
+async function testEventsConnection() {
+    console.log('🧪 Testing events connection...');
+    
+    const debugInfo = document.getElementById('eventsDebugInfo');
+    if (debugInfo) {
+        debugInfo.innerHTML = '<div style="color: #ffff00;">🔍 Testing events database connection...</div>';
+    }
+
+    try {
+        // Test events endpoint
+        const eventsData = await fetchMatchmakingData('/events');
+        updateEventsDebugInfo('📅 EVENTS ENDPOINT RESPONSE:', eventsData);
+        
+        if (eventsData && !eventsData.error) {
+            updateEventsDebugInfo('<div style="margin-top: 15px; padding: 10px; background: rgba(0, 255, 0, 0.2); border-radius: 6px; color: #00ff00;">✅ Events connection successful! Found ' + (eventsData.total_events || 0) + ' events.</div>', null, false);
+        } else {
+            updateEventsDebugInfo('<div style="margin-top: 15px; padding: 10px; background: rgba(255, 0, 0, 0.2); border-radius: 6px; color: #ff3333;">❌ No events data available or endpoint error.</div>', null, false);
+        }
+        
+    } catch (error) {
+        console.error('Events connection test failed:', error);
+        updateEventsDebugInfo(`❌ CONNECTION FAILED: ${error.message}`, null, false);
+    }
+}
+
+function updateEventsDebugInfo(message, data = null, isJson = true) {
+    const debugInfo = document.getElementById('eventsDebugInfo');
+    if (!debugInfo) return;
+
+    let content = '';
+    
+    if (isJson && data) {
+        content += `<div style="color: #00ffff; margin-top: 8px;">${message}</div>`;
+        content += `<pre style="background: rgba(0, 0, 0, 0.3); padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 0.7rem; margin: 5px 0;">${JSON.stringify(data, null, 2)}</pre>`;
+    } else {
+        content += message;
+    }
+
+    debugInfo.innerHTML += content;
+}
+
+// Initialize events system
+function initEventsSystem() {
+    console.log('📅 Initializing events system...');
+    
+    // Load events data on page load
+    loadEventsData();
+    
+    // Refresh events every 30 seconds
+    setInterval(loadEventsData, 30000);
+    
+    // Also update when dashboard is refreshed
+    const refreshBtn = document.querySelector('.matchmaking-dashboard .button');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadEventsData);
     }
 }
   /* ---------- VISIBILITY STATE DETECTION ---------- */
@@ -11456,6 +11760,7 @@ async function showDebugData() {
 function initAllSystems() {
     console.log('🚀 Initializing all systems...');
     initMatchmakingDashboard(); // 🎮 Matchmaking API Dashboard
+    initEventsSystem();
     initCursorAndCanvas();
     initCollapsibles();
     initFormControls();
