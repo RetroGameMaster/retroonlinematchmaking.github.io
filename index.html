@@ -4420,7 +4420,7 @@ function showNoGamesMessage() {
     });
 }
 
-// Update dashboard with REAL data only
+// Update dashboard with REAL data only - ADD THIS FUNCTION
 function updateDashboardStats(data) {
     const activeGamesElement = document.getElementById('activeGamesCount');
     const activePlayersElement = document.getElementById('activePlayersCount');
@@ -4881,13 +4881,12 @@ async function updateEnhancedPlayerCount() {
         playerCountElement.title = 'Connection error';
     }
 }
-  /* ---------- EVENTS DATA SYSTEM ---------- */
+/* ---------- EVENTS DATA SYSTEM ---------- */
 async function loadEventsData() {
     console.log('📅 Loading events data...');
     
     try {
         const eventsData = await fetchMatchmakingData('/events');
-        const upcomingEvents = await fetchMatchmakingData('/upcoming_events');
         
         if (eventsData && !eventsData.error) {
             processEventsData(eventsData);
@@ -4897,16 +4896,26 @@ async function loadEventsData() {
             updateEventsConnectionStatus(false, 'No events data available');
         }
         
-        // Update real-time activity with events count
-        if (eventsData && eventsData.total_events !== undefined) {
-            updateEventsStats(eventsData.total_events, upcomingEvents ? upcomingEvents.length : 0);
-        }
-        
     } catch (error) {
         console.error('Events data load failed:', error);
         updateEventsConnectionStatus(false, 'Load failed: ' + error.message);
-        showQuickStatus('❌ Failed to load events data', 'error');
+        showNoEventsMessage();
     }
+}
+
+function showNoEventsMessage() {
+    const eventsList = document.getElementById('eventsList');
+    if (!eventsList) return;
+    
+    eventsList.innerHTML = `
+        <div style="text-align: center; color: #a8dfe8; padding: 40px;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">📅</div>
+            <div>No events data available</div>
+            <div style="font-size: 0.8rem; color: #ffff00; margin-top: 10px;">
+                Events database connection issue
+            </div>
+        </div>
+    `;
 }
 
 function processEventsData(eventsData) {
