@@ -4485,7 +4485,7 @@ async function testDiscordConnection() {
         // 2. Check ActiveGames table 
         if (debug.table_counts.ActiveGames > 0) {
             console.log('🎯 Found ActiveGames table!');
-            const activeGames = await fetchMatchmakingData('/table/ActiveGames');
+            const activeGames = fetchMatchmakingData('/table/ActiveGames');
             updateDebugInfo('🎮 ACTIVE GAMES TABLE:', activeGames);
             
             if (activeGames && activeGames.data && activeGames.data.length > 0) {
@@ -4497,7 +4497,7 @@ async function testDiscordConnection() {
         // 3. Check ActiveGameRecords table
         if (debug.table_counts.ActiveGameRecords > 0) {
             console.log('🎯 Found ActiveGameRecords table!');
-            const gameRecords = await fetchMatchmakingData('/table/ActiveGameRecords');
+            const gameRecords = fetchMatchmakingData('/table/ActiveGameRecords');
             updateDebugInfo('📝 ACTIVE GAME RECORDS:', gameRecords);
             
             if (gameRecords && gameRecords.data && gameRecords.data.length > 0) {
@@ -4511,7 +4511,7 @@ async function testDiscordConnection() {
         for (const table of potentialGameTables) {
             if (debug.table_counts[table] > 0) {
                 console.log(`🎯 Found ${table} table!`);
-                const tableData = await fetchMatchmakingData(`/table/${table}`);
+                const tableData = fetchMatchmakingData(`/table/${table}`);
                 updateDebugInfo(`🕹️ ${table.toUpperCase()}:`, tableData);
                 
                 if (tableData && tableData.data && tableData.data.length > 0) {
