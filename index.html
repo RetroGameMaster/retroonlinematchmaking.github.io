@@ -4473,7 +4473,7 @@ async function testDiscordConnection() {
         // 1. Check LfgMessages table (Most likely for game invites)
         if (debug.table_counts.LfgMessages > 0) {
             console.log('🎯 Found LfgMessages table! Scanning for game invites...');
-            const lfgData = await fetchMatchmakingData('/table/LfgMessages');
+            const lfgData = fetchMatchmakingData('/table/LfgMessages');
             updateDebugInfo('📨 LFG MESSAGES (Game Invites):', lfgData);
             
             if (lfgData && lfgData.data && lfgData.data.length > 0) {
