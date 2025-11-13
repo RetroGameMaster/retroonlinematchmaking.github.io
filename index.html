@@ -4527,13 +4527,8 @@ async function testDiscordConnection() {
         } else {
             updateDebugInfo('<div style="margin-top: 15px; padding: 10px; background: rgba(255, 0, 0, 0.2); border-radius: 6px; color: #ff3333;">❌ No active game data found in any table. The bot might not have active games right now.</div>', null, false);
         }
-
-     catch (error) {
-        console.error('❌ Database scan failed:', error);
-        updateDebugInfo(`❌ SCAN FAILED: ${error.message}`, null, false);
     }
-}
-
+     
 // PROCESS LFG MESSAGES (Game Invites)
 function processLfgMessages(lfgData) {
     console.log('📨 Processing LFG Messages:', lfgData);
