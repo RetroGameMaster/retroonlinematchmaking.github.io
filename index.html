@@ -2959,7 +2959,62 @@ body.sega-theme .music-btn:hover {
                 <button onclick="document.getElementById('profilePageBackgroundImageUpload').click()" class="button" style="width: 100%; margin-top: 10px;">Upload Custom Background</button>
                 <p style="color: #a8dfe8; font-size: 0.8rem; text-align: center; margin-top: 5px;">Max 100KB • JPG/PNG recommended</p>
               </div>
+<!-- Profile Badges Section -->
+<div class="profile-badges-section" style="margin: 20px 0; padding: 15px; background: rgba(0, 30, 60, 0.6); border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.2);">
+    <h3 style="color: #00ffff; margin-bottom: 15px;">🎖️ Profile Badges</h3>
+    
+    <!-- Badge Wall -->
+    <div class="badge-wall" id="profileBadgeWall" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 15px; margin-bottom: 20px; min-height: 100px;">
+        <!-- Badges will be dynamically inserted here -->
+        <div style="text-align: center; color: #a8dfe8; grid-column: 1 / -1; padding: 20px;">
+            No badges earned yet. Stay active to earn badges!
+        </div>
+    </div>
 
+    <!-- Available Badges -->
+    <div class="available-badges" style="margin-top: 20px;">
+        <h4 style="color: #00ffff; margin-bottom: 10px;">Available Badges</h4>
+        <div class="badges-grid" id="availableBadgesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 10px;">
+            <!-- Available badges will be populated here -->
+        </div>
+    </div>
+
+    <!-- Admin Section (Only visible to admins) -->
+    <div class="badge-admin-section" id="badgeAdminSection" style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 255, 0.3);">
+        <h4 style="color: #ff33cc; margin-bottom: 10px;">🛠️ Badge Management</h4>
+        
+        <!-- Add New Badge Form -->
+        <div class="add-badge-form" style="background: rgba(0, 20, 40, 0.8); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+            <h5 style="color: #00ffff; margin-bottom: 10px;">Add New Badge</h5>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <input type="text" id="badgeNameInput" placeholder="Badge Name" style="padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px;">
+                <input type="text" id="badgeDescriptionInput" placeholder="Description" style="padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <select id="badgeRarityInput" style="padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px;">
+                    <option value="common">Common</option>
+                    <option value="rare">Rare</option>
+                    <option value="epic">Epic</option>
+                    <option value="legendary">Legendary</option>
+                </select>
+                <input type="text" id="badgeIconInput" placeholder="Icon URL (64x64)" style="padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px;">
+            </div>
+            <button id="addBadgeBtn" class="button" style="width: 100%;">Add Badge</button>
+        </div>
+
+        <!-- Assign Badge to User -->
+        <div class="assign-badge-form" style="background: rgba(0, 20, 40, 0.8); padding: 15px; border-radius: 6px;">
+            <h5 style="color: #00ffff; margin-bottom: 10px;">Assign Badge to User</h5>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <input type="text" id="assignUsernameInput" placeholder="Username" style="padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px;">
+                <select id="assignBadgeSelect" style="padding: 8px; background: rgba(0, 10, 20, 0.8); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px;">
+                    <!-- Badge options will be populated here -->
+                </select>
+            </div>
+            <button id="assignBadgeBtn" class="button" style="width: 100%;">Assign Badge</button>
+        </div>
+    </div>
+</div>
               <!-- Profile Music Section -->
               <div class="profile-music-section">
                 <h3 style="color: #00ffff; margin-bottom: 15px;">🎵 Profile Music</h3>
@@ -11403,6 +11458,343 @@ async function loadClipFromSupabase() {
     }
     return null;
 }
+  /* ---------- BADGE SYSTEM ---------- */
+function initBadgeSystem() {
+    console.log('🎖️ Initializing badge system...');
+    
+    // Load badges for current profile
+    loadProfileBadges();
+    
+    // Load available badges
+    loadAvailableBadges();
+    
+    // Check if user is admin for badge management
+    checkBadgeAdminStatus();
+    
+    // Initialize admin functions if applicable
+    initBadgeAdminFunctions();
+}
+
+async function loadProfileBadges() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    try {
+        // Get the username of the profile being viewed
+        const profileUsername = document.getElementById('profilePageUsername')?.textContent;
+        if (!profileUsername) return;
+        
+        // Get user badges from Supabase
+        const { data: userBadges, error } = await supabase
+            .from('user_badges')
+            .select(`
+                badge:badges(*)
+            `)
+            .eq('user_profiles.username', profileUsername)
+            .innerJoin('user_profiles', 'user_badges.user_id', 'user_profiles.user_id');
+        
+        if (error) throw error;
+        
+        displayProfileBadges(userBadges || []);
+        
+    } catch (error) {
+        console.error('Error loading badges:', error);
+    }
+}
+
+function displayProfileBadges(userBadges) {
+    const badgeWall = document.getElementById('profileBadgeWall');
+    if (!badgeWall) return;
+    
+    if (!userBadges || userBadges.length === 0) {
+        badgeWall.innerHTML = `
+            <div style="text-align: center; color: #a8dfe8; grid-column: 1 / -1; padding: 20px;">
+                No badges earned yet. Stay active to earn badges!
+            </div>
+        `;
+        return;
+    }
+    
+    badgeWall.innerHTML = userBadges.map(userBadge => {
+        const badge = userBadge.badge;
+        const rarityColor = getRarityColor(badge.rarity);
+        
+        return `
+            <div class="badge-item" style="text-align: center; cursor: help;" title="${badge.name} - ${badge.description}">
+                <div class="badge-icon" style="width: 64px; height: 64px; margin: 0 auto 8px; border: 2px solid ${rarityColor}; border-radius: 8px; overflow: hidden; background: rgba(0, 255, 255, 0.1); display: flex; align-items: center; justify-content: center;">
+                    ${badge.icon_url ? 
+                        `<img src="${badge.icon_url}" alt="${badge.name}" style="width: 100%; height: 100%; object-fit: cover;">` :
+                        `<span style="color: ${rarityColor}; font-size: 1.5rem;">🎖️</span>`
+                    }
+                </div>
+                <div class="badge-name" style="color: ${rarityColor}; font-size: 0.7rem; font-weight: bold;">${badge.name}</div>
+                <div class="badge-rarity" style="color: #a8dfe8; font-size: 0.6rem; text-transform: capitalize;">${badge.rarity}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadAvailableBadges() {
+    try {
+        const { data: badges, error } = await supabase
+            .from('badges')
+            .select('*')
+            .order('rarity', { ascending: false });
+        
+        if (error) throw error;
+        
+        displayAvailableBadges(badges || []);
+        
+    } catch (error) {
+        console.error('Error loading available badges:', error);
+    }
+}
+
+function displayAvailableBadges(badges) {
+    const availableGrid = document.getElementById('availableBadgesGrid');
+    if (!availableGrid) return;
+    
+    if (!badges || badges.length === 0) {
+        availableGrid.innerHTML = '<div style="color: #a8dfe8; text-align: center; grid-column: 1 / -1;">No badges available</div>';
+        return;
+    }
+    
+    availableGrid.innerHTML = badges.map(badge => {
+        const rarityColor = getRarityColor(badge.rarity);
+        
+        return `
+            <div class="available-badge" style="text-align: center; cursor: help; opacity: 0.7;" title="${badge.name} - ${badge.description}">
+                <div class="badge-icon" style="width: 48px; height: 48px; margin: 0 auto 5px; border: 1px solid ${rarityColor}; border-radius: 6px; overflow: hidden; background: rgba(0, 255, 255, 0.05); display: flex; align-items: center; justify-content: center;">
+                    ${badge.icon_url ? 
+                        `<img src="${badge.icon_url}" alt="${badge.name}" style="width: 100%; height: 100%; object-fit: cover;">` :
+                        `<span style="color: ${rarityColor}; font-size: 1.2rem;">🎖️</span>`
+                    }
+                </div>
+                <div class="badge-name" style="color: ${rarityColor}; font-size: 0.6rem;">${badge.name}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function getRarityColor(rarity) {
+    const colors = {
+        common: '#a8dfe8',
+        rare: '#00ffff',
+        epic: '#ff33cc',
+        legendary: '#ffff00'
+    };
+    return colors[rarity] || '#a8dfe8';
+}
+
+async function checkBadgeAdminStatus() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    // Check if user is admin (you can implement your own admin check logic)
+    const isAdmin = await isUserAdmin(user.id);
+    
+    if (isAdmin) {
+        const adminSection = document.getElementById('badgeAdminSection');
+        if (adminSection) {
+            adminSection.style.display = 'block';
+        }
+    }
+}
+
+async function isUserAdmin(userId) {
+    try {
+        // Get current user's email
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return false;
+        
+        // List of admin emails 
+        const adminEmails = [
+            'RetroGameMasterRA@gmail.com', 
+        ];
+        
+        return adminEmails.includes(user.email.toLowerCase());
+        
+    } catch (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+    }
+}
+
+function initBadgeAdminFunctions() {
+    const addBadgeBtn = document.getElementById('addBadgeBtn');
+    const assignBadgeBtn = document.getElementById('assignBadgeBtn');
+    
+    if (addBadgeBtn) {
+        addBadgeBtn.addEventListener('click', addNewBadge);
+    }
+    
+    if (assignBadgeBtn) {
+        assignBadgeBtn.addEventListener('click', assignBadgeToUser);
+    }
+    
+    // Populate badge select for assignment
+    populateBadgeSelect();
+}
+
+async function addNewBadge() {
+    const name = document.getElementById('badgeNameInput').value.trim();
+    const description = document.getElementById('badgeDescriptionInput').value.trim();
+    const rarity = document.getElementById('badgeRarityInput').value;
+    const iconUrl = document.getElementById('badgeIconInput').value.trim();
+    
+    if (!name || !iconUrl) {
+        showQuickStatus('Please fill in all required fields!', 'error');
+        return;
+    }
+    
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data, error } = await supabase
+            .from('badges')
+            .insert([{
+                name,
+                description,
+                rarity,
+                icon_url: iconUrl,
+                created_by: user.id
+            }]);
+        
+        if (error) throw error;
+        
+        showQuickStatus('Badge created successfully!', 'success');
+        
+        // Clear form and refresh lists
+        document.getElementById('badgeNameInput').value = '';
+        document.getElementById('badgeDescriptionInput').value = '';
+        document.getElementById('badgeIconInput').value = '';
+        
+        loadAvailableBadges();
+        populateBadgeSelect();
+        
+    } catch (error) {
+        console.error('Error creating badge:', error);
+        showQuickStatus('Failed to create badge', 'error');
+    }
+}
+
+async function populateBadgeSelect() {
+    const badgeSelect = document.getElementById('assignBadgeSelect');
+    if (!badgeSelect) return;
+    
+    try {
+        const { data: badges, error } = await supabase
+            .from('badges')
+            .select('id, name')
+            .order('name');
+        
+        if (error) throw error;
+        
+        badgeSelect.innerHTML = '<option value="">Select a badge</option>' +
+            (badges || []).map(badge => 
+                `<option value="${badge.id}">${badge.name}</option>`
+            ).join('');
+        
+    } catch (error) {
+        console.error('Error populating badge select:', error);
+    }
+}
+
+async function assignBadgeToUser() {
+    const username = document.getElementById('assignUsernameInput').value.trim();
+    const badgeId = document.getElementById('assignBadgeSelect').value;
+    
+    if (!username || !badgeId) {
+        showQuickStatus('Please select both user and badge!', 'error');
+        return;
+    }
+    
+    try {
+        // First, get the user ID from username
+        const { data: userData, error: userError } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .eq('username', username)
+            .single();
+        
+        if (userError) throw userError;
+        if (!userData) {
+            showQuickStatus('User not found!', 'error');
+            return;
+        }
+        
+        // Assign the badge
+        const { data, error } = await supabase
+            .from('user_badges')
+            .insert([{
+                user_id: userData.user_id,
+                badge_id: badgeId
+            }]);
+        
+        if (error) {
+            if (error.code === '23505') { // Unique constraint violation
+                showQuickStatus('User already has this badge!', 'info');
+            } else {
+                throw error;
+            }
+        } else {
+            showQuickStatus(`Badge assigned to ${username}!`, 'success');
+            
+            // Clear form
+            document.getElementById('assignUsernameInput').value = '';
+            document.getElementById('assignBadgeSelect').value = '';
+            
+            // Refresh badges if we're on that user's profile
+            const currentProfile = document.getElementById('profilePageUsername')?.textContent;
+            if (currentProfile === username) {
+                loadProfileBadges();
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error assigning badge:', error);
+        showQuickStatus('Failed to assign badge', 'error');
+    }
+}
+
+// Auto-earn badges based on user activity
+async function checkAutoBadges(userId) {
+    // Example: Award badge for first login
+    const { data: userBadges, error } = await supabase
+        .from('user_badges')
+        .select('badge_id')
+        .eq('user_id', userId);
+    
+    if (error) return;
+    
+    const hasBadges = userBadges && userBadges.length > 0;
+    
+    if (!hasBadges) {
+        // Award "Newcomer" badge
+        await awardBadge(userId, 'newcomer-badge-id'); // You'd need to get the actual badge ID
+    }
+    
+    // Add more auto-badge logic here based on user activity
+}
+
+async function awardBadge(userId, badgeId) {
+    try {
+        const { data, error } = await supabase
+            .from('user_badges')
+            .insert([{
+                user_id: userId,
+                badge_id: badgeId
+            }]);
+        
+        if (!error) {
+            console.log('Badge awarded successfully!');
+            showQuickStatus('🎖️ New badge earned!', 'success');
+        }
+    } catch (error) {
+        console.error('Error awarding badge:', error);
+    }
+}
 /* ---------- Cursor & Canvas background ---------- */
 function initCursorAndCanvas(){
     const cursor = document.getElementById('customCursor');
@@ -11950,6 +12342,7 @@ function initAllSystems() {
     initLivePlayerCount(); // ✅ FIXED: Real-time player count
     initEngagementFeatures();
     initClipOfWeek();
+    initBadgeSystem(); // 🎖️ ADD THIS LINE - Badge System
     initCustomizationSystems();
     initProfileMusicSystem(); // For current user's music settings
     initProfilePageMusicSystem(); // For viewing other profiles' music
