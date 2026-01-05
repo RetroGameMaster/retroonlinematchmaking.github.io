@@ -1,0 +1,314 @@
+<div class="submissions-module">
+    <style>
+        .submissions-module {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .submissions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .submissions-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ffff;
+            padding-bottom: 10px;
+        }
+        
+        .submissions-tab {
+            padding: 10px 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #00ffff;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s;
+        }
+        
+        .submissions-tab:hover,
+        .submissions-tab.active {
+            background: rgba(0, 255, 255, 0.3);
+        }
+        
+        .submissions-tab.active {
+            border-bottom-color: #ff33cc;
+        }
+        
+        .submissions-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .submission-card {
+            background: rgba(0, 30, 60, 0.7);
+            border: 1px solid #00ffff;
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s;
+        }
+        
+        .submission-card.pending {
+            border-left: 6px solid #ffff00;
+        }
+        
+        .submission-card.approved {
+            border-left: 6px solid #00ff00;
+        }
+        
+        .submission-card.rejected {
+            border-left: 6px solid #ff3333;
+        }
+        
+        .submission-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .submission-title {
+            color: #ff33cc;
+            font-size: 1.4rem;
+            margin: 0;
+        }
+        
+        .submission-meta {
+            color: #a8dfe8;
+            font-size: 0.9rem;
+            margin: 5px 0 15px 0;
+        }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-pending {
+            background: rgba(255, 255, 0, 0.2);
+            color: #ffff00;
+            border: 1px solid #ffff00;
+        }
+        
+        .status-approved {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+        }
+        
+        .status-rejected {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff3333;
+            border: 1px solid #ff3333;
+        }
+        
+        .submission-details {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+        
+        .detail-section {
+            margin-bottom: 20px;
+        }
+        
+        .detail-section h4 {
+            color: #00ffff;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .platform-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .platform-tag {
+            background: rgba(255, 51, 204, 0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        
+        .connection-method {
+            background: rgba(0, 40, 80, 0.5);
+            border: 1px solid #00ffff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .connection-method h5 {
+            color: #ff33cc;
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+        }
+        
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .action-btn.approve {
+            background: linear-gradient(180deg, #00ff00, #00cc00);
+            color: #000;
+        }
+        
+        .action-btn.reject {
+            background: linear-gradient(180deg, #ff3333, #cc0000);
+            color: white;
+        }
+        
+        .action-btn.edit {
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .admin-notes {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px dashed #00ffff;
+        }
+        
+        .admin-notes textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ffff;
+            color: white;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            margin-top: 10px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #a8dfe8;
+            background: rgba(0, 30, 60, 0.5);
+            border-radius: 12px;
+            border: 2px dashed #00ffff;
+        }
+        
+        .review-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #a8dfe8;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: rgba(0, 30, 60, 0.95);
+            border: 2px solid #ff33cc;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+    
+    <div class="submissions-header">
+        <h1 style="color: #ff33cc; font-size: 2rem;">📋 Game Submission Review</h1>
+        <button class="action-btn edit" onclick="window.rom.loadModule('admin')">
+            ← Back to Admin
+        </button>
+    </div>
+    
+    <div class="submissions-tabs">
+        <button class="submissions-tab active" onclick="showSubmissions('pending')">
+            ⏳ Pending (<span id="pendingCount">0</span>)
+        </button>
+        <button class="submissions-tab" onclick="showSubmissions('approved')">
+            ✅ Approved (<span id="approvedCount">0</span>)
+        </button>
+        <button class="submissions-tab" onclick="showSubmissions('rejected')">
+            ❌ Rejected (<span id="rejectedCount">0</span>)
+        </button>
+        <button class="submissions-tab" onclick="showSubmissions('all')">
+            📋 All Submissions (<span id="totalCount">0</span>)
+        </button>
+    </div>
+    
+    <div id="submissionsContainer">
+        <!-- Submissions will load here -->
+        <div class="empty-state">
+            <h3>Loading submissions...</h3>
+        </div>
+    </div>
+    
+    <!-- Modal for reject reason -->
+    <div id="rejectModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 style="color: #ff3333;">❌ Reject Submission</h3>
+            <p>Please provide a reason for rejecting this game submission:</p>
+            <textarea id="rejectReason" rows="4" placeholder="e.g., Duplicate entry, insufficient information, inappropriate content..."></textarea>
+            <div class="modal-buttons">
+                <button class="action-btn reject" onclick="confirmReject()">
+                    Confirm Reject
+                </button>
+                <button class="action-btn edit" onclick="cancelReject()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
