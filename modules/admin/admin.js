@@ -8,9 +8,7 @@ function initAdminModule(rom) {
         return;
     }
     
-    // For now, allow any logged in user to see admin
-    // Later: Check if user.email is in admin list
-    const adminEmails = ['admin@example.com', 'your-email@gmail.com']; // Add your email here
+    const adminEmails = ['RetroGameMasterRA@gmail.com']; // Add your email here
     if (!adminEmails.includes(rom.currentUser.email)) {
         document.getElementById('adminCheck').style.display = 'block';
         document.getElementById('adminDashboard').style.display = 'none';
