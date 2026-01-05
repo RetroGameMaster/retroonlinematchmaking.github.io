@@ -133,9 +133,7 @@
             <p style="color: #a8dfe8;">You can now submit games and access all features.</p>
         </div>
         
-        <button class="auth-btn secondary" onclick="logout()">
-            🚪 Logout
-        </button>
+        <button class="auth-btn secondary" id="logoutButton">🚪 Logout</button>
         
         <div class="auth-footer">
             <p>Return to <a href="javascript:void(0)" onclick="window.rom.loadModule('home')" style="color: #ff33cc;">Home</a> or <a href="javascript:void(0)" onclick="window.rom.loadModule('games')" style="color: #ff33cc;">Games</a></p>
@@ -145,8 +143,8 @@
     <!-- Auth Forms (shown when not logged in) -->
     <div id="authForms">
         <div class="auth-tabs">
-            <button class="auth-tab active" onclick="switchTab('login')">Login</button>
-            <button class="auth-tab" onclick="switchTab('register')">Register</button>
+            <button class="auth-tab active" data-tab="login">Login</button>
+            <button class="auth-tab" data-tab="register">Register</button>
         </div>
         
         <!-- Login Form -->
@@ -156,10 +154,10 @@
             <input type="email" class="auth-input" id="loginEmail" placeholder="Email" required>
             <input type="password" class="auth-input" id="loginPassword" placeholder="Password" required>
             
-            <button class="auth-btn" onclick="login()">Login</button>
+            <button class="auth-btn" id="loginButton">Login</button>
             
             <div class="auth-footer">
-                <p>Forgot password? <a href="javascript:void(0)" onclick="resetPassword()" style="color: #ff33cc;">Reset here</a></p>
+                <p>Forgot password? <a href="javascript:void(0)" id="resetPasswordLink" style="color: #ff33cc;">Reset here</a></p>
             </div>
         </div>
         
@@ -171,7 +169,7 @@
             <input type="email" class="auth-input" id="registerEmail" placeholder="Email" required>
             <input type="password" class="auth-input" id="registerPassword" placeholder="Password (min 6 characters)" required>
             
-            <button class="auth-btn secondary" onclick="register()">Create Account</button>
+            <button class="auth-btn secondary" id="registerButton">Create Account</button>
             
             <div class="auth-footer">
                 <p>By registering, you agree to our terms of service.</p>
