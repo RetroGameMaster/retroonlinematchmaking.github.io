@@ -9,26 +9,33 @@ class ROMApp {
     }
     
     async init() {
-        console.log('🚀 ROM App Initializing...');
-        
-        // Initialize Supabase
-        this.supabase = initSupabase();
-        if (!this.supabase) {
-            this.showError('Supabase failed to initialize. Check console.');
-            return;
-        }
-        
-        // Check auth
-        await this.checkAuth();
-        
-        // Render the app
-        this.renderApp();
-        
-        // Load initial module
-        await this.loadModule('home');
-        
-        console.log('✅ ROM App Ready');
+    console.log('🚀 ROM App Initializing...');
+    
+    // Initialize Supabase
+    this.supabase = initSupabase();
+    if (!this.supabase) {
+        this.showError('Supabase failed to initialize. Check console.');
+        return;
     }
+    
+    // Check auth
+    await this.checkAuth();
+    
+    // Listen for auth state changes
+    this.supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        this.currentUser = session?.user || null;
+        this.renderApp(); // Re-render to update UI
+    });
+    
+    // Render the app
+    this.renderApp();
+    
+    // Load initial module
+    await this.loadModule('home');
+    
+    console.log('✅ ROM App Ready');
+}
     
     async checkAuth() {
     try {
