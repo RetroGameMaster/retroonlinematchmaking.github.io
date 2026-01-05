@@ -1,0 +1,408 @@
+<div class="submit-game-module">
+    <style>
+        .submit-game-module {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .form-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .form-section {
+            background: rgba(0, 30, 60, 0.7);
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .form-section h3 {
+            color: #ff33cc;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #00ffff;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #00ffff;
+            font-weight: bold;
+        }
+        
+        .form-label.required::after {
+            content: " *";
+            color: #ff3333;
+        }
+        
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ffff;
+            color: white;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .platform-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .platform-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .platform-checkbox:hover {
+            background: rgba(0, 255, 255, 0.1);
+        }
+        
+        .platform-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .connection-method {
+            background: rgba(0, 40, 80, 0.5);
+            border: 1px solid #00ffff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .method-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .method-number {
+            color: #ff33cc;
+            font-weight: bold;
+        }
+        
+        .remove-method-btn {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff3333;
+            color: #ff3333;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .add-method-btn {
+            background: rgba(255, 51, 204, 0.1);
+            border: 1px solid #ff33cc;
+            color: #ff33cc;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s;
+        }
+        
+        .add-method-btn:hover {
+            background: rgba(255, 51, 204, 0.3);
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(180deg, #00d7ff, #00a8bf);
+            border: none;
+            color: #000;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 30px;
+            font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s;
+        }
+        
+        .submit-btn:hover {
+            background: linear-gradient(180deg, #00ffff, #00ccff);
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .success-message {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .error-message {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff3333;
+            color: #ff3333;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .login-prompt {
+            text-align: center;
+            padding: 50px;
+            background: rgba(255, 51, 204, 0.1);
+            border: 2px dashed #ff33cc;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .login-prompt button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(180deg, #ff33cc, #cc0099);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+    </style>
+    
+    <div class="form-header">
+        <h1 style="color: #ff33cc; font-size: 2.5rem; margin-bottom: 10px;">🎮 Submit a Game</h1>
+        <p style="color: #a8dfe8; font-size: 1.1rem; margin-bottom: 10px;">
+            Help grow the ROM database by submitting retro games with online play support.
+        </p>
+        <p style="color: #ffff00; font-size: 1rem;">
+            📋 All submissions require admin approval before appearing publicly.
+        </p>
+    </div>
+    
+    <!-- Login Prompt (shown if not logged in) -->
+    <div id="loginPrompt" class="login-prompt" style="display: none;">
+        <h3 style="color: #ff33cc;">🔒 Login Required</h3>
+        <p style="color: #a8dfe8;">Please log in to submit a game to the database.</p>
+        <button onclick="window.rom.loadModule('auth')">
+            Go to Login
+        </button>
+    </div>
+    
+    <!-- Submission Form (shown if logged in) -->
+    <div id="submissionForm">
+        <form id="gameSubmissionForm">
+            <!-- Basic Information -->
+            <div class="form-section fade-in">
+                <h3>📝 Basic Information</h3>
+                
+                <div class="form-group">
+                    <label class="form-label required">Game Title</label>
+                    <input type="text" class="form-input" id="gameTitle" required 
+                           placeholder="e.g., SOCOM II: U.S. Navy SEALs">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Release Year</label>
+                    <input type="number" class="form-input" id="releaseYear" 
+                           placeholder="e.g., 2003" min="1980" max="2025">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label required">Genre(s)</label>
+                    <select class="form-select" id="genre" multiple required style="height: 120px;">
+                        <option value="shooter">Shooter</option>
+                        <option value="racing">Racing</option>
+                        <option value="fighting">Fighting</option>
+                        <option value="sports">Sports</option>
+                        <option value="rpg">RPG</option>
+                        <option value="strategy">Strategy</option>
+                        <option value="action">Action</option>
+                        <option value="adventure">Adventure</option>
+                        <option value="platformer">Platformer</option>
+                        <option value="simulation">Simulation</option>
+                        <option value="puzzle">Puzzle</option>
+                        <option value="horror">Horror</option>
+                        <option value="mmo">MMO</option>
+                    </select>
+                    <small style="color: #a8dfe8; font-size: 0.9rem;">Hold Ctrl/Cmd to select multiple genres</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label required">Description</label>
+                    <textarea class="form-textarea" id="description" required rows="4"
+                              placeholder="Describe the game, its online features, and community..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Platform & Players -->
+            <div class="form-section fade-in">
+                <h3>🎮 Platform & Players</h3>
+                
+                <div class="form-group">
+                    <label class="form-label required">Platforms</label>
+                    <div class="platform-options">
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="ps1"> PlayStation 1
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="ps2"> PlayStation 2
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="ps3"> PlayStation 3
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="psp"> PSP
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="xbox"> Xbox
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="xbox360"> Xbox 360
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="gamecube"> GameCube
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="wii"> Wii
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="dreamcast"> Dreamcast
+                        </label>
+                        <label class="platform-checkbox">
+                            <input type="checkbox" name="platform" value="pc"> PC
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label required">Maximum Players Online</label>
+                    <input type="number" class="form-input" id="maxPlayers" required 
+                           min="2" max="256" placeholder="e.g., 32" value="16">
+                </div>
+            </div>
+            
+            <!-- Connection Methods -->
+            <div class="form-section fade-in">
+                <h3>🔗 Online Connection Methods</h3>
+                <p style="color: #a8dfe8; margin-bottom: 20px;">
+                    Add all known methods to play this game online (DNS servers, community servers, etc.)
+                </p>
+                
+                <div id="connectionMethods">
+                    <!-- First method is added by default -->
+                    <div class="connection-method" data-index="0">
+                        <div class="method-header">
+                            <span class="method-number">Connection Method #1</span>
+                            <button type="button" class="remove-method-btn" onclick="removeConnectionMethod(this)" style="display: none;">
+                                ✕ Remove
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">Method Name</label>
+                            <input type="text" class="form-input" name="methodName" required 
+                                   placeholder="e.g., XLink Kai, PSONE, DNS Server">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Connection Type</label>
+                            <select class="form-select" name="connectionType">
+                                <option value="dns">DNS Server</option>
+                                <option value="community">Community Server</option>
+                                <option value="vpn">VPN/LAN Tunnel</option>
+                                <option value="emulator">Emulator Network</option>
+                                <option value="official">Official Servers</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Instructions/Setup Guide</label>
+                            <textarea class="form-textarea" name="instructions" rows="3"
+                                      placeholder="Brief setup instructions or link to guide..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">DNS/Server Address (if applicable)</label>
+                            <input type="text" class="form-input" name="serverAddress"
+                                   placeholder="e.g., 123.456.789.012">
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="button" class="add-method-btn" id="addMethodBtn">
+                    + Add Another Connection Method
+                </button>
+            </div>
+            
+            <!-- Community Info -->
+            <div class="form-section fade-in">
+                <h3>👥 Community Information</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Active Community Discord/Forum</label>
+                    <input type="url" class="form-input" id="communityLink"
+                           placeholder="https://discord.gg/... or https://forum.example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Your Contact Info (Optional)</label>
+                    <input type="text" class="form-input" id="submitterContact"
+                           placeholder="Discord username or email (for follow-up questions)">
+                    <small style="color: #a8dfe8; font-size: 0.9rem;">Only visible to admins</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Additional Notes</label>
+                    <textarea class="form-textarea" id="additionalNotes" rows="3"
+                              placeholder="Any extra information, sources, or comments..."></textarea>
+                </div>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="submitButton">
+                📤 Submit Game for Review
+            </button>
+        </form>
+        
+        <div id="submitResult" style="display: none;"></div>
+    </div>
+</div>
