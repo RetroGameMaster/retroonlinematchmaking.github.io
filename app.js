@@ -13,6 +13,10 @@ class ROMApp {
         
         // Initialize Supabase
         this.supabase = initSupabase();
+        if (!this.supabase) {
+            this.showError('Supabase failed to initialize. Check console.');
+            return;
+        }
         
         // Check auth
         await this.checkAuth();
@@ -174,33 +178,79 @@ class ROMApp {
         try {
             // Load module HTML
             const htmlResponse = await fetch(`modules/${moduleName}/${moduleName}.html`);
-            if (!htmlResponse.ok) throw new Error('HTML not found');
+            if (!htmlResponse.ok) {
+                // If module doesn't exist, show fallback
+                this.showModuleFallback(moduleName);
+                return;
+            }
             
             const html = await htmlResponse.text();
             
             // Display module
             document.getElementById('module-content').innerHTML = html;
             
-            // Load and execute module JavaScript
-            const scriptResponse = await fetch(`modules/${moduleName}/${moduleName}.js`);
-            if (scriptResponse.ok) {
-                const scriptText = await scriptResponse.text();
-                const moduleScript = new Function('rom', scriptText);
-                await moduleScript(this);
-            }
+            // Try to load module JS (remove export default)
+            await this.loadModuleJS(moduleName);
             
         } catch (error) {
             console.error(`Failed to load module ${moduleName}:`, error);
-            document.getElementById('module-content').innerHTML = `
-                <div style="padding: 50px; text-align: center; color: #ff3333;">
-                    <h2>⚠️ Module Load Error</h2>
-                    <p>Failed to load ${moduleName} module.</p>
-                    <button class="nav-btn" onclick="rom.loadModule('home')">
-                        Return to Home
-                    </button>
-                </div>
-            `;
+            this.showModuleFallback(moduleName);
         }
+    }
+    
+    async loadModuleJS(moduleName) {
+        try {
+            const scriptResponse = await fetch(`modules/${moduleName}/${moduleName}.js`);
+            if (!scriptResponse.ok) return;
+            
+            const scriptText = await scriptResponse.text();
+            
+            // Remove "export default" if present and wrap in function
+            let cleanScript = scriptText
+                .replace(/^export default function/, 'function')
+                .replace(/^export default/, '');
+            
+            // Create and execute the module function
+            const moduleFunc = eval(`(${cleanScript})`);
+            if (typeof moduleFunc === 'function') {
+                await moduleFunc(this);
+            }
+            
+        } catch (error) {
+            console.log(`No JS or JS error for ${moduleName}:`, error);
+        }
+    }
+    
+    showModuleFallback(moduleName) {
+        const fallbacks = {
+            home: `Welcome to ROM! Home module is working.`,
+            games: `🎮 Games module coming soon!`,
+            chat: `💬 Chat module coming soon!`,
+            profile: `👤 Profile module coming soon!`,
+            auth: `🔐 Auth module coming soon!`
+        };
+        
+        document.getElementById('module-content').innerHTML = `
+            <div style="padding: 50px; text-align: center;">
+                <h2>${moduleName.toUpperCase()} Module</h2>
+                <p>${fallbacks[moduleName] || 'Module under development'}</p>
+                <button class="nav-btn" onclick="rom.loadModule('home')" style="margin-top: 20px;">
+                    Return to Home
+                </button>
+            </div>
+        `;
+    }
+    
+    showError(message) {
+        document.getElementById('rom-app').innerHTML = `
+            <div style="padding: 50px; text-align: center; color: #ff3333;">
+                <h2>⚠️ Application Error</h2>
+                <p>${message}</p>
+                <button onclick="location.reload()" style="padding: 10px 20px; background: #ff3333; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Reload App
+                </button>
+            </div>
+        `;
     }
     
     updateNavigation() {
