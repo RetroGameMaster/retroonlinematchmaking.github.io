@@ -269,6 +269,18 @@ class ROMApp {
         </button>
     `).join('');
     
+    // Add admin button if user is admin
+    if (this.currentUser && this.currentUser.email === 'YOUR_EMAIL_HERE@gmail.com') { // Change this to your email
+        const adminBtn = document.createElement('button');
+        adminBtn.className = 'nav-btn';
+        adminBtn.style.background = 'rgba(255, 51, 204, 0.2)';
+        adminBtn.style.borderColor = '#ff33cc';
+        adminBtn.style.color = '#ff33cc';
+        adminBtn.innerHTML = '🛠️ Admin';
+        adminBtn.onclick = () => this.loadModule('admin');
+        nav.appendChild(adminBtn);
+    }
+    
     // Add submit game button if on games page
     if (this.currentModule === 'games') {
         const submitBtn = document.createElement('button');
