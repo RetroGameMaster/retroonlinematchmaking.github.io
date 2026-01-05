@@ -1,164 +1,116 @@
+console.log('🔥 DEBUG: Auth JS loaded');
+
+// Simple test to see if this file loads
+alert('Auth JS loaded - buttons should work now!');
+
 function initAuthModule(rom) {
-    console.log('✅ Auth module loading...');
+    console.log('🔥 DEBUG: initAuthModule called');
+    console.log('🔥 DEBUG: rom.supabase exists?', !!rom.supabase);
     
-    // Check if already logged in
-    if (rom.currentUser) {
-        showLoggedIn();
-        return;
-    }
+    // Make rom globally available
+    window.rom = rom;
     
-    // Show auth forms
-    document.getElementById('authForms').style.display = 'block';
-    document.getElementById('loggedInView').style.display = 'none';
-    
-    // Set up tabs
-    const tabs = document.querySelectorAll('.auth-tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            
-            // Update tabs
-            tabs.forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Show correct form
-            document.getElementById('loginForm').classList.remove('active');
-            document.getElementById('registerForm').classList.remove('active');
-            document.getElementById(tabName + 'Form').classList.add('active');
-        });
-    });
-    
-    // Login button
-    document.getElementById('loginButton').addEventListener('click', async function() {
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value;
+    // SIMPLE TEST - add this to every button
+    document.addEventListener('click', function(e) {
+        console.log('🔥 DEBUG: Clicked:', e.target.className, e.target.id);
         
-        if (!email || !password) {
-            alert('Please enter email and password');
-            return;
+        if (e.target.className.includes('auth-btn')) {
+            console.log('🔥 DEBUG: Auth button clicked!');
+            e.target.style.background = 'red'; // Visual feedback
         }
         
-        this.textContent = 'Logging in...';
-        this.disabled = true;
+        if (e.target.className.includes('auth-tab')) {
+            console.log('🔥 DEBUG: Tab clicked');
+            e.target.style.background = 'blue'; // Visual feedback
+        }
+    });
+    
+    // Force buttons to work - add direct event listeners
+    setTimeout(() => {
+        console.log('🔥 DEBUG: Setting up button listeners...');
         
-        try {
-            const { data, error } = await rom.supabase.auth.signInWithPassword({
-                email,
-                password
+        // Login button
+        const loginBtn = document.getElementById('loginButton');
+        if (loginBtn) {
+            console.log('🔥 DEBUG: Found login button');
+            loginBtn.addEventListener('click', function() {
+                console.log('🔥 DEBUG: Login clicked!');
+                alert('Login button works!');
+                
+                // Try to login with test credentials
+                const email = document.getElementById('loginEmail')?.value || 'test@test.com';
+                const password = document.getElementById('loginPassword')?.value || 'password123';
+                
+                console.log('🔥 DEBUG: Attempting login with:', email);
+                
+                rom.supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                }).then(response => {
+                    console.log('🔥 DEBUG: Login response:', response);
+                    if (response.error) {
+                        alert('Login error: ' + response.error.message);
+                    } else {
+                        alert('✅ Login successful!');
+                        rom.currentUser = response.data.user;
+                        rom.renderApp();
+                    }
+                }).catch(error => {
+                    console.error('🔥 DEBUG: Login catch error:', error);
+                    alert('Login failed: ' + error.message);
+                });
             });
-            
-            if (error) throw error;
-            
-            rom.currentUser = data.user;
-            alert('✅ Login successful!');
-            
-            // Update UI
-            rom.renderApp();
-            showLoggedIn();
-            
-        } catch (error) {
-            console.error('Login error:', error);
-            alert('❌ Login failed: ' + error.message);
-        } finally {
-            this.textContent = 'Login';
-            this.disabled = false;
-        }
-    });
-    
-    // Register button
-    document.getElementById('registerButton').addEventListener('click', async function() {
-        const username = document.getElementById('registerUsername').value.trim();
-        const email = document.getElementById('registerEmail').value.trim();
-        const password = document.getElementById('registerPassword').value;
-        
-        if (!username || !email || !password) {
-            alert('Please fill all fields');
-            return;
         }
         
-        if (password.length < 6) {
-            alert('Password must be at least 6 characters');
-            return;
-        }
-        
-        this.textContent = 'Creating account...';
-        this.disabled = true;
-        
-        try {
-            const { data, error } = await rom.supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { username }
-                }
+        // Register button
+        const registerBtn = document.getElementById('registerButton');
+        if (registerBtn) {
+            registerBtn.addEventListener('click', function() {
+                alert('Register button works!');
+                console.log('🔥 DEBUG: Register clicked');
             });
-            
-            if (error) throw error;
-            
-            alert('✅ Registration successful! Check your email.');
-            
-            // Clear form
-            document.getElementById('registerUsername').value = '';
-            document.getElementById('registerEmail').value = '';
-            document.getElementById('registerPassword').value = '';
-            
-            // Switch to login tab
-            tabs[0].click();
-            document.getElementById('loginEmail').value = email;
-            
-        } catch (error) {
-            console.error('Registration error:', error);
-            alert('❌ Registration failed: ' + error.message);
-        } finally {
-            this.textContent = 'Create Account';
-            this.disabled = false;
         }
-    });
-    
-    // Logout button
-    document.getElementById('logoutButton').addEventListener('click', async function() {
-        try {
-            await rom.supabase.auth.signOut();
-            rom.currentUser = null;
-            rom.renderApp();
-            
-            // Show auth forms
-            document.getElementById('authForms').style.display = 'block';
-            document.getElementById('loggedInView').style.display = 'none';
-            
-            alert('✅ Logged out');
-            
-        } catch (error) {
-            console.error('Logout error:', error);
-            alert('❌ Logout failed');
-        }
-    });
-    
-    // Reset password link
-    document.getElementById('resetPasswordLink').addEventListener('click', function() {
-        const email = prompt('Enter your email to reset password:');
-        if (!email) return;
         
-        rom.supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin
-        }).then(() => {
-            alert('✅ Password reset email sent! Check your inbox.');
-        }).catch(error => {
-            alert('❌ Failed to send reset email: ' + error.message);
-        });
-    });
-    
-    // Helper function
-    function showLoggedIn() {
-        document.getElementById('authForms').style.display = 'none';
-        document.getElementById('loggedInView').style.display = 'block';
-        if (rom.currentUser) {
-            document.getElementById('userEmailDisplay').textContent = rom.currentUser.email;
+        // Logout button
+        const logoutBtn = document.getElementById('logoutButton');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function() {
+                alert('Logout button works!');
+                console.log('🔥 DEBUG: Logout clicked');
+                
+                rom.supabase.auth.signOut().then(() => {
+                    rom.currentUser = null;
+                    rom.renderApp();
+                    alert('✅ Logged out');
+                });
+            });
         }
-    }
+        
+        // Tabs
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                console.log('🔥 DEBUG: Tab clicked:', this.textContent);
+                this.style.border = '3px solid yellow';
+                
+                // Switch forms
+                const tabName = this.textContent.toLowerCase();
+                document.getElementById('loginForm').classList.remove('active');
+                document.getElementById('registerForm').classList.remove('active');
+                document.getElementById(tabName + 'Form').classList.add('active');
+            });
+        });
+        
+        console.log('🔥 DEBUG: Button setup complete');
+    }, 1000);
 }
 
-// Run when loaded
-if (typeof window.rom !== 'undefined') {
-    initAuthModule(window.rom);
-}
+// Try to initialize
+setTimeout(() => {
+    if (window.rom) {
+        console.log('🔥 DEBUG: ROM found, initializing auth');
+        initAuthModule(window.rom);
+    } else {
+        console.error('🔥 DEBUG: ROM not found after timeout');
+        alert('ROM not loaded - check console');
+    }
+}, 2000);
