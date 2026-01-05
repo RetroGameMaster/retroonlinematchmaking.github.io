@@ -1,110 +1,131 @@
-function initGamesModule(rom) {
-    console.log('Initializing games module...');
+import { supabase, getCurrentUser } from '../../lib/supabase.js';
+
+export function initGamesModule() {
+    console.log('Games module initialized');
     
-    // Load and display games
+    // Handle form submission
+    document.getElementById('game-form')?.addEventListener('submit', handleGameSubmit);
+    
+    // Load existing games
     loadGames();
+}
+
+async function handleGameSubmit(e) {
+    e.preventDefault();
     
-    // Set up filters
-    setupFilters();
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const user = await getCurrentUser();
     
-    // Function to load games from storage
-    function loadGames() {
-        const gamesList = document.getElementById('gamesList');
+    if (!user) {
+        alert('Please login to submit a game.');
+        window.location.hash = '#/auth';
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const title = formData.get('title');
+    const console = formData.get('console');
+    const year = formData.get('year');
+    const description = formData.get('description');
+    const fileInput = form.querySelector('input[type="file"]');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+    
+    try {
+        // Upload file to Supabase Storage
+        let fileUrl = '';
+        if (fileInput.files[0]) {
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+            const filePath = `game_files/${fileName}`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('game_files')
+                .upload(filePath, file);
+            
+            if (uploadError) throw uploadError;
+            
+            // Get public URL
+            const { data: urlData } = supabase.storage
+                .from('game_files')
+                .getPublicUrl(filePath);
+            
+            fileUrl = urlData.publicUrl;
+        }
         
-        // Get approved games from localStorage
-        const allSubmissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
-        const approvedGames = allSubmissions.filter(game => game.status === 'approved');
+        // Save submission to database
+        const { error: dbError } = await supabase
+            .from('game_submissions')
+            .insert({
+                title,
+                console,
+                year,
+                description,
+                file_url: fileUrl,
+                user_id: user.id,
+                status: 'pending',
+                created_at: new Date().toISOString()
+            });
         
-        if (approvedGames.length === 0) {
-            // Show empty state
-            gamesList.innerHTML = `
-                <div class="empty-state">
-                    <h3 style="color: #ff33cc; margin-bottom: 20px;">No approved games yet!</h3>
-                    <p style="margin-bottom: 20px;">Be the first to get a game approved by submitting one.</p>
-                    <button class="submit-game-btn" onclick="window.rom.loadModule('submit-game')">
-                        🎮 Submit First Game
-                    </button>
-                </div>
-            `;
+        if (dbError) throw dbError;
+        
+        alert('Game submitted for review! Thank you.');
+        form.reset();
+        
+    } catch (error) {
+        console.error('Error submitting game:', error);
+        alert('Error submitting game. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Game';
+    }
+}
+
+async function loadGames() {
+    const gamesContainer = document.getElementById('games-list');
+    if (!gamesContainer) return;
+    
+    gamesContainer.innerHTML = '<p>Loading games...</p>';
+    
+    try {
+        // Get approved games
+        const { data: games, error } = await supabase
+            .from('games')
+            .select(`
+                *,
+                users:submitted_by (
+                    email
+                )
+            `)
+            .order('title', { ascending: true });
+        
+        if (error) throw error;
+        
+        if (!games || games.length === 0) {
+            gamesContainer.innerHTML = '<p class="text-gray-500">No games available yet.</p>';
             return;
         }
         
-        // Display games
-        gamesList.innerHTML = approvedGames.map(game => `
-            <div class="game-card" data-platform="${game.platforms.join(',')}" data-genre="${game.genre.join(',')}">
-                <h3>${game.title}</h3>
-                
-                <div class="game-platforms">
-                    ${game.platforms.map(platform => `
-                        <span class="platform-tag">${getPlatformName(platform)}</span>
-                    `).join('')}
-                </div>
-                
-                <p style="color: #a8dfe8; font-size: 0.95rem; margin: 10px 0;">
-                    ${game.description.substring(0, 100)}...
-                </p>
-                
-                <div class="game-stats">
-                    <span>👥 ${game.maxPlayers} players</span>
-                    <span>🎮 ${game.connectionMethods?.length || 0} methods</span>
-                    <span>${game.releaseYear || 'N/A'}</span>
-                </div>
-                
-                <button class="view-game-btn" onclick="viewGame('${game.id}')">
-                    View Details
-                </button>
+        gamesContainer.innerHTML = games.map(game => `
+            <div class="bg-gray-800 p-4 rounded-lg mb-4">
+                <h3 class="text-xl font-bold text-white">${game.title}</h3>
+                <p class="text-gray-300">Console: ${game.console} | Year: ${game.year}</p>
+                <p class="text-gray-300">${game.description}</p>
+                <p class="text-gray-400 text-sm">Submitted by: ${game.users?.email || 'Unknown'}</p>
+                ${game.file_url ? `
+                    <a href="${game.file_url}" target="_blank" 
+                       class="inline-block mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                        Download
+                    </a>
+                ` : ''}
             </div>
         `).join('');
         
-        // Show submission prompt
-        document.getElementById('submitPrompt').style.display = 'block';
+    } catch (error) {
+        console.error('Error loading games:', error);
+        gamesContainer.innerHTML = '<p class="text-red-500">Error loading games.</p>';
     }
-    
-    function getPlatformName(platformCode) {
-        const platforms = {
-            'ps1': 'PS1', 'ps2': 'PS2', 'ps3': 'PS3', 'psp': 'PSP',
-            'xbox': 'Xbox', 'xbox360': 'Xbox 360', 'gamecube': 'GameCube',
-            'wii': 'Wii', 'dreamcast': 'Dreamcast', 'pc': 'PC'
-        };
-        return platforms[platformCode] || platformCode;
-    }
-    
-    function setupFilters() {
-        const platformFilter = document.getElementById('platformFilter');
-        const genreFilter = document.getElementById('genreFilter');
-        const searchInput = document.getElementById('searchInput');
-        
-        function applyFilters() {
-            const platform = platformFilter.value;
-            const genre = genreFilter.value;
-            const search = searchInput.value.toLowerCase();
-            
-            document.querySelectorAll('.game-card').forEach(card => {
-                const cardPlatforms = card.getAttribute('data-platform').split(',');
-                const cardGenres = card.getAttribute('data-genre').split(',');
-                const cardTitle = card.querySelector('h3').textContent.toLowerCase();
-                
-                const platformMatch = platform === 'all' || cardPlatforms.includes(platform);
-                const genreMatch = genre === 'all' || cardGenres.includes(genre);
-                const searchMatch = search === '' || cardTitle.includes(search);
-                
-                card.style.display = (platformMatch && genreMatch && searchMatch) ? 'block' : 'none';
-            });
-        }
-        
-        platformFilter.addEventListener('change', applyFilters);
-        genreFilter.addEventListener('change', applyFilters);
-        searchInput.addEventListener('input', applyFilters);
-    }
-    
-    // View game details (placeholder for now)
-    window.viewGame = function(gameId) {
-        alert(`Game details page for ${gameId} will be implemented next!`);
-        // In Phase 2, this will load: rom.loadModule(`game/${gameId}`)
-    };
-}
-
-// Execute when loaded
-if (typeof window.rom !== 'undefined') {
-    initGamesModule(window.rom);
 }
