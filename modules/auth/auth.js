@@ -1,9 +1,9 @@
 function initAuthModule(rom) {
-    console.log('Initializing auth module...');
+    console.log('✅ Auth module loading...');
     
     // Check if already logged in
     if (rom.currentUser) {
-        showLoggedInView();
+        showLoggedIn();
         return;
     }
     
@@ -11,228 +11,154 @@ function initAuthModule(rom) {
     document.getElementById('authForms').style.display = 'block';
     document.getElementById('loggedInView').style.display = 'none';
     
-    // Set up event handlers
-    setupAuthHandlers();
-    
-    function showLoggedInView() {
-        document.getElementById('authForms').style.display = 'none';
-        document.getElementById('loggedInView').style.display = 'block';
-        document.getElementById('userEmailDisplay').textContent = rom.currentUser.email;
-    }
-    
-    function setupAuthHandlers() {
-        // Tab switching
-        window.switchTab = function(tab, event) {
-            if (event) event.preventDefault();
+    // Set up tabs
+    const tabs = document.querySelectorAll('.auth-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
             
-            // Update active tab
-            document.querySelectorAll('.auth-tab').forEach(t => {
-                t.classList.remove('active');
-            });
+            // Update tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
             
-            // Set active tab
-            const activeTab = event ? event.target : document.querySelector(`[onclick*="${tab}"]`);
-            if (activeTab) activeTab.classList.add('active');
-            
-            // Show active form
+            // Show correct form
             document.getElementById('loginForm').classList.remove('active');
             document.getElementById('registerForm').classList.remove('active');
-            document.getElementById(tab + 'Form').classList.add('active');
-            
-            // Clear messages
-            clearMessages();
-        };
+            document.getElementById(tabName + 'Form').classList.add('active');
+        });
+    });
+    
+    // Login button
+    document.getElementById('loginButton').addEventListener('click', async function() {
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
         
-        // Login function
-        window.login = async function() {
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            
-            if (!email || !password) {
-                showMessage('loginMessage', 'Please enter email and password', 'error');
-                return;
-            }
-            
-            const loginBtn = document.querySelector('#loginForm .auth-btn');
-            const originalText = loginBtn.textContent;
-            loginBtn.textContent = 'Logging in...';
-            loginBtn.disabled = true;
-            
-            try {
-                const { data, error } = await rom.supabase.auth.signInWithPassword({
-                    email,
-                    password
-                });
-                
-                if (error) throw error;
-                
-                // Success
-                rom.currentUser = data.user;
-                showMessage('loginMessage', '✅ Login successful!', 'success');
-                
-                // Update app state
-                setTimeout(() => {
-                    rom.renderApp(); // Re-render to show admin button
-                    showLoggedInView();
-                }, 1000);
-                
-            } catch (error) {
-                console.error('Login error:', error);
-                showMessage('loginMessage', `❌ Login failed: ${error.message}`, 'error');
-            } finally {
-                loginBtn.textContent = originalText;
-                loginBtn.disabled = false;
-            }
-        };
+        if (!email || !password) {
+            alert('Please enter email and password');
+            return;
+        }
         
-        // Register function
-        window.register = async function() {
-            const username = document.getElementById('registerUsername').value.trim();
-            const email = document.getElementById('registerEmail').value.trim();
-            const password = document.getElementById('registerPassword').value;
+        this.textContent = 'Logging in...';
+        this.disabled = true;
+        
+        try {
+            const { data, error } = await rom.supabase.auth.signInWithPassword({
+                email,
+                password
+            });
             
-            if (!username || !email || !password) {
-                showMessage('registerMessage', 'Please fill all fields', 'error');
-                return;
-            }
+            if (error) throw error;
             
-            if (password.length < 6) {
-                showMessage('registerMessage', 'Password must be at least 6 characters', 'error');
-                return;
-            }
+            rom.currentUser = data.user;
+            alert('✅ Login successful!');
             
-            const registerBtn = document.querySelector('#registerForm .auth-btn');
-            const originalText = registerBtn.textContent;
-            registerBtn.textContent = 'Creating account...';
-            registerBtn.disabled = true;
+            // Update UI
+            rom.renderApp();
+            showLoggedIn();
             
-            try {
-                const { data, error } = await rom.supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: { username }
-                    }
-                });
-                
-                if (error) throw error;
-                
-                // Check if email confirmation is required
-                if (data.user && data.user.identities && data.user.identities.length === 0) {
-                    showMessage('registerMessage', '⚠️ This email is already registered', 'error');
-                    return;
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('❌ Login failed: ' + error.message);
+        } finally {
+            this.textContent = 'Login';
+            this.disabled = false;
+        }
+    });
+    
+    // Register button
+    document.getElementById('registerButton').addEventListener('click', async function() {
+        const username = document.getElementById('registerUsername').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
+        const password = document.getElementById('registerPassword').value;
+        
+        if (!username || !email || !password) {
+            alert('Please fill all fields');
+            return;
+        }
+        
+        if (password.length < 6) {
+            alert('Password must be at least 6 characters');
+            return;
+        }
+        
+        this.textContent = 'Creating account...';
+        this.disabled = true;
+        
+        try {
+            const { data, error } = await rom.supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { username }
                 }
-                
-                showMessage('registerMessage', '✅ Registration successful! Please check your email for confirmation.', 'success');
-                
-                // Clear form
-                document.getElementById('registerUsername').value = '';
-                document.getElementById('registerEmail').value = '';
-                document.getElementById('registerPassword').value = '';
-                
-                // Switch to login tab after successful registration
-                setTimeout(() => {
-                    switchTab('login');
-                    document.getElementById('loginEmail').value = email;
-                }, 3000);
-                
-            } catch (error) {
-                console.error('Registration error:', error);
-                showMessage('registerMessage', `❌ Registration failed: ${error.message}`, 'error');
-            } finally {
-                registerBtn.textContent = originalText;
-                registerBtn.disabled = false;
-            }
-        };
-        
-        // Logout function
-        window.logout = async function() {
-            try {
-                await rom.supabase.auth.signOut();
-                rom.currentUser = null;
-                
-                // Show auth forms
-                document.getElementById('authForms').style.display = 'block';
-                document.getElementById('loggedInView').style.display = 'none';
-                
-                // Clear forms
-                document.getElementById('loginEmail').value = '';
-                document.getElementById('loginPassword').value = '';
-                
-                // Update app state
-                rom.renderApp();
-                
-                showMessage('loginMessage', '✅ Logged out successfully', 'success');
-                
-            } catch (error) {
-                console.error('Logout error:', error);
-                showMessage('loginMessage', '❌ Logout failed', 'error');
-            }
-        };
-        
-        // Reset password function
-        window.resetPassword = async function() {
-            const email = prompt('Enter your email to reset password:');
-            if (!email) return;
+            });
             
-            try {
-                const { error } = await rom.supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.origin
-                });
-                
-                if (error) throw error;
-                
-                alert('✅ Password reset email sent! Check your inbox.');
-            } catch (error) {
-                console.error('Password reset error:', error);
-                alert('❌ Failed to send reset email: ' + error.message);
-            }
-        };
-        
-        // Helper functions
-        function showMessage(elementId, text, type) {
-            const element = document.getElementById(elementId);
-            element.textContent = text;
-            element.className = `message ${type}`;
-            element.style.display = 'block';
+            if (error) throw error;
+            
+            alert('✅ Registration successful! Check your email.');
+            
+            // Clear form
+            document.getElementById('registerUsername').value = '';
+            document.getElementById('registerEmail').value = '';
+            document.getElementById('registerPassword').value = '';
+            
+            // Switch to login tab
+            tabs[0].click();
+            document.getElementById('loginEmail').value = email;
+            
+        } catch (error) {
+            console.error('Registration error:', error);
+            alert('❌ Registration failed: ' + error.message);
+        } finally {
+            this.textContent = 'Create Account';
+            this.disabled = false;
         }
-        
-        function clearMessages() {
-            document.querySelectorAll('.message').forEach(msg => {
-                msg.style.display = 'none';
-            });
+    });
+    
+    // Logout button
+    document.getElementById('logoutButton').addEventListener('click', async function() {
+        try {
+            await rom.supabase.auth.signOut();
+            rom.currentUser = null;
+            rom.renderApp();
+            
+            // Show auth forms
+            document.getElementById('authForms').style.display = 'block';
+            document.getElementById('loggedInView').style.display = 'none';
+            
+            alert('✅ Logged out');
+            
+        } catch (error) {
+            console.error('Logout error:', error);
+            alert('❌ Logout failed');
         }
+    });
+    
+    // Reset password link
+    document.getElementById('resetPasswordLink').addEventListener('click', function() {
+        const email = prompt('Enter your email to reset password:');
+        if (!email) return;
         
-        // Add button click listeners (more reliable than onclick attributes)
-        document.querySelector('#loginForm .auth-btn').addEventListener('click', login);
-        document.querySelector('#registerForm .auth-btn').addEventListener('click', register);
-        
-        // Add enter key support
-        document.getElementById('loginEmail').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
+        rom.supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin
+        }).then(() => {
+            alert('✅ Password reset email sent! Check your inbox.');
+        }).catch(error => {
+            alert('❌ Failed to send reset email: ' + error.message);
         });
-        
-        document.getElementById('loginPassword').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
-        });
-        
-        document.getElementById('registerPassword').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') register();
-        });
-        
-        // Fix tab buttons to use proper event listeners
-        document.querySelectorAll('.auth-tab').forEach(tab => {
-            tab.addEventListener('click', function(e) {
-                const tabName = this.textContent.toLowerCase();
-                switchTab(tabName, e);
-            });
-        });
+    });
+    
+    // Helper function
+    function showLoggedIn() {
+        document.getElementById('authForms').style.display = 'none';
+        document.getElementById('loggedInView').style.display = 'block';
+        if (rom.currentUser) {
+            document.getElementById('userEmailDisplay').textContent = rom.currentUser.email;
+        }
     }
 }
 
-// Execute when loaded
+// Run when loaded
 if (typeof window.rom !== 'undefined') {
     initAuthModule(window.rom);
-} else {
-    console.error('ROM app not initialized');
 }
