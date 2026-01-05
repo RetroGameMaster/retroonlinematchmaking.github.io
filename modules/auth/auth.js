@@ -22,12 +22,17 @@ function initAuthModule(rom) {
     
     function setupAuthHandlers() {
         // Tab switching
-        window.switchTab = function(tab) {
+        window.switchTab = function(tab, event) {
+            if (event) event.preventDefault();
+            
             // Update active tab
             document.querySelectorAll('.auth-tab').forEach(t => {
                 t.classList.remove('active');
             });
-            event.target.classList.add('active');
+            
+            // Set active tab
+            const activeTab = event ? event.target : document.querySelector(`[onclick*="${tab}"]`);
+            if (activeTab) activeTab.classList.add('active');
             
             // Show active form
             document.getElementById('loginForm').classList.remove('active');
@@ -48,7 +53,7 @@ function initAuthModule(rom) {
                 return;
             }
             
-            const loginBtn = event.target;
+            const loginBtn = document.querySelector('#loginForm .auth-btn');
             const originalText = loginBtn.textContent;
             loginBtn.textContent = 'Logging in...';
             loginBtn.disabled = true;
@@ -96,7 +101,7 @@ function initAuthModule(rom) {
                 return;
             }
             
-            const registerBtn = event.target;
+            const registerBtn = document.querySelector('#registerForm .auth-btn');
             const originalText = registerBtn.textContent;
             registerBtn.textContent = 'Creating account...';
             registerBtn.disabled = true;
@@ -198,6 +203,10 @@ function initAuthModule(rom) {
             });
         }
         
+        // Add button click listeners (more reliable than onclick attributes)
+        document.querySelector('#loginForm .auth-btn').addEventListener('click', login);
+        document.querySelector('#registerForm .auth-btn').addEventListener('click', register);
+        
         // Add enter key support
         document.getElementById('loginEmail').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') login();
@@ -210,10 +219,20 @@ function initAuthModule(rom) {
         document.getElementById('registerPassword').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') register();
         });
+        
+        // Fix tab buttons to use proper event listeners
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', function(e) {
+                const tabName = this.textContent.toLowerCase();
+                switchTab(tabName, e);
+            });
+        });
     }
 }
 
 // Execute when loaded
 if (typeof window.rom !== 'undefined') {
     initAuthModule(window.rom);
+} else {
+    console.error('ROM app not initialized');
 }
