@@ -1,5 +1,186 @@
-<!-- For each module, create a simple placeholder -->
-<div style="padding: 50px; text-align: center;">
-    <h2>Module Coming Soon</h2>
-    <p>This module is under development.</p>
+<div class="games-module">
+    <style>
+        .games-module {
+            padding: 20px;
+        }
+        
+        .games-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .games-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .submit-game-btn {
+            background: linear-gradient(180deg, #ff33cc, #cc0099);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+        }
+        
+        .games-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-select,
+        .search-input {
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ffff;
+            color: white;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        .search-input {
+            min-width: 250px;
+        }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+        
+        .game-card {
+            background: rgba(0, 30, 60, 0.7);
+            border: 1px solid #00ffff;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-5px);
+            border-color: #ff33cc;
+            box-shadow: 0 10px 25px rgba(255, 51, 204, 0.2);
+        }
+        
+        .game-card h3 {
+            color: #ff33cc;
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+        
+        .game-platforms {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .platform-tag {
+            background: rgba(255, 51, 204, 0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        
+        .game-stats {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            color: #a8dfe8;
+            font-size: 0.9rem;
+        }
+        
+        .view-game-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #a8dfe8;
+        }
+        
+        .submit-prompt {
+            background: rgba(255, 51, 204, 0.1);
+            border: 2px dashed #ff33cc;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 40px;
+        }
+    </style>
+    
+    <div class="games-header">
+        <h1 style="color: #ff33cc;">🎮 Community Game Library</h1>
+        <div class="games-actions">
+            <button class="submit-game-btn" onclick="rom.loadModule('submit-game')">
+                ＋ Submit a Game
+            </button>
+        </div>
+    </div>
+    
+    <p style="color: #a8dfe8; margin-bottom: 30px;">
+        Browse community-submitted retro games with online play support. 
+        <a href="javascript:void(0)" onclick="rom.loadModule('submit-game')" style="color: #ff33cc;">Submit your own game</a> to grow the database!
+    </p>
+    
+    <div class="games-filters">
+        <select class="filter-select" id="platformFilter">
+            <option value="all">All Platforms</option>
+            <option value="ps1">PlayStation 1</option>
+            <option value="ps2">PlayStation 2</option>
+            <option value="ps3">PlayStation 3</option>
+            <option value="psp">PSP</option>
+            <option value="xbox">Xbox</option>
+            <option value="xbox360">Xbox 360</option>
+        </select>
+        
+        <select class="filter-select" id="genreFilter">
+            <option value="all">All Genres</option>
+            <option value="shooter">Shooter</option>
+            <option value="racing">Racing</option>
+            <option value="fighting">Fighting</option>
+            <option value="sports">Sports</option>
+            <option value="action">Action</option>
+        </select>
+        
+        <input type="text" class="search-input" id="searchInput" placeholder="Search games...">
+    </div>
+    
+    <div class="games-grid" id="gamesList">
+        <!-- Games will load here -->
+        <div class="empty-state">
+            <h3>No games yet!</h3>
+            <p>Be the first to submit a retro game to the database.</p>
+            <button class="submit-game-btn" onclick="rom.loadModule('submit-game')" style="margin-top: 20px;">
+                Submit First Game
+            </button>
+        </div>
+    </div>
+    
+    <div class="submit-prompt" id="submitPrompt" style="display: none;">
+        <h3 style="color: #ff33cc;">Know a retro game with online play?</h3>
+        <p>Help grow the community database by submitting games you love!</p>
+        <button class="submit-game-btn" onclick="rom.loadModule('submit-game')" style="margin-top: 15px;">
+            🎮 Submit a Game
+        </button>
+    </div>
 </div>
