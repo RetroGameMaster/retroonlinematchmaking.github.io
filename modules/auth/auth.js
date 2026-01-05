@@ -1,116 +1,99 @@
-console.log('🔥 DEBUG: Auth JS loaded');
+import { supabase, updateAuthUI } from '../../lib/supabase.js';
 
-// Simple test to see if this file loads
-alert('Auth JS loaded - buttons should work now!');
-
-function initAuthModule(rom) {
-    console.log('🔥 DEBUG: initAuthModule called');
-    console.log('🔥 DEBUG: rom.supabase exists?', !!rom.supabase);
+export function initAuthModule() {
+    console.log('Auth module initialized');
     
-    // Make rom globally available
-    window.rom = rom;
-    
-    // SIMPLE TEST - add this to every button
-    document.addEventListener('click', function(e) {
-        console.log('🔥 DEBUG: Clicked:', e.target.className, e.target.id);
-        
-        if (e.target.className.includes('auth-btn')) {
-            console.log('🔥 DEBUG: Auth button clicked!');
-            e.target.style.background = 'red'; // Visual feedback
-        }
-        
-        if (e.target.className.includes('auth-tab')) {
-            console.log('🔥 DEBUG: Tab clicked');
-            e.target.style.background = 'blue'; // Visual feedback
-        }
+    // Show login form
+    document.getElementById('show-login')?.addEventListener('click', () => {
+        showAuthForm('login');
     });
     
-    // Force buttons to work - add direct event listeners
-    setTimeout(() => {
-        console.log('🔥 DEBUG: Setting up button listeners...');
-        
-        // Login button
-        const loginBtn = document.getElementById('loginButton');
-        if (loginBtn) {
-            console.log('🔥 DEBUG: Found login button');
-            loginBtn.addEventListener('click', function() {
-                console.log('🔥 DEBUG: Login clicked!');
-                alert('Login button works!');
-                
-                // Try to login with test credentials
-                const email = document.getElementById('loginEmail')?.value || 'test@test.com';
-                const password = document.getElementById('loginPassword')?.value || 'password123';
-                
-                console.log('🔥 DEBUG: Attempting login with:', email);
-                
-                rom.supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password
-                }).then(response => {
-                    console.log('🔥 DEBUG: Login response:', response);
-                    if (response.error) {
-                        alert('Login error: ' + response.error.message);
-                    } else {
-                        alert('✅ Login successful!');
-                        rom.currentUser = response.data.user;
-                        rom.renderApp();
-                    }
-                }).catch(error => {
-                    console.error('🔥 DEBUG: Login catch error:', error);
-                    alert('Login failed: ' + error.message);
-                });
-            });
-        }
-        
-        // Register button
-        const registerBtn = document.getElementById('registerButton');
-        if (registerBtn) {
-            registerBtn.addEventListener('click', function() {
-                alert('Register button works!');
-                console.log('🔥 DEBUG: Register clicked');
-            });
-        }
-        
-        // Logout button
-        const logoutBtn = document.getElementById('logoutButton');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', function() {
-                alert('Logout button works!');
-                console.log('🔥 DEBUG: Logout clicked');
-                
-                rom.supabase.auth.signOut().then(() => {
-                    rom.currentUser = null;
-                    rom.renderApp();
-                    alert('✅ Logged out');
-                });
-            });
-        }
-        
-        // Tabs
-        document.querySelectorAll('.auth-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                console.log('🔥 DEBUG: Tab clicked:', this.textContent);
-                this.style.border = '3px solid yellow';
-                
-                // Switch forms
-                const tabName = this.textContent.toLowerCase();
-                document.getElementById('loginForm').classList.remove('active');
-                document.getElementById('registerForm').classList.remove('active');
-                document.getElementById(tabName + 'Form').classList.add('active');
-            });
-        });
-        
-        console.log('🔥 DEBUG: Button setup complete');
-    }, 1000);
+    // Show register form
+    document.getElementById('show-register')?.addEventListener('click', () => {
+        showAuthForm('register');
+    });
+    
+    // Handle form submission
+    document.getElementById('auth-form')?.addEventListener('submit', handleAuthSubmit);
+    
+    // Update UI initially
+    updateAuthUI();
 }
 
-// Try to initialize
-setTimeout(() => {
-    if (window.rom) {
-        console.log('🔥 DEBUG: ROM found, initializing auth');
-        initAuthModule(window.rom);
+function showAuthForm(type) {
+    const form = document.getElementById('auth-form');
+    const submitBtn = document.getElementById('auth-submit-btn');
+    const formTitle = document.getElementById('auth-form-title');
+    
+    form.setAttribute('data-type', type);
+    
+    if (type === 'login') {
+        formTitle.textContent = 'Login';
+        submitBtn.textContent = 'Login';
+        submitBtn.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded';
     } else {
-        console.error('🔥 DEBUG: ROM not found after timeout');
-        alert('ROM not loaded - check console');
+        formTitle.textContent = 'Register';
+        submitBtn.textContent = 'Register';
+        submitBtn.className = 'w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded';
     }
-}, 2000);
+    
+    form.classList.remove('hidden');
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const type = form.getAttribute('data-type');
+    const email = form.email.value;
+    const password = form.password.value;
+    const submitBtn = document.getElementById('auth-submit-btn');
+    const errorDiv = document.getElementById('auth-error');
+    
+    // Clear previous errors
+    errorDiv.classList.add('hidden');
+    errorDiv.textContent = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+    
+    try {
+        let result;
+        
+        if (type === 'login') {
+            result = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
+        } else {
+            result = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        created_at: new Date().toISOString()
+                    }
+                }
+            });
+        }
+        
+        if (result.error) {
+            throw result.error;
+        }
+        
+        if (type === 'register' && result.data?.user) {
+            alert('Registration successful! Please check your email to confirm your account.');
+        }
+        
+        // Close form and refresh UI
+        form.classList.add('hidden');
+        form.reset();
+        updateAuthUI();
+        
+    } catch (error) {
+        errorDiv.textContent = error.message;
+        errorDiv.classList.remove('hidden');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = type === 'login' ? 'Login' : 'Register';
+    }
+}
