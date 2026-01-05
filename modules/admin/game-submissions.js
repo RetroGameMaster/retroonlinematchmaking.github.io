@@ -143,4 +143,163 @@ function initGameSubmissions(rom) {
                     
                     ${sub.status !== 'pending' ? `
                         <button class="action-btn ${sub.status === 'approved' ? 'reject' : 'approve'}" 
-                                onclick="${sub.status === 'approved' ? 'rejectSubmission' : 'approveSubmission
+                                onclick="${sub.status === 'approved' ? 'rejectSubmission' : 'approveSubmission'}('${sub.id}')">
+                            ${sub.status === 'approved' ? '❌ Unapprove' : '✅ Re-approve'}
+                        </button>
+                    ` : ''}
+                    
+                    <button class="action-btn reject" onclick="deleteSubmission('${sub.id}')" 
+                            style="background: rgba(255,0,0,0.1); color: #ff3333; border: 1px solid #ff3333;">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function getEmptyStateMessage() {
+        switch(currentFilter) {
+            case 'pending': return 'All submissions have been reviewed!';
+            case 'approved': return 'No games have been approved yet.';
+            case 'rejected': return 'No submissions have been rejected.';
+            default: return 'No submissions found in the database.';
+        }
+    }
+    
+    function getStatusText(status) {
+        switch(status) {
+            case 'pending': return '⏳ Pending Review';
+            case 'approved': return '✅ Approved';
+            case 'rejected': return '❌ Rejected';
+            default: return status;
+        }
+    }
+    
+    function getPlatformName(code) {
+        const platforms = {
+            'ps1': 'PS1', 'ps2': 'PS2', 'ps3': 'PS3', 'psp': 'PSP',
+            'xbox': 'Xbox', 'xbox360': 'Xbox 360', 'gamecube': 'GameCube',
+            'wii': 'Wii', 'dreamcast': 'Dreamcast', 'pc': 'PC'
+        };
+        return platforms[code] || code;
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return 'Unknown date';
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    function setupEventHandlers() {
+        // Tab switching
+        window.showSubmissions = function(filter) {
+            currentFilter = filter;
+            
+            // Update active tab
+            document.querySelectorAll('.submissions-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Reload submissions
+            loadSubmissions();
+        };
+        
+        // Approve submission
+        window.approveSubmission = function(submissionId) {
+            if (!confirm('Approve this game submission?')) return;
+            
+            const submissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
+            const updated = submissions.map(sub => {
+                if (sub.id === submissionId) {
+                    const notes = document.getElementById(`notes-${submissionId}`)?.value || '';
+                    return {
+                        ...sub,
+                        status: 'approved',
+                        reviewedBy: rom.currentUser.email,
+                        reviewedAt: new Date().toISOString(),
+                        adminNotes: notes
+                    };
+                }
+                return sub;
+            });
+            
+            localStorage.setItem('rom_game_submissions', JSON.stringify(updated));
+            
+            // Show success message
+            alert('✅ Game approved! It will now appear in the public games list.');
+            
+            // Reload
+            loadSubmissions();
+        };
+        
+        // Show reject modal
+        window.showRejectModal = function(submissionId) {
+            currentRejectId = submissionId;
+            document.getElementById('rejectModal').style.display = 'flex';
+            document.getElementById('rejectReason').focus();
+        };
+        
+        // Confirm reject
+        window.confirmReject = function() {
+            if (!currentRejectId) return;
+            
+            const reason = document.getElementById('rejectReason').value.trim();
+            if (!reason && !confirm('Reject without providing a reason?')) return;
+            
+            const submissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
+            const updated = submissions.map(sub => {
+                if (sub.id === currentRejectId) {
+                    const notes = document.getElementById(`notes-${currentRejectId}`)?.value || '';
+                    return {
+                        ...sub,
+                        status: 'rejected',
+                        reviewedBy: rom.currentUser.email,
+                        reviewedAt: new Date().toISOString(),
+                        adminNotes: notes + (reason ? `\nRejection Reason: ${reason}` : '')
+                    };
+                }
+                return sub;
+            });
+            
+            localStorage.setItem('rom_game_submissions', JSON.stringify(updated));
+            
+            // Hide modal and reset
+            document.getElementById('rejectModal').style.display = 'none';
+            document.getElementById('rejectReason').value = '';
+            currentRejectId = null;
+            
+            alert('❌ Submission rejected.');
+            loadSubmissions();
+        };
+        
+        // Cancel reject
+        window.cancelReject = function() {
+            document.getElementById('rejectModal').style.display = 'none';
+            document.getElementById('rejectReason').value = '';
+            currentRejectId = null;
+        };
+        
+        // Edit submission
+        window.editSubmission = function(submissionId) {
+            alert('Edit functionality coming in Phase 3! For now, you can:\n1. Reject and ask user to resubmit\n2. Approve and edit later');
+        };
+        
+        // Delete submission
+        window.deleteSubmission = function(submissionId) {
+            if (!confirm('⚠️ Permanently delete this submission? This cannot be undone.')) return;
+            
+            const submissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
+            const filtered = submissions.filter(sub => sub.id !== submissionId);
+            localStorage.setItem('rom_game_submissions', JSON.stringify(filtered));
+            
+            alert('🗑️ Submission deleted.');
+            loadSubmissions();
+        };
+    }
+}
+
+// Execute when loaded
+if (typeof window.rom !== 'undefined') {
+    initGameSubmissions(window.rom);
+}
