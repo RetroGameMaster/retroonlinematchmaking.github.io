@@ -31,14 +31,18 @@ class ROMApp {
     }
     
     async checkAuth() {
-        try {
-            const { data: { user } } = await this.supabase.auth.getUser();
-            this.currentUser = user;
-            console.log('Auth status:', user ? 'Logged in' : 'Guest');
-        } catch (error) {
-            console.error('Auth check failed:', error);
-        }
+    try {
+        const { data: { user }, error } = await this.supabase.auth.getUser();
+        
+        if (error) throw error;
+        
+        this.currentUser = user;
+        console.log('Auth status:', user ? 'Logged in' : 'Guest');
+        
+    } catch (error) {
+        console.error('Auth check failed:', error);
     }
+}
     
     renderApp() {
         document.getElementById('rom-app').innerHTML = `
