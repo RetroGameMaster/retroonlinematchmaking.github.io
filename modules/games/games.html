@@ -27,6 +27,12 @@
             cursor: pointer;
             font-family: 'Orbitron', sans-serif;
             font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .submit-game-btn:hover {
+            background: linear-gradient(180deg, #ff66cc, #ff0099);
+            transform: translateY(-2px);
         }
         
         .games-filters {
@@ -110,6 +116,11 @@
             cursor: pointer;
             margin-top: 15px;
             font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s;
+        }
+        
+        .view-game-btn:hover {
+            background: rgba(0, 255, 255, 0.4);
         }
         
         .empty-state {
@@ -126,20 +137,35 @@
             text-align: center;
             margin-top: 40px;
         }
+        
+        .admin-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 51, 204, 0.3);
+            color: #ff33cc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
     </style>
     
     <div class="games-header">
-        <h1 style="color: #ff33cc;">🎮 Community Game Library</h1>
+        <h1 style="color: #ff33cc; font-size: 2.5rem;">🎮 Community Game Library</h1>
         <div class="games-actions">
-            <button class="submit-game-btn" onclick="rom.loadModule('submit-game')">
+            <button class="submit-game-btn" onclick="window.rom.loadModule('submit-game')">
                 ＋ Submit a Game
             </button>
         </div>
     </div>
     
-    <p style="color: #a8dfe8; margin-bottom: 30px;">
+    <p style="color: #a8dfe8; margin-bottom: 30px; font-size: 1.1rem;">
         Browse community-submitted retro games with online play support. 
-        <a href="javascript:void(0)" onclick="rom.loadModule('submit-game')" style="color: #ff33cc;">Submit your own game</a> to grow the database!
+        <a href="javascript:void(0)" onclick="window.rom.loadModule('submit-game')" 
+           style="color: #ff33cc; text-decoration: none; font-weight: bold;">
+            Submit your own game
+        </a> to help grow the database!
     </p>
     
     <div class="games-filters">
@@ -168,10 +194,10 @@
     <div class="games-grid" id="gamesList">
         <!-- Games will load here -->
         <div class="empty-state">
-            <h3>No games yet!</h3>
-            <p>Be the first to submit a retro game to the database.</p>
-            <button class="submit-game-btn" onclick="rom.loadModule('submit-game')" style="margin-top: 20px;">
-                Submit First Game
+            <h3 style="color: #ff33cc; margin-bottom: 20px;">No games submitted yet!</h3>
+            <p style="margin-bottom: 20px;">Be the first to submit a retro game to the database.</p>
+            <button class="submit-game-btn" onclick="window.rom.loadModule('submit-game')">
+                🎮 Submit First Game
             </button>
         </div>
     </div>
@@ -179,7 +205,7 @@
     <div class="submit-prompt" id="submitPrompt" style="display: none;">
         <h3 style="color: #ff33cc;">Know a retro game with online play?</h3>
         <p>Help grow the community database by submitting games you love!</p>
-        <button class="submit-game-btn" onclick="rom.loadModule('submit-game')" style="margin-top: 15px;">
+        <button class="submit-game-btn" onclick="window.rom.loadModule('submit-game')" style="margin-top: 15px;">
             🎮 Submit a Game
         </button>
     </div>
