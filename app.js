@@ -254,21 +254,33 @@ class ROMApp {
     }
     
     updateNavigation() {
-        const nav = document.getElementById('rom-nav');
-        const modules = [
-            { id: 'home', name: '🏠 Home' },
-            { id: 'games', name: '🎮 Games' },
-            { id: 'chat', name: '💬 Chat' },
-            { id: 'profile', name: '👤 Profile' }
-        ];
-        
-        nav.innerHTML = modules.map(module => `
-            <button class="nav-btn ${this.currentModule === module.id ? 'active' : ''}"
-                    onclick="rom.loadModule('${module.id}')">
-                ${module.name}
-            </button>
-        `).join('');
+    const nav = document.getElementById('rom-nav');
+    const modules = [
+        { id: 'home', name: '🏠 Home' },
+        { id: 'games', name: '🎮 Games' },
+        { id: 'chat', name: '💬 Chat' },
+        { id: 'profile', name: '👤 Profile' }
+    ];
+    
+    nav.innerHTML = modules.map(module => `
+        <button class="nav-btn ${this.currentModule === module.id ? 'active' : ''}"
+                onclick="rom.loadModule('${module.id}')">
+            ${module.name}
+        </button>
+    `).join('');
+    
+    // Add submit game button if on games page
+    if (this.currentModule === 'games') {
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'nav-btn';
+        submitBtn.style.background = 'rgba(255, 51, 204, 0.2)';
+        submitBtn.style.borderColor = '#ff33cc';
+        submitBtn.style.color = '#ff33cc';
+        submitBtn.innerHTML = '＋ Submit Game';
+        submitBtn.onclick = () => this.loadModule('submit-game');
+        nav.appendChild(submitBtn);
     }
+}
     
     async logout() {
         try {
