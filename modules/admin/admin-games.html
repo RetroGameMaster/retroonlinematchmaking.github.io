@@ -1,0 +1,133 @@
+<div class="admin-games-module">
+    <style>
+        .admin-games-module {
+            padding: 20px;
+        }
+        
+        .admin-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ffff;
+            padding-bottom: 10px;
+        }
+        
+        .admin-tab {
+            padding: 10px 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #00ffff;
+            cursor: pointer;
+        }
+        
+        .admin-tab.active {
+            background: rgba(0, 255, 255, 0.3);
+            border-bottom-color: #ff33cc;
+        }
+        
+        .submission-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .submission-item {
+            background: rgba(0, 30, 60, 0.7);
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .submission-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-pending {
+            background: rgba(255, 255, 0, 0.2);
+            color: #ffff00;
+            border: 1px solid #ffff00;
+        }
+        
+        .status-approved {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+        }
+        
+        .status-rejected {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff3333;
+            border: 1px solid #ff3333;
+        }
+        
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-approve {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-reject {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff3333;
+            color: #ff3333;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-edit {
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+    
+    <h1 style="color: #ff33cc;">🛠️ Game Submissions Admin</h1>
+    <p style="color: #a8dfe8; margin-bottom: 30px;">
+        Review, approve, or reject community game submissions.
+    </p>
+    
+    <div class="admin-tabs">
+        <button class="admin-tab active" onclick="showSubmissions('pending')">
+            ⏳ Pending (0)
+        </button>
+        <button class="admin-tab" onclick="showSubmissions('approved')">
+            ✅ Approved (0)
+        </button>
+        <button class="admin-tab" onclick="showSubmissions('rejected')">
+            ❌ Rejected (0)
+        </button>
+        <button class="admin-tab" onclick="showSubmissions('all')">
+            📋 All Submissions
+        </button>
+    </div>
+    
+    <div id="submissionsContent">
+        <div class="empty-state">
+            <h3>No submissions to review</h3>
+            <p>When users submit games, they'll appear here for approval.</p>
+        </div>
+    </div>
+</div>
