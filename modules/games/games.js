@@ -1,7 +1,7 @@
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
-export function initGamesModule() {
-    console.log('Games module initialized');
+export function initModule() {
+    console.log('🎮 Games module initialized');
     
     // Handle form submission
     document.getElementById('game-form')?.addEventListener('submit', handleGameSubmit);
@@ -28,59 +28,61 @@ async function handleGameSubmit(e) {
     const console = formData.get('console');
     const year = formData.get('year');
     const description = formData.get('description');
-    const fileInput = form.querySelector('input[type="file"]');
     
+    // Basic validation
+    if (!title || !console || !year || !description) {
+        alert('Please fill in all required fields.');
+        return;
+    }
+    
+    const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading...';
+    submitBtn.textContent = 'Submitting...';
     
     try {
-        // Upload file to Supabase Storage
-        let fileUrl = '';
-        if (fileInput.files[0]) {
-            const file = fileInput.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-            const filePath = `game_files/${fileName}`;
-            
-            const { error: uploadError } = await supabase.storage
-                .from('game_files')
-                .upload(filePath, file);
-            
-            if (uploadError) throw uploadError;
-            
-            // Get public URL
-            const { data: urlData } = supabase.storage
-                .from('game_files')
-                .getPublicUrl(filePath);
-            
-            fileUrl = urlData.publicUrl;
-        }
+        console.log('Submitting game:', { title, console, year, description });
         
         // Save submission to database
-        const { error: dbError } = await supabase
+        const { data, error } = await supabase
             .from('game_submissions')
             .insert({
                 title,
                 console,
-                year,
+                year: parseInt(year),
                 description,
-                file_url: fileUrl,
                 user_id: user.id,
                 status: 'pending',
                 created_at: new Date().toISOString()
-            });
+            })
+            .select()
+            .single();
         
-        if (dbError) throw dbError;
+        if (error) {
+            // If table doesn't exist, guide user to create it
+            if (error.code === '42P01') {
+                alert('Game submissions table not found. Please run the setup SQL in Supabase.');
+                console.error('Table missing error:', error);
+                return;
+            }
+            throw error;
+        }
         
-        alert('Game submitted for review! Thank you.');
+        console.log('Submission successful:', data);
+        
+        alert('🎮 Game submitted successfully! It will be reviewed by an admin soon.');
         form.reset();
+        
+        // Reload games to show the new submission in admin panel
+        if (window.location.hash === '#/admin') {
+            window.loadModule?.('admin');
+        }
         
     } catch (error) {
         console.error('Error submitting game:', error);
-        alert('Error submitting game. Please try again.');
+        alert('Error submitting game: ' + error.message);
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Game';
+        submitBtn.textContent = originalText;
     }
 }
 
@@ -88,44 +90,112 @@ async function loadGames() {
     const gamesContainer = document.getElementById('games-list');
     if (!gamesContainer) return;
     
-    gamesContainer.innerHTML = '<p>Loading games...</p>';
+    gamesContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="text-gray-400 mt-2">Loading games...</p></div>';
     
     try {
-        // Get approved games
+        // First try to get approved games
         const { data: games, error } = await supabase
             .from('games')
-            .select(`
-                *,
-                users:submitted_by (
-                    email
-                )
-            `)
+            .select('*')
             .order('title', { ascending: true });
         
-        if (error) throw error;
+        if (error) {
+            // If games table doesn't exist, show message
+            if (error.code === '42P01') {
+                gamesContainer.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-4xl mb-4">📂</div>
+                        <h3 class="text-xl font-bold text-white mb-2">No Games Yet</h3>
+                        <p class="text-gray-300 mb-4">The games library hasn't been set up yet.</p>
+                        <p class="text-gray-400 text-sm">Submit a game to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+            throw error;
+        }
         
         if (!games || games.length === 0) {
-            gamesContainer.innerHTML = '<p class="text-gray-500">No games available yet.</p>';
+            gamesContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-4">🎮</div>
+                    <h3 class="text-xl font-bold text-white mb-2">No Games Available</h3>
+                    <p class="text-gray-300">No games have been approved yet.</p>
+                    <p class="text-gray-400 text-sm mt-2">Be the first to submit a game!</p>
+                </div>
+            `;
             return;
         }
         
+        // Get user emails for submitted_by
+        const userIds = [...new Set(games.map(g => g.submitted_by))];
+        const userEmails = {};
+        
+        for (const userId of userIds) {
+            try {
+                const { data: user } = await supabase.auth.admin.getUserById(userId);
+                if (user?.user?.email) {
+                    userEmails[userId] = user.user.email;
+                }
+            } catch (err) {
+                console.log('Could not fetch user:', userId, err);
+            }
+        }
+        
         gamesContainer.innerHTML = games.map(game => `
-            <div class="bg-gray-800 p-4 rounded-lg mb-4">
-                <h3 class="text-xl font-bold text-white">${game.title}</h3>
-                <p class="text-gray-300">Console: ${game.console} | Year: ${game.year}</p>
-                <p class="text-gray-300">${game.description}</p>
-                <p class="text-gray-400 text-sm">Submitted by: ${game.users?.email || 'Unknown'}</p>
-                ${game.file_url ? `
-                    <a href="${game.file_url}" target="_blank" 
-                       class="inline-block mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-                        Download
-                    </a>
-                ` : ''}
+            <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700 hover:border-cyan-500 transition">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold text-white mb-2">${game.title}</h3>
+                        <div class="flex items-center space-x-4">
+                            <span class="bg-cyan-600 text-white px-3 py-1 rounded text-sm">${game.console}</span>
+                            <span class="text-gray-300">${game.year}</span>
+                            <span class="text-gray-500 text-sm">
+                                Submitted by: ${userEmails[game.submitted_by] || 'Unknown'}
+                            </span>
+                        </div>
+                    </div>
+                    <span class="bg-green-600 text-white px-3 py-1 rounded text-sm">✅ Approved</span>
+                </div>
+                
+                <p class="text-gray-300 mb-4">${game.description}</p>
+                
+                <div class="flex items-center justify-between mt-4">
+                    <div class="text-gray-400 text-sm">
+                        Approved: ${new Date(game.approved_at).toLocaleDateString()}
+                        ${game.downloads ? ` • Downloads: ${game.downloads}` : ''}
+                        ${game.rating ? ` • Rating: ${game.rating}/5` : ''}
+                    </div>
+                    
+                    ${game.file_url ? `
+                        <a href="${game.file_url}" target="_blank" 
+                           class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded inline-flex items-center">
+                            <span class="mr-2">⬇️</span>
+                            Download
+                        </a>
+                    ` : `
+                        <button class="bg-gray-700 text-gray-400 px-4 py-2 rounded cursor-not-allowed">
+                            No File Available
+                        </button>
+                    `}
+                </div>
             </div>
         `).join('');
         
     } catch (error) {
         console.error('Error loading games:', error);
-        gamesContainer.innerHTML = '<p class="text-red-500">Error loading games.</p>';
+        gamesContainer.innerHTML = `
+            <div class="bg-red-900 border border-red-700 rounded-lg p-6 text-center">
+                <h3 class="text-lg font-bold text-red-300 mb-2">Error Loading Games</h3>
+                <p class="text-red-200 mb-2">${error.message}</p>
+                <button onclick="loadGames()" 
+                        class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                    Try Again
+                </button>
+            </div>
+        `;
     }
 }
+
+// Make loadGames available globally
+window.loadGames = loadGames;
