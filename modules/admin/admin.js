@@ -38,31 +38,43 @@ async function loadPendingSubmissions() {
     submissionsContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="text-gray-400 mt-2">Loading submissions...</p></div>';
     
     try {
-        // Try to get submissions
+        // Get submissions with user email from auth.users
         const { data: submissions, error } = await supabase
             .from('game_submissions')
             .select(`
                 *,
-                users:user_id (
-                    email
-                )
+                users:user_id (email)
             `)
             .eq('status', 'pending')
             .order('created_at', { ascending: true });
         
         if (error) {
-            // If table doesn't exist or has issues
-            if (error.code === '42P01') { // table doesn't exist
-                submissionsContainer.innerHTML = `
-                    <div class="bg-yellow-900 border border-yellow-700 rounded-lg p-6 text-center">
-                        <h3 class="text-lg font-bold text-yellow-300 mb-2">No Submissions Table Found</h3>
-                        <p class="text-yellow-200 mb-4">The game_submissions table hasn't been created yet.</p>
-                        <button onclick="createTestData()" 
-                                class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded">
-                            Create Test Data
-                        </button>
-                    </div>
-                `;
+            console.error('Query error:', error);
+            
+            // If there's a relationship error, try a different approach
+            if (error.code === 'PGRST200' || error.message.includes('relationship')) {
+                // Get submissions without the join
+                const { data: simpleSubmissions, error: simpleError } = await supabase
+                    .from('game_submissions')
+                    .select('*')
+                    .eq('status', 'pending')
+                    .order('created_at', { ascending: true });
+                
+                if (simpleError) throw simpleError;
+                
+                // Get user emails separately
+                const userIds = [...new Set(simpleSubmissions.map(s => s.user_id))];
+                const userEmails = {};
+                
+                for (const userId of userIds) {
+                    const { data: user } = await supabase.auth.admin.getUserById(userId);
+                    if (user?.user?.email) {
+                        userEmails[userId] = user.user.email;
+                    }
+                }
+                
+                // Render with manually fetched emails
+                renderSubmissions(simpleSubmissions, userEmails);
                 return;
             }
             throw error;
@@ -80,49 +92,7 @@ async function loadPendingSubmissions() {
             return;
         }
         
-        // Render submissions (keep your existing rendering code)
-        submissionsContainer.innerHTML = submissions.map(sub => `
-            <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700">
-                <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 class="text-xl font-bold text-white">${sub.title}</h3>
-                        <div class="flex items-center space-x-4 mt-2">
-                            <span class="bg-gray-700 text-gray-300 px-3 py-1 rounded text-sm">${sub.console}</span>
-                            <span class="text-gray-400">${sub.year}</span>
-                            <span class="text-gray-500 text-sm">Submitted by: ${sub.users?.email || 'Unknown'}</span>
-                        </div>
-                    </div>
-                    <span class="bg-yellow-600 text-white px-3 py-1 rounded text-sm">Pending Review</span>
-                </div>
-                
-                <p class="text-gray-300 mb-4">${sub.description}</p>
-                
-                ${sub.file_url ? `
-                    <div class="mb-4">
-                        <a href="${sub.file_url}" target="_blank" 
-                           class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
-                            <span class="mr-2">📎</span>
-                            Download Game File
-                        </a>
-                    </div>
-                ` : ''}
-                
-                <div class="flex space-x-4">
-                    <button onclick="approveSubmission('${sub.id}')" 
-                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold transition">
-                        ✅ Approve
-                    </button>
-                    <button onclick="rejectSubmission('${sub.id}')" 
-                            class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded font-semibold transition">
-                        ❌ Reject
-                    </button>
-                    <button onclick="showReviewModal('${sub.id}', '${sub.title.replace(/'/g, "\\'")}')" 
-                            class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded font-semibold transition">
-                        📝 Review with Notes
-                    </button>
-                </div>
-            </div>
-        `).join('');
+        renderSubmissions(submissions);
         
     } catch (error) {
         console.error('Error loading submissions:', error);
@@ -130,13 +100,67 @@ async function loadPendingSubmissions() {
             <div class="bg-red-900 border border-red-700 rounded-lg p-6 text-center">
                 <h3 class="text-lg font-bold text-red-300 mb-2">Error Loading Submissions</h3>
                 <p class="text-red-200 mb-2">${error.message}</p>
-                <p class="text-gray-300 text-sm">Check if the game_submissions table exists in Supabase.</p>
                 <button onclick="loadPendingSubmissions()" 
                         class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
                     Try Again
                 </button>
             </div>
         `;
+    }
+    
+    function renderSubmissions(submissions, userEmails = null) {
+        submissionsContainer.innerHTML = submissions.map(sub => {
+            const userEmail = userEmails 
+                ? userEmails[sub.user_id] 
+                : (sub.users?.email || 'Unknown User');
+            
+            return `
+                <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-white">${sub.title}</h3>
+                            <div class="flex items-center space-x-4 mt-2">
+                                <span class="bg-gray-700 text-gray-300 px-3 py-1 rounded text-sm">${sub.console}</span>
+                                <span class="text-gray-400">${sub.year}</span>
+                                <span class="text-gray-500 text-sm">Submitted by: ${userEmail}</span>
+                            </div>
+                        </div>
+                        <span class="bg-yellow-600 text-white px-3 py-1 rounded text-sm">Pending Review</span>
+                    </div>
+                    
+                    <p class="text-gray-300 mb-4">${sub.description || 'No description provided.'}</p>
+                    
+                    ${sub.file_url ? `
+                        <div class="mb-4">
+                            <a href="${sub.file_url}" target="_blank" 
+                               class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
+                                <span class="mr-2">📎</span>
+                                Download Game File
+                            </a>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="flex space-x-4">
+                        <button onclick="approveSubmission('${sub.id}')" 
+                                class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold transition">
+                            ✅ Approve
+                        </button>
+                        <button onclick="rejectSubmission('${sub.id}')" 
+                                class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded font-semibold transition">
+                            ❌ Reject
+                        </button>
+                        <button onclick="showReviewModal('${sub.id}', '${escapeString(sub.title)}')" 
+                                class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded font-semibold transition">
+                            📝 Review with Notes
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function escapeString(str) {
+        return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
     }
 }
 
