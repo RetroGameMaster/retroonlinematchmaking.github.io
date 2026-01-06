@@ -11,7 +11,18 @@ const modules = {
     'chat': () => import('./modules/chat/chat.js'),
     'profile': () => import('./modules/profile/profile.js')
 };
+// Add this near the top of app.js, after the imports
+window.navigateTo = function(module) {
+    window.location.hash = `#/${module}`;
+};
 
+// Also expose loadModule globally for any legacy buttons
+window.rom = {
+    loadModule: loadModule,
+    navigateTo: function(module) {
+        window.location.hash = `#/${module}`;
+    }
+};
 // Fallback content for missing modules
 const fallbackContent = {
     'home': `
