@@ -1,212 +1,154 @@
-<div class="games-module">
-    <style>
-        .games-module {
-            padding: 20px;
-        }
-        
-        .games-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .games-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .submit-game-btn {
-            background: linear-gradient(180deg, #ff33cc, #cc0099);
-            border: none;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        .submit-game-btn:hover {
-            background: linear-gradient(180deg, #ff66cc, #ff0099);
-            transform: translateY(-2px);
-        }
-        
-        .games-filters {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .filter-select,
-        .search-input {
-            padding: 10px 15px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid #00ffff;
-            color: white;
-            border-radius: 6px;
-            font-family: 'Orbitron', sans-serif;
-        }
-        
-        .search-input {
-            min-width: 250px;
-        }
-        
-        .games-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 25px;
-            margin-top: 20px;
-        }
-        
-        .game-card {
-            background: rgba(0, 30, 60, 0.7);
-            border: 1px solid #00ffff;
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s;
-            position: relative;
-        }
-        
-        .game-card:hover {
-            transform: translateY(-5px);
-            border-color: #ff33cc;
-            box-shadow: 0 10px 25px rgba(255, 51, 204, 0.2);
-        }
-        
-        .game-card h3 {
-            color: #ff33cc;
-            margin-bottom: 10px;
-            font-size: 1.3rem;
-        }
-        
-        .game-platforms {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 10px 0;
-        }
-        
-        .platform-tag {
-            background: rgba(255, 51, 204, 0.2);
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-        }
-        
-        .game-stats {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            color: #a8dfe8;
-            font-size: 0.9rem;
-        }
-        
-        .view-game-btn {
-            width: 100%;
-            padding: 10px;
-            background: rgba(0, 255, 255, 0.2);
-            border: 1px solid #00ffff;
-            color: #00ffff;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 15px;
-            font-family: 'Orbitron', sans-serif;
-            transition: all 0.3s;
-        }
-        
-        .view-game-btn:hover {
-            background: rgba(0, 255, 255, 0.4);
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px;
-            color: #a8dfe8;
-        }
-        
-        .submit-prompt {
-            background: rgba(255, 51, 204, 0.1);
-            border: 2px dashed #ff33cc;
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            margin-top: 40px;
-        }
-        
-        .admin-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 51, 204, 0.3);
-            color: #ff33cc;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-    </style>
+<div class="max-w-6xl mx-auto">
+    <!-- Page Header -->
+    <div class="mb-8 text-center">
+        <h1 class="text-4xl font-bold text-cyan-400 mb-2">🎮 Game Library</h1>
+        <p class="text-gray-300">Browse retro games and submit your own for the community</p>
+    </div>
     
-    <div class="games-header">
-        <h1 style="color: #ff33cc; font-size: 2.5rem;">🎮 Community Game Library</h1>
-        <div class="games-actions">
-            <button class="submit-game-btn" onclick="window.rom.loadModule('submit-game')">
-                ＋ Submit a Game
+    <!-- Game Submission Form -->
+    <div class="bg-gray-800 p-8 rounded-lg border border-cyan-500 mb-8">
+        <h2 class="text-2xl font-bold text-cyan-300 mb-6">Submit a New Game</h2>
+        
+        <form id="game-form" class="space-y-6">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-gray-300 mb-2">
+                        Game Title <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="title" 
+                           class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                           placeholder="e.g., SOCOM II: U.S. Navy SEALs"
+                           required>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">
+                        Console <span class="text-red-500">*</span>
+                    </label>
+                    <select name="console" 
+                            class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                            required>
+                        <option value="">Select a console</option>
+                        <option value="PS2">PlayStation 2</option>
+                        <option value="PS3">PlayStation 3</option>
+                        <option value="PS1">PlayStation 1</option>
+                        <option value="XBOX">Xbox</option>
+                        <option value="XBOX 360">Xbox 360</option>
+                        <option value="GameCube">GameCube</option>
+                        <option value="Wii">Wii</option>
+                        <option value="PC">PC</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-gray-300 mb-2">
+                        Release Year <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="year" min="1980" max="2024"
+                           class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                           placeholder="e.g., 2003"
+                           required>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">
+                        Game File (Optional)
+                    </label>
+                    <input type="file" name="game_file" 
+                           class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-cyan-600 file:text-white hover:file:bg-cyan-700"
+                           accept=".iso,.bin,.rom,.zip,.7z">
+                    <p class="text-gray-400 text-xs mt-1">Supported: ISO, BIN, ROM, ZIP, 7Z (Max 100MB)</p>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-gray-300 mb-2">
+                    Description <span class="text-red-500">*</span>
+                </label>
+                <textarea name="description" rows="4"
+                          class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                          placeholder="Describe the game, multiplayer features, and why it should be added..."
+                          required></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-gray-300 mb-2">
+                    Additional Notes (Optional)
+                </label>
+                <textarea name="notes" rows="2"
+                          class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                          placeholder="Any special instructions or notes for admins..."></textarea>
+            </div>
+            
+            <div class="flex items-center">
+                <input type="checkbox" id="agree-tos" class="mr-2" required>
+                <label for="agree-tos" class="text-gray-300">
+                    I agree to the <a href="#" class="text-cyan-400 hover:text-cyan-300">Terms of Service</a> and confirm I own or have rights to share this game.
+                </label>
+            </div>
+            
+            <button type="submit" 
+                    class="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg transition text-lg">
+                Submit Game for Review
             </button>
+            
+            <p class="text-gray-400 text-sm text-center">
+                All submissions are reviewed by admins before being added to the library.
+            </p>
+        </form>
+    </div>
+    
+    <!-- Game Library -->
+    <div class="bg-gray-800 p-8 rounded-lg border border-purple-500">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-purple-300">📚 Game Library</h2>
+            <div class="flex space-x-2">
+                <input type="text" id="game-search" 
+                       class="p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                       placeholder="Search games...">
+                <select id="console-filter" 
+                        class="p-2 bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="">All Consoles</option>
+                    <option value="PS2">PS2</option>
+                    <option value="PS3">PS3</option>
+                    <option value="PS1">PS1</option>
+                    <option value="XBOX">Xbox</option>
+                    <option value="PC">PC</option>
+                </select>
+            </div>
         </div>
-    </div>
-    
-    <p style="color: #a8dfe8; margin-bottom: 30px; font-size: 1.1rem;">
-        Browse community-submitted retro games with online play support. 
-        <a href="javascript:void(0)" onclick="window.rom.loadModule('submit-game')" 
-           style="color: #ff33cc; text-decoration: none; font-weight: bold;">
-            Submit your own game
-        </a> to help grow the database!
-    </p>
-    
-    <div class="games-filters">
-        <select class="filter-select" id="platformFilter">
-            <option value="all">All Platforms</option>
-            <option value="ps1">PlayStation 1</option>
-            <option value="ps2">PlayStation 2</option>
-            <option value="ps3">PlayStation 3</option>
-            <option value="psp">PSP</option>
-            <option value="xbox">Xbox</option>
-            <option value="xbox360">Xbox 360</option>
-        </select>
         
-        <select class="filter-select" id="genreFilter">
-            <option value="all">All Genres</option>
-            <option value="shooter">Shooter</option>
-            <option value="racing">Racing</option>
-            <option value="fighting">Fighting</option>
-            <option value="sports">Sports</option>
-            <option value="action">Action</option>
-        </select>
-        
-        <input type="text" class="search-input" id="searchInput" placeholder="Search games...">
-    </div>
-    
-    <div class="games-grid" id="gamesList">
-        <!-- Games will load here -->
-        <div class="empty-state">
-            <h3 style="color: #ff33cc; margin-bottom: 20px;">No games submitted yet!</h3>
-            <p style="margin-bottom: 20px;">Be the first to submit a retro game to the database.</p>
-            <button class="submit-game-btn" onclick="window.rom.loadModule('submit-game')">
-                🎮 Submit First Game
-            </button>
+        <div id="games-list">
+            <!-- Games will be loaded here -->
+            <div class="text-center py-12">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                <p class="text-gray-400 mt-4">Loading game library...</p>
+            </div>
         </div>
-    </div>
-    
-    <div class="submit-prompt" id="submitPrompt" style="display: none;">
-        <h3 style="color: #ff33cc;">Know a retro game with online play?</h3>
-        <p>Help grow the community database by submitting games you love!</p>
-        <button class="submit-game-btn" onclick="window.rom.loadModule('submit-game')" style="margin-top: 15px;">
-            🎮 Submit a Game
-        </button>
     </div>
 </div>
+
+<style>
+    /* Custom styles for the games page */
+    input[type="file"]::file-selector-button {
+        background-color: #0891b2;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    input[type="file"]::file-selector-button:hover {
+        background-color: #0e7490;
+    }
+    
+    #game-search:focus, #console-filter:focus {
+        border-color: #a855f7;
+        outline: none;
+    }
+</style>
