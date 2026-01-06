@@ -85,39 +85,9 @@ const fallbackContent = {
         </div>
     `,
     'auth': `
-        <div class="max-w-md mx-auto">
-            <div class="bg-gray-800 p-8 rounded-lg border border-cyan-500">
-                <h1 class="text-2xl font-bold mb-6 text-center text-cyan-400">Welcome to ROM</h1>
-                
-                <div class="flex mb-6">
-                    <button id="show-login" class="flex-1 py-2 bg-cyan-600 text-white rounded-l-lg">
-                        Login
-                    </button>
-                    <button id="show-register" class="flex-1 py-2 bg-gray-700 text-white rounded-r-lg">
-                        Register
-                    </button>
-                </div>
-                
-                <form id="auth-form" class="space-y-4">
-                    <div id="auth-form-title" class="text-xl font-bold text-center text-white">Login</form>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Email</label>
-                        <input type="email" id="auth-email" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-300 mb-2">Password</label>
-                        <input type="password" id="auth-password" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
-                    </div>
-                    
-                    <div id="auth-error" class="text-red-500 text-sm hidden"></div>
-                    
-                    <button id="auth-submit-btn" type="submit" class="w-full py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded">
-                        Login
-                    </button>
-                </form>
-            </div>
+        <div class="text-center p-8">
+            <h1 class="text-2xl font-bold mb-4 text-cyan-400">Loading Authentication...</h1>
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
         </div>
     `,
     'admin': `
@@ -134,7 +104,7 @@ const fallbackContent = {
     'chat': `
         <div class="max-w-4xl mx-auto">
             <h1 class="text-3xl font-bold mb-6 text-cyan-400">💬 Live Chat</h1>
-            <div class="bg-gray-800 p-4 rounded-lg">
+            <div class="bg-gray-800 p-6 rounded-lg">
                 <p class="text-gray-300">Chat module coming soon!</p>
             </div>
         </div>
@@ -257,14 +227,14 @@ async function loadModule(moduleName) {
             console.log(`Module JS not loaded for ${moduleName}:`, moduleError);
         }
         
-        // Initialize auth form if needed
+        // Initialize auth form if needed (fallback)
         if (moduleName === 'auth') {
-            initAuthForm();
+            initAuthFormFallback();
         }
         
-        // Initialize games form if needed
+        // Initialize games form if needed (fallback)
         if (moduleName === 'games') {
-            initGamesForm();
+            initGamesFormFallback();
         }
         
         console.log(`✅ Module ${moduleName} loaded successfully`);
@@ -275,95 +245,36 @@ async function loadModule(moduleName) {
     }
 }
 
-// Initialize auth form (fallback)
-function initAuthForm() {
-    const showLoginBtn = document.getElementById('show-login');
-    const showRegisterBtn = document.getElementById('show-register');
-    const authForm = document.getElementById('auth-form');
-    const formTitle = document.getElementById('auth-form-title');
-    const submitBtn = document.getElementById('auth-submit-btn');
-    
-    if (showLoginBtn) {
-        showLoginBtn.addEventListener('click', () => {
-            if (formTitle) formTitle.textContent = 'Login';
-            if (submitBtn) {
-                submitBtn.textContent = 'Login';
-                submitBtn.className = 'w-full py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded';
-            }
-            showLoginBtn.className = 'flex-1 py-2 bg-cyan-600 text-white rounded-l-lg';
-            showRegisterBtn.className = 'flex-1 py-2 bg-gray-700 text-white rounded-r-lg';
-        });
-    }
-    
-    if (showRegisterBtn) {
-        showRegisterBtn.addEventListener('click', () => {
-            if (formTitle) formTitle.textContent = 'Register';
-            if (submitBtn) {
-                submitBtn.textContent = 'Register';
-                submitBtn.className = 'w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded';
-            }
-            showLoginBtn.className = 'flex-1 py-2 bg-gray-700 text-white rounded-l-lg';
-            showRegisterBtn.className = 'flex-1 py-2 bg-green-600 text-white rounded-r-lg';
-        });
-    }
-    
-    if (authForm) {
-        authForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+// Initialize auth form (fallback - only used if auth module fails)
+function initAuthFormFallback() {
+    const authContent = document.getElementById('app-content');
+    if (authContent && authContent.innerHTML.includes('Loading Authentication')) {
+        // The real auth module should load, but if it doesn't, redirect to a simple form
+        setTimeout(() => {
+            if (document.getElementById('auth-form')) return; // Real module loaded
             
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const isLogin = formTitle?.textContent === 'Login';
-            const errorDiv = document.getElementById('auth-error');
-            
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Processing...';
-            }
-            
-            try {
-                let result;
-                
-                if (isLogin) {
-                    result = await supabase.auth.signInWithPassword({
-                        email,
-                        password
-                    });
-                } else {
-                    result = await supabase.auth.signUp({
-                        email,
-                        password
-                    });
-                }
-                
-                if (result.error) throw result.error;
-                
-                if (isLogin) {
-                    alert('Login successful!');
-                } else {
-                    alert('Registration successful! Check your email to confirm.');
-                }
-                
-                window.location.hash = '#/home';
-                
-            } catch (error) {
-                console.error('Auth error:', error);
-                if (errorDiv) {
-                    errorDiv.textContent = error.message;
-                    errorDiv.classList.remove('hidden');
-                }
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = isLogin ? 'Login' : 'Register';
-                }
-            }
-        });
+            authContent.innerHTML = `
+                <div class="max-w-md mx-auto">
+                    <div class="bg-gray-800 p-8 rounded-lg border border-cyan-500">
+                        <h2 class="text-2xl font-bold mb-6 text-center text-cyan-400">Authentication</h2>
+                        <p class="text-gray-300 mb-4 text-center">
+                            The auth module is taking a while to load. Please wait or refresh.
+                        </p>
+                        <div class="text-center">
+                            <button onclick="window.location.reload()" 
+                                    class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">
+                                Refresh Page
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }, 3000);
     }
 }
 
 // Initialize games form (fallback)
-function initGamesForm() {
+function initGamesFormFallback() {
     const gameForm = document.getElementById('game-form');
     
     if (gameForm) {
