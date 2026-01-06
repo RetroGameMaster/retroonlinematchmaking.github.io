@@ -10,6 +10,7 @@ export function initModule() {
     loadGames();
 }
 
+// Update the handleGameSubmit function
 async function handleGameSubmit(e) {
     e.preventDefault();
     
@@ -28,19 +29,56 @@ async function handleGameSubmit(e) {
     const console = formData.get('console');
     const year = formData.get('year');
     const description = formData.get('description');
+    const notes = formData.get('notes');
+    const gameFile = formData.get('game_file');
     
     // Basic validation
     if (!title || !console || !year || !description) {
-        alert('Please fill in all required fields.');
+        alert('Please fill in all required fields (title, console, year, description).');
+        return;
+    }
+    
+    if (!form.querySelector('#agree-tos').checked) {
+        alert('You must agree to the Terms of Service to submit a game.');
         return;
     }
     
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
+    submitBtn.classList.add('opacity-50');
     
     try {
-        console.log('Submitting game:', { title, console, year, description });
+        let fileUrl = '';
+        
+        // Handle file upload if present
+        if (gameFile && gameFile.size > 0) {
+            if (gameFile.size > 100 * 1024 * 1024) { // 100MB limit
+                throw new Error('File size exceeds 100MB limit');
+            }
+            
+            submitBtn.textContent = 'Uploading file...';
+            
+            // Upload to Supabase Storage
+            const fileExt = gameFile.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+            const filePath = `game_files/${fileName}`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('game_files')
+                .upload(filePath, gameFile);
+            
+            if (uploadError) throw uploadError;
+            
+            // Get public URL
+            const { data: urlData } = supabase.storage
+                .from('game_files')
+                .getPublicUrl(filePath);
+            
+            fileUrl = urlData.publicUrl;
+        }
+        
+        submitBtn.textContent = 'Saving submission...';
         
         // Save submission to database
         const { data, error } = await supabase
@@ -50,39 +88,67 @@ async function handleGameSubmit(e) {
                 console,
                 year: parseInt(year),
                 description,
+                notes,
+                file_url: fileUrl,
                 user_id: user.id,
+                user_email: user.email,
                 status: 'pending',
                 created_at: new Date().toISOString()
             })
             .select()
             .single();
         
-        if (error) {
-            // If table doesn't exist, guide user to create it
-            if (error.code === '42P01') {
-                alert('Game submissions table not found. Please run the setup SQL in Supabase.');
-                console.error('Table missing error:', error);
-                return;
-            }
-            throw error;
-        }
+        if (error) throw error;
         
-        console.log('Submission successful:', data);
+        console.log('Game submission successful:', data);
         
-        alert('🎮 Game submitted successfully! It will be reviewed by an admin soon.');
-        form.reset();
+        // Show success message
+        const successHTML = `
+            <div class="bg-green-900 border border-green-700 rounded-lg p-6 text-center">
+                <div class="text-4xl mb-4">✅</div>
+                <h3 class="text-xl font-bold text-green-300 mb-2">Game Submitted Successfully!</h3>
+                <p class="text-green-200 mb-4">"${title}" has been submitted for admin review.</p>
+                <p class="text-gray-300 text-sm">
+                    You will be notified when your game is approved. 
+                    It will then appear in the public game library.
+                </p>
+                <div class="mt-6 space-x-4">
+                    <button onclick="window.location.hash = '#/games'" 
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded">
+                        Back to Games
+                    </button>
+                    <button onclick="window.location.hash = '#/home'" 
+                            class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded">
+                        Go Home
+                    </button>
+                </div>
+            </div>
+        `;
         
-        // Reload games to show the new submission in admin panel
-        if (window.location.hash === '#/admin') {
-            window.loadModule?.('admin');
+        // Replace the form with success message
+        const formContainer = document.querySelector('.bg-gray-800.p-8');
+        if (formContainer) {
+            formContainer.innerHTML = successHTML;
+        } else {
+            alert('🎮 Game submitted successfully! It will be reviewed by an admin soon.');
+            form.reset();
         }
         
     } catch (error) {
         console.error('Error submitting game:', error);
-        alert('Error submitting game: ' + error.message);
+        
+        let errorMessage = error.message;
+        if (error.message.includes('storage')) {
+            errorMessage = 'File upload failed. Please try a smaller file or different format.';
+        } else if (error.message.includes('game_submissions')) {
+            errorMessage = 'Database error. Please try again or contact support.';
+        }
+        
+        alert('Error submitting game: ' + errorMessage);
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
+        submitBtn.classList.remove('opacity-50');
     }
 }
 
