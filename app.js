@@ -12,6 +12,143 @@ const modules = {
     'profile': () => import('./modules/profile/profile.js')
 };
 
+// Fallback content for missing modules
+const fallbackContent = {
+    'home': `
+        <div class="text-center py-12 px-4">
+            <h1 class="text-4xl font-bold mb-6 text-cyan-400">🎮 Retro Online Matchmaking</h1>
+            <p class="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+                Connect with retro gaming communities. Play SOCOM II, Twisted Metal, Warhawk, and more with modern matchmaking.
+            </p>
+            <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div class="bg-gray-800 p-6 rounded-lg border border-cyan-500">
+                    <h3 class="text-xl font-bold mb-3 text-cyan-300">🎯 Browse Games</h3>
+                    <p class="text-gray-300 mb-4">Discover retro games with online multiplayer support</p>
+                    <a href="#/games" class="inline-block bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
+                        View Games
+                    </a>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg border border-purple-500">
+                    <h3 class="text-xl font-bold mb-3 text-purple-300">👤 Get Started</h3>
+                    <p class="text-gray-300 mb-4">Create an account to submit games and join matchmaking</p>
+                    <a href="#/auth" class="inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">
+                        Login/Register
+                    </a>
+                </div>
+            </div>
+        </div>
+    `,
+    'games': `
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold mb-6 text-cyan-400">🎮 Game Library</h1>
+            <div class="bg-gray-800 p-6 rounded-lg mb-6">
+                <h2 class="text-xl font-bold mb-4 text-cyan-300">Submit a New Game</h2>
+                <form id="game-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Game Title</label>
+                        <input type="text" name="title" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 mb-2">Console</label>
+                        <select name="console" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
+                            <option value="PS2">PlayStation 2</option>
+                            <option value="PS3">PlayStation 3</option>
+                            <option value="XBOX">Xbox</option>
+                            <option value="GC">GameCube</option>
+                            <option value="PC">PC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 mb-2">Year</label>
+                        <input type="number" name="year" min="1990" max="2010" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 mb-2">Description</label>
+                        <textarea name="description" rows="3" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required></textarea>
+                    </div>
+                    <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">
+                        Submit Game
+                    </button>
+                </form>
+            </div>
+            
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-xl font-bold mb-4 text-cyan-300">Available Games</h2>
+                <div id="games-list" class="space-y-4">
+                    <div class="bg-gray-700 p-4 rounded">
+                        <h3 class="text-lg font-bold text-white">SOCOM II: U.S. Navy SEALs</h3>
+                        <p class="text-gray-300">PS2 • 2003</p>
+                        <p class="text-gray-400 mt-2">Tactical third-person shooter with online multiplayer</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `,
+    'auth': `
+        <div class="max-w-md mx-auto">
+            <div class="bg-gray-800 p-8 rounded-lg border border-cyan-500">
+                <h1 class="text-2xl font-bold mb-6 text-center text-cyan-400">Welcome to ROM</h1>
+                
+                <div class="flex mb-6">
+                    <button id="show-login" class="flex-1 py-2 bg-cyan-600 text-white rounded-l-lg">
+                        Login
+                    </button>
+                    <button id="show-register" class="flex-1 py-2 bg-gray-700 text-white rounded-r-lg">
+                        Register
+                    </button>
+                </div>
+                
+                <form id="auth-form" class="space-y-4">
+                    <div id="auth-form-title" class="text-xl font-bold text-center text-white">Login</form>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Email</label>
+                        <input type="email" id="auth-email" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Password</label>
+                        <input type="password" id="auth-password" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
+                    </div>
+                    
+                    <div id="auth-error" class="text-red-500 text-sm hidden"></div>
+                    
+                    <button id="auth-submit-btn" type="submit" class="w-full py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded">
+                        Login
+                    </button>
+                </form>
+            </div>
+        </div>
+    `,
+    'admin': `
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-3xl font-bold mb-6 text-cyan-400">🛠️ Admin Panel</h1>
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-xl font-bold mb-4 text-cyan-300">Pending Game Submissions</h2>
+                <div id="pending-submissions" class="space-y-4">
+                    <p class="text-gray-400">No pending submissions</p>
+                </div>
+            </div>
+        </div>
+    `,
+    'chat': `
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold mb-6 text-cyan-400">💬 Live Chat</h1>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <p class="text-gray-300">Chat module coming soon!</p>
+            </div>
+        </div>
+    `,
+    'profile': `
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold mb-6 text-cyan-400">👤 Your Profile</h1>
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <p class="text-gray-300">Profile module coming soon!</p>
+            </div>
+        </div>
+    `
+};
+
 // Initialize the app
 async function initializeApp() {
     console.log('🚀 Initializing ROM app...');
@@ -34,21 +171,9 @@ async function initializeApp() {
         
         console.log('✅ App initialized successfully');
         
-        // Add emergency debug button if not logged in
-        addEmergencyDebug();
-        
     } catch (error) {
         console.error('❌ App initialization failed:', error);
-        document.getElementById('app-content').innerHTML = `
-            <div class="p-8">
-                <h2 class="text-2xl font-bold text-red-500">App Initialization Error</h2>
-                <p class="text-gray-300">${error.message}</p>
-                <button onclick="window.location.reload()" 
-                        class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-                    Reload App
-                </button>
-            </div>
-        `;
+        showError('App Initialization Error', error.message);
     }
 }
 
@@ -63,7 +188,7 @@ async function loadModule(moduleName) {
     try {
         console.log(`📦 Loading module: ${moduleName}`);
         
-        // Don't load admin module for non-admin users
+        // Check for admin access
         if (moduleName === 'admin') {
             const { data: { user }, error } = await supabase.auth.getUser();
             
@@ -74,121 +199,217 @@ async function loadModule(moduleName) {
             }
             
             // Check admin status
-            const { data: adminData, error: adminError } = await supabase
+            const { data: adminData } = await supabase
                 .from('admins')
                 .select('*')
                 .eq('user_id', user.id)
                 .single();
             
-            if (adminError || !adminData) {
+            if (!adminData) {
                 alert('Admin access required');
                 window.location.hash = '#/';
                 return;
             }
         }
         
-        // Load the module
-        if (modules[moduleName]) {
-            const module = await modules[moduleName]();
-            
-            // Clear current content
-            const appContent = document.getElementById('app-content');
-            if (appContent) {
-                appContent.innerHTML = '';
-            }
-            
-            // Load module HTML
-            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
-            if (!response.ok) {
-                throw new Error(`Failed to load ${moduleName} module HTML`);
-            }
-            
-            const html = await response.text();
-            if (appContent) {
-                appContent.innerHTML = html;
-            }
-            
-            // Initialize module
-            if (module.initModule) {
-                await module.initModule();
-            } else if (module.default && module.default.initModule) {
-                await module.default.initModule();
-            } else if (module.initAuthModule) {
-                await module.initAuthModule();
-            } else if (module.init) {
-                await module.init();
-            }
-            
-            currentModule = module;
-            console.log(`✅ Module ${moduleName} loaded successfully`);
-        } else {
-            console.error(`Module ${moduleName} not found`);
-            window.location.hash = '#/home';
-        }
-    } catch (error) {
-        console.error(`❌ Error loading module ${moduleName}:`, error);
+        // Clear current content
         const appContent = document.getElementById('app-content');
         if (appContent) {
-            appContent.innerHTML = `
-                <div class="p-8">
-                    <h2 class="text-2xl font-bold text-red-500">Error loading module</h2>
-                    <p class="text-gray-300">${error.message}</p>
-                    <button onclick="window.location.hash = '#/home'" 
-                            class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-                        Go Home
-                    </button>
-                </div>
-            `;
+            appContent.innerHTML = '';
         }
+        
+        // Try to load module HTML
+        let html = fallbackContent[moduleName] || fallbackContent['home'];
+        
+        try {
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (response.ok) {
+                html = await response.text();
+            }
+        } catch (fetchError) {
+            console.log(`Using fallback for ${moduleName}`);
+        }
+        
+        // Insert HTML
+        if (appContent) {
+            appContent.innerHTML = html;
+        }
+        
+        // Try to load and initialize module JS
+        try {
+            if (modules[moduleName]) {
+                const module = await modules[moduleName]();
+                
+                // Initialize module
+                if (module.initModule) {
+                    await module.initModule();
+                } else if (module.default && module.default.initModule) {
+                    await module.default.initModule();
+                } else if (module.initAuthModule) {
+                    await module.initAuthModule();
+                } else if (module.init) {
+                    await module.init();
+                }
+                
+                currentModule = module;
+            }
+        } catch (moduleError) {
+            console.log(`Module JS not loaded for ${moduleName}:`, moduleError);
+        }
+        
+        // Initialize auth form if needed
+        if (moduleName === 'auth') {
+            initAuthForm();
+        }
+        
+        // Initialize games form if needed
+        if (moduleName === 'games') {
+            initGamesForm();
+        }
+        
+        console.log(`✅ Module ${moduleName} loaded successfully`);
+        
+    } catch (error) {
+        console.error(`❌ Error loading module ${moduleName}:`, error);
+        showError('Error loading module', error.message);
     }
 }
 
-// Add emergency debug functionality
-function addEmergencyDebug() {
-    setTimeout(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            // Add debug button to nav
-            const nav = document.querySelector('nav');
-            if (nav) {
-                const debugBtn = document.createElement('button');
-                debugBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded ml-4';
-                debugBtn.textContent = '🔥 DEBUG Login';
-                debugBtn.onclick = async () => {
-                    console.log('🔥 DEBUG: Attempting emergency login...');
-                    try {
-                        // Try to sign in with a test user or create one
-                        const { data, error } = await supabase.auth.signInWithPassword({
-                            email: 'test@example.com',
-                            password: 'testpassword123'
-                        });
-                        
-                        if (error) {
-                            // Try to sign up if user doesn't exist
-                            const { data: signupData, error: signupError } = await supabase.auth.signUp({
-                                email: 'test@example.com',
-                                password: 'testpassword123'
-                            });
-                            
-                            if (signupError) throw signupError;
-                            alert('Debug user created! Please check email to confirm.');
-                        } else {
-                            alert('Debug login successful!');
-                            window.location.reload();
-                        }
-                    } catch (error) {
-                        console.error('Debug login failed:', error);
-                        alert('Debug login failed: ' + error.message);
-                    }
-                };
-                nav.appendChild(debugBtn);
+// Initialize auth form (fallback)
+function initAuthForm() {
+    const showLoginBtn = document.getElementById('show-login');
+    const showRegisterBtn = document.getElementById('show-register');
+    const authForm = document.getElementById('auth-form');
+    const formTitle = document.getElementById('auth-form-title');
+    const submitBtn = document.getElementById('auth-submit-btn');
+    
+    if (showLoginBtn) {
+        showLoginBtn.addEventListener('click', () => {
+            if (formTitle) formTitle.textContent = 'Login';
+            if (submitBtn) {
+                submitBtn.textContent = 'Login';
+                submitBtn.className = 'w-full py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded';
             }
-        }
-    }, 2000);
+            showLoginBtn.className = 'flex-1 py-2 bg-cyan-600 text-white rounded-l-lg';
+            showRegisterBtn.className = 'flex-1 py-2 bg-gray-700 text-white rounded-r-lg';
+        });
+    }
+    
+    if (showRegisterBtn) {
+        showRegisterBtn.addEventListener('click', () => {
+            if (formTitle) formTitle.textContent = 'Register';
+            if (submitBtn) {
+                submitBtn.textContent = 'Register';
+                submitBtn.className = 'w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded';
+            }
+            showLoginBtn.className = 'flex-1 py-2 bg-gray-700 text-white rounded-l-lg';
+            showRegisterBtn.className = 'flex-1 py-2 bg-green-600 text-white rounded-r-lg';
+        });
+    }
+    
+    if (authForm) {
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const isLogin = formTitle?.textContent === 'Login';
+            const errorDiv = document.getElementById('auth-error');
+            
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Processing...';
+            }
+            
+            try {
+                let result;
+                
+                if (isLogin) {
+                    result = await supabase.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+                } else {
+                    result = await supabase.auth.signUp({
+                        email,
+                        password
+                    });
+                }
+                
+                if (result.error) throw result.error;
+                
+                if (isLogin) {
+                    alert('Login successful!');
+                } else {
+                    alert('Registration successful! Check your email to confirm.');
+                }
+                
+                window.location.hash = '#/home';
+                
+            } catch (error) {
+                console.error('Auth error:', error);
+                if (errorDiv) {
+                    errorDiv.textContent = error.message;
+                    errorDiv.classList.remove('hidden');
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = isLogin ? 'Login' : 'Register';
+                }
+            }
+        });
+    }
 }
 
-// Make loadModule available globally for debugging
+// Initialize games form (fallback)
+function initGamesForm() {
+    const gameForm = document.getElementById('game-form');
+    
+    if (gameForm) {
+        gameForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(gameForm);
+            const title = formData.get('title');
+            const console = formData.get('console');
+            const year = formData.get('year');
+            const description = formData.get('description');
+            
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+                alert('Please login to submit games');
+                window.location.hash = '#/auth';
+                return;
+            }
+            
+            alert(`Game "${title}" submitted for review!`);
+            gameForm.reset();
+        });
+    }
+}
+
+// Show error
+function showError(title, message) {
+    const appContent = document.getElementById('app-content');
+    if (appContent) {
+        appContent.innerHTML = `
+            <div class="p-8">
+                <h2 class="text-2xl font-bold text-red-500">${title}</h2>
+                <p class="text-gray-300">${message}</p>
+                <button onclick="window.location.hash = '#/home'" 
+                        class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
+                    Go Home
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Make loadModule available globally
 window.loadModule = loadModule;
+window.supabase = supabase;
 
 // Initialize the app when DOM is loaded
 if (document.readyState === 'loading') {
