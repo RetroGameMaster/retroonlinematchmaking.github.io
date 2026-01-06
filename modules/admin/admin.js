@@ -35,28 +35,52 @@ async function loadPendingSubmissions() {
     const submissionsContainer = document.getElementById('pending-submissions');
     if (!submissionsContainer) return;
     
-    submissionsContainer.innerHTML = '<div class="text-center py-4"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div></div>';
+    submissionsContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="text-gray-400 mt-2">Loading submissions...</p></div>';
     
     try {
+        // Try to get submissions
         const { data: submissions, error } = await supabase
             .from('game_submissions')
             .select(`
                 *,
                 users:user_id (
-                    email,
-                    raw_user_meta_data->username
+                    email
                 )
             `)
             .eq('status', 'pending')
             .order('created_at', { ascending: true });
         
-        if (error) throw error;
+        if (error) {
+            // If table doesn't exist or has issues
+            if (error.code === '42P01') { // table doesn't exist
+                submissionsContainer.innerHTML = `
+                    <div class="bg-yellow-900 border border-yellow-700 rounded-lg p-6 text-center">
+                        <h3 class="text-lg font-bold text-yellow-300 mb-2">No Submissions Table Found</h3>
+                        <p class="text-yellow-200 mb-4">The game_submissions table hasn't been created yet.</p>
+                        <button onclick="createTestData()" 
+                                class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded">
+                            Create Test Data
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            throw error;
+        }
         
         if (!submissions || submissions.length === 0) {
-            submissionsContainer.innerHTML = '<p class="text-gray-500 text-center py-8">No pending submissions.</p>';
+            submissionsContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-4">📭</div>
+                    <h3 class="text-xl font-bold text-white mb-2">No Pending Submissions</h3>
+                    <p class="text-gray-300">All game submissions have been reviewed.</p>
+                    <p class="text-gray-400 text-sm mt-2">New submissions will appear here when users submit games.</p>
+                </div>
+            `;
             return;
         }
         
+        // Render submissions (keep your existing rendering code)
         submissionsContainer.innerHTML = submissions.map(sub => `
             <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700">
                 <div class="flex justify-between items-start mb-4">
@@ -102,10 +126,43 @@ async function loadPendingSubmissions() {
         
     } catch (error) {
         console.error('Error loading submissions:', error);
-        submissionsContainer.innerHTML = '<p class="text-red-500 text-center py-8">Error loading submissions.</p>';
+        submissionsContainer.innerHTML = `
+            <div class="bg-red-900 border border-red-700 rounded-lg p-6 text-center">
+                <h3 class="text-lg font-bold text-red-300 mb-2">Error Loading Submissions</h3>
+                <p class="text-red-200 mb-2">${error.message}</p>
+                <p class="text-gray-300 text-sm">Check if the game_submissions table exists in Supabase.</p>
+                <button onclick="loadPendingSubmissions()" 
+                        class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                    Try Again
+                </button>
+            </div>
+        `;
     }
 }
 
+// Add this global function for creating test data
+window.createTestData = async function() {
+    try {
+        // Run the SQL to create tables and insert test data
+        const response = await fetch('/api/create-test-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to create test data');
+        }
+        
+        alert('Test data created successfully!');
+        loadPendingSubmissions();
+        
+    } catch (error) {
+        console.error('Error creating test data:', error);
+        alert('Error: ' + error.message + '\n\nPlease run the SQL manually in Supabase.');
+    }
+};
 async function loadAdminUsers() {
     const adminList = document.getElementById('admin-list');
     if (!adminList) return;
