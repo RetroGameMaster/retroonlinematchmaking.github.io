@@ -1,326 +1,139 @@
-// ROM Main Application
-import { initSupabase } from './lib/supabase.js';
+// Remove the import for initSupabase and use the new initialization
+import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
 
-class ROMApp {
-    constructor() {
-        this.supabase = null;
-        this.currentUser = null;
-        this.currentModule = 'home';
-    }
+let currentModule = null;
+
+// Initialize modules
+const modules = {
+    'home': () => import('./modules/home/home.js'),
+    'games': () => import('./modules/games/games.js'),
+    'auth': () => import('./modules/auth/auth.js'),
+    'admin': () => import('./modules/admin/admin.js'),
+    'chat': () => import('./modules/chat/chat.js'),
+    'profile': () => import('./modules/profile/profile.js')
+};
+
+// Initialize Supabase and auth listener
+async function initializeApp() {
+    console.log('Initializing ROM app...');
     
-    async init() {
-    console.log('🚀 ROM App Initializing...');
-    
-    // Initialize Supabase
-    this.supabase = initSupabase();
-    if (!this.supabase) {
-        this.showError('Supabase failed to initialize. Check console.');
-        return;
-    }
-    
-    // Check auth
-    await this.checkAuth();
-    
-    // Listen for auth state changes
-    this.supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        this.currentUser = session?.user || null;
-        this.renderApp(); // Re-render to update UI
+    // Initialize auth listener
+    initAuthListener((event, session) => {
+        console.log('Auth state changed:', event, session);
+        updateAuthUI();
+        
+        // Refresh current module when auth state changes
+        if (currentModule && currentModule.reload) {
+            currentModule.reload();
+        }
     });
     
-    // Render the app
-    this.renderApp();
+    // Update UI initially
+    await updateAuthUI();
+    
+    // Handle hash changes
+    window.addEventListener('hashchange', handleHashChange);
     
     // Load initial module
-    await this.loadModule('home');
+    await handleHashChange();
     
-    console.log('✅ ROM App Ready');
+    console.log('App initialized successfully');
 }
-    
-    async checkAuth() {
+
+// Handle hash changes
+async function handleHashChange() {
+    const hash = window.location.hash.slice(2) || 'home';
+    await loadModule(hash);
+}
+
+// Load module function
+async function loadModule(moduleName) {
     try {
-        const { data: { user }, error } = await this.supabase.auth.getUser();
-        
-        if (error) throw error;
-        
-        this.currentUser = user;
-        console.log('Auth status:', user ? 'Logged in' : 'Guest');
-        
-    } catch (error) {
-        console.error('Auth check failed:', error);
-    }
-}
-    
-    renderApp() {
-        document.getElementById('rom-app').innerHTML = `
-            <div class="rom-container">
-                <!-- Header -->
-                <header class="rom-header">
-                    <div class="logo" onclick="rom.loadModule('home')" style="cursor: pointer;">
-                        🎮 ROM
-                    </div>
-                    <nav class="rom-nav" id="rom-nav">
-                        <!-- Navigation will be populated by modules -->
-                    </nav>
-                    <div class="user-info" id="user-info">
-                        ${this.currentUser ? `
-                            <span class="user-email">${this.currentUser.email}</span>
-                            <button class="logout-btn" onclick="rom.logout()">Logout</button>
-                        ` : `
-                            <button class="login-btn" onclick="rom.loadModule('auth')">Login</button>
-                        `}
-                    </div>
-                </header>
-                
-                <!-- Main Content -->
-                <main class="rom-main">
-                    <div id="module-content">
-                        <!-- Module content loads here -->
-                    </div>
-                </main>
-                
-                <!-- Footer -->
-                <footer class="rom-footer">
-                    <p>© 2025 ROM - Modular Architecture</p>
-                </footer>
-            </div>
+        // Don't load admin module for non-admin users
+        if (moduleName === 'admin') {
+            const user = await supabase.auth.getUser();
             
-            <style>
-                .rom-container {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                }
-                
-                .rom-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 20px;
-                    background: rgba(0, 30, 60, 0.9);
-                    border-bottom: 2px solid #00ffff;
-                    border-radius: 0 0 15px 15px;
-                    margin-bottom: 30px;
-                }
-                
-                .logo {
-                    font-size: 2.5rem;
-                    font-weight: bold;
-                    color: #00ffff;
-                    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-                }
-                
-                .rom-nav {
-                    display: flex;
-                    gap: 15px;
-                }
-                
-                .nav-btn {
-                    background: rgba(0, 255, 255, 0.1);
-                    border: 1px solid #00ffff;
-                    color: #00ffff;
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-family: 'Orbitron', sans-serif;
-                    transition: all 0.3s;
-                }
-                
-                .nav-btn:hover,
-                .nav-btn.active {
-                    background: rgba(0, 255, 255, 0.3);
-                    transform: translateY(-2px);
-                }
-                
-                .user-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 15px;
-                }
-                
-                .user-email {
-                    color: #a8dfe8;
-                    font-size: 0.9rem;
-                }
-                
-                .login-btn,
-                .logout-btn {
-                    padding: 8px 16px;
-                    background: rgba(255, 51, 204, 0.2);
-                    border: 1px solid #ff33cc;
-                    color: #ff33cc;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-family: 'Orbitron', sans-serif;
-                }
-                
-                .rom-main {
-                    min-height: 500px;
-                    padding: 20px;
-                }
-                
-                .rom-footer {
-                    text-align: center;
-                    padding: 20px;
-                    margin-top: 40px;
-                    color: #a8dfe8;
-                    border-top: 1px solid rgba(0, 255, 255, 0.2);
-                }
-            </style>
-        `;
-    }
-    
-    async loadModule(moduleName) {
-        console.log(`📦 Loading module: ${moduleName}`);
-        this.currentModule = moduleName;
-        
-        // Update active nav button
-        this.updateNavigation();
-        
-        // Show loading state
-        document.getElementById('module-content').innerHTML = `
-            <div class="loading-module">
-                <div style="text-align: center; padding: 50px;">
-                    <div style="font-size: 3rem; margin-bottom: 20px;">⌛</div>
-                    Loading ${moduleName}...
-                </div>
-            </div>
-        `;
-        
-        try {
-            // Load module HTML
-            const htmlResponse = await fetch(`modules/${moduleName}/${moduleName}.html`);
-            if (!htmlResponse.ok) {
-                // If module doesn't exist, show fallback
-                this.showModuleFallback(moduleName);
+            if (!user.data.user) {
+                window.location.hash = '#/auth';
                 return;
             }
             
-            const html = await htmlResponse.text();
+            // Check admin status
+            const { data: adminData, error } = await supabase
+                .from('admins')
+                .select('*')
+                .eq('user_id', user.data.user.id)
+                .single();
             
-            // Display module
-            document.getElementById('module-content').innerHTML = html;
-            
-            // Try to load module JS (remove export default)
-            await this.loadModuleJS(moduleName);
-            
-        } catch (error) {
-            console.error(`Failed to load module ${moduleName}:`, error);
-            this.showModuleFallback(moduleName);
+            if (error || !adminData) {
+                alert('Admin access required');
+                window.location.hash = '#/';
+                return;
+            }
         }
-    }
-    
-    async loadModuleJS(moduleName) {
-        try {
-            const scriptResponse = await fetch(`modules/${moduleName}/${moduleName}.js`);
-            if (!scriptResponse.ok) return;
+        
+        // Load the module
+        if (modules[moduleName]) {
+            const module = await modules[moduleName]();
             
-            const scriptText = await scriptResponse.text();
+            // Clear current content
+            document.getElementById('app-content').innerHTML = '';
             
-            // Remove "export default" if present and wrap in function
-            let cleanScript = scriptText
-                .replace(/^export default function/, 'function')
-                .replace(/^export default/, '');
-            
-            // Create and execute the module function
-            const moduleFunc = eval(`(${cleanScript})`);
-            if (typeof moduleFunc === 'function') {
-                await moduleFunc(this);
+            // Load module HTML
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (!response.ok) {
+                throw new Error(`Failed to load ${moduleName} module`);
             }
             
-        } catch (error) {
-            console.log(`No JS or JS error for ${moduleName}:`, error);
+            const html = await response.text();
+            document.getElementById('app-content').innerHTML = html;
+            
+            // Initialize module
+            if (module.initModule) {
+                await module.initModule();
+            } else if (module.default && module.default.initModule) {
+                await module.default.initModule();
+            } else if (module.initAuthModule) {
+                await module.initAuthModule();
+            }
+            
+            currentModule = module;
+        } else {
+            console.error(`Module ${moduleName} not found`);
+            window.location.hash = '#/home';
         }
+    } catch (error) {
+        console.error(`Error loading module ${moduleName}:`, error);
+        document.getElementById('app-content').innerHTML = `
+            <div class="p-8">
+                <h2 class="text-2xl font-bold text-red-500">Error loading module</h2>
+                <p class="text-gray-300">${error.message}</p>
+                <button onclick="window.location.hash = '#/home'" 
+                        class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                    Go Home
+                </button>
+            </div>
+        `;
     }
-    
-    showModuleFallback(moduleName) {
-        const fallbacks = {
-            home: `Welcome to ROM! Home module is working.`,
-            games: `🎮 Games module coming soon!`,
-            chat: `💬 Chat module coming soon!`,
-            profile: `👤 Profile module coming soon!`,
-            auth: `🔐 Auth module coming soon!`
-        };
+}
+
+// Add emergency debug function
+window.debugLogin = async () => {
+    console.log('Debug login triggered');
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: 'test@example.com',
+            password: 'password123'
+        });
         
-        document.getElementById('module-content').innerHTML = `
-            <div style="padding: 50px; text-align: center;">
-                <h2>${moduleName.toUpperCase()} Module</h2>
-                <p>${fallbacks[moduleName] || 'Module under development'}</p>
-                <button class="nav-btn" onclick="rom.loadModule('home')" style="margin-top: 20px;">
-                    Return to Home
-                </button>
-            </div>
-        `;
+        if (error) throw error;
+        console.log('Debug login successful:', data);
+        alert('Debug login successful!');
+    } catch (error) {
+        console.error('Debug login failed:', error);
+        alert('Debug login failed: ' + error.message);
     }
-    
-    showError(message) {
-        document.getElementById('rom-app').innerHTML = `
-            <div style="padding: 50px; text-align: center; color: #ff3333;">
-                <h2>⚠️ Application Error</h2>
-                <p>${message}</p>
-                <button onclick="location.reload()" style="padding: 10px 20px; background: #ff3333; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    Reload App
-                </button>
-            </div>
-        `;
-    }
-    
-    updateNavigation() {
-    const nav = document.getElementById('rom-nav');
-    const modules = [
-        { id: 'home', name: '🏠 Home' },
-        { id: 'games', name: '🎮 Games' },
-        { id: 'chat', name: '💬 Chat' },
-        { id: 'profile', name: '👤 Profile' }
-    ];
-    
-    nav.innerHTML = modules.map(module => `
-        <button class="nav-btn ${this.currentModule === module.id ? 'active' : ''}"
-                onclick="rom.loadModule('${module.id}')">
-            ${module.name}
-        </button>
-    `).join('');
-    
-    // Add admin button if user is admin
-    if (this.currentUser && this.currentUser.email === 'RetroGameMasterRA@gmail.com') { // Change this to your email
-        const adminBtn = document.createElement('button');
-        adminBtn.className = 'nav-btn';
-        adminBtn.style.background = 'rgba(255, 51, 204, 0.2)';
-        adminBtn.style.borderColor = '#ff33cc';
-        adminBtn.style.color = '#ff33cc';
-        adminBtn.innerHTML = '🛠️ Admin';
-        adminBtn.onclick = () => this.loadModule('admin');
-        nav.appendChild(adminBtn);
-    }
-    
-    // Add submit game button if on games page
-    if (this.currentModule === 'games') {
-        const submitBtn = document.createElement('button');
-        submitBtn.className = 'nav-btn';
-        submitBtn.style.background = 'rgba(255, 51, 204, 0.2)';
-        submitBtn.style.borderColor = '#ff33cc';
-        submitBtn.style.color = '#ff33cc';
-        submitBtn.innerHTML = '＋ Submit Game';
-        submitBtn.onclick = () => this.loadModule('submit-game');
-        nav.appendChild(submitBtn);
-    }
-}
-    
-    async logout() {
-        try {
-            await this.supabase.auth.signOut();
-            this.currentUser = null;
-            this.loadModule('home');
-            this.renderApp(); // Re-render to update auth state
-        } catch (error) {
-            console.error('Logout failed:', error);
-        }
-    }
-}
+};
 
-// Create global instance
-window.rom = new ROMApp();
-
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.rom.init();
-});
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', initializeApp);
