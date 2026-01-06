@@ -1,307 +1,88 @@
-<div class="admin-module">
-    <style>
-        .admin-module {
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .admin-header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 25px;
-            background: linear-gradient(135deg, rgba(255,51,204,0.1), rgba(0,255,255,0.1));
-            border-radius: 15px;
-            border: 2px solid #ff33cc;
-        }
-        
-        .admin-header h1 {
-            color: #ff33cc;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .admin-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        
-        .stat-card {
-            background: rgba(0, 30, 60, 0.7);
-            border: 1px solid #00ffff;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            border-color: #ff33cc;
-        }
-        
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #00ffff;
-            margin: 10px 0;
-        }
-        
-        .stat-label {
-            color: #a8dfe8;
-            font-size: 1rem;
-        }
-        
-        .admin-sections {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-        }
-        
-        .admin-section {
-            background: rgba(0, 30, 60, 0.7);
-            border: 1px solid #00ffff;
-            border-radius: 12px;
-            padding: 25px;
-            transition: all 0.3s;
-        }
-        
-        .admin-section:hover {
-            border-color: #ff33cc;
-            box-shadow: 0 5px 20px rgba(255, 51, 204, 0.2);
-        }
-        
-        .admin-section h2 {
-            color: #ff33cc;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #00ffff;
-        }
-        
-        .admin-btn {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(0, 255, 255, 0.1);
-            border: 1px solid #00ffff;
-            color: #00ffff;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1rem;
-            text-align: left;
-            transition: all 0.3s;
-        }
-        
-        .admin-btn:hover {
-            background: rgba(0, 255, 255, 0.3);
-            transform: translateX(5px);
-        }
-        
-        .admin-btn.warning {
-            background: rgba(255, 255, 0, 0.1);
-            border-color: #ffff00;
-            color: #ffff00;
-        }
-        
-        .admin-btn.danger {
-            background: rgba(255, 0, 0, 0.1);
-            border-color: #ff3333;
-            color: #ff3333;
-        }
-        
-        .admin-btn.success {
-            background: rgba(0, 255, 0, 0.1);
-            border-color: #00ff00;
-            color: #00ff00;
-        }
-        
-        .quick-actions {
-            margin-top: 40px;
-            padding: 25px;
-            background: rgba(0, 40, 80, 0.5);
-            border-radius: 12px;
-            border: 2px dashed #00ffff;
-        }
-        
-        .quick-actions h2 {
-            color: #00ffff;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .action-btn {
-            padding: 12px 24px;
-            background: linear-gradient(180deg, #ff33cc, #cc0099);
-            border: none;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        .action-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(255, 51, 204, 0.3);
-        }
-        
-        .recent-activity {
-            margin-top: 40px;
-        }
-        
-        .activity-item {
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 8px;
-            border-left: 4px solid #00ffff;
-        }
-        
-        .activity-time {
-            color: #a8dfe8;
-            font-size: 0.9rem;
-            margin-top: 5px;
-        }
-        
-        .no-permission {
-            text-align: center;
-            padding: 60px;
-            color: #ff3333;
-        }
-    </style>
+<div class="max-w-6xl mx-auto">
+    <!-- Admin Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-cyan-400 mb-2">🛠️ Admin Panel</h1>
+        <p class="text-gray-300">Manage game submissions and admin users</p>
+    </div>
     
-    <!-- Admin Permission Check -->
-    <div id="adminCheck" style="display: none;">
-        <div class="no-permission">
-            <h2>⚠️ Admin Access Required</h2>
-            <p>You don't have permission to access the admin panel.</p>
-            <button class="action-btn" onclick="window.rom.loadModule('home')" style="margin-top: 20px;">
-                Return to Home
-            </button>
+    <!-- Admin Management Section -->
+    <div class="bg-gray-800 p-6 rounded-lg mb-8 border border-purple-500">
+        <h2 class="text-xl font-bold text-purple-300 mb-4">👑 Admin Management</h2>
+        
+        <!-- Add Admin Form -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-white mb-3">Add New Admin</h3>
+            <form id="add-admin-form" class="flex space-x-2">
+                <input type="email" id="admin-email" 
+                       class="flex-1 p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                       placeholder="Enter user email address" required>
+                <button type="submit" 
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded font-semibold">
+                    Add Admin
+                </button>
+            </form>
+        </div>
+        
+        <!-- Admin List -->
+        <div>
+            <h3 class="text-lg font-bold text-white mb-3">Current Admins</h3>
+            <div id="admin-list">
+                <!-- Admin list will be loaded here -->
+            </div>
         </div>
     </div>
     
-    <!-- Admin Dashboard -->
-    <div id="adminDashboard">
-        <div class="admin-header">
-            <h1>🛠️ ROM Admin Panel</h1>
-            <p style="color: #a8dfe8;">Manage game submissions, users, and system settings</p>
+    <!-- Game Submissions Section -->
+    <div class="bg-gray-800 p-6 rounded-lg border border-cyan-500">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-cyan-300">🎮 Pending Game Submissions</h2>
+            <button onclick="loadPendingSubmissions()" 
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                🔄 Refresh
+            </button>
         </div>
         
-        <!-- Stats Overview -->
-        <div class="admin-stats">
-            <div class="stat-card">
-                <div class="stat-number" id="pendingCount">0</div>
-                <div class="stat-label">Pending Submissions</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-number" id="approvedCount">0</div>
-                <div class="stat-label">Approved Games</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-number" id="rejectedCount">0</div>
-                <div class="stat-label">Rejected Submissions</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-number" id="totalSubmissions">0</div>
-                <div class="stat-label">Total Submissions</div>
-            </div>
+        <div id="pending-submissions">
+            <!-- Submissions will be loaded here -->
         </div>
-        
-        <!-- Admin Sections -->
-        <div class="admin-sections">
-            <div class="admin-section">
-                <h2>🎮 Game Management</h2>
-                <button class="admin-btn" onclick="window.rom.loadModule('game-submissions')">
-                    📋 Review Game Submissions
-                </button>
-                <button class="admin-btn" onclick="manageApprovedGames()">
-                    ✅ Manage Approved Games
-                </button>
-                <button class="admin-btn warning" onclick="viewRejectedSubmissions()">
-                    ❌ View Rejected Submissions
-                </button>
-                <button class="admin-btn" onclick="addGameManually()">
-                    ＋ Add Game Manually
-                </button>
-            </div>
-            
-            <div class="admin-section">
-                <h2>👥 User Management</h2>
-                <button class="admin-btn" onclick="manageUsers()">
-                    👤 Manage Users
-                </button>
-                <button class="admin-btn" onclick="viewUserReports()">
-                    ⚠️ View User Reports
-                </button>
-                <button class="admin-btn warning" onclick="manageUserRoles()">
-                    🏷️ Manage User Roles
-                </button>
-                <button class="admin-btn danger" onclick="banUsers()">
-                    🚫 Ban Users
-                </button>
-            </div>
-            
-            <div class="admin-section">
-                <h2>⚙️ System Settings</h2>
-                <button class="admin-btn" onclick="systemSettings()">
-                    ⚙️ System Configuration
-                </button>
-                <button class="admin-btn" onclick="backupData()">
-                    💾 Backup Database
-                </button>
-                <button class="admin-btn warning" onclick="viewLogs()">
-                    📊 View System Logs
-                </button>
-                <button class="admin-btn danger" onclick="purgeData()">
-                    🗑️ Purge Old Data
-                </button>
-            </div>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div class="bg-gray-800 p-6 rounded-lg text-center border border-green-500">
+            <div class="text-3xl font-bold text-green-400 mb-2" id="total-approved">0</div>
+            <div class="text-gray-300">Games Approved</div>
         </div>
-        
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-            <h2>🚀 Quick Actions</h2>
-            <div class="action-buttons">
-                <button class="action-btn" onclick="window.rom.loadModule('game-submissions')">
-                    Review New Submissions
-                </button>
-                <button class="action-btn" onclick="approveAllPending()">
-                    Approve All Pending
-                </button>
-                <button class="action-btn" onclick="exportGameData()">
-                    Export Game Data
-                </button>
-                <button class="action-btn" onclick="clearLocalStorage()">
-                    Clear Test Data
-                </button>
-            </div>
+        <div class="bg-gray-800 p-6 rounded-lg text-center border border-yellow-500">
+            <div class="text-3xl font-bold text-yellow-400 mb-2" id="total-pending">0</div>
+            <div class="text-gray-300">Pending Reviews</div>
         </div>
-        
-        <!-- Recent Activity -->
-        <div class="recent-activity">
-            <h2 style="color: #00ffff; margin-bottom: 20px;">📅 Recent Activity</h2>
-            <div id="recentActivity">
-                <div class="activity-item">
-                    <div>No recent activity</div>
-                    <div class="activity-time">--:--</div>
-                </div>
-            </div>
+        <div class="bg-gray-800 p-6 rounded-lg text-center border border-red-500">
+            <div class="text-3xl font-bold text-red-400 mb-2" id="total-rejected">0</div>
+            <div class="text-gray-300">Games Rejected</div>
         </div>
     </div>
 </div>
+
+<script>
+    // Load stats on page load
+    async function loadStats() {
+        try {
+            // Get counts from Supabase
+            const [approved, pending, rejected] = await Promise.all([
+                supabase.from('games').select('*', { count: 'exact', head: true }),
+                supabase.from('game_submissions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+                supabase.from('game_submissions').select('*', { count: 'exact', head: true }).eq('status', 'rejected')
+            ]);
+            
+            document.getElementById('total-approved').textContent = approved.count || 0;
+            document.getElementById('total-pending').textContent = pending.count || 0;
+            document.getElementById('total-rejected').textContent = rejected.count || 0;
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+    
+    // Load stats when admin module loads
+    setTimeout(loadStats, 1000);
+</script>
