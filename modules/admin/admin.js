@@ -38,46 +38,27 @@ async function loadPendingSubmissions() {
     submissionsContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="text-gray-400 mt-2">Loading submissions...</p></div>';
     
     try {
-        // Get submissions with user email from auth.users
+        // Try to use the view first
         const { data: submissions, error } = await supabase
-            .from('game_submissions')
-            .select(`
-                *,
-                users:user_id (email)
-            `)
+            .from('game_submissions_with_users')
+            .select('*')
             .eq('status', 'pending')
             .order('created_at', { ascending: true });
         
         if (error) {
-            console.error('Query error:', error);
+            console.log('View not available, trying direct table:', error);
             
-            // If there's a relationship error, try a different approach
-            if (error.code === 'PGRST200' || error.message.includes('relationship')) {
-                // Get submissions without the join
-                const { data: simpleSubmissions, error: simpleError } = await supabase
-                    .from('game_submissions')
-                    .select('*')
-                    .eq('status', 'pending')
-                    .order('created_at', { ascending: true });
-                
-                if (simpleError) throw simpleError;
-                
-                // Get user emails separately
-                const userIds = [...new Set(simpleSubmissions.map(s => s.user_id))];
-                const userEmails = {};
-                
-                for (const userId of userIds) {
-                    const { data: user } = await supabase.auth.admin.getUserById(userId);
-                    if (user?.user?.email) {
-                        userEmails[userId] = user.user.email;
-                    }
-                }
-                
-                // Render with manually fetched emails
-                renderSubmissions(simpleSubmissions, userEmails);
-                return;
-            }
-            throw error;
+            // Fallback to direct table query
+            const { data: simpleSubmissions, error: simpleError } = await supabase
+                .from('game_submissions')
+                .select('*')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: true });
+            
+            if (simpleError) throw simpleError;
+            
+            renderSubmissions(simpleSubmissions);
+            return;
         }
         
         if (!submissions || submissions.length === 0) {
@@ -100,58 +81,74 @@ async function loadPendingSubmissions() {
             <div class="bg-red-900 border border-red-700 rounded-lg p-6 text-center">
                 <h3 class="text-lg font-bold text-red-300 mb-2">Error Loading Submissions</h3>
                 <p class="text-red-200 mb-2">${error.message}</p>
-                <button onclick="loadPendingSubmissions()" 
-                        class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
-                    Try Again
+                <p class="text-gray-300 text-sm mb-4">This might be a database setup issue.</p>
+                <button onclick="window.location.reload()" 
+                        class="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                    Refresh Page
                 </button>
             </div>
         `;
     }
     
-    function renderSubmissions(submissions, userEmails = null) {
+    function renderSubmissions(submissions) {
         submissionsContainer.innerHTML = submissions.map(sub => {
-            const userEmail = userEmails 
-                ? userEmails[sub.user_id] 
-                : (sub.users?.email || 'Unknown User');
+            const userEmail = sub.user_email || sub.email || 'Unknown User';
+            const username = sub.username || userEmail.split('@')[0];
             
             return `
-                <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700">
+                <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700 hover:border-yellow-500 transition">
                     <div class="flex justify-between items-start mb-4">
                         <div>
-                            <h3 class="text-xl font-bold text-white">${sub.title}</h3>
-                            <div class="flex items-center space-x-4 mt-2">
+                            <h3 class="text-2xl font-bold text-white mb-2">${sub.title}</h3>
+                            <div class="flex flex-wrap items-center gap-2 mt-2">
                                 <span class="bg-gray-700 text-gray-300 px-3 py-1 rounded text-sm">${sub.console}</span>
                                 <span class="text-gray-400">${sub.year}</span>
-                                <span class="text-gray-500 text-sm">Submitted by: ${userEmail}</span>
+                                <span class="text-gray-500 text-sm">
+                                    Submitted by: <span class="text-cyan-300">${username}</span>
+                                </span>
+                                <span class="text-gray-500 text-sm">
+                                    ${new Date(sub.created_at).toLocaleDateString()}
+                                </span>
                             </div>
                         </div>
-                        <span class="bg-yellow-600 text-white px-3 py-1 rounded text-sm">Pending Review</span>
+                        <span class="bg-yellow-600 text-white px-3 py-1 rounded text-sm font-semibold">
+                            ⏳ Pending Review
+                        </span>
                     </div>
                     
                     <p class="text-gray-300 mb-4">${sub.description || 'No description provided.'}</p>
                     
+                    ${sub.notes ? `
+                        <div class="bg-gray-900 p-3 rounded mb-4">
+                            <p class="text-gray-400 text-sm"><strong>Notes:</strong> ${sub.notes}</p>
+                        </div>
+                    ` : ''}
+                    
                     ${sub.file_url ? `
                         <div class="mb-4">
                             <a href="${sub.file_url}" target="_blank" 
-                               class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
+                               class="inline-flex items-center bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
                                 <span class="mr-2">📎</span>
                                 Download Game File
                             </a>
                         </div>
                     ` : ''}
                     
-                    <div class="flex space-x-4">
+                    <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
                         <button onclick="approveSubmission('${sub.id}')" 
-                                class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold transition">
-                            ✅ Approve
+                                class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
+                            <span class="mr-2">✅</span>
+                            Approve
                         </button>
                         <button onclick="rejectSubmission('${sub.id}')" 
-                                class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded font-semibold transition">
-                            ❌ Reject
+                                class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
+                            <span class="mr-2">❌</span>
+                            Reject
                         </button>
                         <button onclick="showReviewModal('${sub.id}', '${escapeString(sub.title)}')" 
-                                class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded font-semibold transition">
-                            📝 Review with Notes
+                                class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
+                            <span class="mr-2">📝</span>
+                            Review with Notes
                         </button>
                     </div>
                 </div>
@@ -160,7 +157,7 @@ async function loadPendingSubmissions() {
     }
     
     function escapeString(str) {
-        return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        return str ? str.replace(/'/g, "\\'").replace(/"/g, '\\"') : '';
     }
 }
 
