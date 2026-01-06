@@ -3,163 +3,361 @@ import { supabase, updateAuthUI } from '../../lib/supabase.js';
 export function initModule() {
     console.log('🔐 Auth module initialized');
     
-    // Set default form
+    // Initialize all auth forms
+    initAuthForms();
+    
+    // Show login form by default
     showAuthForm('login');
-    
-    // Show login form
-    document.getElementById('show-login')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        showAuthForm('login');
-    });
-    
-    // Show register form
-    document.getElementById('show-register')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        showAuthForm('register');
-    });
-    
-    // Handle form submission
-    const authForm = document.getElementById('auth-form');
-    if (authForm) {
-        authForm.addEventListener('submit', handleAuthSubmit);
-    }
-    
-    // Add debug test buttons
-    addTestButtons();
 }
 
-function showAuthForm(type) {
-    const form = document.getElementById('auth-form');
-    const submitBtn = document.getElementById('auth-submit-btn');
-    const formTitle = document.getElementById('auth-form-title');
-    const errorDiv = document.getElementById('auth-error');
+function initAuthForms() {
+    // Tab buttons
+    document.getElementById('show-login')?.addEventListener('click', () => showAuthForm('login'));
+    document.getElementById('show-register')?.addEventListener('click', () => showAuthForm('register'));
+    document.getElementById('show-forgot')?.addEventListener('click', () => showAuthForm('forgot'));
     
-    // Clear errors
-    if (errorDiv) {
-        errorDiv.classList.add('hidden');
-        errorDiv.textContent = '';
-    }
+    // Switch buttons inside forms
+    document.getElementById('switch-to-register')?.addEventListener('click', () => showAuthForm('register'));
+    document.getElementById('switch-to-login')?.addEventListener('click', () => showAuthForm('login'));
+    document.getElementById('switch-to-login-2')?.addEventListener('click', () => showAuthForm('login'));
+    document.getElementById('show-forgot-btn')?.addEventListener('click', () => showAuthForm('forgot'));
     
-    if (form) {
-        form.setAttribute('data-type', type);
-    }
-    
-    if (formTitle) {
-        formTitle.textContent = type === 'login' ? 'Login' : 'Register';
-    }
-    
-    if (submitBtn) {
-        submitBtn.textContent = type === 'login' ? 'Login' : 'Register';
-        submitBtn.className = 'w-full px-4 py-2 text-white rounded ' + 
-            (type === 'login' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700');
-    }
-    
-    if (form) {
-        form.classList.remove('hidden');
-    }
+    // Form submissions
+    document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+    document.getElementById('register-form')?.addEventListener('submit', handleRegister);
+    document.getElementById('forgot-form')?.addEventListener('submit', handleForgotPassword);
 }
 
-async function handleAuthSubmit(e) {
+function showAuthForm(formType) {
+    // Update tabs
+    ['login', 'register', 'forgot'].forEach(type => {
+        const tab = document.getElementById(`show-${type}`);
+        const form = document.getElementById(`${type}-form`);
+        
+        if (tab) {
+            if (type === formType) {
+                tab.classList.add('auth-tab-active');
+                tab.classList.remove('text-gray-400');
+                tab.classList.add('text-white');
+            } else {
+                tab.classList.remove('auth-tab-active');
+                tab.classList.add('text-gray-400');
+                tab.classList.remove('text-white');
+            }
+        }
+        
+        if (form) {
+            form.classList.toggle('hidden', type !== formType);
+        }
+    });
+    
+    // Clear messages
+    clearMessage();
+}
+
+async function handleLogin(e) {
     e.preventDefault();
     
-    const form = e.target;
-    const type = form.getAttribute('data-type');
-    const email = form.email.value;
-    const password = form.password.value;
-    const submitBtn = document.getElementById('auth-submit-btn');
-    const errorDiv = document.getElementById('auth-error');
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const submitBtn = document.getElementById('login-submit');
+    const rememberMe = document.getElementById('remember-me').checked;
     
-    // Clear previous errors
-    if (errorDiv) {
-        errorDiv.classList.add('hidden');
-        errorDiv.textContent = '';
+    // Validate
+    if (!email || !password) {
+        showMessage('Please fill in all fields', 'error');
+        return;
     }
     
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Processing...';
-    }
+    // Disable button and show loading
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Logging in...';
+    submitBtn.classList.add('opacity-50');
     
     try {
-        let result;
+        console.log('Attempting login for:', email);
         
-        if (type === 'login') {
-            console.log('Attempting login for:', email);
-            result = await supabase.auth.signInWithPassword({
-                email,
-                password
-            });
-        } else {
-            console.log('Attempting registration for:', email);
-            result = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        created_at: new Date().toISOString()
-                    },
-                    emailRedirectTo: window.location.origin
-                }
-            });
+        // Sign in with Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+        
+        if (error) {
+            // Handle specific errors
+            if (error.message.includes('Invalid login credentials')) {
+                throw new Error('Invalid email or password');
+            } else if (error.message.includes('Email not confirmed')) {
+                throw new Error('Please confirm your email address first. Check your inbox.');
+            } else {
+                throw error;
+            }
         }
         
-        console.log('Auth result:', result);
+        // Successful login
+        console.log('Login successful:', data.user.email);
         
-        if (result.error) {
-            throw result.error;
-        }
+        // Show success message
+        showMessage(`Welcome back, ${data.user.email}!`, 'success');
         
-        if (type === 'register') {
-            alert('Registration successful! Please check your email to confirm your account.');
-        } else {
-            alert('Login successful!');
-        }
-        
-        // Update UI and redirect
-        await updateAuthUI();
-        window.location.hash = '#/home';
+        // Update UI and redirect after a moment
+        setTimeout(async () => {
+            await updateAuthUI();
+            window.location.hash = '#/home';
+        }, 1500);
         
     } catch (error) {
-        console.error('Auth error:', error);
-        if (errorDiv) {
-            errorDiv.textContent = error.message || 'Authentication failed';
-            errorDiv.classList.remove('hidden');
-        }
+        console.error('Login error:', error);
+        showMessage(error.message || 'Login failed. Please try again.', 'error');
     } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = type === 'login' ? 'Login' : 'Register';
-        }
+        // Restore button
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        submitBtn.classList.remove('opacity-50');
     }
 }
 
-function addTestButtons() {
-    // Add test credentials buttons for easy testing
-    const form = document.getElementById('auth-form');
-    if (form) {
-        const testDiv = document.createElement('div');
-        testDiv.className = 'mt-4 p-4 bg-gray-800 rounded';
-        testDiv.innerHTML = `
-            <p class="text-gray-300 mb-2">Test Credentials:</p>
-            <button class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded mr-2 text-sm" 
-                    onclick="fillTestCredentials('test@example.com', 'testpassword123')">
-                Test User
-            </button>
-            <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm" 
-                    onclick="fillTestCredentials('admin@example.com', 'admin123')">
-                Admin User
-            </button>
-        `;
-        form.parentNode.insertBefore(testDiv, form.nextSibling);
+async function handleRegister(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('register-email').value;
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('register-confirm').value;
+    const submitBtn = document.getElementById('register-submit');
+    
+    // Validate
+    if (!email || !password || !confirmPassword) {
+        showMessage('Please fill in all fields', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showMessage('Password must be at least 6 characters', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showMessage('Passwords do not match', 'error');
+        return;
+    }
+    
+    // Disable button and show loading
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating account...';
+    submitBtn.classList.add('opacity-50');
+    
+    try {
+        console.log('Attempting registration for:', email);
         
-        // Add global function
-        window.fillTestCredentials = (email, password) => {
-            document.getElementById('auth-email').value = email;
-            document.getElementById('auth-password').value = password;
-            document.getElementById('auth-form').setAttribute('data-type', 'login');
-            document.getElementById('auth-form-title').textContent = 'Login';
-            document.getElementById('auth-submit-btn').textContent = 'Login';
-            document.getElementById('auth-submit-btn').className = 'w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded';
-        };
+        // Register with Supabase
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    created_at: new Date().toISOString(),
+                    username: email.split('@')[0]
+                },
+                emailRedirectTo: `${window.location.origin}#/auth?verified=true`
+            }
+        });
+        
+        if (error) {
+            // Handle specific errors
+            if (error.message.includes('already registered')) {
+                throw new Error('Email already registered. Try logging in instead.');
+            } else if (error.message.includes('weak password')) {
+                throw new Error('Password is too weak. Please use a stronger password.');
+            } else {
+                throw error;
+            }
+        }
+        
+        // Check if email confirmation is required
+        if (data.user?.identities?.length === 0) {
+            // Email already exists
+            showMessage('Email already registered. Try logging in instead.', 'error');
+            return;
+        }
+        
+        // Registration successful
+        console.log('Registration successful:', data);
+        
+        if (data.user?.confirmed_at) {
+            // User is already confirmed (might be from social auth)
+            showMessage('Account created successfully! Redirecting...', 'success');
+            setTimeout(async () => {
+                await updateAuthUI();
+                window.location.hash = '#/home';
+            }, 2000);
+        } else {
+            // Email confirmation required
+            showMessage(
+                'Account created! Please check your email to confirm your address. Check spam folder too!',
+                'success'
+            );
+            
+            // Show a resend button
+            setTimeout(() => {
+                const messageDiv = document.getElementById('auth-message');
+                if (messageDiv) {
+                    messageDiv.innerHTML += `
+                        <button onclick="resendConfirmation('${email}')" 
+                                class="mt-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white py-1 px-3 rounded">
+                            Resend confirmation email
+                        </button>
+                    `;
+                }
+            }, 500);
+        }
+        
+    } catch (error) {
+        console.error('Registration error:', error);
+        showMessage(error.message || 'Registration failed. Please try again.', 'error');
+    } finally {
+        // Restore button
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        submitBtn.classList.remove('opacity-50');
     }
 }
+
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('forgot-email').value;
+    const submitBtn = document.getElementById('forgot-submit');
+    
+    // Validate
+    if (!email) {
+        showMessage('Please enter your email address', 'error');
+        return;
+    }
+    
+    // Disable button and show loading
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    submitBtn.classList.add('opacity-50');
+    
+    try {
+        console.log('Sending password reset for:', email);
+        
+        // Send reset email
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}#/auth?reset=true`,
+        });
+        
+        if (error) {
+            // Handle specific errors
+            if (error.message.includes('rate limit')) {
+                throw new Error('Too many attempts. Please try again later.');
+            } else {
+                throw error;
+            }
+        }
+        
+        // Success
+        console.log('Reset email sent:', data);
+        showMessage(
+            'Password reset link sent! Check your email (and spam folder).',
+            'success'
+        );
+        
+        // Clear form
+        document.getElementById('forgot-email').value = '';
+        
+        // Auto-switch back to login after a delay
+        setTimeout(() => {
+            showAuthForm('login');
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Password reset error:', error);
+        showMessage(error.message || 'Failed to send reset email. Please try again.', 'error');
+    } finally {
+        // Restore button
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        submitBtn.classList.remove('opacity-50');
+    }
+}
+
+// Helper function to show messages
+function showMessage(text, type = 'info') {
+    const messageDiv = document.getElementById('auth-message');
+    if (!messageDiv) return;
+    
+    // Set colors based on type
+    let bgColor = 'bg-gray-700';
+    let textColor = 'text-white';
+    
+    if (type === 'error') {
+        bgColor = 'bg-red-900';
+        textColor = 'text-red-200';
+    } else if (type === 'success') {
+        bgColor = 'bg-green-900';
+        textColor = 'text-green-200';
+    } else if (type === 'info') {
+        bgColor = 'bg-cyan-900';
+        textColor = 'text-cyan-200';
+    }
+    
+    messageDiv.innerHTML = text;
+    messageDiv.className = `${bgColor} ${textColor} p-3 rounded text-center`;
+    messageDiv.classList.remove('hidden');
+    
+    // Auto-hide non-error messages after 5 seconds
+    if (type !== 'error') {
+        setTimeout(() => {
+            messageDiv.classList.add('hidden');
+        }, 5000);
+    }
+}
+
+// Helper function to clear messages
+function clearMessage() {
+    const messageDiv = document.getElementById('auth-message');
+    if (messageDiv) {
+        messageDiv.classList.add('hidden');
+        messageDiv.textContent = '';
+    }
+}
+
+// Resend confirmation email
+window.resendConfirmation = async function(email) {
+    try {
+        const { error } = await supabase.auth.resend({
+            type: 'signup',
+            email: email,
+            options: {
+                emailRedirectTo: `${window.location.origin}#/auth?verified=true`
+            }
+        });
+        
+        if (error) throw error;
+        
+        showMessage('Confirmation email resent! Check your inbox.', 'success');
+    } catch (error) {
+        console.error('Resend error:', error);
+        showMessage('Failed to resend confirmation email.', 'error');
+    }
+};
+
+// Handle password reset from URL
+function handleResetFromURL() {
+    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+    
+    if (urlParams.has('reset') && urlParams.get('reset') === 'true') {
+        showMessage('Password reset successful! You can now login with your new password.', 'success');
+    }
+    
+    if (urlParams.has('verified') && urlParams.get('verified') === 'true') {
+        showMessage('Email verified successfully! You can now login.', 'success');
+    }
+}
+
+// Initialize URL handlers
+document.addEventListener('DOMContentLoaded', handleResetFromURL);
