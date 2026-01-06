@@ -121,23 +121,22 @@
         </div>
     </div>
     
-    <div class="quick-actions">
-        <button class="action-btn retro" onclick="rom.loadModule('games')">
-            🎮 Browse Games
-        </button>
-        
-        <button class="action-btn" onclick="rom.loadModule('chat')">
-            💬 Join Chat
-        </button>
-        
-        <button class="action-btn" onclick="rom.loadModule('profile')">
-            👤 Your Profile
-        </button>
-        
-        ${!window.rom.currentUser ? `
-            <button class="action-btn" onclick="rom.loadModule('auth')">
-                🔐 Login / Register
-            </button>
-        ` : ''}
-    </div>
+    <!-- Replace all onclick="rom.loadModule()" with window.location.hash -->
+<div class="quick-actions">
+    <button class="action-btn retro" onclick="window.location.hash = '#/games'">
+        🎮 Browse Games
+    </button>
+    
+    <button class="action-btn" onclick="window.location.hash = '#/chat'">
+        💬 Join Chat
+    </button>
+    
+    <button class="action-btn" onclick="window.location.hash = '#/profile'">
+        👤 Your Profile
+    </button>
+    
+    <button class="action-btn" onclick="window.location.hash = '#/auth'">
+        🔐 Login / Register
+    </button>
+</div>
 </div>
