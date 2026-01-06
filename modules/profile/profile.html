@@ -1,5 +1,213 @@
-<!-- For each module, create a simple placeholder -->
-<div style="padding: 50px; text-align: center;">
-    <h2>Module Coming Soon</h2>
-    <p>This module is under development.</p>
+<div class="max-w-6xl mx-auto">
+    <!-- Profile Header -->
+    <div class="bg-gradient-to-r from-gray-800 to-gray-900 p-8 rounded-lg border border-cyan-500 mb-8">
+        <div class="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
+            <!-- Avatar -->
+            <div class="relative">
+                <div class="w-32 h-32 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center text-5xl font-bold shadow-lg">
+                    <span id="profile-avatar">U</span>
+                </div>
+                <button id="edit-avatar-btn" 
+                        class="absolute bottom-0 right-0 bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full">
+                    ✏️
+                </button>
+            </div>
+            
+            <!-- User Info -->
+            <div class="flex-1 text-center md:text-left">
+                <h1 id="profile-username" class="text-4xl font-bold text-white mb-2">Loading...</h1>
+                <p id="profile-email" class="text-gray-300 mb-4">Loading...</p>
+                <p id="profile-member-since" class="text-gray-400 text-sm mb-6">Member since: Loading...</p>
+                
+                <div class="flex flex-wrap gap-2">
+                    <span class="bg-cyan-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                        🔥 Active User
+                    </span>
+                    <span id="admin-badge" class="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold hidden">
+                        👑 Admin
+                    </span>
+                    <span id="verified-badge" class="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                        ✓ Verified
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex flex-col space-y-3">
+                <button id="edit-profile-btn" 
+                        class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                    ✏️ Edit Profile
+                </button>
+                <button id="settings-btn" 
+                        class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition">
+                    ⚙️ Settings
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gray-800 p-6 rounded-lg text-center border border-green-500">
+            <div class="text-3xl font-bold text-green-400 mb-2" id="games-submitted">0</div>
+            <div class="text-gray-300">Games Submitted</div>
+        </div>
+        <div class="bg-gray-800 p-6 rounded-lg text-center border border-cyan-500">
+            <div class="text-3xl font-bold text-cyan-400 mb-2" id="games-approved">0</div>
+            <div class="text-gray-300">Games Approved</div>
+        </div>
+        <div class="bg-gray-800 p-6 rounded-lg text-center border border-purple-500">
+            <div class="text-3xl font-bold text-purple-400 mb-2" id="comments-made">0</div>
+            <div class="text-gray-300">Comments Made</div>
+        </div>
+        <div class="bg-gray-800 p-6 rounded-lg text-center border border-yellow-500">
+            <div class="text-3xl font-bold text-yellow-400 mb-2" id="playtime-hours">0</div>
+            <div class="text-gray-300">Playtime Hours</div>
+        </div>
+    </div>
+    
+    <!-- Main Content Tabs -->
+    <div class="mb-6">
+        <div class="flex border-b border-gray-700">
+            <button class="profile-tab active px-6 py-3 text-cyan-300 font-semibold border-b-2 border-cyan-500">
+                📊 Activity
+            </button>
+            <button class="profile-tab px-6 py-3 text-gray-400 font-semibold">
+                🎮 My Games
+            </button>
+            <button class="profile-tab px-6 py-3 text-gray-400 font-semibold">
+                📝 Reviews
+            </button>
+            <button class="profile-tab px-6 py-3 text-gray-400 font-semibold">
+                ⚙️ Settings
+            </button>
+        </div>
+    </div>
+    
+    <!-- Activity Feed -->
+    <div id="activity-feed" class="space-y-4">
+        <div class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+            <p class="text-gray-400 mt-2">Loading your activity...</p>
+        </div>
+    </div>
+    
+    <!-- Edit Profile Modal (Hidden by default) -->
+    <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-lg max-w-md w-full border border-cyan-500">
+            <div class="p-6">
+                <h3 class="text-xl font-bold text-white mb-4">Edit Profile</h3>
+                
+                <form id="profile-edit-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Display Name</label>
+                        <input type="text" id="edit-username" 
+                               class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Bio</label>
+                        <textarea id="edit-bio" rows="3" 
+                                  class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                                  placeholder="Tell us about yourself..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Favorite Console</label>
+                        <select id="edit-favorite-console" 
+                                class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
+                            <option value="">Select a console</option>
+                            <option value="PS2">PlayStation 2</option>
+                            <option value="PS3">PlayStation 3</option>
+                            <option value="XBOX">Xbox</option>
+                            <option value="GC">GameCube</option>
+                            <option value="PC">PC</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex space-x-3 pt-4">
+                        <button type="submit" 
+                                class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded font-semibold">
+                            Save Changes
+                        </button>
+                        <button type="button" onclick="closeEditModal()" 
+                                class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .profile-tab {
+        transition: all 0.3s;
+    }
+    
+    .profile-tab:hover {
+        color: #06b6d4;
+    }
+    
+    .profile-tab.active {
+        color: #06b6d4;
+    }
+</style>
+
+<script>
+    // Tab switching
+    document.querySelectorAll('.profile-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.profile-tab').forEach(t => {
+                t.classList.remove('active');
+                t.classList.remove('text-cyan-300');
+                t.classList.add('text-gray-400');
+                t.classList.remove('border-b-2');
+                t.classList.remove('border-cyan-500');
+            });
+            
+            this.classList.add('active');
+            this.classList.add('text-cyan-300');
+            this.classList.remove('text-gray-400');
+            this.classList.add('border-b-2');
+            this.classList.add('border-cyan-500');
+            
+            // Here you would load different content based on the tab
+            // For now, we'll just show a message
+            const activityFeed = document.getElementById('activity-feed');
+            if (activityFeed) {
+                activityFeed.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-gray-400">${this.textContent} content coming soon!</p>
+                    </div>
+                `;
+            }
+        });
+    });
+    
+    // Edit modal functions
+    window.closeEditModal = function() {
+        document.getElementById('edit-profile-modal').classList.add('hidden');
+    };
+    
+    window.openEditModal = function() {
+        document.getElementById('edit-profile-modal').classList.remove('hidden');
+    };
+    
+    // Setup edit button
+    document.getElementById('edit-profile-btn')?.addEventListener('click', openEditModal);
+    
+    // Handle profile form submission
+    document.getElementById('profile-edit-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('edit-username').value;
+        const bio = document.getElementById('edit-bio').value;
+        const favoriteConsole = document.getElementById('edit-favorite-console').value;
+        
+        // Here you would save to Supabase
+        alert('Profile updates will be saved in the next update!');
+        closeEditModal();
+    });
+</script>
