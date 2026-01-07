@@ -1,13 +1,20 @@
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
+let allGames = [];
+let currentDeleteGameId = null;
+
 export function initModule() {
     console.log('Admin module initialized');
     checkAdminAccess();
     loadPendingSubmissions();
     loadAdminUsers();
+    loadAdminGames(); // Load games library
     
     // Setup admin management
     setupAdminManagement();
+    
+    // Setup game form listeners
+    setupGameFormListeners();
 }
 
 async function checkAdminAccess() {
@@ -89,9 +96,12 @@ async function loadPendingSubmissions() {
             </div>
         `;
     }
-    
-    // In the renderSubmissions function, add connection info:
+}
+
 function renderSubmissions(submissions) {
+    const submissionsContainer = document.getElementById('pending-submissions');
+    if (!submissionsContainer) return;
+    
     submissionsContainer.innerHTML = submissions.map(sub => {
         const userEmail = sub.user_email || sub.email || 'Unknown User';
         const username = sub.username || userEmail.split('@')[0];
@@ -192,7 +202,7 @@ function renderSubmissions(submissions) {
     }).join('');
 }
 
-// Update the approveSubmission function to copy connection details
+// Global function for approving submissions
 window.approveSubmission = async (submissionId) => {
     if (!confirm('Approve this game submission?')) return;
     
@@ -221,7 +231,7 @@ window.approveSubmission = async (submissionId) => {
         if (updateError) throw updateError;
         
         // Add to games table WITH CONNECTION DETAILS
-        await supabase.from('games').insert({
+        const gameData = {
             title: submission.title,
             console: submission.console,
             year: submission.year,
@@ -239,7 +249,11 @@ window.approveSubmission = async (submissionId) => {
             players_max: submission.players_max,
             servers_available: submission.servers_available,
             server_details: submission.server_details
-        });
+        };
+        
+        console.log('Inserting game with data:', gameData);
+        
+        await supabase.from('games').insert(gameData);
         
         showNotification('Game approved and added to library with connection details!', 'success');
         loadPendingSubmissions();
@@ -249,35 +263,34 @@ window.approveSubmission = async (submissionId) => {
         showNotification('Error approving submission: ' + error.message, 'error');
     }
 };
-    
-    function escapeString(str) {
-        return str ? str.replace(/'/g, "\\'").replace(/"/g, '\\"') : '';
-    }
-}
 
-// Add this global function for creating test data
-window.createTestData = async function() {
+window.rejectSubmission = async (submissionId) => {
+    const reason = prompt('Reason for rejection (optional):');
+    
     try {
-        // Run the SQL to create tables and insert test data
-        const response = await fetch('/api/create-test-data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+        const user = await getCurrentUser();
         
-        if (!response.ok) {
-            throw new Error('Failed to create test data');
-        }
+        const { error } = await supabase
+            .from('game_submissions')
+            .update({
+                status: 'rejected',
+                reviewed_at: new Date().toISOString(),
+                reviewed_by: user.id,
+                review_notes: reason || 'No reason provided'
+            })
+            .eq('id', submissionId);
         
-        alert('Test data created successfully!');
+        if (error) throw error;
+        
+        showNotification('Game submission rejected', 'success');
         loadPendingSubmissions();
         
     } catch (error) {
-        console.error('Error creating test data:', error);
-        alert('Error: ' + error.message + '\n\nPlease run the SQL manually in Supabase.');
+        console.error('Error rejecting submission:', error);
+        showNotification('Error rejecting submission: ' + error.message, 'error');
     }
 };
+
 async function loadAdminUsers() {
     const adminList = document.getElementById('admin-list');
     if (!adminList) return;
@@ -397,112 +410,6 @@ function setupAdminManagement() {
     }
 }
 
-// Global functions for buttons
-window.approveSubmission = async (submissionId) => {
-    if (!confirm('Approve this game submission?')) return;
-    
-    try {
-        const user = await getCurrentUser();
-        
-        // Get the submission first
-        const { data: submission, error: fetchError } = await supabase
-            .from('game_submissions')
-            .select('*')
-            .eq('id', submissionId)
-            .single();
-        
-        if (fetchError) throw fetchError;
-        
-        // Update submission status
-        const { error: updateError } = await supabase
-            .from('game_submissions')
-            .update({
-                status: 'approved',
-                reviewed_at: new Date().toISOString(),
-                reviewed_by: user.id
-            })
-            .eq('id', submissionId);
-        
-        if (updateError) throw updateError;
-        
-        // Prepare game data for insertion
-        const gameData = {
-            title: submission.title,
-            console: submission.console,
-            year: submission.year,
-            description: submission.description,
-            file_url: submission.file_url,
-            submitted_by: submission.user_id,
-            submitted_email: submission.user_email,  // Make sure we're using the right field name
-            approved_at: new Date().toISOString(),
-            
-            // Connection details
-            connection_method: submission.connection_method,
-            connection_details: submission.connection_details,
-            multiplayer_type: submission.multiplayer_type,
-            players_min: submission.players_min || 1,
-            players_max: submission.players_max || 1,
-            servers_available: submission.servers_available || false,
-            server_details: submission.server_details
-        };
-        
-        console.log('Inserting game with data:', gameData);
-        
-        // Add to games table
-        const { data: newGame, error: insertError } = await supabase
-            .from('games')
-            .insert(gameData)
-            .select()
-            .single();
-        
-        if (insertError) {
-            console.error('Insert error details:', insertError);
-            throw insertError;
-        }
-        
-        showNotification(`✅ "${submission.title}" approved and added to library!`, 'success');
-        loadPendingSubmissions();
-        
-    } catch (error) {
-        console.error('Error approving submission:', error);
-        
-        let errorMessage = error.message;
-        if (error.code === '23505') {
-            errorMessage = 'This game might already exist in the library.';
-        } else if (error.message.includes('user_email')) {
-            errorMessage = 'Database column conflict. Please check the table structure.';
-        }
-        
-        showNotification(`Error: ${errorMessage}`, 'error');
-    }
-};
-window.rejectSubmission = async (submissionId) => {
-    const reason = prompt('Reason for rejection (optional):');
-    
-    try {
-        const user = await getCurrentUser();
-        
-        const { error } = await supabase
-            .from('game_submissions')
-            .update({
-                status: 'rejected',
-                reviewed_at: new Date().toISOString(),
-                reviewed_by: user.id,
-                review_notes: reason || 'No reason provided'
-            })
-            .eq('id', submissionId);
-        
-        if (error) throw error;
-        
-        showNotification('Game submission rejected', 'success');
-        loadPendingSubmissions();
-        
-    } catch (error) {
-        console.error('Error rejecting submission:', error);
-        showNotification('Error rejecting submission: ' + error.message, 'error');
-    }
-};
-
 window.removeAdmin = async (userId, userEmail) => {
     if (!confirm(`Remove admin privileges from ${userEmail}?`)) return;
     
@@ -618,6 +525,393 @@ window.submitReview = async (submissionId, action) => {
     }
 };
 
+// ============================================
+// GAME LIBRARY MANAGEMENT FUNCTIONS
+// ============================================
+
+async function loadAdminGames() {
+    const loadingEl = document.getElementById('gamesLoading');
+    const gamesListEl = document.getElementById('gamesList');
+    
+    if (!loadingEl || !gamesListEl) return;
+    
+    try {
+        console.log('Loading games library for admin...');
+        
+        const { data, error } = await supabase
+            .from('games')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Supabase error:', error);
+            throw error;
+        }
+        
+        console.log(`Loaded ${data?.length || 0} games`);
+        allGames = data || [];
+        
+        // Hide loading
+        loadingEl.classList.add('hidden');
+        
+        // Render games
+        renderGamesTable(allGames);
+        
+    } catch (error) {
+        console.error('Error loading admin games:', error);
+        gamesListEl.innerHTML = `
+            <tr>
+                <td colspan="5" class="py-8 text-center">
+                    <div class="text-red-400">Error loading games: ${error.message}</div>
+                    <button onclick="loadAdminGames()" class="mt-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
+                        Retry
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function renderGamesTable(games) {
+    const gamesListEl = document.getElementById('gamesList');
+    if (!gamesListEl) return;
+    
+    if (!games || games.length === 0) {
+        gamesListEl.innerHTML = `
+            <tr>
+                <td colspan="5" class="py-8 text-center text-gray-400">
+                    No games found in the library.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    gamesListEl.innerHTML = games.map(game => `
+        <tr class="hover:bg-gray-800">
+            <td class="py-3 px-4">
+                <div class="flex items-center gap-3">
+                    <img src="${game.cover_image_url || 'https://via.placeholder.com/40x40/374151/6B7280?text=?'}" 
+                         alt="${game.title}" 
+                         class="w-10 h-10 rounded object-cover">
+                    <div>
+                        <div class="text-white font-medium">${game.title}</div>
+                        <div class="text-gray-400 text-sm">${game.description ? game.description.substring(0, 50) + '...' : 'No description'}</div>
+                    </div>
+                </div>
+            </td>
+            <td class="py-3 px-4 text-gray-300">${game.console || 'N/A'}</td>
+            <td class="py-3 px-4 text-gray-300">${game.year || 'N/A'}</td>
+            <td class="py-3 px-4">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    game.approved_at ? 'bg-green-900 text-green-200' : 'bg-yellow-900 text-yellow-200'
+                }">
+                    ${game.approved_at ? 'Approved' : 'Pending'}
+                </span>
+            </td>
+            <td class="py-3 px-4">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="adminEditGame('${game.id}')" 
+                            class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded-lg transition">
+                        Edit
+                    </button>
+                    <button onclick="adminDeleteGame('${game.id}', '${escapeString(game.title)}')" 
+                            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition">
+                        Delete
+                    </button>
+                    ${!game.approved_at ? `
+                        <button onclick="adminApproveGame('${game.id}')" 
+                                class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition">
+                            Approve
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Filter games based on search input
+window.filterGames = function() {
+    const searchInput = document.getElementById('gameSearch');
+    if (!searchInput) return;
+    
+    const searchTerm = searchInput.value.toLowerCase();
+    
+    if (!searchTerm) {
+        renderGamesTable(allGames);
+        return;
+    }
+    
+    const filteredGames = allGames.filter(game => 
+        game.title.toLowerCase().includes(searchTerm) ||
+        (game.description && game.description.toLowerCase().includes(searchTerm)) ||
+        (game.console && game.console.toLowerCase().includes(searchTerm))
+    );
+    
+    renderGamesTable(filteredGames);
+}
+
+// Open modal to add new game
+window.openAddGameModal = function() {
+    const modal = document.getElementById('gameModal');
+    if (!modal) {
+        console.error('Game modal not found!');
+        return;
+    }
+    
+    document.getElementById('modalTitle').textContent = 'Add New Game';
+    document.getElementById('submitBtn').textContent = 'Add Game';
+    document.getElementById('gameForm').reset();
+    document.getElementById('gameId').value = '';
+    document.getElementById('imagePreviewContainer').classList.add('hidden');
+    modal.classList.remove('hidden');
+    
+    // Set default player values
+    const playersMin = document.getElementById('gamePlayersMin');
+    const playersMax = document.getElementById('gamePlayersMax');
+    if (playersMin) playersMin.value = '1';
+    if (playersMax) playersMax.value = '1';
+}
+
+// Close game modal
+window.closeGameModal = function() {
+    const modal = document.getElementById('gameModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Edit existing game
+window.adminEditGame = async function(gameId) {
+    try {
+        const { data: game, error } = await supabase
+            .from('games')
+            .select('*')
+            .eq('id', gameId)
+            .single();
+        
+        if (error) throw error;
+        
+        const modal = document.getElementById('gameModal');
+        if (!modal) {
+            console.error('Game modal not found!');
+            return;
+        }
+        
+        document.getElementById('modalTitle').textContent = 'Edit Game';
+        document.getElementById('submitBtn').textContent = 'Update Game';
+        document.getElementById('gameId').value = game.id;
+        document.getElementById('gameTitle').value = game.title || '';
+        document.getElementById('gameConsole').value = game.console || '';
+        document.getElementById('gameYear').value = game.year || '';
+        document.getElementById('gameMultiplayerType').value = game.multiplayer_type || '';
+        document.getElementById('gameDescription').value = game.description || '';
+        document.getElementById('gameCoverImage').value = game.cover_image_url || '';
+        document.getElementById('gameFileUrl').value = game.file_url || '';
+        document.getElementById('gameConnectionMethod').value = game.connection_method || '';
+        document.getElementById('gameConnectionDetails').value = game.connection_details || '';
+        document.getElementById('gamePlayersMin').value = game.players_min || 1;
+        document.getElementById('gamePlayersMax').value = game.players_max || 1;
+        document.getElementById('gameServersAvailable').checked = game.servers_available || false;
+        
+        // Show image preview if URL exists
+        if (game.cover_image_url) {
+            const previewImg = document.getElementById('imagePreview');
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            if (previewImg && previewContainer) {
+                previewImg.src = game.cover_image_url;
+                previewContainer.classList.remove('hidden');
+            }
+        }
+        
+        modal.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error loading game for edit:', error);
+        showNotification('Error loading game: ' + error.message, 'error');
+    }
+}
+
+// Delete game functions
+window.adminDeleteGame = function(gameId, gameTitle) {
+    currentDeleteGameId = gameId;
+    const messageEl = document.getElementById('deleteGameMessage');
+    const modal = document.getElementById('deleteGameModal');
+    
+    if (messageEl && modal) {
+        messageEl.textContent = `Are you sure you want to delete "${gameTitle}"? This action cannot be undone.`;
+        modal.classList.remove('hidden');
+    }
+}
+
+window.closeDeleteGameModal = function() {
+    const modal = document.getElementById('deleteGameModal');
+    if (modal) modal.classList.add('hidden');
+    currentDeleteGameId = null;
+}
+
+window.confirmDeleteGame = async function() {
+    if (!currentDeleteGameId) return;
+    
+    try {
+        console.log(`Deleting game ${currentDeleteGameId}...`);
+        
+        const { error } = await supabase
+            .from('games')
+            .delete()
+            .eq('id', currentDeleteGameId);
+        
+        if (error) throw error;
+        
+        showNotification('Game deleted successfully!', 'success');
+        
+        // Close modal and refresh list
+        closeDeleteGameModal();
+        await loadAdminGames();
+        
+        // Also refresh the main games library if it's open
+        if (window.loadGames && typeof window.loadGames === 'function') {
+            setTimeout(() => window.loadGames(), 1000);
+        }
+        
+    } catch (error) {
+        console.error('Error deleting game:', error);
+        showNotification('Error deleting game: ' + error.message, 'error');
+    }
+}
+
+// Approve pending game
+window.adminApproveGame = async function(gameId) {
+    if (!confirm('Approve this game and make it public?')) return;
+    
+    try {
+        const { error } = await supabase
+            .from('games')
+            .update({
+                approved_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', gameId);
+        
+        if (error) throw error;
+        
+        showNotification('Game approved successfully!', 'success');
+        await loadAdminGames();
+        
+        // Also refresh the main games library if it's open
+        if (window.loadGames && typeof window.loadGames === 'function') {
+            setTimeout(() => window.loadGames(), 1000);
+        }
+        
+    } catch (error) {
+        console.error('Error approving game:', error);
+        showNotification('Error approving game: ' + error.message, 'error');
+    }
+}
+
+function setupGameFormListeners() {
+    const gameForm = document.getElementById('gameForm');
+    const gameCoverImage = document.getElementById('gameCoverImage');
+    
+    if (gameForm) {
+        gameForm.addEventListener('submit', handleGameFormSubmit);
+    }
+    
+    if (gameCoverImage) {
+        gameCoverImage.addEventListener('input', function() {
+            const url = this.value.trim();
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const previewImg = document.getElementById('imagePreview');
+            
+            if (url && previewImg && previewContainer) {
+                previewImg.src = url;
+                previewContainer.classList.remove('hidden');
+            } else if (previewContainer) {
+                previewContainer.classList.add('hidden');
+            }
+        });
+    }
+}
+
+async function handleGameFormSubmit(event) {
+    event.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    if (!submitBtn) return;
+    
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Saving...';
+    submitBtn.disabled = true;
+    
+    try {
+        const user = await getCurrentUser();
+        const gameId = document.getElementById('gameId')?.value;
+        
+        const gameData = {
+            title: document.getElementById('gameTitle').value.trim(),
+            console: document.getElementById('gameConsole').value,
+            year: document.getElementById('gameYear').value || null,
+            description: document.getElementById('gameDescription').value.trim(),
+            cover_image_url: document.getElementById('gameCoverImage').value.trim() || null,
+            file_url: document.getElementById('gameFileUrl').value.trim() || null,
+            multiplayer_type: document.getElementById('gameMultiplayerType').value || null,
+            connection_method: document.getElementById('gameConnectionMethod').value.trim() || null,
+            connection_details: document.getElementById('gameConnectionDetails').value.trim() || null,
+            players_min: parseInt(document.getElementById('gamePlayersMin').value) || 1,
+            players_max: parseInt(document.getElementById('gamePlayersMax').value) || 1,
+            servers_available: document.getElementById('gameServersAvailable').checked,
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log('Saving game:', gameData);
+        
+        let result;
+        if (gameId) {
+            // Update existing game
+            result = await supabase
+                .from('games')
+                .update(gameData)
+                .eq('id', gameId);
+        } else {
+            // Insert new game
+            gameData.created_at = new Date().toISOString();
+            gameData.submitted_by = user.id;
+            gameData.submitted_email = user.email;
+            gameData.approved_at = new Date().toISOString();
+            
+            result = await supabase
+                .from('games')
+                .insert([gameData]);
+        }
+        
+        const { error } = result;
+        if (error) throw error;
+        
+        showNotification(gameId ? 'Game updated successfully!' : 'Game added successfully!', 'success');
+        
+        // Close modal and refresh list
+        closeGameModal();
+        await loadAdminGames();
+        
+        // Also refresh the main games library if it's open
+        if (window.loadGames && typeof window.loadGames === 'function') {
+            setTimeout(() => window.loadGames(), 1000);
+        }
+        
+    } catch (error) {
+        console.error('Error saving game:', error);
+        showNotification('Error saving game: ' + error.message, 'error');
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+// Helper functions
+function escapeString(str) {
+    if (!str) return '';
+    return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
 function showNotification(message, type = 'info') {
     // Create notification element
     const notification = document.createElement('div');
@@ -636,292 +930,6 @@ function showNotification(message, type = 'info') {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
-// Load admin games
-  await loadAdminGames();
-  
-  // Set up event listeners
-  document.getElementById('gameForm').addEventListener('submit', handleGameSubmit);
-  document.getElementById('gameCoverImage').addEventListener('input', updateImagePreview);
-  
-  console.log('Admin module initialized');
-}
 
-async function getCurrentUser() {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
-
-async function checkAdminStatus() {
-  try {
-    // Check if user email is in admin list
-    const adminEmails = [
-      'retrogamemasterra@gmail.com',
-      // Add more admin emails as needed
-    ];
-    
-    return adminEmails.includes(currentUser.email);
-  } catch (error) {
-    console.error('Error checking admin status:', error);
-    return false;
-  }
-}
-
-async function loadAdminGames() {
-  const loadingEl = document.getElementById('adminLoading');
-  const gamesListEl = document.getElementById('adminGamesList');
-  
-  try {
-    console.log('Loading games for admin...');
-    
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    console.log(`Loaded ${data?.length || 0} games`);
-    games = data || [];
-    
-    // Hide loading
-    loadingEl.classList.add('hidden');
-    
-    // Render games
-    if (games.length === 0) {
-      gamesListEl.innerHTML = `
-        <tr>
-          <td colspan="6" class="py-8 text-center text-gray-400">
-            No games found. Add your first game!
-          </td>
-        </tr>
-      `;
-    } else {
-      gamesListEl.innerHTML = games.map(game => `
-        <tr class="hover:bg-gray-800">
-          <td class="py-3 px-4 text-gray-400 font-mono text-sm">${game.id}</td>
-          <td class="py-3 px-4">
-            <div class="flex items-center gap-3">
-              <img src="${game.cover_image || 'https://via.placeholder.com/40x40/374151/6B7280?text=?'}" 
-                   alt="${game.title}" 
-                   class="w-10 h-10 rounded object-cover">
-              <span class="text-white font-medium">${game.title}</span>
-            </div>
-          </td>
-          <td class="py-3 px-4 text-gray-300">${game.system}</td>
-          <td class="py-3 px-4 text-gray-300">${game.release_year || 'N/A'}</td>
-          <td class="py-3 px-4">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              game.status === 'active' ? 'bg-green-900 text-green-200' :
-              game.status === 'pending' ? 'bg-yellow-900 text-yellow-200' :
-              'bg-gray-700 text-gray-300'
-            }">
-              ${game.status || 'active'}
-            </span>
-          </td>
-          <td class="py-3 px-4">
-            <div class="flex gap-2">
-              <button onclick="editGame(${game.id})" 
-                      class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition">
-                Edit
-              </button>
-              <button onclick="deleteGame(${game.id}, '${game.title.replace(/'/g, "\\'")}')" 
-                      class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition">
-                Delete
-              </button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-    }
-    
-  } catch (error) {
-    console.error('Error loading admin games:', error);
-    loadingEl.innerHTML = `
-      <tr>
-        <td colspan="6" class="py-8 text-center">
-          <div class="text-red-400">Error loading games: ${error.message}</div>
-          <button onclick="loadAdminGames()" class="mt-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
-            Retry
-          </button>
-        </td>
-      </tr>
-    `;
-  }
-}
-
-// Modal functions (attach to window for onclick handlers)
-window.openAddGameModal = function() {
-  document.getElementById('modalTitle').textContent = 'Add New Game';
-  document.getElementById('submitBtn').textContent = 'Add Game';
-  document.getElementById('gameForm').reset();
-  document.getElementById('gameId').value = '';
-  document.getElementById('imagePreviewContainer').classList.add('hidden');
-  document.getElementById('gameModal').classList.remove('hidden');
-}
-
-window.closeGameModal = function() {
-  document.getElementById('gameModal').classList.add('hidden');
-}
-
-window.openDeleteModal = function(gameId, gameTitle) {
-  window.currentDeleteId = gameId;
-  document.getElementById('deleteMessage').textContent = `Are you sure you want to delete "${gameTitle}"? This action cannot be undone.`;
-  document.getElementById('deleteModal').classList.remove('hidden');
-}
-
-window.closeDeleteModal = function() {
-  document.getElementById('deleteModal').classList.add('hidden');
-  window.currentDeleteId = null;
-}
-
-window.editGame = function(gameId) {
-  const game = games.find(g => g.id === gameId);
-  if (!game) return;
-  
-  document.getElementById('modalTitle').textContent = 'Edit Game';
-  document.getElementById('submitBtn').textContent = 'Update Game';
-  document.getElementById('gameId').value = game.id;
-  document.getElementById('gameTitle').value = game.title;
-  document.getElementById('gameSystem').value = game.system;
-  document.getElementById('gameYear').value = game.release_year || '';
-  document.getElementById('gameStatus').value = game.status || 'active';
-  document.getElementById('gameDescription').value = game.description || '';
-  document.getElementById('gameCoverImage').value = game.cover_image || '';
-  
-  // Show image preview if URL exists
-  if (game.cover_image) {
-    document.getElementById('imagePreview').src = game.cover_image;
-    document.getElementById('imagePreviewContainer').classList.remove('hidden');
-  }
-  
-  document.getElementById('gameModal').classList.remove('hidden');
-}
-
-window.deleteGame = function(gameId, gameTitle) {
-  window.openDeleteModal(gameId, gameTitle);
-}
-
-window.confirmDelete = async function() {
-  const gameId = window.currentDeleteId;
-  if (!gameId) return;
-  
-  try {
-    console.log(`Deleting game ${gameId}...`);
-    
-    const { error } = await supabase
-      .from('games')
-      .delete()
-      .eq('id', gameId);
-    
-    if (error) throw error;
-    
-    console.log('Game deleted successfully');
-    showSuccess('Game deleted successfully!');
-    
-    // Close modal and refresh list
-    closeDeleteModal();
-    await loadAdminGames();
-    
-    // Also refresh the main games library if it's open
-    if (window.loadGames && typeof window.loadGames === 'function') {
-      setTimeout(() => window.loadGames(), 1000);
-    }
-    
-  } catch (error) {
-    console.error('Error deleting game:', error);
-    showError(`Error deleting game: ${error.message}`);
-  }
-}
-
-async function handleGameSubmit(event) {
-  event.preventDefault();
-  
-  const submitBtn = document.getElementById('submitBtn');
-  const originalText = submitBtn.textContent;
-  submitBtn.textContent = 'Saving...';
-  submitBtn.disabled = true;
-  
-  try {
-    const gameId = document.getElementById('gameId').value;
-    const gameData = {
-      title: document.getElementById('gameTitle').value.trim(),
-      system: document.getElementById('gameSystem').value,
-      release_year: document.getElementById('gameYear').value || null,
-      status: document.getElementById('gameStatus').value,
-      description: document.getElementById('gameDescription').value.trim(),
-      cover_image: document.getElementById('gameCoverImage').value.trim() || null,
-      updated_at: new Date().toISOString()
-    };
-    
-    console.log('Saving game:', gameData);
-    
-    let result;
-    if (gameId) {
-      // Update existing game
-      result = await supabase
-        .from('games')
-        .update(gameData)
-        .eq('id', gameId);
-    } else {
-      // Insert new game
-      gameData.created_at = new Date().toISOString();
-      gameData.submitted_by = currentUser.email;
-      gameData.approved = true; // Auto-approve admin submissions
-      
-      result = await supabase
-        .from('games')
-        .insert([gameData]);
-    }
-    
-    const { error } = result;
-    if (error) throw error;
-    
-    console.log('Game saved successfully');
-    showSuccess(gameId ? 'Game updated successfully!' : 'Game added successfully!');
-    
-    // Close modal and refresh list
-    closeGameModal();
-    await loadAdminGames();
-    
-    // Also refresh the main games library if it's open
-    if (window.loadGames && typeof window.loadGames === 'function') {
-      setTimeout(() => window.loadGames(), 1000);
-    }
-    
-  } catch (error) {
-    console.error('Error saving game:', error);
-    showError(`Error saving game: ${error.message}`);
-  } finally {
-    submitBtn.textContent = originalText;
-    submitBtn.disabled = false;
-  }
-}
-
-function updateImagePreview() {
-  const url = document.getElementById('gameCoverImage').value.trim();
-  const previewContainer = document.getElementById('imagePreviewContainer');
-  const previewImg = document.getElementById('imagePreview');
-  
-  if (url) {
-    previewImg.src = url;
-    previewContainer.classList.remove('hidden');
-  } else {
-    previewContainer.classList.add('hidden');
-  }
-}
-
-function redirectToLogin() {
-  showError('Please log in to access admin panel');
-  setTimeout(() => window.location.hash = '#/auth', 2000);
-}
-
-function showError(message) {
-  alert(`Error: ${message}`);
-}
-
-function showSuccess(message) {
-  alert(`Success: ${message}`);
-}
-
-// Export functions for global use
+// Make loadAdminGames globally accessible
 window.loadAdminGames = loadAdminGames;
