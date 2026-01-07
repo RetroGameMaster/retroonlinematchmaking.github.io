@@ -310,8 +310,17 @@ window.approveSubmission = async (submissionId) => {
     try {
         const user = await getCurrentUser();
         
+        // Get the submission first
+        const { data: submission, error: fetchError } = await supabase
+            .from('game_submissions')
+            .select('*')
+            .eq('id', submissionId)
+            .single();
+        
+        if (fetchError) throw fetchError;
+        
         // Update submission status
-        const { error } = await supabase
+        const { error: updateError } = await supabase
             .from('game_submissions')
             .update({
                 status: 'approved',
@@ -320,37 +329,59 @@ window.approveSubmission = async (submissionId) => {
             })
             .eq('id', submissionId);
         
-        if (error) throw error;
+        if (updateError) throw updateError;
         
-        // Get submission data
-        const { data: submission } = await supabase
-            .from('game_submissions')
-            .select('*')
-            .eq('id', submissionId)
+        // Prepare game data for insertion
+        const gameData = {
+            title: submission.title,
+            console: submission.console,
+            year: submission.year,
+            description: submission.description,
+            file_url: submission.file_url,
+            submitted_by: submission.user_id,
+            submitted_email: submission.user_email,  // Make sure we're using the right field name
+            approved_at: new Date().toISOString(),
+            
+            // Connection details
+            connection_method: submission.connection_method,
+            connection_details: submission.connection_details,
+            multiplayer_type: submission.multiplayer_type,
+            players_min: submission.players_min || 1,
+            players_max: submission.players_max || 1,
+            servers_available: submission.servers_available || false,
+            server_details: submission.server_details
+        };
+        
+        console.log('Inserting game with data:', gameData);
+        
+        // Add to games table
+        const { data: newGame, error: insertError } = await supabase
+            .from('games')
+            .insert(gameData)
+            .select()
             .single();
         
-        if (submission) {
-            // Add to games table
-            await supabase.from('games').insert({
-                title: submission.title,
-                console: submission.console,
-                year: submission.year,
-                description: submission.description,
-                file_url: submission.file_url,
-                submitted_by: submission.user_id,
-                approved_at: new Date().toISOString()
-            });
+        if (insertError) {
+            console.error('Insert error details:', insertError);
+            throw insertError;
         }
         
-        showNotification('Game approved and added to library!', 'success');
+        showNotification(`✅ "${submission.title}" approved and added to library!`, 'success');
         loadPendingSubmissions();
         
     } catch (error) {
         console.error('Error approving submission:', error);
-        showNotification('Error approving submission: ' + error.message, 'error');
+        
+        let errorMessage = error.message;
+        if (error.code === '23505') {
+            errorMessage = 'This game might already exist in the library.';
+        } else if (error.message.includes('user_email')) {
+            errorMessage = 'Database column conflict. Please check the table structure.';
+        }
+        
+        showNotification(`Error: ${errorMessage}`, 'error');
     }
 };
-
 window.rejectSubmission = async (submissionId) => {
     const reason = prompt('Reason for rejection (optional):');
     
