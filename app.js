@@ -1,8 +1,8 @@
+// app.js - Clean version
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
 
 let currentModule = null;
 
-// Initialize modules
 const modules = {
     'home': () => import('./modules/home/home.js'),
     'games': () => import('./modules/games/games.js'),
@@ -11,260 +11,138 @@ const modules = {
     'chat': () => import('./modules/chat/chat.js'),
     'profile': () => import('./modules/profile/profile.js'),
     'game': () => import('./modules/game-detail/game-detail.js')
-
-// Fallback content for missing modules
-const fallbackContent = {
-    'home': `
-        <div class="text-center py-12 px-4">
-            <h1 class="text-4xl font-bold mb-6 text-cyan-400">🎮 Retro Online Matchmaking</h1>
-            <p class="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-                Connect with retro gaming communities. Play SOCOM II, Twisted Metal, Warhawk, and more with modern matchmaking.
-            </p>
-            <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                <div class="bg-gray-800 p-6 rounded-lg border border-cyan-500">
-                    <h3 class="text-xl font-bold mb-3 text-cyan-300">🎯 Browse Games</h3>
-                    <p class="text-gray-300 mb-4">Discover retro games with online multiplayer support</p>
-                    <a href="#/games" class="inline-block bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
-                        View Games
-                    </a>
-                </div>
-                <div class="bg-gray-800 p-6 rounded-lg border border-purple-500">
-                    <h3 class="text-xl font-bold mb-3 text-purple-300">👤 Get Started</h3>
-                    <p class="text-gray-300 mb-4">Create an account to submit games and join matchmaking</p>
-                    <a href="#/auth" class="inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">
-                        Login/Register
-                    </a>
-                </div>
-            </div>
-        </div>
-    `,
-    'games': `
-        <div class="max-w-4xl mx-auto">
-            <h1 class="text-3xl font-bold mb-6 text-cyan-400">🎮 Game Library</h1>
-            <div class="bg-gray-800 p-6 rounded-lg mb-6">
-                <h2 class="text-xl font-bold mb-4 text-cyan-300">Submit a New Game</h2>
-                <p class="text-gray-300 mb-4">Game submission form loading...</p>
-            </div>
-            <div class="bg-gray-800 p-6 rounded-lg">
-                <h2 class="text-xl font-bold mb-4 text-cyan-300">Available Games</h2>
-                <div id="games-list" class="space-y-4">
-                    <div class="text-center py-8">
-                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
-                        <p class="text-gray-400 mt-2">Loading games...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `,
-    'auth': `
-        <div class="text-center p-8">
-            <h1 class="text-2xl font-bold mb-4 text-cyan-400">Loading Authentication...</h1>
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
-        </div>
-    `,
-    'admin': `
-        <div class="max-w-6xl mx-auto">
-            <h1 class="text-3xl font-bold mb-6 text-cyan-400">🛠️ Admin Panel</h1>
-            <div class="bg-gray-800 p-6 rounded-lg">
-                <h2 class="text-xl font-bold mb-4 text-cyan-300">Pending Game Submissions</h2>
-                <div id="pending-submissions" class="space-y-4">
-                    <p class="text-gray-400">Loading submissions...</p>
-                </div>
-            </div>
-        </div>
-    `,
-    'chat': `
-        <div class="max-w-4xl mx-auto">
-            <h1 class="text-3xl font-bold mb-6 text-cyan-400">💬 Live Chat</h1>
-            <div class="bg-gray-800 p-6 rounded-lg">
-                <p class="text-gray-300">Chat module coming soon!</p>
-            </div>
-        </div>
-    `,
-    'profile': `
-        <div class="max-w-4xl mx-auto">
-            <h1 class="text-3xl font-bold mb-6 text-cyan-400">👤 Your Profile</h1>
-            <div class="bg-gray-800 p-6 rounded-lg">
-                <p class="text-gray-300">Profile module coming soon!</p>
-            </div>
-        </div>
-    `,
-    'game': `
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center py-16">
-                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
-                <p class="text-gray-400 mt-4">Loading game details...</p>
-            </div>
-        </div>
-    `
 };
 
-// Initialize the app
+const fallbackContent = {
+    'home': `<div class="text-center py-12"><h1 class="text-3xl font-bold text-cyan-400">Welcome to ROM</h1><p class="text-gray-300 mt-2">Loading...</p></div>`,
+    'games': `<div class="text-center py-12"><h1 class="text-3xl font-bold text-cyan-400">🎮 Games</h1><p class="text-gray-300 mt-2">Loading games...</p></div>`,
+    'auth': `<div class="text-center py-12"><h1 class="text-3xl font-bold text-cyan-400">🔐 Auth</h1><p class="text-gray-300 mt-2">Loading authentication...</p></div>`,
+    'admin': `<div class="text-center py-12"><h1 class="text-3xl font-bold text-cyan-400">🛠️ Admin</h1><p class="text-gray-300 mt-2">Loading admin panel...</p></div>`,
+    'chat': `<div class="text-center py-12"><h1 class="text-3xl font-bold text-cyan-400">💬 Chat</h1><p class="text-gray-300 mt-2">Loading chat...</p></div>`,
+    'profile': `<div class="text-center py-12"><h1 class="text-3xl font-bold text-cyan-400">👤 Profile</h1><p class="text-gray-300 mt-2">Loading profile...</p></div>`,
+    'game': `<div class="text-center py-12"><h1 class="text-3xl font-bold text-cyan-400">🎮 Game</h1><p class="text-gray-300 mt-2">Loading game details...</p></div>`
+};
+
 async function initializeApp() {
-    console.log('🚀 Initializing ROM app...');
+    console.log('🚀 ROM app initializing...');
     
     try {
-        // Initialize auth listener
         initAuthListener((event, session) => {
-            console.log('Auth state changed:', event, session);
+            console.log('Auth:', event);
             updateAuthUI();
         });
         
-        // Update UI initially
         await updateAuthUI();
-        
-        // Handle hash changes
         window.addEventListener('hashchange', handleHashChange);
-        
-        // Load initial module
         await handleHashChange();
         
-        console.log('✅ App initialized successfully');
-        
+        console.log('✅ ROM app ready');
     } catch (error) {
-        console.error('❌ App initialization failed:', error);
-        showError('App Initialization Error', error.message);
+        console.error('❌ App init failed:', error);
+        showError('Startup Error', error.message);
     }
 }
 
-// Handle hash changes
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     await loadModule(hash);
 }
 
-// Load module function
 async function loadModule(moduleName) {
     try {
-        console.log(`📦 Loading module: ${moduleName}`);
+        console.log(`Loading: ${moduleName}`);
         
-        // Check for game detail page (format: game/:id)
         if (moduleName.startsWith('game/')) {
             const gameId = moduleName.split('/')[1];
             await loadGameDetail(gameId);
             return;
         }
         
-        // Don't load admin module for non-admin users
         if (moduleName === 'admin') {
-            const { data: { user }, error } = await supabase.auth.getUser();
-            
-            if (error || !user) {
-                alert('Please login first');
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                alert('Login required');
                 window.location.hash = '#/auth';
                 return;
             }
             
-            // Check admin status
-            const { data: adminData, error: adminError } = await supabase
+            const { data: adminData } = await supabase
                 .from('admins')
                 .select('*')
                 .eq('user_id', user.id)
                 .single();
             
-            if (adminError || !adminData) {
+            if (!adminData) {
                 alert('Admin access required');
                 window.location.hash = '#/';
                 return;
             }
         }
         
-        // Load the module
         if (modules[moduleName]) {
             const module = await modules[moduleName]();
-            
-            // Clear current content
             const appContent = document.getElementById('app-content');
+            
             if (appContent) {
                 appContent.innerHTML = '';
-            }
-            
-            // Try to load module HTML
-            let html = fallbackContent[moduleName] || fallbackContent['home'];
-            
-            try {
-                const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
-                if (response.ok) {
-                    html = await response.text();
+                
+                let html = fallbackContent[moduleName];
+                try {
+                    const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+                    if (response.ok) html = await response.text();
+                } catch (e) {
+                    console.log(`Using fallback for ${moduleName}`);
                 }
-            } catch (fetchError) {
-                console.log(`Using fallback for ${moduleName}`);
-            }
-            
-            // Insert HTML
-            if (appContent) {
+                
                 appContent.innerHTML = html;
-            }
-            
-            // Try to load and initialize module JS
-            try {
+                
                 if (module.initModule) {
                     await module.initModule();
-                } else if (module.default && module.default.initModule) {
+                } else if (module.default?.initModule) {
                     await module.default.initModule();
-                } else if (module.initAuthModule) {
-                    await module.initAuthModule();
                 } else if (module.init) {
                     await module.init();
                 }
                 
                 currentModule = module;
-            } catch (moduleError) {
-                console.log(`Module JS not loaded for ${moduleName}:`, moduleError);
             }
             
-            console.log(`✅ Module ${moduleName} loaded successfully`);
+            console.log(`✅ Loaded: ${moduleName}`);
         } else {
-            console.error(`Module ${moduleName} not found`);
             window.location.hash = '#/home';
         }
     } catch (error) {
-        console.error(`❌ Error loading module ${moduleName}:`, error);
-        showError('Error loading module', error.message);
+        console.error(`Error loading ${moduleName}:`, error);
+        showError('Load Error', error.message);
     }
 }
 
-// New function for game detail pages
 async function loadGameDetail(gameId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
     
     try {
-        // Load game detail HTML
         const response = await fetch('./modules/game-detail/game-detail.html');
-        if (!response.ok) {
-            throw new Error('Failed to load game detail module');
-        }
-        
         const html = await response.text();
         appContent.innerHTML = html;
         
-        // Load and initialize game detail module
         const module = await import('./modules/game-detail/game-detail.js');
-        if (module.initModule) {
-            await module.initModule();
-        } else if (module.default && module.default.initModule) {
-            await module.default.initModule();
-        } else if (module.init) {
-            await module.init();
-        }
+        if (module.initModule) await module.initModule();
         
-        console.log(`✅ Game detail page loaded for ID: ${gameId}`);
-        
+        console.log(`✅ Game detail: ${gameId}`);
     } catch (error) {
-        console.error('Error loading game detail:', error);
-        showError('Error loading game', error.message);
+        console.error('Game detail error:', error);
+        showError('Game Error', error.message);
     }
 }
 
-// Show error
 function showError(title, message) {
     const appContent = document.getElementById('app-content');
     if (appContent) {
         appContent.innerHTML = `
-            <div class="p-8">
+            <div class="p-8 text-center">
                 <h2 class="text-2xl font-bold text-red-500">${title}</h2>
-                <p class="text-gray-300">${message}</p>
+                <p class="text-gray-300 mt-2">${message}</p>
                 <button onclick="window.location.hash = '#/home'" 
                         class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
                     Go Home
@@ -274,14 +152,9 @@ function showError(title, message) {
     }
 }
 
-// Make loadModule available globally
 window.loadModule = loadModule;
 window.supabase = supabase;
-window.navigateTo = function(module) {
-    window.location.hash = `#/${module}`;
-};
 
-// Initialize the app when DOM is loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
