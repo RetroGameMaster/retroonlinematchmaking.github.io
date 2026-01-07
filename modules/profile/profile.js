@@ -392,46 +392,80 @@ function updateProfileDisplay(profile) {
     }
 }
 
+// In your profile.js, replace the applyCustomBackground function with this:
+
 function applyCustomBackground(background) {
     const bgElement = document.getElementById('profile-background');
-    if (!bgElement) return;
+    if (!bgElement || !background) return;
 
-    // Clear previous background
-    bgElement.style.background = '';
-    bgElement.style.backgroundImage = '';
-    bgElement.style.filter = '';
-    bgElement.style.opacity = '';
-    bgElement.style.backgroundPosition = background.position || 'center';
-    bgElement.style.backgroundSize = background.size || 'cover';
-    bgElement.style.backgroundRepeat = background.repeat || 'no-repeat';
+    console.log('Applying background:', background);
 
-    switch (background.type) {
-        case 'color':
-            bgElement.style.background = background.value || '#1f2937';
-            break;
-            
-        case 'gradient':
-            bgElement.style.background = background.value;
-            break;
-            
-        case 'image':
-            if (background.image_url) {
+    try {
+        // Clear previous background
+        bgElement.style.background = '';
+        bgElement.style.backgroundImage = '';
+        bgElement.style.filter = '';
+        bgElement.style.opacity = '';
+        
+        // Set default positioning
+        bgElement.style.backgroundPosition = 'center';
+        bgElement.style.backgroundSize = 'cover';
+        bgElement.style.backgroundRepeat = 'no-repeat';
+        
+        if (background.type === 'image' && background.image_url) {
+            // Check if it's a blob URL (starts with blob:)
+            if (background.image_url.startsWith('blob:')) {
+                console.log('Blob URL detected - this will not persist on refresh');
+                // For blob URLs, we need to check if they're still valid
+                // They won't persist on refresh, so we should fall back
+                fetch(background.image_url)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Blob URL invalid');
+                        // Blob URL is still valid
+                        bgElement.style.backgroundImage = `url('${background.image_url}')`;
+                        if (background.position) {
+                            bgElement.style.backgroundPosition = background.position;
+                        }
+                        if (background.size) {
+                            bgElement.style.backgroundSize = background.size;
+                        }
+                    })
+                    .catch(error => {
+                        console.log('Blob URL no longer valid, using fallback');
+                        // Use a solid color fallback
+                        bgElement.style.background = background.value || '#1f2937';
+                    });
+            } else {
+                // Regular URL - should persist
                 bgElement.style.backgroundImage = `url('${background.image_url}')`;
+                if (background.position) {
+                    bgElement.style.backgroundPosition = background.position;
+                }
+                if (background.size) {
+                    bgElement.style.backgroundSize = background.size;
+                }
             }
-            break;
-            
-        case 'pattern':
+        } else if (background.type === 'color' && background.value) {
             bgElement.style.background = background.value;
-            break;
-    }
-
-    // Apply effects
-    if (background.blur && background.blur !== '0') {
-        bgElement.style.filter = `blur(${background.blur}px)`;
-    }
-    
-    if (background.opacity && background.opacity !== '1') {
-        bgElement.style.opacity = background.opacity;
+        } else if (background.type === 'gradient' && background.value) {
+            bgElement.style.background = background.value;
+        } else {
+            // Default fallback
+            bgElement.style.background = '#1f2937';
+        }
+        
+        // Apply effects
+        if (background.blur && background.blur !== '0') {
+            bgElement.style.filter = `blur(${background.blur}px)`;
+        }
+        
+        if (background.opacity && background.opacity !== '1') {
+            bgElement.style.opacity = background.opacity;
+        }
+    } catch (error) {
+        console.error('Error applying background:', error);
+        // Fallback to default
+        bgElement.style.background = '#1f2937';
     }
 }
 
