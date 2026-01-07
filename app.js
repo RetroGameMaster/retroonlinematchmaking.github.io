@@ -12,18 +12,6 @@ const modules = {
     'profile': () => import('./modules/profile/profile.js'),
     'game': () => import('./modules/game-detail/game-detail.js')
 };
-// Add this near the top of app.js, after the imports
-window.navigateTo = function(module) {
-    window.location.hash = `#/${module}`;
-};
-
-// Also expose loadModule globally for any legacy buttons
-window.rom = {
-    loadModule: loadModule,
-    navigateTo: function(module) {
-        window.location.hash = `#/${module}`;
-    }
-};
 // Fallback content for missing modules
 const fallbackContent = {
     'home': `
@@ -360,6 +348,15 @@ function showError(title, message) {
 // Make loadModule available globally
 window.loadModule = loadModule;
 window.supabase = supabase;
+window.navigateTo = function(module) {
+    window.location.hash = `#/${module}`;
+};
+window.rom = {
+    loadModule: loadModule,
+    navigateTo: function(module) {
+        window.location.hash = `#/${module}`;
+    }
+};
 
 // Initialize the app when DOM is loaded
 if (document.readyState === 'loading') {
