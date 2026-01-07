@@ -80,6 +80,58 @@
                            placeholder="e.g., 2003"
                            required>
                 </div>
+                <!-- Cover Image Upload -->
+<div class="bg-gray-900 p-6 rounded-lg border border-yellow-500 mb-6">
+    <h3 class="text-xl font-bold text-yellow-300 mb-4">🖼️ Game Cover Art</h3>
+    <p class="text-gray-300 mb-4">Upload the game's box art or cover image (recommended: 400x600px)</p>
+    
+    <div class="flex flex-col items-center justify-center">
+        <!-- Image Preview -->
+        <div id="cover-preview" class="mb-4 hidden">
+            <img id="cover-preview-img" class="w-48 h-64 object-cover rounded-lg border-2 border-yellow-500">
+        </div>
+        
+        <!-- Upload Area -->
+        <div id="cover-upload-area" class="w-full max-w-md">
+            <label for="cover-image" class="cursor-pointer">
+                <div class="border-2 border-dashed border-gray-600 hover:border-yellow-500 rounded-lg p-8 text-center transition">
+                    <div class="text-4xl mb-2">📁</div>
+                    <p class="text-gray-300 font-semibold">Click to upload cover art</p>
+                    <p class="text-gray-500 text-sm mt-1">PNG, JPG, WebP up to 5MB</p>
+                </div>
+                <input type="file" id="cover-image" name="cover_image" accept=".png,.jpg,.jpeg,.webp" class="hidden">
+            </label>
+        </div>
+        
+        <p id="cover-error" class="text-red-500 text-sm mt-2 hidden"></p>
+    </div>
+</div>
+
+<!-- Screenshots Upload -->
+<div class="bg-gray-900 p-6 rounded-lg border border-purple-500 mb-6">
+    <h3 class="text-xl font-bold text-purple-300 mb-4">📸 Game Screenshots</h3>
+    <p class="text-gray-300 mb-4">Upload gameplay screenshots (up to 5 images, 800x600px recommended)</p>
+    
+    <!-- Screenshot Previews -->
+    <div id="screenshot-previews" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+        <!-- Dynamic previews will appear here -->
+    </div>
+    
+    <!-- Upload Area -->
+    <div class="w-full">
+        <label for="screenshots" class="cursor-pointer">
+            <div class="border-2 border-dashed border-gray-600 hover:border-purple-500 rounded-lg p-6 text-center transition">
+                <div class="text-3xl mb-2">➕</div>
+                <p class="text-gray-300 font-semibold">Add Screenshots</p>
+                <p class="text-gray-500 text-sm mt-1">Select multiple PNG, JPG, WebP files (5 max)</p>
+            </div>
+            <input type="file" id="screenshots" name="screenshots" accept=".png,.jpg,.jpeg,.webp" multiple class="hidden">
+        </label>
+    </div>
+    
+    <p id="screenshots-error" class="text-red-500 text-sm mt-2 hidden"></p>
+    <p class="text-gray-400 text-xs mt-2">Drag and drop or click to select files. You can upload up to 5 screenshots.</p>
+</div>
                 
                 <div>
                     <label class="block text-gray-300 mb-2">
@@ -300,6 +352,127 @@
         outline: none;
     }
 </style>
+<!-- Add this JavaScript at the end of the file -->
+<script>
+    // Cover image preview
+    const coverInput = document.getElementById('cover-image');
+    const coverPreview = document.getElementById('cover-preview');
+    const coverPreviewImg = document.getElementById('cover-preview-img');
+    const coverUploadArea = document.getElementById('cover-upload-area');
+    const coverError = document.getElementById('cover-error');
+    
+    coverInput?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validate file
+        const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (!validTypes.includes(file.type)) {
+            showError(coverError, 'Please upload a PNG, JPG, or WebP image');
+            return;
+        }
+        
+        if (file.size > maxSize) {
+            showError(coverError, 'File size must be less than 5MB');
+            return;
+        }
+        
+        // Preview image
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            coverPreviewImg.src = e.target.result;
+            coverPreview.classList.remove('hidden');
+            coverUploadArea.classList.add('hidden');
+            hideError(coverError);
+        };
+        reader.readAsDataURL(file);
+    });
+    
+    // Screenshots handling
+    const screenshotsInput = document.getElementById('screenshots');
+    const screenshotsPreviews = document.getElementById('screenshot-previews');
+    const screenshotsError = document.getElementById('screenshots-error');
+    let screenshotFiles = [];
+    
+    screenshotsInput?.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        
+        // Validate files
+        const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+        const maxSize = 5 * 1024 * 1024;
+        const maxCount = 5;
+        
+        // Check count
+        if (screenshotFiles.length + files.length > maxCount) {
+            showError(screenshotsError, `Maximum ${maxCount} screenshots allowed`);
+            return;
+        }
+        
+        // Validate each file
+        for (const file of files) {
+            if (!validTypes.includes(file.type)) {
+                showError(screenshotsError, `${file.name}: Must be PNG, JPG, or WebP`);
+                return;
+            }
+            if (file.size > maxSize) {
+                showError(screenshotsError, `${file.name}: Must be less than 5MB`);
+                return;
+            }
+        }
+        
+        // Add files to array
+        screenshotFiles = [...screenshotFiles, ...files].slice(0, maxCount);
+        updateScreenshotPreviews();
+        hideError(screenshotsError);
+    });
+    
+    function updateScreenshotPreviews() {
+        screenshotsPreviews.innerHTML = '';
+        
+        screenshotFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.createElement('div');
+                preview.className = 'relative group';
+                preview.innerHTML = `
+                    <img src="${e.target.result}" class="w-full h-32 object-cover rounded-lg">
+                    <button type="button" onclick="removeScreenshot(${index})" 
+                            class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                        ×
+                    </button>
+                `;
+                screenshotsPreviews.appendChild(preview);
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        // Add empty slots
+        const emptySlots = 5 - screenshotFiles.length;
+        for (let i = 0; i < emptySlots; i++) {
+            const emptySlot = document.createElement('div');
+            emptySlot.className = 'border-2 border-dashed border-gray-700 rounded-lg h-32 flex items-center justify-center';
+            emptySlot.innerHTML = '<span class="text-gray-500">Empty</span>';
+            screenshotsPreviews.appendChild(emptySlot);
+        }
+    }
+    
+    window.removeScreenshot = function(index) {
+        screenshotFiles.splice(index, 1);
+        updateScreenshotPreviews();
+    };
+    
+    function showError(element, message) {
+        element.textContent = message;
+        element.classList.remove('hidden');
+    }
+    
+    function hideError(element) {
+        element.classList.add('hidden');
+        element.textContent = '';
+    }
+</script>
 <!-- Add this JavaScript at the end of the file -->
 <script>
     // Show/hide server details based on checkbox
