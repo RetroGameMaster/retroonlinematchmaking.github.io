@@ -109,26 +109,31 @@ async function handleGameSubmit(e) {
         return;
     }
     
-    const formData = new FormData(form);
-    const title = formData.get('title');
-    const console = formData.get('console');
-    const year = formData.get('year');
-    const description = formData.get('description');
-    const notes = formData.get('notes');
-    const gameFile = formData.get('game_file');
+    // Get form data
+    const title = form.querySelector('[name="title"]').value;
+    const console = form.querySelector('[name="console"]').value;
+    const year = form.querySelector('[name="year"]').value;
+    const description = form.querySelector('[name="description"]').value;
+    const notes = form.querySelector('[name="notes"]').value;
+    const gameFile = form.querySelector('[name="game_file"]').files[0];
     
     // Connection fields
-    const connectionMethod = formData.get('connection_method');
-    const connectionDetails = formData.get('connection_details');
-    const multiplayerType = formData.get('multiplayer_type');
-    const playersMin = parseInt(formData.get('players_min')) || 1;
-    const playersMax = parseInt(formData.get('players_max')) || 1;
-    const serversAvailable = formData.get('servers_available') === 'on';
-    const serverDetails = formData.get('server_details');
+    const connectionMethod = form.querySelector('[name="connection_method"]').value;
+    const connectionDetails = form.querySelector('[name="connection_details"]').value;
+    const multiplayerType = form.querySelector('[name="multiplayer_type"]').value;
+    const playersMin = parseInt(form.querySelector('[name="players_min"]').value) || 1;
+    const playersMax = parseInt(form.querySelector('[name="players_max"]').value) || 1;
+    const serversAvailable = form.querySelector('[name="servers_available"]').checked;
+    const serverDetails = form.querySelector('[name="server_details"]').value;
     
-    // Basic validation
+    // Image files
+    const coverImage = document.getElementById('cover-image').files[0];
+    const screenshotInput = document.getElementById('screenshots');
+    const screenshotFiles = Array.from(screenshotInput?.files || []);
+    
+    // Validation
     if (!title || !console || !year || !description || !connectionMethod || !multiplayerType) {
-        alert('Please fill in all required fields (title, console, year, description, multiplayer type, connection method).');
+        alert('Please fill in all required fields.');
         return;
     }
     
@@ -138,7 +143,12 @@ async function handleGameSubmit(e) {
     }
     
     if (!form.querySelector('#agree-tos').checked) {
-        alert('You must agree to the Terms of Service to submit a game.');
+        alert('You must agree to the Terms of Service.');
+        return;
+    }
+    
+    if (!coverImage) {
+        alert('Please upload a cover image for the game.');
         return;
     }
     
@@ -149,37 +159,31 @@ async function handleGameSubmit(e) {
     
     try {
         let fileUrl = '';
+        let coverImageUrl = '';
+        let screenshotUrls = [];
         
-        // Handle file upload if present
-        if (gameFile && gameFile.size > 0) {
-            if (gameFile.size > 100 * 1024 * 1024) { // 100MB limit
-                throw new Error('File size exceeds 100MB limit');
+        // 1. Upload cover image
+        submitBtn.textContent = 'Uploading cover image...';
+        coverImageUrl = await uploadImage(coverImage, 'game_covers', 'cover');
+        
+        // 2. Upload screenshots
+        if (screenshotFiles.length > 0) {
+            submitBtn.textContent = 'Uploading screenshots...';
+            for (const screenshot of screenshotFiles) {
+                const url = await uploadImage(screenshot, 'game_screenshots', 'screenshot');
+                screenshotUrls.push(url);
             }
-            
-            submitBtn.textContent = 'Uploading file...';
-            
-            // Upload to Supabase Storage
-            const fileExt = gameFile.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-            const filePath = `game_files/${fileName}`;
-            
-            const { error: uploadError } = await supabase.storage
-                .from('game_files')
-                .upload(filePath, gameFile);
-            
-            if (uploadError) throw uploadError;
-            
-            // Get public URL
-            const { data: urlData } = supabase.storage
-                .from('game_files')
-                .getPublicUrl(filePath);
-            
-            fileUrl = urlData.publicUrl;
         }
         
+        // 3. Upload game file (if any)
+        if (gameFile && gameFile.size > 0) {
+            submitBtn.textContent = 'Uploading game file...';
+            fileUrl = await uploadGameFile(gameFile);
+        }
+        
+        // 4. Save submission to database
         submitBtn.textContent = 'Saving submission...';
         
-        // Save submission to database with connection details
         const { data, error } = await supabase
             .from('game_submissions')
             .insert({
@@ -201,6 +205,10 @@ async function handleGameSubmit(e) {
                 servers_available: serversAvailable,
                 server_details: serverDetails,
                 
+                // Image details
+                cover_image_url: coverImageUrl,
+                screenshot_urls: screenshotUrls,
+                
                 status: 'pending',
                 created_at: new Date().toISOString()
             })
@@ -209,71 +217,133 @@ async function handleGameSubmit(e) {
         
         if (error) throw error;
         
-        console.log('Game submission successful:', data);
-        
-        // Show success message with connection info
-        const playerCount = playersMin === playersMax 
-            ? `${playersMin} player${playersMin > 1 ? 's' : ''}` 
-            : `${playersMin}-${playersMax} players`;
-        
-        const successHTML = `
-            <div class="bg-green-900 border border-green-700 rounded-lg p-6 text-center">
-                <div class="text-4xl mb-4">✅</div>
-                <h3 class="text-xl font-bold text-green-300 mb-2">Game Submitted Successfully!</h3>
-                <p class="text-green-200 mb-4">"${title}" has been submitted for admin review.</p>
-                
-                <div class="bg-gray-800 p-4 rounded-lg mb-4 text-left">
-                    <h4 class="font-bold text-cyan-300 mb-2">Connection Details Submitted:</h4>
-                    <ul class="text-gray-300 space-y-1">
-                        <li>🎮 <strong>Type:</strong> ${multiplayerType}</li>
-                        <li>👥 <strong>Players:</strong> ${playerCount}</li>
-                        <li>🌐 <strong>Connection:</strong> ${connectionMethod}</li>
-                        ${serversAvailable ? '<li>🟢 <strong>Active Servers:</strong> Available</li>' : ''}
-                    </ul>
-                </div>
-                
-                <p class="text-gray-300 text-sm mb-6">
-                    You will be notified when your game is approved. 
-                    It will then appear in the public game library with connection instructions.
-                </p>
-                
-                <div class="mt-6 space-x-4">
-                    <button onclick="window.location.hash = '#/games'" 
-                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded">
-                        Back to Games
-                    </button>
-                    <button onclick="window.location.hash = '#/home'" 
-                            class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded">
-                        Go Home
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        // Replace the form with success message
-        const formContainer = document.querySelector('.bg-gray-800.p-8');
-        if (formContainer) {
-            formContainer.innerHTML = successHTML;
-        } else {
-            alert('🎮 Game submitted successfully! It will be reviewed by an admin soon.');
-            form.reset();
-        }
+        // Show success
+        showSubmissionSuccess(title, multiplayerType, connectionMethod, playersMin, playersMax, serversAvailable);
         
     } catch (error) {
         console.error('Error submitting game:', error);
-        
-        let errorMessage = error.message;
-        if (error.message.includes('storage')) {
-            errorMessage = 'File upload failed. Please try a smaller file or different format.';
-        } else if (error.message.includes('game_submissions')) {
-            errorMessage = 'Database error. Please try again or contact support.';
-        }
-        
-        alert('Error submitting game: ' + errorMessage);
+        alert('Error submitting game: ' + error.message);
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
         submitBtn.classList.remove('opacity-50');
+    }
+}
+
+async function uploadImage(file, bucket, type) {
+    // Validate file
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    if (!validTypes.includes(file.type)) {
+        throw new Error(`Invalid ${type} file type. Use PNG, JPG, or WebP.`);
+    }
+    
+    if (file.size > maxSize) {
+        throw new Error(`${type} file must be less than 5MB.`);
+    }
+    
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `${fileName}`;
+    
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file);
+    
+    if (uploadError) throw uploadError;
+    
+    // Get public URL
+    const { data: urlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+    
+    return urlData.publicUrl;
+}
+
+async function uploadGameFile(file) {
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    
+    if (file.size > maxSize) {
+        throw new Error('Game file must be less than 100MB.');
+    }
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `game_files/${fileName}`;
+    
+    const { error: uploadError } = await supabase.storage
+        .from('game_files')
+        .upload(filePath, file);
+    
+    if (uploadError) throw uploadError;
+    
+    const { data: urlData } = supabase.storage
+        .from('game_files')
+        .getPublicUrl(filePath);
+    
+    return urlData.publicUrl;
+}
+
+function showSubmissionSuccess(title, multiplayerType, connectionMethod, playersMin, playersMax, serversAvailable) {
+    const playerCount = playersMin === playersMax 
+        ? `${playersMin} player${playersMin > 1 ? 's' : ''}` 
+        : `${playersMin}-${playersMax} players`;
+    
+    const successHTML = `
+        <div class="bg-green-900 border border-green-700 rounded-lg p-8 text-center">
+            <div class="text-5xl mb-4">🎮✅</div>
+            <h3 class="text-2xl font-bold text-green-300 mb-2">Game Submitted Successfully!</h3>
+            <p class="text-green-200 mb-6">"${title}" has been submitted for admin review with images.</p>
+            
+            <div class="bg-gray-800 p-6 rounded-lg mb-6 text-left max-w-2xl mx-auto">
+                <h4 class="font-bold text-cyan-300 mb-3 text-lg">📋 Submission Details:</h4>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-gray-300"><strong>🎮 Type:</strong> ${multiplayerType}</p>
+                        <p class="text-gray-300"><strong>👥 Players:</strong> ${playerCount}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-300"><strong>🌐 Connection:</strong> ${connectionMethod}</p>
+                        ${serversAvailable ? 
+                            '<p class="text-green-400">🟢 Active servers reported</p>' : 
+                            '<p class="text-yellow-400">🟡 No server info</p>'
+                        }
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-700">
+                    <p class="text-gray-300"><strong>📸 Images:</strong> Cover art + screenshots uploaded</p>
+                    <p class="text-gray-400 text-sm mt-1">Images will be visible once approved by admin.</p>
+                </div>
+            </div>
+            
+            <p class="text-gray-300 mb-6 max-w-2xl mx-auto">
+                Your game is now in the approval queue. You'll be notified when it's approved and appears in the game library.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <button onclick="window.location.hash = '#/games'" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold">
+                    Back to Games
+                </button>
+                <button onclick="window.location.hash = '#/home'" 
+                        class="bg-gray-700 hover:bg-gray-600 text-white px-8 py-3 rounded-lg font-semibold">
+                    Go Home
+                </button>
+                <button onclick="window.location.reload()" 
+                        class="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-3 rounded-lg font-semibold">
+                    Submit Another
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Replace the form with success message
+    const formContainer = document.querySelector('.bg-gray-800.p-8');
+    if (formContainer) {
+        formContainer.innerHTML = successHTML;
     }
 }
 
