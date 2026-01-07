@@ -1,5 +1,5 @@
-// modules/profile/profile.js
-import { supabase, getCurrentUser, isAdmin } from '../../lib/supabase.js';
+// modules/profile/profile.js - FIXED VERSION
+import { supabase, getCurrentUser, isAdmin, uploadBackground } from '../../lib/supabase.js';
 
 let currentProfile = null;
 let isOwnProfile = false;
@@ -158,7 +158,8 @@ function updateProfileDisplay(profile) {
                             ${profile.avatar_url ? `
                                 <img src="${profile.avatar_url}" 
                                      alt="${profile.username || 'User'} avatar"
-                                     class="w-32 h-32 rounded-full border-4 border-white/50 object-cover shadow-2xl">
+                                     class="w-32 h-32 rounded-full border-4 border-white/50 object-cover shadow-2xl"
+                                     onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${firstLetter}&background=06b6d4&color=fff&size=128'">
                             ` : `
                                 <div class="w-32 h-32 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center text-5xl font-bold shadow-2xl border-4 border-white/50">
                                     <span>${firstLetter}</span>
@@ -392,8 +393,6 @@ function updateProfileDisplay(profile) {
     }
 }
 
-// In your profile.js, replace the applyCustomBackground function with this:
-
 function applyCustomBackground(background) {
     const bgElement = document.getElementById('profile-background');
     if (!bgElement || !background) return;
@@ -408,42 +407,19 @@ function applyCustomBackground(background) {
         bgElement.style.opacity = '';
         
         // Set default positioning
-        bgElement.style.backgroundPosition = 'center';
-        bgElement.style.backgroundSize = 'cover';
+        bgElement.style.backgroundPosition = background.position || 'center';
+        bgElement.style.backgroundSize = background.size || 'cover';
         bgElement.style.backgroundRepeat = 'no-repeat';
         
+        // Handle blob URLs - they don't persist, so use fallback
         if (background.type === 'image' && background.image_url) {
-            // Check if it's a blob URL (starts with blob:)
             if (background.image_url.startsWith('blob:')) {
-                console.log('Blob URL detected - this will not persist on refresh');
-                // For blob URLs, we need to check if they're still valid
-                // They won't persist on refresh, so we should fall back
-                fetch(background.image_url)
-                    .then(response => {
-                        if (!response.ok) throw new Error('Blob URL invalid');
-                        // Blob URL is still valid
-                        bgElement.style.backgroundImage = `url('${background.image_url}')`;
-                        if (background.position) {
-                            bgElement.style.backgroundPosition = background.position;
-                        }
-                        if (background.size) {
-                            bgElement.style.backgroundSize = background.size;
-                        }
-                    })
-                    .catch(error => {
-                        console.log('Blob URL no longer valid, using fallback');
-                        // Use a solid color fallback
-                        bgElement.style.background = background.value || '#1f2937';
-                    });
+                console.log('Blob URL found - using fallback color instead');
+                // Blob URLs don't persist, use fallback color
+                bgElement.style.background = background.value || '#1f2937';
             } else {
                 // Regular URL - should persist
                 bgElement.style.backgroundImage = `url('${background.image_url}')`;
-                if (background.position) {
-                    bgElement.style.backgroundPosition = background.position;
-                }
-                if (background.size) {
-                    bgElement.style.backgroundSize = background.size;
-                }
             }
         } else if (background.type === 'color' && background.value) {
             bgElement.style.background = background.value;
@@ -1015,7 +991,7 @@ function setupBackgroundControls() {
         updateBackgroundPreview();
     });
     
-    // Upload functionality
+    // Upload functionality - FIXED: Upload to Supabase, not blob URL
     const uploadInput = document.getElementById('bg-upload');
     uploadInput?.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -1041,20 +1017,40 @@ function setupBackgroundControls() {
         statusText.textContent = 'Uploading...';
         
         try {
-            // Simulate upload (in real app, upload to Supabase)
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Create temporary blob URL for immediate preview
+            const blobUrl = URL.createObjectURL(file);
             
-            // Create blob URL for preview
-            const imageUrl = URL.createObjectURL(file);
-            
+            // Show immediate preview with blob URL
             currentBackground.type = 'image';
-            currentBackground.image_url = imageUrl;
+            currentBackground.image_url = blobUrl; // Temporary for preview
             currentBackground.value = '';
+            updateBackgroundPreview();
             
+            // Now upload to Supabase for persistence
+            progressBar.style.width = '50%';
+            statusText.textContent = 'Saving to server...';
+            
+            // Use the uploadBackground function from supabase.js
+            const result = await uploadBackground(file, currentProfile.id);
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Upload failed');
+            }
+            
+            console.log('Background uploaded to Supabase:', result.url);
+            
+            // Update with permanent Supabase URL
+            currentBackground.image_url = result.url; // This is the persistent URL
             updateBackgroundPreview();
             
             progressBar.style.width = '100%';
             statusText.textContent = 'Upload complete!';
+            statusText.className = 'text-sm text-green-400 mt-1';
+            
+            // Clean up blob URL after 5 seconds
+            setTimeout(() => {
+                URL.revokeObjectURL(blobUrl);
+            }, 5000);
             
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
@@ -1062,8 +1058,14 @@ function setupBackgroundControls() {
             
         } catch (error) {
             console.error('Error uploading background:', error);
-            statusText.textContent = 'Upload failed';
-            statusText.classList.add('text-red-400');
+            statusText.textContent = 'Upload failed: ' + error.message;
+            statusText.className = 'text-sm text-red-400 mt-1';
+            
+            // Fall back to color if upload fails
+            currentBackground.type = 'color';
+            currentBackground.value = '#1f2937';
+            currentBackground.image_url = '';
+            updateBackgroundPreview();
         }
     });
     
@@ -1071,9 +1073,28 @@ function setupBackgroundControls() {
     const saveButton = document.getElementById('save-background-btn');
     saveButton?.addEventListener('click', async () => {
         try {
+            // Check if we have a blob URL instead of Supabase URL
+            if (currentBackground.type === 'image' && currentBackground.image_url) {
+                if (currentBackground.image_url.startsWith('blob:')) {
+                    alert('Please wait for the background upload to complete before saving!');
+                    return;
+                }
+                
+                // Verify it's a Supabase URL
+                if (!currentBackground.image_url.includes('supabase.co/storage')) {
+                    console.warn('Background URL is not from Supabase storage:', currentBackground.image_url);
+                    if (!confirm('This background URL may not persist. Save anyway?')) {
+                        return;
+                    }
+                }
+            }
+            
             const { error } = await supabase
                 .from('profiles')
-                .update({ custom_background: currentBackground })
+                .update({ 
+                    custom_background: currentBackground,
+                    updated_at: new Date().toISOString()
+                })
                 .eq('id', currentProfile.id);
             
             if (error) throw error;
@@ -1085,11 +1106,12 @@ function setupBackgroundControls() {
             applyCustomBackground(currentBackground);
             
             // Show success
-            alert('Background saved successfully!');
+            alert('Background saved successfully! It will persist after refresh.');
+            console.log('Saved background to database:', currentBackground);
             
         } catch (error) {
             console.error('Error saving background:', error);
-            alert('Failed to save background');
+            alert('Failed to save background: ' + error.message);
         }
     });
     
