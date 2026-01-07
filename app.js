@@ -9,7 +9,7 @@ const modules = {
     'auth': () => import('./modules/auth/auth.js'),
     'admin': () => import('./modules/admin/admin.js'),
     'chat': () => import('./modules/chat/chat.js'),
-    'profile': () => import('./modules/profile/profile.js')
+    'profile': () => import('./modules/profile/profile.js'),
     'game': () => import('./modules/game-detail/game-detail.js')
 };
 // Add this near the top of app.js, after the imports
