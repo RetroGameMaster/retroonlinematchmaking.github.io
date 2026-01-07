@@ -349,17 +349,32 @@ function showSubmissionSuccess(title, multiplayerType, connectionMethod, players
 
 async function loadGames() {
     const gamesContainer = document.getElementById('games-list');
-    if (!gamesContainer) return;
+    if (!gamesContainer) {
+        console.error('Games container not found');
+        return;
+    }
     
-    gamesContainer.innerHTML = '<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div><p class="text-gray-400 mt-4">Loading game library...</p></div>';
+    console.log('🔄 Loading games...');
+    gamesContainer.innerHTML = `
+        <div class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+            <p class="text-gray-400 mt-4">Loading game library...</p>
+        </div>
+    `;
     
     try {
-        const { data: games, error } = await supabase
+        console.log('📡 Querying games from Supabase...');
+        const { data: games, error, count } = await supabase
             .from('games')
-            .select('*')
+            .select('*', { count: 'exact' })
             .order('title', { ascending: true });
         
-        if (error) throw error;
+        if (error) {
+            console.error('Database error:', error);
+            throw error;
+        }
+        
+        console.log(`✅ Found ${games?.length || 0} games`);
         
         if (!games || games.length === 0) {
             gamesContainer.innerHTML = `
@@ -373,114 +388,143 @@ async function loadGames() {
             return;
         }
         
+        // Get user emails for submitted_by
+        const userIds = [...new Set(games.map(g => g.submitted_by).filter(Boolean))];
+        const userEmails = {};
+        
+        console.log('👤 Fetching user emails...');
+        for (const userId of userIds) {
+            try {
+                // Try to get user from auth (note: this requires proper permissions)
+                const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId);
+                if (!userError && user?.user?.email) {
+                    userEmails[userId] = user.user.email;
+                } else {
+                    // Fallback to submitted_email if available
+                    const game = games.find(g => g.submitted_by === userId);
+                    if (game?.submitted_email) {
+                        userEmails[userId] = game.submitted_email;
+                    } else {
+                        userEmails[userId] = 'Unknown User';
+                    }
+                }
+            } catch (err) {
+                console.log(`Could not fetch user ${userId}:`, err.message);
+                userEmails[userId] = 'Unknown User';
+            }
+        }
+        
+        console.log('🎨 Rendering game cards...');
         gamesContainer.innerHTML = games.map(game => {
             const playerCount = game.players_min === game.players_max 
                 ? `${game.players_min} player${game.players_min > 1 ? 's' : ''}` 
                 : `${game.players_min}-${game.players_max} players`;
             
+            const coverImage = game.cover_image_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=600&fit=crop';
+            const screenshots = game.screenshot_urls || [];
+            
             return `
                 <div class="bg-gray-800 p-6 rounded-lg mb-6 border border-gray-700 hover:border-cyan-500 transition group">
-                    <div class="flex flex-col md:flex-row justify-between items-start mb-4">
-                        <div class="flex-1">
-                            <h3 class="text-2xl font-bold text-white mb-2 group-hover:text-cyan-300 transition cursor-pointer" 
-                                onclick="window.location.hash = '#/game/${game.id}'">
-                                ${game.title}
-                            </h3>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="bg-cyan-600 text-white px-3 py-1 rounded text-sm font-semibold">${game.console}</span>
-                                <span class="text-gray-300">${game.year}</span>
-                                <span class="text-gray-400">•</span>
-                                <span class="bg-purple-600 text-white px-3 py-1 rounded text-sm">${game.multiplayer_type || 'Multiplayer'}</span>
-                                <span class="text-gray-400">•</span>
-                                <span class="text-gray-300">${playerCount}</span>
-                            </div>
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <!-- Cover Image -->
+                        <div class="md:w-1/4">
+                            <img src="${coverImage}" 
+                                 alt="${game.title} cover"
+                                 class="w-full h-48 md:h-64 object-cover rounded-lg cursor-pointer"
+                                 onclick="window.location.hash = '#/game/${game.id}'">
                         </div>
-                        <div class="mt-2 md:mt-0">
-                            <span class="bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold">✅ Approved</span>
-                        </div>
-                    </div>
-                    
-                    <p class="text-gray-300 mb-4">${game.description}</p>
-                    
-                    <!-- Connection Details Section -->
-                    <div class="bg-gray-900 p-4 rounded-lg mb-4 border border-purple-500">
-                        <h4 class="font-bold text-purple-300 mb-2 flex items-center">
-                            <span class="mr-2">🌐</span> How to Play Online
-                        </h4>
                         
-                        <div class="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-gray-300">
-                                    <strong class="text-cyan-300">Connection:</strong> ${game.connection_method || 'Not specified'}
-                                </p>
-                                ${game.servers_available ? `
-                                    <p class="text-green-400 mt-1">
-                                        <span class="mr-1">🟢</span> Active servers available
-                                    </p>
-                                ` : ''}
+                        <!-- Game Info -->
+                        <div class="md:w-3/4">
+                            <div class="flex flex-col md:flex-row justify-between items-start mb-4">
+                                <div class="flex-1">
+                                    <h3 class="text-2xl font-bold text-white mb-2 group-hover:text-cyan-300 transition cursor-pointer" 
+                                        onclick="window.location.hash = '#/game/${game.id}'">
+                                        ${game.title}
+                                    </h3>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="bg-cyan-600 text-white px-3 py-1 rounded text-sm font-semibold">${game.console}</span>
+                                        <span class="text-gray-300">${game.year}</span>
+                                        <span class="text-gray-400">•</span>
+                                        <span class="bg-purple-600 text-white px-3 py-1 rounded text-sm">${game.multiplayer_type || 'Multiplayer'}</span>
+                                        <span class="text-gray-400">•</span>
+                                        <span class="text-gray-300">${playerCount}</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 md:mt-0">
+                                    <span class="bg-green-600 text-white px-3 py-1 rounded text-sm font-semibold">✅ Approved</span>
+                                </div>
                             </div>
                             
-                            ${game.connection_details ? `
-                                <div>
-                                    <p class="text-gray-300">
-                                        <strong class="text-cyan-300">Instructions:</strong> ${game.connection_details}
-                                    </p>
+                            <p class="text-gray-300 mb-4 line-clamp-2">${game.description}</p>
+                            
+                            <!-- Screenshot Previews -->
+                            ${screenshots.length > 0 ? `
+                                <div class="flex space-x-2 mb-4 overflow-x-auto pb-2">
+                                    ${screenshots.slice(0, 3).map((url, index) => `
+                                        <img src="${url}" 
+                                             alt="Screenshot ${index + 1}"
+                                             class="w-24 h-16 object-cover rounded cursor-pointer"
+                                             onclick="window.openLightbox && window.openLightbox('${url}')">
+                                    `).join('')}
+                                    ${screenshots.length > 3 ? `<span class="text-gray-400 text-sm self-center">+${screenshots.length - 3} more</span>` : ''}
                                 </div>
                             ` : ''}
-                        </div>
-                        
-                        ${game.server_details ? `
-                            <div class="mt-3 pt-3 border-t border-gray-700">
-                                <p class="text-gray-300">
-                                    <strong class="text-green-300">Server Info:</strong> ${game.server_details}
-                                </p>
+                            
+                            <div class="flex flex-col md:flex-row justify-between items-center">
+                                <div class="text-gray-400 text-sm mb-4 md:mb-0">
+                                    Submitted by: ${userEmails[game.submitted_by] || game.submitted_email || 'Unknown'}
+                                    ${game.views_count ? ` • Views: ${game.views_count}` : ''}
+                                </div>
+                                
+                                <div class="flex space-x-3">
+                                    ${game.file_url ? `
+                                        <a href="${game.file_url}" target="_blank" 
+                                           class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                            <span class="mr-2">⬇️</span>
+                                            Download
+                                        </a>
+                                    ` : `
+                                        <button class="bg-gray-700 text-gray-400 px-4 py-2 rounded cursor-not-allowed">
+                                            No File
+                                        </button>
+                                    `}
+                                    
+                                    <button onclick="window.location.hash = '#/game/${game.id}'" 
+                                            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                        <span class="mr-2">🔍</span>
+                                        View Details
+                                    </button>
+                                    
+                                    <button onclick="showConnectionModal('${game.id}')" 
+                                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded inline-flex items-center transition">
+                                        <span class="mr-2">🌐</span>
+                                        Connection
+                                    </button>
+                                </div>
                             </div>
-                        ` : ''}
-                    </div>
-                    
-                    <div class="flex flex-col md:flex-row justify-between items-center">
-                        <div class="text-gray-400 text-sm mb-4 md:mb-0">
-                            Approved: ${new Date(game.approved_at).toLocaleDateString()}
-                            ${game.downloads ? ` • Downloads: ${game.downloads}` : ''}
-                            ${game.rating ? ` • Rating: ${game.rating}/5` : ''}
                         </div>
-                        
-                        <div class="flex space-x-3">
-                           <div class="flex space-x-3">
-                        ${game.file_url ? `
-                            <a href="${game.file_url}" target="_blank" 
-                               class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded inline-flex items-center transition">
-                                <span class="mr-2">⬇️</span>
-                                Download
-                            </a>
-                        ` : `
-                            <button class="bg-gray-700 text-gray-400 px-4 py-2 rounded cursor-not-allowed">
-                                No File
-                            </button>
-                        `}
-    
-                        <button onclick="window.location.hash = '#/game/${game.id}'" 
-                                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded inline-flex items-center transition">
-                            <span class="mr-2">🔍</span>
-                            View Details
-                        </button>
-    
-                        <button onclick="showConnectionModal('${game.id}')" 
-                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded inline-flex items-center transition">
-                            <span class="mr-2">🌐</span>
-                            Connection
-                        </button>
                     </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('✅ Games loaded successfully');
         
     } catch (error) {
-        console.error('Error loading games:', error);
+        console.error('❌ Error loading games:', error);
         gamesContainer.innerHTML = `
             <div class="bg-red-900 border border-red-700 rounded-lg p-6 text-center">
                 <h3 class="text-lg font-bold text-red-300 mb-2">Error Loading Games</h3>
                 <p class="text-red-200 mb-2">${error.message}</p>
+                <p class="text-gray-300 text-sm mb-4">This might be a database connection issue.</p>
                 <button onclick="loadGames()" 
-                        class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                        class="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
                     Try Again
+                </button>
+                <button onclick="window.location.reload()" 
+                        class="mt-2 ml-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+                    Reload Page
                 </button>
             </div>
         `;
