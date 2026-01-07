@@ -23,23 +23,24 @@ function loadGameFromURL() {
 
 async function loadGame(gameId) {
     try {
-        // Increment view count
-        await supabase
-            .from('games')
-            .update({ 
-                views_count: supabase.raw('views_count + 1'),
-                last_activity: new Date().toISOString()
-            })
-            .eq('id', gameId);
-        
-        // Get game data
-        const { data: game, error } = await supabase
+        // First get the game to get current view count
+        const { data: game, error: fetchError } = await supabase
             .from('games')
             .select('*')
             .eq('id', gameId)
             .single();
         
-        if (error) throw error;
+        if (fetchError) throw fetchError;
+        
+        // Increment view count without using raw()
+        const currentViews = game.views_count || 0;
+        await supabase
+            .from('games')
+            .update({ 
+                views_count: currentViews + 1,
+                last_activity: new Date().toISOString()
+            })
+            .eq('id', gameId);
         
         // Get comments
         const { data: comments } = await supabase
