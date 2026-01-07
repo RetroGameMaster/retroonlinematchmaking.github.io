@@ -90,71 +90,165 @@ async function loadPendingSubmissions() {
         `;
     }
     
-    function renderSubmissions(submissions) {
-        submissionsContainer.innerHTML = submissions.map(sub => {
-            const userEmail = sub.user_email || sub.email || 'Unknown User';
-            const username = sub.username || userEmail.split('@')[0];
-            
-            return `
-                <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700 hover:border-yellow-500 transition">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 class="text-2xl font-bold text-white mb-2">${sub.title}</h3>
-                            <div class="flex flex-wrap items-center gap-2 mt-2">
-                                <span class="bg-gray-700 text-gray-300 px-3 py-1 rounded text-sm">${sub.console}</span>
-                                <span class="text-gray-400">${sub.year}</span>
-                                <span class="text-gray-500 text-sm">
-                                    Submitted by: <span class="text-cyan-300">${username}</span>
-                                </span>
-                                <span class="text-gray-500 text-sm">
-                                    ${new Date(sub.created_at).toLocaleDateString()}
-                                </span>
-                            </div>
+    // In the renderSubmissions function, add connection info:
+function renderSubmissions(submissions) {
+    submissionsContainer.innerHTML = submissions.map(sub => {
+        const userEmail = sub.user_email || sub.email || 'Unknown User';
+        const username = sub.username || userEmail.split('@')[0];
+        const playerCount = sub.players_min === sub.players_max 
+            ? `${sub.players_min} player${sub.players_min > 1 ? 's' : ''}` 
+            : `${sub.players_min}-${sub.players_max} players`;
+        
+        return `
+            <div class="bg-gray-800 p-6 rounded-lg mb-4 border border-gray-700 hover:border-yellow-500 transition">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold text-white mb-2">${sub.title}</h3>
+                        <div class="flex flex-wrap items-center gap-2 mt-2">
+                            <span class="bg-gray-700 text-gray-300 px-3 py-1 rounded text-sm">${sub.console}</span>
+                            <span class="text-gray-400">${sub.year}</span>
+                            <span class="text-gray-500 text-sm">
+                                Submitted by: <span class="text-cyan-300">${username}</span>
+                            </span>
+                            <span class="text-gray-500 text-sm">
+                                ${new Date(sub.created_at).toLocaleDateString()}
+                            </span>
                         </div>
-                        <span class="bg-yellow-600 text-white px-3 py-1 rounded text-sm font-semibold">
-                            ⏳ Pending Review
-                        </span>
                     </div>
-                    
-                    <p class="text-gray-300 mb-4">${sub.description || 'No description provided.'}</p>
-                    
-                    ${sub.notes ? `
-                        <div class="bg-gray-900 p-3 rounded mb-4">
-                            <p class="text-gray-400 text-sm"><strong>Notes:</strong> ${sub.notes}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${sub.file_url ? `
-                        <div class="mb-4">
-                            <a href="${sub.file_url}" target="_blank" 
-                               class="inline-flex items-center bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
-                                <span class="mr-2">📎</span>
-                                Download Game File
-                            </a>
-                        </div>
-                    ` : ''}
-                    
-                    <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-                        <button onclick="approveSubmission('${sub.id}')" 
-                                class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
-                            <span class="mr-2">✅</span>
-                            Approve
-                        </button>
-                        <button onclick="rejectSubmission('${sub.id}')" 
-                                class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
-                            <span class="mr-2">❌</span>
-                            Reject
-                        </button>
-                        <button onclick="showReviewModal('${sub.id}', '${escapeString(sub.title)}')" 
-                                class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
-                            <span class="mr-2">📝</span>
-                            Review with Notes
-                        </button>
-                    </div>
+                    <span class="bg-yellow-600 text-white px-3 py-1 rounded text-sm font-semibold">
+                        ⏳ Pending Review
+                    </span>
                 </div>
-            `;
-        }).join('');
+                
+                <p class="text-gray-300 mb-4">${sub.description || 'No description provided.'}</p>
+                
+                <!-- Connection Info -->
+                <div class="bg-gray-900 p-4 rounded-lg mb-4 border border-purple-500">
+                    <h4 class="font-bold text-purple-300 mb-2">🌐 Connection Details</h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-gray-300">
+                                <strong>Type:</strong> ${sub.multiplayer_type || 'Not specified'}
+                            </p>
+                            <p class="text-gray-300">
+                                <strong>Players:</strong> ${playerCount}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-gray-300">
+                                <strong>Method:</strong> ${sub.connection_method || 'Not specified'}
+                            </p>
+                            ${sub.servers_available ? 
+                                '<p class="text-green-400">🟢 Active servers reported</p>' : 
+                                '<p class="text-yellow-400">🟡 No server info</p>'
+                            }
+                        </div>
+                    </div>
+                    
+                    ${sub.connection_details ? `
+                        <div class="mt-3 pt-3 border-t border-gray-700">
+                            <p class="text-gray-300 text-sm">
+                                <strong>Instructions:</strong> ${sub.connection_details}
+                            </p>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                ${sub.notes ? `
+                    <div class="bg-gray-900 p-3 rounded mb-4">
+                        <p class="text-gray-400 text-sm"><strong>Notes:</strong> ${sub.notes}</p>
+                    </div>
+                ` : ''}
+                
+                ${sub.file_url ? `
+                    <div class="mb-4">
+                        <a href="${sub.file_url}" target="_blank" 
+                           class="inline-flex items-center bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                            <span class="mr-2">📎</span>
+                            Download Game File
+                        </a>
+                    </div>
+                ` : ''}
+                
+                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                    <button onclick="approveSubmission('${sub.id}')" 
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
+                        <span class="mr-2">✅</span>
+                        Approve
+                    </button>
+                    <button onclick="rejectSubmission('${sub.id}')" 
+                            class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
+                        <span class="mr-2">❌</span>
+                        Reject
+                    </button>
+                    <button onclick="showReviewModal('${sub.id}', '${escapeString(sub.title)}')" 
+                            class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-3 rounded font-semibold transition flex items-center justify-center">
+                        <span class="mr-2">📝</span>
+                        Review with Notes
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Update the approveSubmission function to copy connection details
+window.approveSubmission = async (submissionId) => {
+    if (!confirm('Approve this game submission?')) return;
+    
+    try {
+        const user = await getCurrentUser();
+        
+        // Get the submission first
+        const { data: submission, error: fetchError } = await supabase
+            .from('game_submissions')
+            .select('*')
+            .eq('id', submissionId)
+            .single();
+        
+        if (fetchError) throw fetchError;
+        
+        // Update submission status
+        const { error: updateError } = await supabase
+            .from('game_submissions')
+            .update({
+                status: 'approved',
+                reviewed_at: new Date().toISOString(),
+                reviewed_by: user.id
+            })
+            .eq('id', submissionId);
+        
+        if (updateError) throw updateError;
+        
+        // Add to games table WITH CONNECTION DETAILS
+        await supabase.from('games').insert({
+            title: submission.title,
+            console: submission.console,
+            year: submission.year,
+            description: submission.description,
+            file_url: submission.file_url,
+            submitted_by: submission.user_id,
+            submitted_email: submission.user_email,
+            approved_at: new Date().toISOString(),
+            
+            // Copy connection details
+            connection_method: submission.connection_method,
+            connection_details: submission.connection_details,
+            multiplayer_type: submission.multiplayer_type,
+            players_min: submission.players_min,
+            players_max: submission.players_max,
+            servers_available: submission.servers_available,
+            server_details: submission.server_details
+        });
+        
+        showNotification('Game approved and added to library with connection details!', 'success');
+        loadPendingSubmissions();
+        
+    } catch (error) {
+        console.error('Error approving submission:', error);
+        showNotification('Error approving submission: ' + error.message, 'error');
     }
+};
     
     function escapeString(str) {
         return str ? str.replace(/'/g, "\\'").replace(/"/g, '\\"') : '';
