@@ -10,6 +10,7 @@ const modules = {
     'admin': () => import('./modules/admin/admin.js'),
     'chat': () => import('./modules/chat/chat.js'),
     'profile': () => import('./modules/profile/profile.js')
+    'game': () => import('./modules/game-detail/game-detail.js')
 };
 // Add this near the top of app.js, after the imports
 window.navigateTo = function(module) {
@@ -169,6 +170,13 @@ async function loadModule(moduleName) {
     try {
         console.log(`📦 Loading module: ${moduleName}`);
         
+        // Check for game detail page (format: game/:id)
+        if (moduleName.startsWith('game/')) {
+            const gameId = moduleName.split('/')[1];
+            await loadGameDetail(gameId);
+            return;
+        }
+        
         // Check for admin access
         if (moduleName === 'admin') {
             const { data: { user }, error } = await supabase.auth.getUser();
@@ -253,6 +261,26 @@ async function loadModule(moduleName) {
     } catch (error) {
         console.error(`❌ Error loading module ${moduleName}:`, error);
         showError('Error loading module', error.message);
+    }
+}
+// New function for game detail pages
+async function loadGameDetail(gameId) {
+    const appContent = document.getElementById('app-content');
+    if (!appContent) return;
+    
+    // Load game detail HTML
+    const response = await fetch('./modules/game-detail/game-detail.html');
+    if (!response.ok) {
+        throw new Error('Failed to load game detail module');
+    }
+    
+    const html = await response.text();
+    appContent.innerHTML = html;
+    
+    // Load and initialize game detail module
+    const module = await import('./modules/game-detail/game-detail.js');
+    if (module.initModule) {
+        await module.initModule();
     }
 }
 
