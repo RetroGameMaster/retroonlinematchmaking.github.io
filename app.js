@@ -9,21 +9,10 @@ const modules = {
     'auth': () => import('./modules/auth/auth.js'),
     'admin': () => import('./modules/admin/admin.js'),
     'chat': () => import('./modules/chat/chat.js'),
-    'profile': () => import('./modules/profile/profile.js')
+    'profile': () => import('./modules/profile/profile.js'),
     'game': () => import('./modules/game-detail/game-detail.js')
 };
-// Add this near the top of app.js, after the imports
-window.navigateTo = function(module) {
-    window.location.hash = `#/${module}`;
-};
 
-// Also expose loadModule globally for any legacy buttons
-window.rom = {
-    loadModule: loadModule,
-    navigateTo: function(module) {
-        window.location.hash = `#/${module}`;
-    }
-};
 // Fallback content for missing modules
 const fallbackContent = {
     'home': `
@@ -55,42 +44,14 @@ const fallbackContent = {
             <h1 class="text-3xl font-bold mb-6 text-cyan-400">🎮 Game Library</h1>
             <div class="bg-gray-800 p-6 rounded-lg mb-6">
                 <h2 class="text-xl font-bold mb-4 text-cyan-300">Submit a New Game</h2>
-                <form id="game-form" class="space-y-4">
-                    <div>
-                        <label class="block text-gray-300 mb-2">Game Title</label>
-                        <input type="text" name="title" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-300 mb-2">Console</label>
-                        <select name="console" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
-                            <option value="PS2">PlayStation 2</option>
-                            <option value="PS3">PlayStation 3</option>
-                            <option value="XBOX">Xbox</option>
-                            <option value="GC">GameCube</option>
-                            <option value="PC">PC</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-gray-300 mb-2">Year</label>
-                        <input type="number" name="year" min="1990" max="2010" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required>
-                    </div>
-                    <div>
-                        <label class="block text-gray-300 mb-2">Description</label>
-                        <textarea name="description" rows="3" class="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white" required></textarea>
-                    </div>
-                    <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">
-                        Submit Game
-                    </button>
-                </form>
+                <p class="text-gray-300 mb-4">Game submission form loading...</p>
             </div>
-            
             <div class="bg-gray-800 p-6 rounded-lg">
                 <h2 class="text-xl font-bold mb-4 text-cyan-300">Available Games</h2>
                 <div id="games-list" class="space-y-4">
-                    <div class="bg-gray-700 p-4 rounded">
-                        <h3 class="text-lg font-bold text-white">SOCOM II: U.S. Navy SEALs</h3>
-                        <p class="text-gray-300">PS2 • 2003</p>
-                        <p class="text-gray-400 mt-2">Tactical third-person shooter with online multiplayer</p>
+                    <div class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                        <p class="text-gray-400 mt-2">Loading games...</p>
                     </div>
                 </div>
             </div>
@@ -108,7 +69,7 @@ const fallbackContent = {
             <div class="bg-gray-800 p-6 rounded-lg">
                 <h2 class="text-xl font-bold mb-4 text-cyan-300">Pending Game Submissions</h2>
                 <div id="pending-submissions" class="space-y-4">
-                    <p class="text-gray-400">No pending submissions</p>
+                    <p class="text-gray-400">Loading submissions...</p>
                 </div>
             </div>
         </div>
@@ -126,6 +87,14 @@ const fallbackContent = {
             <h1 class="text-3xl font-bold mb-6 text-cyan-400">👤 Your Profile</h1>
             <div class="bg-gray-800 p-6 rounded-lg">
                 <p class="text-gray-300">Profile module coming soon!</p>
+            </div>
+        </div>
+    `,
+    'game': `
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center py-16">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                <p class="text-gray-400 mt-4">Loading game details...</p>
             </div>
         </div>
     `
@@ -177,7 +146,7 @@ async function loadModule(moduleName) {
             return;
         }
         
-        // Check for admin access
+        // Don't load admin module for non-admin users
         if (moduleName === 'admin') {
             const { data: { user }, error } = await supabase.auth.getUser();
             
@@ -188,48 +157,48 @@ async function loadModule(moduleName) {
             }
             
             // Check admin status
-            const { data: adminData } = await supabase
+            const { data: adminData, error: adminError } = await supabase
                 .from('admins')
                 .select('*')
                 .eq('user_id', user.id)
                 .single();
             
-            if (!adminData) {
+            if (adminError || !adminData) {
                 alert('Admin access required');
                 window.location.hash = '#/';
                 return;
             }
         }
         
-        // Clear current content
-        const appContent = document.getElementById('app-content');
-        if (appContent) {
-            appContent.innerHTML = '';
-        }
-        
-        // Try to load module HTML
-        let html = fallbackContent[moduleName] || fallbackContent['home'];
-        
-        try {
-            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
-            if (response.ok) {
-                html = await response.text();
+        // Load the module
+        if (modules[moduleName]) {
+            const module = await modules[moduleName]();
+            
+            // Clear current content
+            const appContent = document.getElementById('app-content');
+            if (appContent) {
+                appContent.innerHTML = '';
             }
-        } catch (fetchError) {
-            console.log(`Using fallback for ${moduleName}`);
-        }
-        
-        // Insert HTML
-        if (appContent) {
-            appContent.innerHTML = html;
-        }
-        
-        // Try to load and initialize module JS
-        try {
-            if (modules[moduleName]) {
-                const module = await modules[moduleName]();
-                
-                // Initialize module
+            
+            // Try to load module HTML
+            let html = fallbackContent[moduleName] || fallbackContent['home'];
+            
+            try {
+                const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+                if (response.ok) {
+                    html = await response.text();
+                }
+            } catch (fetchError) {
+                console.log(`Using fallback for ${moduleName}`);
+            }
+            
+            // Insert HTML
+            if (appContent) {
+                appContent.innerHTML = html;
+            }
+            
+            // Try to load and initialize module JS
+            try {
                 if (module.initModule) {
                     await module.initModule();
                 } else if (module.default && module.default.initModule) {
@@ -241,102 +210,51 @@ async function loadModule(moduleName) {
                 }
                 
                 currentModule = module;
+            } catch (moduleError) {
+                console.log(`Module JS not loaded for ${moduleName}:`, moduleError);
             }
-        } catch (moduleError) {
-            console.log(`Module JS not loaded for ${moduleName}:`, moduleError);
+            
+            console.log(`✅ Module ${moduleName} loaded successfully`);
+        } else {
+            console.error(`Module ${moduleName} not found`);
+            window.location.hash = '#/home';
         }
-        
-        // Initialize auth form if needed (fallback)
-        if (moduleName === 'auth') {
-            initAuthFormFallback();
-        }
-        
-        // Initialize games form if needed (fallback)
-        if (moduleName === 'games') {
-            initGamesFormFallback();
-        }
-        
-        console.log(`✅ Module ${moduleName} loaded successfully`);
-        
     } catch (error) {
         console.error(`❌ Error loading module ${moduleName}:`, error);
         showError('Error loading module', error.message);
     }
 }
+
 // New function for game detail pages
 async function loadGameDetail(gameId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
     
-    // Load game detail HTML
-    const response = await fetch('./modules/game-detail/game-detail.html');
-    if (!response.ok) {
-        throw new Error('Failed to load game detail module');
-    }
-    
-    const html = await response.text();
-    appContent.innerHTML = html;
-    
-    // Load and initialize game detail module
-    const module = await import('./modules/game-detail/game-detail.js');
-    if (module.initModule) {
-        await module.initModule();
-    }
-}
-
-// Initialize auth form (fallback - only used if auth module fails)
-function initAuthFormFallback() {
-    const authContent = document.getElementById('app-content');
-    if (authContent && authContent.innerHTML.includes('Loading Authentication')) {
-        // The real auth module should load, but if it doesn't, redirect to a simple form
-        setTimeout(() => {
-            if (document.getElementById('auth-form')) return; // Real module loaded
-            
-            authContent.innerHTML = `
-                <div class="max-w-md mx-auto">
-                    <div class="bg-gray-800 p-8 rounded-lg border border-cyan-500">
-                        <h2 class="text-2xl font-bold mb-6 text-center text-cyan-400">Authentication</h2>
-                        <p class="text-gray-300 mb-4 text-center">
-                            The auth module is taking a while to load. Please wait or refresh.
-                        </p>
-                        <div class="text-center">
-                            <button onclick="window.location.reload()" 
-                                    class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">
-                                Refresh Page
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }, 3000);
-    }
-}
-
-// Initialize games form (fallback)
-function initGamesFormFallback() {
-    const gameForm = document.getElementById('game-form');
-    
-    if (gameForm) {
-        gameForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(gameForm);
-            const title = formData.get('title');
-            const console = formData.get('console');
-            const year = formData.get('year');
-            const description = formData.get('description');
-            
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-                alert('Please login to submit games');
-                window.location.hash = '#/auth';
-                return;
-            }
-            
-            alert(`Game "${title}" submitted for review!`);
-            gameForm.reset();
-        });
+    try {
+        // Load game detail HTML
+        const response = await fetch('./modules/game-detail/game-detail.html');
+        if (!response.ok) {
+            throw new Error('Failed to load game detail module');
+        }
+        
+        const html = await response.text();
+        appContent.innerHTML = html;
+        
+        // Load and initialize game detail module
+        const module = await import('./modules/game-detail/game-detail.js');
+        if (module.initModule) {
+            await module.initModule();
+        } else if (module.default && module.default.initModule) {
+            await module.default.initModule();
+        } else if (module.init) {
+            await module.init();
+        }
+        
+        console.log(`✅ Game detail page loaded for ID: ${gameId}`);
+        
+    } catch (error) {
+        console.error('Error loading game detail:', error);
+        showError('Error loading game', error.message);
     }
 }
 
@@ -360,6 +278,9 @@ function showError(title, message) {
 // Make loadModule available globally
 window.loadModule = loadModule;
 window.supabase = supabase;
+window.navigateTo = function(module) {
+    window.location.hash = `#/${module}`;
+};
 
 // Initialize the app when DOM is loaded
 if (document.readyState === 'loading') {
