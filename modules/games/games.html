@@ -97,6 +97,100 @@
                           placeholder="Describe the game, multiplayer features, and why it should be added..."
                           required></textarea>
             </div>
+            <!-- Add this section after the description textarea in the form -->
+<div class="bg-gray-900 p-6 rounded-lg border border-purple-500">
+    <h3 class="text-xl font-bold text-purple-300 mb-4">🌐 Online Connection Details</h3>
+    <p class="text-gray-300 mb-4">Tell players how to connect and play this game online</p>
+    
+    <div class="space-y-6">
+        <!-- Multiplayer Type -->
+        <div>
+            <label class="block text-gray-300 mb-2">
+                Multiplayer Type <span class="text-red-500">*</span>
+            </label>
+            <select name="multiplayer_type" 
+                    class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none"
+                    required>
+                <option value="">Select multiplayer type</option>
+                <option value="Online">Online (Internet)</option>
+                <option value="LAN">LAN (Local Network)</option>
+                <option value="Split-screen">Split-screen</option>
+                <option value="Hotseat">Hotseat (Pass & Play)</option>
+                <option value="Mixed">Mixed (Online + Local)</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        
+        <!-- Player Count -->
+        <div class="grid md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-gray-300 mb-2">
+                    Minimum Players
+                </label>
+                <input type="number" name="players_min" min="1" max="64" value="1"
+                       class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none">
+            </div>
+            
+            <div>
+                <label class="block text-gray-300 mb-2">
+                    Maximum Players
+                </label>
+                <input type="number" name="players_max" min="1" max="64" value="1"
+                       class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none">
+            </div>
+        </div>
+        
+        <!-- Connection Method -->
+        <div>
+            <label class="block text-gray-300 mb-2">
+                Connection Method <span class="text-red-500">*</span>
+            </label>
+            <select name="connection_method" 
+                    class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none"
+                    required>
+                <option value="">How do players connect?</option>
+                <option value="Official Servers">Official Game Servers</option>
+                <option value="Community Servers">Community Servers</option>
+                <option value="P2P">Peer-to-Peer (P2P)</option>
+                <option value="VPN">VPN Required (Hamachi, Radmin, etc.)</option>
+                <option value="Emulator">Emulator Netplay (PCSX2, Dolphin, etc.)</option>
+                <option value="XLink Kai">XLink Kai</option>
+                <option value="GameRanger">GameRanger</option>
+                <option value="Tunngle">Tunngle</option>
+                <option value="ZeroTier">ZeroTier</option>
+                <option value="Other">Other/Modified Client</option>
+            </select>
+        </div>
+        
+        <!-- Connection Details -->
+        <div>
+            <label class="block text-gray-300 mb-2">
+                Connection Instructions
+            </label>
+            <textarea name="connection_details" rows="3"
+                      class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none"
+                      placeholder="Step-by-step instructions for connecting...&#10;Example:&#10;1. Download XLink Kai&#10;2. Join the 'SOCOM II' arena&#10;3. Set up your PS2 network settings"></textarea>
+        </div>
+        
+        <!-- Server Availability -->
+        <div>
+            <label class="flex items-center">
+                <input type="checkbox" name="servers_available" class="mr-2">
+                <span class="text-gray-300">Active servers are currently available for this game</span>
+            </label>
+        </div>
+        
+        <!-- Server Details -->
+        <div id="server-details-container" class="hidden">
+            <label class="block text-gray-300 mb-2">
+                Server Information
+            </label>
+            <textarea name="server_details" rows="2"
+                      class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none"
+                      placeholder="Server IPs, Discord communities, matchmaking websites..."></textarea>
+        </div>
+    </div>
+</div>
             
             <div>
                 <label class="block text-gray-300 mb-2">
@@ -176,3 +270,25 @@
         outline: none;
     }
 </style>
+<!-- Add this JavaScript at the end of the file -->
+<script>
+    // Show/hide server details based on checkbox
+    document.querySelector('input[name="servers_available"]')?.addEventListener('change', function(e) {
+        const serverDetails = document.getElementById('server-details-container');
+        if (serverDetails) {
+            serverDetails.classList.toggle('hidden', !e.target.checked);
+        }
+    });
+    
+    // Auto-update player max if min is higher
+    document.querySelector('input[name="players_min"]')?.addEventListener('change', function(e) {
+        const min = parseInt(e.target.value) || 1;
+        const maxInput = document.querySelector('input[name="players_max"]');
+        if (maxInput) {
+            const max = parseInt(maxInput.value) || 1;
+            if (min > max) {
+                maxInput.value = min;
+            }
+        }
+    });
+</script>
