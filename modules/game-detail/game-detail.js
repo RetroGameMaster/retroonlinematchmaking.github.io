@@ -267,12 +267,14 @@ function renderGame(game, comments) {
         </div>
         
         <!-- Screenshots Section -->
+        ${game.screenshot_urls && game.screenshot_urls.length > 0 ? `
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-white mb-4">📸 Screenshots</h2>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 ${screenshotsHTML}
             </div>
         </div>
+        ` : ''}
         
         <!-- Comments Section -->
         <div class="mb-8">
@@ -332,6 +334,19 @@ function renderGame(game, comments) {
 }
 
 function generateEditGameModal(game) {
+    const consoles = [
+        "3D0", "Arcade", "AES", "Dreamcast", "Gameboy", "Gameboy Color", 
+        "GameCube", "Gamegear", "GBA", "Genesis/Megadrive", "N64", "NDS", 
+        "Neo Geo CD", "NES", "Nintendo Switch", "Other", "PC", "PS1", "PS2", 
+        "PS3", "PS4", "PS5", "PSP", "PSVita", "Saturn", "Sega 32X", "Sega CD", 
+        "Sega Mark III", "SG-1000", "SNES", "T-16/CD", "VB", "Wii", "Wii U", 
+        "XBOX", "XBOX 360", "3DS"
+    ];
+    
+    const consoleOptions = consoles.map(console => 
+        `<option value="${console}" ${console === game.console ? 'selected' : ''}>${console}</option>`
+    ).join('');
+    
     return `
         <div id="edit-game-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
             <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -359,7 +374,8 @@ function generateEditGameModal(game) {
                                 <label class="block text-gray-300 mb-2">Console *</label>
                                 <select id="edit-game-console" required 
                                         class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500">
-                                    ${generateConsoleOptions(game.console)}
+                                    <option value="">Select a system</option>
+                                    ${consoleOptions}
                                 </select>
                             </div>
                         </div>
@@ -390,19 +406,125 @@ function generateEditGameModal(game) {
                                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500">${game.description || ''}</textarea>
                         </div>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-gray-300 mb-2">Cover Image URL</label>
-                                <input type="url" id="edit-game-cover-image" value="${game.cover_image_url || ''}" 
-                                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500" 
-                                       placeholder="https://example.com/image.jpg">
+                        <!-- Cover Image Section -->
+                        <div class="bg-gray-900 p-4 rounded-lg border border-cyan-500">
+                            <h3 class="text-lg font-bold text-cyan-300 mb-3">🖼️ Cover Image</h3>
+                            
+                            <!-- Current Cover Image -->
+                            ${game.cover_image_url ? `
+                                <div class="mb-3">
+                                    <p class="text-gray-300 text-sm mb-2">Current Cover:</p>
+                                    <img src="${game.cover_image_url}" 
+                                         alt="Current cover" 
+                                         class="w-32 h-32 object-cover rounded-lg border border-gray-600">
+                                </div>
+                            ` : ''}
+                            
+                            <!-- Upload Options -->
+                            <div class="space-y-3">
+                                <!-- Option 1: Upload New Image -->
+                                <div>
+                                    <label class="block text-gray-300 text-sm mb-1">Upload New Cover Image</label>
+                                    <div class="relative">
+                                        <input type="file" id="edit-game-cover-upload" 
+                                               accept="image/*" 
+                                               class="w-full text-sm text-gray-400
+                                                      file:mr-4 file:py-2 file:px-4
+                                                      file:rounded-lg file:border-0
+                                                      file:text-sm file:font-semibold
+                                                      file:bg-cyan-600 file:text-white
+                                                      hover:file:bg-cyan-700
+                                                      cursor-pointer">
+                                        <div class="text-xs text-gray-500 mt-1">Max 5MB. JPG, PNG, or GIF</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Option 2: Use URL -->
+                                <div>
+                                    <label class="block text-gray-300 text-sm mb-1">Or Enter Image URL</label>
+                                    <input type="url" id="edit-game-cover-image" value="${game.cover_image_url || ''}" 
+                                           class="w-full px-3 py-2 text-sm bg-gray-700 border border-gray-600 rounded text-white" 
+                                           placeholder="https://example.com/image.jpg">
+                                </div>
                             </div>
                             
+                            <!-- Upload Progress -->
+                            <div id="cover-upload-progress" class="hidden mt-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-full bg-gray-700 rounded-full h-2">
+                                        <div id="cover-upload-bar" class="bg-green-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                    <span id="cover-upload-percent" class="text-xs text-gray-400">0%</span>
+                                </div>
+                                <div id="cover-upload-status" class="text-xs text-gray-400 mt-1"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Game File URL -->
+                        <div>
+                            <label class="block text-gray-300 mb-2">Game File URL</label>
+                            <input type="url" id="edit-game-file-url" value="${game.file_url || ''}" 
+                                   class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500" 
+                                   placeholder="https://example.com/game.zip">
+                        </div>
+                        
+                        <!-- Screenshots Section -->
+                        <div class="bg-gray-900 p-4 rounded-lg border border-purple-500">
+                            <h3 class="text-lg font-bold text-purple-300 mb-3">📸 Screenshots</h3>
+                            
+                            <!-- Current Screenshots -->
+                            <div id="current-screenshots" class="mb-4">
+                                <h4 class="text-gray-300 text-sm font-medium mb-2">Current Screenshots:</h4>
+                                <div id="screenshots-list" class="grid grid-cols-3 md:grid-cols-5 gap-2">
+                                    ${game.screenshot_urls && game.screenshot_urls.length > 0 
+                                        ? game.screenshot_urls.map((url, index) => `
+                                            <div class="relative group">
+                                                <img src="${url}" 
+                                                     alt="Screenshot ${index + 1}" 
+                                                     class="w-full h-24 object-cover rounded-lg">
+                                                <button onclick="removeScreenshot(${index})" 
+                                                        class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    ×
+                                                </button>
+                                            </div>
+                                        `).join('') 
+                                        : '<p class="text-gray-500 text-sm col-span-full">No screenshots yet</p>'
+                                    }
+                                </div>
+                            </div>
+                            
+                            <!-- Upload New Screenshots -->
                             <div>
-                                <label class="block text-gray-300 mb-2">Game File URL</label>
-                                <input type="url" id="edit-game-file-url" value="${game.file_url || ''}" 
-                                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500" 
-                                       placeholder="https://example.com/game.zip">
+                                <label class="block text-gray-300 mb-2">Upload New Screenshots</label>
+                                <div class="relative">
+                                    <input type="file" id="edit-game-screenshots-upload" 
+                                           accept="image/*" 
+                                           multiple
+                                           class="w-full text-sm text-gray-400
+                                                  file:mr-4 file:py-2 file:px-4
+                                                  file:rounded-lg file:border-0
+                                                  file:text-sm file:font-semibold
+                                                  file:bg-purple-600 file:text-white
+                                                  hover:file:bg-purple-700
+                                                  cursor-pointer">
+                                    <div class="text-xs text-gray-500 mt-1">Select multiple images. Max 5MB each. JPG, PNG, or GIF</div>
+                                </div>
+                                
+                                <!-- Screenshots Preview -->
+                                <div id="screenshots-preview" class="grid grid-cols-3 md:grid-cols-5 gap-2 mt-3 hidden">
+                                    <!-- Preview images will be added here -->
+                                </div>
+                                
+                                <!-- Screenshots Upload Progress -->
+                                <div id="screenshots-upload-progress" class="hidden mt-3">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-full bg-gray-700 rounded-full h-2">
+                                            <div id="screenshots-upload-bar" class="bg-green-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                        </div>
+                                        <span id="screenshots-upload-percent" class="text-xs text-gray-400">0%</span>
+                                    </div>
+                                    <div id="screenshots-upload-status" class="text-xs text-gray-400 mt-1"></div>
+                                </div>
                             </div>
                         </div>
                         
@@ -493,22 +615,210 @@ function generateDeleteGameModal(game) {
     `;
 }
 
-function generateConsoleOptions(selectedConsole) {
-    const consoles = [
-        "3D0", "Arcade", "AES", "Dreamcast", "Gameboy", "Gameboy Color", 
-        "GameCube", "Gamegear", "GBA", "Genesis/Megadrive", "N64", "NDS", 
-        "Neo Geo CD", "NES", "Nintendo Switch", "Other", "PC", "PS1", "PS2", 
-        "PS3", "PS4", "PS5", "PSP", "PSVita", "Saturn", "Sega 32X", "Sega CD", 
-        "Sega Mark III", "SG-1000", "SNES", "T-16/CD", "VB", "Wii", "Wii U", 
-        "XBOX", "XBOX 360", "3DS"
-    ];
+// Image Upload Functions
+async function uploadCoverImage(file) {
+    if (!file || !file.type.startsWith('image/')) {
+        throw new Error('Please select a valid image file');
+    }
     
-    let options = '<option value="">Select a system</option>';
-    options += consoles.map(console => 
-        `<option value="${console}" ${console === selectedConsole ? 'selected' : ''}>${console}</option>`
-    ).join('');
+    if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Image must be less than 5MB');
+    }
     
-    return options;
+    const user = await getCurrentUser();
+    if (!user) throw new Error('You must be logged in to upload images');
+    
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `cover-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+    const filePath = `${currentGameId}/${fileName}`;
+    
+    // Show progress
+    const progressBar = document.getElementById('cover-upload-bar');
+    const progressPercent = document.getElementById('cover-upload-percent');
+    const progressStatus = document.getElementById('cover-upload-status');
+    const progressContainer = document.getElementById('cover-upload-progress');
+    
+    progressContainer.classList.remove('hidden');
+    progressStatus.textContent = 'Uploading...';
+    
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+        .from('game-images')
+        .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+        });
+    
+    if (error) {
+        progressStatus.textContent = 'Upload failed';
+        progressStatus.className = 'text-xs text-red-400 mt-1';
+        throw error;
+    }
+    
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+        .from('game-images')
+        .getPublicUrl(filePath);
+    
+    progressStatus.textContent = 'Upload complete!';
+    progressStatus.className = 'text-xs text-green-400 mt-1';
+    
+    // Update the URL input field
+    document.getElementById('edit-game-cover-image').value = publicUrl;
+    
+    // Update preview immediately
+    const previewImg = document.getElementById('game-cover-image-display');
+    if (previewImg) {
+        previewImg.src = publicUrl;
+    }
+    
+    // Show success notification
+    showNotification('Cover image uploaded successfully!', 'success');
+    
+    return publicUrl;
+}
+
+async function uploadScreenshots(files) {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('You must be logged in to upload images');
+    
+    const screenshots = Array.from(files);
+    
+    // Validate files
+    for (const file of screenshots) {
+        if (!file.type.startsWith('image/')) {
+            throw new Error('Please select valid image files only');
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            throw new Error(`"${file.name}" must be less than 5MB`);
+        }
+    }
+    
+    // Show progress
+    const progressBar = document.getElementById('screenshots-upload-bar');
+    const progressPercent = document.getElementById('screenshots-upload-percent');
+    const progressStatus = document.getElementById('screenshots-upload-status');
+    const progressContainer = document.getElementById('screenshots-upload-progress');
+    const previewContainer = document.getElementById('screenshots-preview');
+    
+    progressContainer.classList.remove('hidden');
+    progressStatus.textContent = `Uploading ${screenshots.length} screenshot(s)...`;
+    
+    const uploadedUrls = [];
+    let completed = 0;
+    
+    for (const file of screenshots) {
+        try {
+            // Generate unique filename
+            const fileExt = file.name.split('.').pop();
+            const fileName = `screenshot-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+            const filePath = `${currentGameId}/screenshots/${fileName}`;
+            
+            // Upload to Supabase Storage
+            const { data, error } = await supabase.storage
+                .from('game-images')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+            
+            if (error) throw error;
+            
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('game-images')
+                .getPublicUrl(filePath);
+            
+            uploadedUrls.push(publicUrl);
+            completed++;
+            
+            // Update progress
+            const percent = Math.round((completed / screenshots.length) * 100);
+            if (progressBar) progressBar.style.width = `${percent}%`;
+            if (progressPercent) progressPercent.textContent = `${percent}%`;
+            
+            // Add to preview
+            const previewImg = document.createElement('img');
+            previewImg.src = publicUrl;
+            previewImg.alt = `Screenshot ${completed}`;
+            previewImg.className = 'w-full h-24 object-cover rounded-lg';
+            previewContainer.appendChild(previewImg);
+            previewContainer.classList.remove('hidden');
+            
+        } catch (error) {
+            console.error(`Failed to upload ${file.name}:`, error);
+            progressStatus.textContent = `Failed to upload ${file.name}`;
+            progressStatus.className = 'text-xs text-red-400 mt-1';
+        }
+    }
+    
+    progressStatus.textContent = `Uploaded ${uploadedUrls.length} of ${screenshots.length} screenshot(s)`;
+    progressStatus.className = 'text-xs text-green-400 mt-1';
+    
+    if (uploadedUrls.length > 0) {
+        showNotification(`Uploaded ${uploadedUrls.length} screenshot(s) successfully!`, 'success');
+    }
+    
+    return uploadedUrls;
+}
+
+// Helper function to remove screenshot
+window.removeScreenshot = function(index) {
+    if (!confirm('Remove this screenshot?')) return;
+    
+    const screenshotsList = document.getElementById('screenshots-list');
+    const screenshotElement = screenshotsList.children[index];
+    
+    if (screenshotElement) {
+        // Fade out and remove
+        screenshotElement.style.opacity = '0';
+        screenshotElement.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            screenshotElement.remove();
+            showNotification('Screenshot removed from list', 'info');
+        }, 300);
+    }
+};
+
+// Setup file upload event listeners
+function setupFileUploadListeners() {
+    // Cover image upload
+    const coverUploadInput = document.getElementById('edit-game-cover-upload');
+    if (coverUploadInput) {
+        coverUploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                const imageUrl = await uploadCoverImage(file);
+                console.log('Cover image uploaded:', imageUrl);
+            } catch (error) {
+                console.error('Cover image upload failed:', error);
+                showNotification(`Upload failed: ${error.message}`, 'error');
+                e.target.value = '';
+            }
+        });
+    }
+    
+    // Screenshots upload
+    const screenshotsUploadInput = document.getElementById('edit-game-screenshots-upload');
+    if (screenshotsUploadInput) {
+        screenshotsUploadInput.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            
+            try {
+                const screenshotUrls = await uploadScreenshots(files);
+                console.log('Screenshots uploaded:', screenshotUrls.length);
+                e.target.value = '';
+            } catch (error) {
+                console.error('Screenshots upload failed:', error);
+                showNotification(`Upload failed: ${error.message}`, 'error');
+                e.target.value = '';
+            }
+        });
+    }
 }
 
 function setupEditGameForm() {
@@ -517,6 +827,17 @@ function setupEditGameForm() {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             await saveGameChanges();
+        });
+    }
+    
+    setupFileUploadListeners();
+    
+    const coverImageInput = document.getElementById('edit-game-cover-image');
+    if (coverImageInput) {
+        coverImageInput.addEventListener('input', function() {
+            const previewImg = document.getElementById('game-cover-image-display');
+            const url = this.value.trim();
+            if (url && previewImg) previewImg.src = url;
         });
     }
 }
@@ -530,6 +851,27 @@ async function saveGameChanges() {
     submitBtn.disabled = true;
     
     try {
+        // Get current screenshots
+        const currentScreenshots = [];
+        const screenshotElements = document.querySelectorAll('#screenshots-list img');
+        screenshotElements.forEach(img => {
+            if (img.src && !img.src.includes('data:')) {
+                currentScreenshots.push(img.src);
+            }
+        });
+        
+        // Get uploaded screenshot previews
+        const previewScreenshots = [];
+        const previewElements = document.querySelectorAll('#screenshots-preview img');
+        previewElements.forEach(img => {
+            if (img.src && !img.src.includes('data:')) {
+                previewScreenshots.push(img.src);
+            }
+        });
+        
+        // Combine all screenshots
+        const allScreenshots = [...currentScreenshots, ...previewScreenshots];
+        
         const gameData = {
             title: document.getElementById('edit-game-title').value.trim(),
             console: document.getElementById('edit-game-console').value,
@@ -544,10 +886,9 @@ async function saveGameChanges() {
             players_max: parseInt(document.getElementById('edit-game-players-max').value) || 1,
             servers_available: document.getElementById('edit-game-servers-available').checked,
             server_details: document.getElementById('edit-game-server-details')?.value.trim() || null,
+            screenshot_urls: allScreenshots.length > 0 ? allScreenshots : null,
             updated_at: new Date().toISOString()
         };
-        
-        console.log('Updating game:', gameData);
         
         const { error } = await supabase
             .from('games')
@@ -556,14 +897,16 @@ async function saveGameChanges() {
         
         if (error) throw error;
         
-        // Update displayed values without reloading page
         updateDisplayedGame(gameData);
-        
-        // Close modal
         closeEditGameModal();
-        
-        // Show success notification
         showNotification('Game updated successfully!', 'success');
+        
+        // Clear previews
+        const previewContainer = document.getElementById('screenshots-preview');
+        if (previewContainer) {
+            previewContainer.innerHTML = '';
+            previewContainer.classList.add('hidden');
+        }
         
     } catch (error) {
         console.error('Error updating game:', error);
@@ -575,20 +918,17 @@ async function saveGameChanges() {
 }
 
 function updateDisplayedGame(gameData) {
-    // Update all displayed fields
     document.getElementById('game-title-display').textContent = gameData.title;
     document.getElementById('game-console-display').textContent = gameData.console;
     document.getElementById('game-year-display').textContent = gameData.year || '';
     document.getElementById('game-description-display').textContent = gameData.description || '';
     document.getElementById('game-multiplayer-display').textContent = gameData.multiplayer_type || 'Multiplayer';
     
-    // Update player count display
     const playerCount = gameData.players_min === gameData.players_max 
         ? `${gameData.players_min} player${gameData.players_min > 1 ? 's' : ''}` 
         : `${gameData.players_min}-${gameData.players_max} players`;
     document.getElementById('game-players-display').textContent = playerCount;
     
-    // Update connection details if they exist
     if (gameData.connection_method) {
         const methodElement = document.getElementById('game-connection-method-display');
         if (methodElement) methodElement.textContent = gameData.connection_method;
@@ -602,13 +942,11 @@ function updateDisplayedGame(gameData) {
         if (serverElement) serverElement.textContent = gameData.server_details;
     }
     
-    // Update servers available display
     const serversElement = document.getElementById('game-servers-display');
     if (serversElement) {
         serversElement.textContent = gameData.servers_available ? 'Active servers available' : '';
     }
     
-    // Update cover image if URL changed
     const coverImg = document.getElementById('game-cover-image-display');
     if (coverImg && gameData.cover_image_url) {
         coverImg.src = gameData.cover_image_url;
@@ -618,30 +956,22 @@ function updateDisplayedGame(gameData) {
 // Global functions for edit game modal
 window.openEditGameModal = function() {
     const modal = document.getElementById('edit-game-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
+    if (modal) modal.classList.remove('hidden');
 };
 
 window.closeEditGameModal = function() {
     const modal = document.getElementById('edit-game-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
+    if (modal) modal.classList.add('hidden');
 };
 
 window.showDeleteGameConfirmation = function() {
     const modal = document.getElementById('delete-game-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
+    if (modal) modal.classList.remove('hidden');
 };
 
 window.closeDeleteGameModal = function() {
     const modal = document.getElementById('delete-game-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
+    if (modal) modal.classList.add('hidden');
 };
 
 window.deleteGame = async function() {
@@ -652,13 +982,11 @@ window.deleteGame = async function() {
     try {
         const gameId = currentGameId;
         
-        // First delete all comments for this game
         await supabase
             .from('game_comments')
             .delete()
             .eq('game_id', gameId);
         
-        // Then delete the game
         const { error } = await supabase
             .from('games')
             .delete()
@@ -668,7 +996,6 @@ window.deleteGame = async function() {
         
         showNotification('Game deleted successfully!', 'success');
         
-        // Redirect back to games library after a delay
         setTimeout(() => {
             window.location.hash = '#/games';
         }, 1500);
@@ -680,7 +1007,6 @@ window.deleteGame = async function() {
 };
 
 function showNotification(message, type = 'success') {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition transform duration-300 ${
         type === 'success' ? 'bg-green-600 text-white' :
@@ -691,7 +1017,6 @@ function showNotification(message, type = 'success') {
     
     document.body.appendChild(notification);
     
-    // Auto-remove after 3 seconds
     setTimeout(() => {
         notification.classList.add('opacity-0', 'translate-x-full');
         setTimeout(() => notification.remove(), 300);
@@ -804,11 +1129,9 @@ async function submitComment() {
         
         if (error) throw error;
         
-        // Clear and hide form
         input.value = '';
         cancelComment();
         
-        // Update game activity
         await supabase
             .from('games')
             .update({ last_activity: new Date().toISOString() })
@@ -840,12 +1163,10 @@ function setupCommentsSubscription(gameId) {
         .on('postgres_changes', 
             { event: 'INSERT', schema: 'public', table: 'game_comments', filter: `game_id=eq.${gameId}` },
             (payload) => {
-                // Add new comment to top
                 const commentsList = document.getElementById('comments-list');
                 if (commentsList) {
                     const newComment = renderComment(payload.new);
                     
-                    // Remove "no comments" message if present
                     if (commentsList.querySelector('.text-center')) {
                         commentsList.innerHTML = newComment + commentsList.innerHTML;
                     } else {
@@ -884,7 +1205,6 @@ window.shareGame = function() {
 };
 
 window.openLightbox = function(imageUrl) {
-    // Simple lightbox implementation
     const lightbox = document.createElement('div');
     lightbox.className = 'fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center';
     lightbox.innerHTML = `
