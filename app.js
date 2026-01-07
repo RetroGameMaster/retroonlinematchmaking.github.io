@@ -11,7 +11,6 @@ const modules = {
     'chat': () => import('./modules/chat/chat.js'),
     'profile': () => import('./modules/profile/profile.js'),
     'game': () => import('./modules/game-detail/game-detail.js')
-};
 
 // Fallback content for missing modules
 const fallbackContent = {
