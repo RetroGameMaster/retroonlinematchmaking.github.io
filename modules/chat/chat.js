@@ -1,102 +1,698 @@
+import { supabase, getCurrentUser } from '../../lib/supabase.js';
+
+let currentRoom = null;
+let messageSubscription = null;
+let onlineUsersSubscription = null;
+
 export function initModule() {
     console.log('💬 Chat module initialized');
+    initializeChat();
+}
+
+async function initializeChat() {
+    const user = await getCurrentUser();
     
-    // Simple chat interface
+    if (!user) {
+        showLoginPrompt();
+        return;
+    }
+    
+    // Load chat interface
+    loadChatInterface(user);
+    
+    // Load chat rooms
+    await loadChatRooms();
+    
+    // Set up real-time subscriptions
+    setupRealtimeSubscriptions();
+    
+    // Update online status
+    await updateOnlineStatus(user, 'online');
+    
+    // Clean up on page leave
+    window.addEventListener('beforeunload', async () => {
+        await updateOnlineStatus(user, 'offline');
+        if (messageSubscription) messageSubscription.unsubscribe();
+        if (onlineUsersSubscription) onlineUsersSubscription.unsubscribe();
+    });
+}
+
+function showLoginPrompt() {
     const chatContent = document.getElementById('app-content');
-    if (chatContent.innerHTML.includes('coming soon')) {
-        chatContent.innerHTML = `
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-gray-800 rounded-lg border border-cyan-500 overflow-hidden">
-                    <!-- Chat Header -->
-                    <div class="bg-gray-900 p-4 border-b border-gray-700">
-                        <h1 class="text-2xl font-bold text-cyan-400">💬 Live Chat</h1>
-                        <p class="text-gray-300">Connect with retro gaming communities</p>
+    chatContent.innerHTML = `
+        <div class="max-w-md mx-auto mt-12">
+            <div class="bg-gray-800 p-8 rounded-lg border border-cyan-500 text-center">
+                <div class="text-5xl mb-6">💬</div>
+                <h2 class="text-2xl font-bold text-cyan-400 mb-4">Join the Chat</h2>
+                <p class="text-gray-300 mb-6">Login to join retro gaming conversations and find players.</p>
+                <button onclick="window.location.hash = '#/auth'" 
+                        class="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-3 rounded-lg text-lg font-semibold">
+                    Login / Register
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+async function loadChatInterface(user) {
+    const chatContent = document.getElementById('app-content');
+    
+    chatContent.innerHTML = `
+        <div class="max-w-7xl mx-auto">
+            <!-- Chat Header -->
+            <div class="bg-gray-800 p-6 rounded-lg mb-6 border border-cyan-500">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div class="mb-4 md:mb-0">
+                        <h1 class="text-3xl font-bold text-cyan-400">💬 Retro Gaming Chat</h1>
+                        <p class="text-gray-300">Connect with players in real-time</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                            <span class="text-gray-300">${user.email}</span>
+                        </div>
+                        <button id="create-room-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition">
+                            🎮 Create Room
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Online Stats -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <div class="bg-gray-900 p-4 rounded text-center">
+                        <div class="text-2xl font-bold text-green-400" id="online-users-count">0</div>
+                        <div class="text-gray-400 text-sm">Online Users</div>
+                    </div>
+                    <div class="bg-gray-900 p-4 rounded text-center">
+                        <div class="text-2xl font-bold text-cyan-400" id="active-rooms-count">0</div>
+                        <div class="text-gray-400 text-sm">Active Rooms</div>
+                    </div>
+                    <div class="bg-gray-900 p-4 rounded text-center">
+                        <div class="text-2xl font-bold text-purple-400" id="total-messages-count">0</div>
+                        <div class="text-gray-400 text-sm">Messages Today</div>
+                    </div>
+                    <div class="bg-gray-900 p-4 rounded text-center">
+                        <div class="text-2xl font-bold text-yellow-400" id="your-messages-count">0</div>
+                        <div class="text-gray-400 text-sm">Your Messages</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Left Sidebar - Rooms & Users -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Chat Rooms -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="p-4 border-b border-gray-700">
+                            <h3 class="text-lg font-bold text-white">Chat Rooms</h3>
+                        </div>
+                        <div id="chat-rooms-list" class="p-2 max-h-96 overflow-y-auto">
+                            <div class="text-center py-8">
+                                <div class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-cyan-500"></div>
+                                <p class="text-gray-400 mt-2">Loading rooms...</p>
+                            </div>
+                        </div>
                     </div>
                     
-                    <!-- Chat Container -->
-                    <div class="flex flex-col md:flex-row h-[500px]">
-                        <!-- Online Users -->
-                        <div class="w-full md:w-1/4 bg-gray-900 p-4 border-r border-gray-700">
-                            <h3 class="font-bold text-white mb-4">Online Users</h3>
-                            <div id="online-users" class="space-y-2">
-                                <div class="flex items-center">
-                                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                                    <span class="text-gray-300">You</span>
+                    <!-- Online Users -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="p-4 border-b border-gray-700">
+                            <h3 class="text-lg font-bold text-white">Online Now</h3>
+                        </div>
+                        <div id="online-users-list" class="p-4 max-h-64 overflow-y-auto">
+                            <div class="text-center py-4">
+                                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Chat Area -->
+                <div class="lg:col-span-3">
+                    <div class="bg-gray-800 rounded-lg border border-cyan-500 overflow-hidden flex flex-col h-[600px]">
+                        <!-- Chat Header -->
+                        <div class="bg-gray-900 p-4 border-b border-gray-700">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 id="current-room-name" class="text-xl font-bold text-cyan-300">Select a Room</h3>
+                                    <p id="current-room-desc" class="text-gray-400 text-sm">Choose a room to start chatting</p>
+                                </div>
+                                <div id="room-stats" class="text-gray-300 text-sm hidden">
+                                    <span id="room-user-count" class="text-green-400">0</span> users online
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Chat Messages -->
-                        <div class="flex-1 flex flex-col">
-                            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto">
-                                <div class="text-center text-gray-500 py-8">
-                                    <p>No messages yet. Start the conversation!</p>
-                                </div>
+                        <!-- Messages Container -->
+                        <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto">
+                            <div class="text-center py-12">
+                                <div class="text-4xl mb-4">💬</div>
+                                <h4 class="text-xl font-bold text-gray-300 mb-2">Welcome to ROM Chat!</h4>
+                                <p class="text-gray-400">Select a room to join the conversation.</p>
                             </div>
-                            
-                            <!-- Message Input -->
-                            <div class="p-4 border-t border-gray-700">
-                                <div class="flex space-x-2">
-                                    <input type="text" id="message-input" 
-                                           class="flex-1 p-3 bg-gray-700 border border-gray-600 rounded text-white"
-                                           placeholder="Type your message...">
-                                    <button id="send-btn" 
-                                            class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded">
-                                        Send
-                                    </button>
-                                </div>
+                        </div>
+                        
+                        <!-- Message Input -->
+                        <div id="message-input-area" class="p-4 border-t border-gray-700 bg-gray-900 hidden">
+                            <div class="flex space-x-2">
+                                <input type="text" id="message-input" 
+                                       class="flex-1 p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                                       placeholder="Type your message here..." disabled>
+                                <button id="send-btn" 
+                                        class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded font-semibold transition"
+                                        disabled>
+                                    Send
+                                </button>
+                            </div>
+                            <div class="flex space-x-2 mt-2">
+                                <button class="chat-action-btn" data-action="emoji">
+                                    😀 Emoji
+                                </button>
+                                <button class="chat-action-btn" data-action="game-invite">
+                                    🎮 Game Invite
+                                </button>
+                                <button class="chat-action-btn" data-action="clear">
+                                    🗑️ Clear
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        `;
+        </div>
+    `;
+    
+    // Set up event listeners
+    setupChatListeners();
+}
+
+function setupChatListeners() {
+    // Create room button
+    document.getElementById('create-room-btn')?.addEventListener('click', showCreateRoomModal);
+    
+    // Message input
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    
+    if (messageInput && sendBtn) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
         
-        // Add chat functionality
-        initChat();
+        sendBtn.addEventListener('click', sendMessage);
+    }
+    
+    // Chat action buttons
+    document.querySelectorAll('.chat-action-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
+            handleChatAction(action);
+        });
+    });
+}
+
+async function loadChatRooms() {
+    const roomsList = document.getElementById('chat-rooms-list');
+    if (!roomsList) return;
+    
+    try {
+        const { data: rooms, error } = await supabase
+            .from('chat_rooms')
+            .select('*')
+            .order('name', { ascending: true });
+        
+        if (error) throw error;
+        
+        if (!rooms || rooms.length === 0) {
+            roomsList.innerHTML = '<p class="text-gray-500 text-center p-4">No rooms available</p>';
+            return;
+        }
+        
+        // Get room message counts
+        const roomIds = rooms.map(room => room.id);
+        const { data: messageCounts } = await supabase
+            .from('chat_messages')
+            .select('room_id')
+            .in('room_id', roomIds)
+            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+        
+        const counts = {};
+        messageCounts?.forEach(msg => {
+            counts[msg.room_id] = (counts[msg.room_id] || 0) + 1;
+        });
+        
+        // Get online users per room
+        const { data: onlineUsers } = await supabase
+            .from('online_users')
+            .select('room_id')
+            .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+        
+        const onlineCounts = {};
+        onlineUsers?.forEach(user => {
+            if (user.room_id) {
+                onlineCounts[user.room_id] = (onlineCounts[user.room_id] || 0) + 1;
+            }
+        });
+        
+        roomsList.innerHTML = rooms.map(room => {
+            const messageCount = counts[room.id] || 0;
+            const onlineCount = onlineCounts[room.id] || 0;
+            
+            return `
+                <div class="chat-room-item p-3 hover:bg-gray-700 rounded cursor-pointer transition ${room.id === currentRoom ? 'bg-gray-700 border-l-4 border-cyan-500' : ''}"
+                     data-room-id="${room.id}"
+                     onclick="window.chatModule.joinRoom('${room.id}')">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-bold text-white">${room.name}</div>
+                            <div class="text-gray-400 text-sm mt-1">${room.description || 'Join the conversation'}</div>
+                            ${room.console ? `<span class="inline-block mt-1 bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">${room.console}</span>` : ''}
+                        </div>
+                        <div class="text-right">
+                            ${onlineCount > 0 ? `
+                                <div class="flex items-center justify-end">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                                    <span class="text-green-400 text-sm">${onlineCount}</span>
+                                </div>
+                            ` : ''}
+                            <div class="text-gray-500 text-xs mt-1">${messageCount} today</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Update active rooms count
+        document.getElementById('active-rooms-count').textContent = rooms.length;
+        
+    } catch (error) {
+        console.error('Error loading chat rooms:', error);
+        roomsList.innerHTML = '<p class="text-red-500 text-center p-4">Error loading rooms</p>';
     }
 }
 
-function initChat() {
-    const messageInput = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
-    const chatMessages = document.getElementById('chat-messages');
-    
-    if (sendBtn && messageInput) {
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
-    }
-    
-    function sendMessage() {
-        const message = messageInput.value.trim();
-        if (!message) return;
+async function joinRoom(roomId) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) return;
         
-        // Add message to chat
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'mb-4';
-        messageDiv.innerHTML = `
-            <div class="bg-gray-700 rounded-lg p-3 max-w-md">
-                <div class="flex justify-between mb-1">
-                    <span class="font-bold text-cyan-300">You</span>
-                    <span class="text-gray-400 text-sm">Just now</span>
-                </div>
-                <p class="text-gray-100">${message}</p>
-            </div>
-        `;
-        
-        if (chatMessages) {
-            // Remove "no messages" placeholder
-            if (chatMessages.querySelector('.text-center')) {
-                chatMessages.innerHTML = '';
-            }
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Leave current room if any
+        if (currentRoom) {
+            await leaveRoom(currentRoom, user);
         }
         
-        // Clear input
-        messageInput.value = '';
-        messageInput.focus();
+        // Join new room
+        currentRoom = roomId;
+        
+        // Update UI
+        document.querySelectorAll('.chat-room-item').forEach(item => {
+            item.classList.remove('bg-gray-700', 'border-l-4', 'border-cyan-500');
+            if (item.dataset.roomId === roomId) {
+                item.classList.add('bg-gray-700', 'border-l-4', 'border-cyan-500');
+            }
+        });
+        
+        // Get room info
+        const { data: room } = await supabase
+            .from('chat_rooms')
+            .select('*')
+            .eq('id', roomId)
+            .single();
+        
+        if (room) {
+            document.getElementById('current-room-name').textContent = room.name;
+            document.getElementById('current-room-desc').textContent = room.description || '';
+            document.getElementById('room-stats').classList.remove('hidden');
+        }
+        
+        // Show message input
+        document.getElementById('message-input-area').classList.remove('hidden');
+        document.getElementById('message-input').disabled = false;
+        document.getElementById('send-btn').disabled = false;
+        
+        // Load room messages
+        await loadRoomMessages(roomId);
+        
+        // Update online status
+        await updateOnlineStatus(user, 'online', roomId);
+        
+        // Send join message
+        await sendSystemMessage(`${user.email} joined the room`, 'join', roomId, user);
+        
+        // Load online users for this room
+        await loadOnlineUsers(roomId);
+        
+        // Subscribe to room messages
+        subscribeToRoomMessages(roomId);
+        
+        console.log(`Joined room: ${roomId}`);
+        
+    } catch (error) {
+        console.error('Error joining room:', error);
     }
 }
+
+async function leaveRoom(roomId, user) {
+    if (!roomId || !user) return;
+    
+    try {
+        // Send leave message
+        await sendSystemMessage(`${user.email} left the room`, 'leave', roomId, user);
+        
+        // Update online status
+        await updateOnlineStatus(user, 'offline', roomId);
+        
+        // Unsubscribe if needed
+        if (messageSubscription) {
+            messageSubscription.unsubscribe();
+            messageSubscription = null;
+        }
+        
+        console.log(`Left room: ${roomId}`);
+        
+    } catch (error) {
+        console.error('Error leaving room:', error);
+    }
+}
+
+async function loadRoomMessages(roomId) {
+    const messagesContainer = document.getElementById('chat-messages-container');
+    if (!messagesContainer) return;
+    
+    messagesContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div></div>';
+    
+    try {
+        const { data: messages, error } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('room_id', roomId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+        
+        if (error) throw error;
+        
+        if (!messages || messages.length === 0) {
+            messagesContainer.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-4xl mb-4">💬</div>
+                    <h4 class="text-xl font-bold text-gray-300 mb-2">No messages yet</h4>
+                    <p class="text-gray-400">Be the first to say something!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Reverse to show oldest first
+        messages.reverse();
+        
+        messagesContainer.innerHTML = messages.map(msg => renderMessage(msg)).join('');
+        
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+    } catch (error) {
+        console.error('Error loading messages:', error);
+        messagesContainer.innerHTML = '<p class="text-red-500 text-center p-8">Error loading messages</p>';
+    }
+}
+
+function renderMessage(msg) {
+    const isSystem = msg.message_type !== 'text';
+    const timestamp = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    if (isSystem) {
+        return `
+            <div class="text-center my-2">
+                <span class="bg-gray-900 text-gray-400 text-sm px-3 py-1 rounded-full">
+                    ${msg.message}
+                </span>
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="message mb-4">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold">
+                        ${msg.username?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                </div>
+                <div class="ml-3 flex-1">
+                    <div class="flex items-baseline">
+                        <span class="font-bold text-cyan-300">${msg.username || msg.user_email || 'User'}</span>
+                        <span class="text-gray-500 text-sm ml-2">${timestamp}</span>
+                    </div>
+                    <p class="text-gray-100 mt-1">${msg.message}</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input?.value.trim();
+    
+    if (!message || !currentRoom) return;
+    
+    const user = await getCurrentUser();
+    if (!user) return;
+    
+    try {
+        const { error } = await supabase
+            .from('chat_messages')
+            .insert({
+                room_id: currentRoom,
+                user_id: user.id,
+                user_email: user.email,
+                username: user.email.split('@')[0],
+                message: message,
+                message_type: 'text'
+            });
+        
+        if (error) throw error;
+        
+        // Clear input
+        input.value = '';
+        input.focus();
+        
+        // Update stats
+        updateMessageStats();
+        
+    } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Failed to send message');
+    }
+}
+
+async function sendSystemMessage(text, type, roomId, user) {
+    try {
+        await supabase
+            .from('chat_messages')
+            .insert({
+                room_id: roomId,
+                user_id: user.id,
+                user_email: user.email,
+                username: 'System',
+                message: text,
+                message_type: type
+            });
+    } catch (error) {
+        console.error('Error sending system message:', error);
+    }
+}
+
+function setupRealtimeSubscriptions() {
+    // Subscribe to new messages
+    messageSubscription = supabase
+        .channel('chat-messages')
+        .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+            (payload) => {
+                if (payload.new.room_id === currentRoom) {
+                    appendMessage(payload.new);
+                }
+            }
+        )
+        .subscribe();
+    
+    // Subscribe to online users
+    onlineUsersSubscription = supabase
+        .channel('online-users')
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'online_users' },
+            () => {
+                if (currentRoom) {
+                    loadOnlineUsers(currentRoom);
+                }
+                updateOnlineCount();
+            }
+        )
+        .subscribe();
+}
+
+function appendMessage(msg) {
+    const messagesContainer = document.getElementById('chat-messages-container');
+    if (!messagesContainer) return;
+    
+    // Remove "no messages" placeholder if present
+    if (messagesContainer.querySelector('.text-center')) {
+        messagesContainer.innerHTML = '';
+    }
+    
+    const messageElement = document.createElement('div');
+    messageElement.innerHTML = renderMessage(msg);
+    messagesContainer.appendChild(messageElement);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+async function updateOnlineStatus(user, status, roomId = null) {
+    try {
+        const { error } = await supabase
+            .from('online_users')
+            .upsert({
+                user_id: user.id,
+                user_email: user.email,
+                username: user.email.split('@')[0],
+                room_id: roomId,
+                status: status,
+                last_seen: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,room_id'
+            });
+        
+        if (error) throw error;
+        
+        // Clean up old entries (older than 10 minutes)
+        await supabase
+            .from('online_users')
+            .delete()
+            .lt('last_seen', new Date(Date.now() - 10 * 60 * 1000).toISOString());
+            
+    } catch (error) {
+        console.error('Error updating online status:', error);
+    }
+}
+
+async function loadOnlineUsers(roomId) {
+    const onlineList = document.getElementById('online-users-list');
+    if (!onlineList) return;
+    
+    try {
+        const { data: users, error } = await supabase
+            .from('online_users')
+            .select('*')
+            .eq('room_id', roomId)
+            .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+            .order('username', { ascending: true });
+        
+        if (error) throw error;
+        
+        if (!users || users.length === 0) {
+            onlineList.innerHTML = '<p class="text-gray-500 text-center p-4">No users online</p>';
+            document.getElementById('room-user-count').textContent = '0';
+            return;
+        }
+        
+        onlineList.innerHTML = users.map(user => `
+            <div class="flex items-center py-2">
+                <div class="w-2 h-2 rounded-full mr-3 ${user.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}"></div>
+                <div class="flex-1">
+                    <div class="text-white">${user.username || user.user_email}</div>
+                    <div class="text-gray-500 text-xs">${user.status === 'online' ? 'Online' : 'Away'}</div>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('room-user-count').textContent = users.length;
+        
+    } catch (error) {
+        console.error('Error loading online users:', error);
+        onlineList.innerHTML = '<p class="text-red-500 text-center p-4">Error loading users</p>';
+    }
+}
+
+async function updateOnlineCount() {
+    try {
+        const { count } = await supabase
+            .from('online_users')
+            .select('*', { count: 'exact', head: true })
+            .gte('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+            .eq('status', 'online');
+        
+        document.getElementById('online-users-count').textContent = count || 0;
+        
+    } catch (error) {
+        console.error('Error updating online count:', error);
+    }
+}
+
+function updateMessageStats() {
+    // This would query for today's messages and user's messages
+    // For now, we'll update incrementally
+    const yourMessages = document.getElementById('your-messages-count');
+    const totalMessages = document.getElementById('total-messages-count');
+    
+    if (yourMessages) {
+        yourMessages.textContent = parseInt(yourMessages.textContent) + 1;
+    }
+    if (totalMessages) {
+        totalMessages.textContent = parseInt(totalMessages.textContent) + 1;
+    }
+}
+
+function showCreateRoomModal() {
+    // Implementation for creating custom rooms
+    alert('Room creation feature coming soon!');
+}
+
+function handleChatAction(action) {
+    switch(action) {
+        case 'emoji':
+            alert('Emoji picker coming soon!');
+            break;
+        case 'game-invite':
+            showGameInviteModal();
+            break;
+        case 'clear':
+            document.getElementById('message-input').value = '';
+            break;
+    }
+}
+
+function showGameInviteModal() {
+    // Implementation for game invites
+    alert('Game invite feature coming soon!');
+}
+
+// Make functions available globally
+window.chatModule = {
+    joinRoom,
+    leaveRoom: async () => {
+        const user = await getCurrentUser();
+        if (currentRoom && user) {
+            await leaveRoom(currentRoom, user);
+            currentRoom = null;
+            
+            // Reset UI
+            document.getElementById('current-room-name').textContent = 'Select a Room';
+            document.getElementById('current-room-desc').textContent = 'Choose a room to start chatting';
+            document.getElementById('room-stats').classList.add('hidden');
+            document.getElementById('message-input-area').classList.add('hidden');
+            document.getElementById('chat-messages-container').innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-4xl mb-4">💬</div>
+                    <h4 class="text-xl font-bold text-gray-300 mb-2">Welcome to ROM Chat!</h4>
+                    <p class="text-gray-400">Select a room to join the conversation.</p>
+                </div>
+            `;
+        }
+    }
+};
