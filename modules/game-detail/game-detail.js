@@ -2,10 +2,43 @@ import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentGameId = null;
 let commentsSubscription = null;
+let isAdmin = false;
+let currentUser = null;
 
 export function initModule() {
     console.log('🎮 Game Detail module initialized');
+    checkAdminStatus();
     loadGameFromURL();
+}
+
+async function checkAdminStatus() {
+    currentUser = await getCurrentUser();
+    if (!currentUser) return;
+    
+    try {
+        // Check if user is admin
+        const adminEmails = [
+            'retrogamemasterra@gmail.com',
+            'admin@retroonlinematchmaking.com'
+        ];
+        
+        isAdmin = adminEmails.includes(currentUser.email);
+        
+        // Also check via RPC function if available
+        if (!isAdmin) {
+            const { data: isAdminRPC, error } = await supabase.rpc('is_admin', {
+                user_uuid: currentUser.id
+            });
+            
+            if (!error && isAdminRPC) {
+                isAdmin = true;
+            }
+        }
+        
+        console.log('Admin status:', isAdmin, 'for user:', currentUser.email);
+    } catch (error) {
+        console.error('Error checking admin status:', error);
+    }
 }
 
 function loadGameFromURL() {
@@ -95,7 +128,30 @@ function renderGame(game, comments) {
         `).join('')
         : '<p class="text-gray-500 text-center col-span-full py-8">No screenshots available</p>';
     
+    // Admin edit buttons - only show if user is admin
+    const adminButtons = isAdmin ? `
+        <div class="flex gap-2 mb-6">
+            <button onclick="openEditGameModal()" 
+                    class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                Edit Game
+            </button>
+            <button onclick="showDeleteGameConfirmation()" 
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Delete Game
+            </button>
+        </div>
+    ` : '';
+    
     container.innerHTML = `
+        <!-- Admin Edit Buttons -->
+        ${adminButtons}
+        
         <!-- Game Header -->
         <div class="mb-8">
             <div class="flex items-center space-x-2 text-sm text-gray-400 mb-4">
@@ -112,7 +168,8 @@ function renderGame(game, comments) {
                     <div class="bg-gray-800 rounded-xl overflow-hidden shadow-2xl">
                         <img src="${game.cover_image_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=600&fit=crop'}" 
                              alt="${game.title} cover"
-                             class="w-full h-auto">
+                             class="w-full h-auto"
+                             id="game-cover-image-display">
                     </div>
                     
                     <!-- Quick Actions -->
@@ -140,14 +197,14 @@ function renderGame(game, comments) {
                 <div class="lg:w-2/3">
                     <div class="flex justify-between items-start mb-6">
                         <div>
-                            <h1 class="text-4xl font-bold text-white mb-2">${game.title}</h1>
+                            <h1 class="text-4xl font-bold text-white mb-2" id="game-title-display">${game.title}</h1>
                             <div class="flex flex-wrap items-center gap-3 mb-4">
-                                <span class="bg-cyan-600 text-white px-3 py-1 rounded text-sm font-semibold">${game.console}</span>
-                                <span class="text-gray-300">${game.year}</span>
+                                <span class="bg-cyan-600 text-white px-3 py-1 rounded text-sm font-semibold" id="game-console-display">${game.console}</span>
+                                <span class="text-gray-300" id="game-year-display">${game.year}</span>
                                 <span class="text-gray-400">•</span>
-                                <span class="bg-purple-600 text-white px-3 py-1 rounded text-sm">${game.multiplayer_type || 'Multiplayer'}</span>
+                                <span class="bg-purple-600 text-white px-3 py-1 rounded text-sm" id="game-multiplayer-display">${game.multiplayer_type || 'Multiplayer'}</span>
                                 <span class="text-gray-400">•</span>
-                                <span class="text-gray-300">${playerCount}</span>
+                                <span class="text-gray-300" id="game-players-display">${playerCount}</span>
                             </div>
                         </div>
                         <div class="text-right">
@@ -159,48 +216,52 @@ function renderGame(game, comments) {
                     <!-- Description -->
                     <div class="bg-gray-800 p-6 rounded-xl mb-6">
                         <h3 class="text-xl font-bold text-cyan-300 mb-3">📖 Description</h3>
-                        <p class="text-gray-300 whitespace-pre-line">${game.description}</p>
+                        <p class="text-gray-300 whitespace-pre-line" id="game-description-display">${game.description}</p>
                     </div>
                     
                     <!-- Connection Details -->
+                    ${game.connection_method || game.connection_details ? `
                     <div class="bg-gray-800 p-6 rounded-xl mb-6 border border-purple-500">
                         <h3 class="text-xl font-bold text-purple-300 mb-3 flex items-center">
                             <span class="mr-2">🌐</span> Online Play Details
                         </h3>
                         
                         <div class="grid md:grid-cols-2 gap-6">
+                            ${game.connection_method ? `
                             <div>
                                 <p class="text-gray-300 mb-2">
                                     <strong class="text-cyan-300">Connection Method:</strong><br>
-                                    ${game.connection_method || 'Not specified'}
+                                    <span id="game-connection-method-display">${game.connection_method}</span>
                                 </p>
-                                
-                                ${game.servers_available ? `
-                                    <p class="text-green-400 mt-3">
-                                        <span class="mr-1">🟢</span> Active servers available
-                                    </p>
-                                ` : ''}
                             </div>
+                            ` : ''}
                             
                             ${game.connection_details ? `
-                                <div>
-                                    <p class="text-gray-300">
-                                        <strong class="text-cyan-300">Instructions:</strong><br>
-                                        ${game.connection_details}
-                                    </p>
-                                </div>
+                            <div>
+                                <p class="text-gray-300">
+                                    <strong class="text-cyan-300">Instructions:</strong><br>
+                                    <span id="game-connection-details-display">${game.connection_details}</span>
+                                </p>
+                            </div>
                             ` : ''}
                         </div>
+                        
+                        ${game.servers_available ? `
+                            <p class="text-green-400 mt-4">
+                                <span class="mr-1">🟢</span> <span id="game-servers-display">Active servers available</span>
+                            </p>
+                        ` : ''}
                         
                         ${game.server_details ? `
                             <div class="mt-4 pt-4 border-t border-gray-700">
                                 <p class="text-gray-300">
                                     <strong class="text-green-300">Server Information:</strong><br>
-                                    ${game.server_details}
+                                    <span id="game-server-details-display">${game.server_details}</span>
                                 </p>
                             </div>
                         ` : ''}
                     </div>
+                    ` : ''}
                 </div>
             </div>
         </div>
@@ -251,6 +312,12 @@ function renderGame(game, comments) {
                 }
             </div>
         </div>
+        
+        <!-- Edit Game Modal (Hidden by default) -->
+        ${isAdmin ? generateEditGameModal(game) : ''}
+        
+        <!-- Delete Confirmation Modal -->
+        ${isAdmin ? generateDeleteGameModal(game) : ''}
     `;
     
     // Show content, hide loading
@@ -259,7 +326,381 @@ function renderGame(game, comments) {
     
     // Setup event listeners
     setupCommentListeners();
+    if (isAdmin) {
+        setupEditGameForm();
+    }
 }
+
+function generateEditGameModal(game) {
+    return `
+        <div id="edit-game-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-white">Edit Game: ${game.title}</h2>
+                        <button onclick="closeEditGameModal()" class="text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <form id="edit-game-form" class="space-y-4">
+                        <input type="hidden" id="edit-game-id" value="${game.id}">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-gray-300 mb-2">Game Title *</label>
+                                <input type="text" id="edit-game-title" value="${game.title}" required 
+                                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-300 mb-2">Console *</label>
+                                <select id="edit-game-console" required 
+                                        class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500">
+                                    ${generateConsoleOptions(game.console)}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-gray-300 mb-2">Release Year</label>
+                                <input type="number" id="edit-game-year" value="${game.year || ''}" min="1970" max="2024" 
+                                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-300 mb-2">Multiplayer Type</label>
+                                <select id="edit-game-multiplayer-type" 
+                                        class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500">
+                                    <option value="">Select type</option>
+                                    <option value="Local" ${game.multiplayer_type === 'Local' ? 'selected' : ''}>Local Multiplayer</option>
+                                    <option value="Online" ${game.multiplayer_type === 'Online' ? 'selected' : ''}>Online Multiplayer</option>
+                                    <option value="Both" ${game.multiplayer_type === 'Both' ? 'selected' : ''}>Local & Online</option>
+                                    <option value="Single" ${game.multiplayer_type === 'Single' ? 'selected' : ''}>Single Player Only</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-300 mb-2">Description *</label>
+                            <textarea id="edit-game-description" rows="4" required 
+                                      class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500">${game.description || ''}</textarea>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-gray-300 mb-2">Cover Image URL</label>
+                                <input type="url" id="edit-game-cover-image" value="${game.cover_image_url || ''}" 
+                                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500" 
+                                       placeholder="https://example.com/image.jpg">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-300 mb-2">Game File URL</label>
+                                <input type="url" id="edit-game-file-url" value="${game.file_url || ''}" 
+                                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500" 
+                                       placeholder="https://example.com/game.zip">
+                            </div>
+                        </div>
+                        
+                        <!-- Multiplayer Connection Details -->
+                        <div class="bg-gray-900 p-4 rounded-lg border border-purple-500">
+                            <h3 class="text-lg font-bold text-purple-300 mb-3">🌐 Multiplayer Connection Details</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-gray-300 mb-2">Connection Method</label>
+                                    <input type="text" id="edit-game-connection-method" value="${game.connection_method || ''}" 
+                                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500" 
+                                           placeholder="e.g., Kaillera, Parsec, RetroArch">
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-gray-300 mb-2">Min Players</label>
+                                        <input type="number" id="edit-game-players-min" value="${game.players_min || 1}" min="1" max="8"
+                                               class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-gray-300 mb-2">Max Players</label>
+                                        <input type="number" id="edit-game-players-max" value="${game.players_max || 1}" min="1" max="8"
+                                               class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-300 mb-2">Connection Instructions</label>
+                                <textarea id="edit-game-connection-details" rows="3" 
+                                          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500">${game.connection_details || ''}</textarea>
+                            </div>
+                            
+                            <div class="mt-4 flex items-center gap-2">
+                                <input type="checkbox" id="edit-game-servers-available" ${game.servers_available ? 'checked' : ''}
+                                       class="w-4 h-4 text-purple-500 bg-gray-700 border-gray-600 rounded focus:ring-purple-500">
+                                <label class="text-gray-300">Active servers available</label>
+                            </div>
+                            
+                            ${game.server_details ? `
+                            <div class="mt-4">
+                                <label class="block text-gray-300 mb-2">Server Details</label>
+                                <textarea id="edit-game-server-details" rows="2" 
+                                          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500">${game.server_details || ''}</textarea>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 pt-4">
+                            <button type="button" onclick="closeEditGameModal()" 
+                                    class="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition">
+                                Cancel
+                            </button>
+                            <button type="submit" 
+                                    class="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg transition">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateDeleteGameModal(game) {
+    return `
+        <div id="delete-game-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md">
+                <div class="p-6">
+                    <h2 class="text-2xl font-bold text-white mb-4">Delete Game</h2>
+                    <p class="text-gray-300 mb-6">Are you sure you want to delete "${game.title}"? This action cannot be undone. All comments and data will be permanently removed.</p>
+                    <div class="flex justify-end gap-3">
+                        <button onclick="closeDeleteGameModal()" 
+                                class="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition">
+                            Cancel
+                        </button>
+                        <button onclick="deleteGame()" 
+                                class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition">
+                            Delete Game
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateConsoleOptions(selectedConsole) {
+    const consoles = [
+        "3D0", "Arcade", "AES", "Dreamcast", "Gameboy", "Gameboy Color", 
+        "GameCube", "Gamegear", "GBA", "Genesis/Megadrive", "N64", "NDS", 
+        "Neo Geo CD", "NES", "Nintendo Switch", "Other", "PC", "PS1", "PS2", 
+        "PS3", "PS4", "PS5", "PSP", "PSVita", "Saturn", "Sega 32X", "Sega CD", 
+        "Sega Mark III", "SG-1000", "SNES", "T-16/CD", "VB", "Wii", "Wii U", 
+        "XBOX", "XBOX 360", "3DS"
+    ];
+    
+    let options = '<option value="">Select a system</option>';
+    options += consoles.map(console => 
+        `<option value="${console}" ${console === selectedConsole ? 'selected' : ''}>${console}</option>`
+    ).join('');
+    
+    return options;
+}
+
+function setupEditGameForm() {
+    const form = document.getElementById('edit-game-form');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await saveGameChanges();
+        });
+    }
+}
+
+async function saveGameChanges() {
+    const gameId = document.getElementById('edit-game-id').value;
+    const submitBtn = document.querySelector('#edit-game-form button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    submitBtn.textContent = 'Saving...';
+    submitBtn.disabled = true;
+    
+    try {
+        const gameData = {
+            title: document.getElementById('edit-game-title').value.trim(),
+            console: document.getElementById('edit-game-console').value,
+            year: document.getElementById('edit-game-year').value || null,
+            description: document.getElementById('edit-game-description').value.trim(),
+            cover_image_url: document.getElementById('edit-game-cover-image').value.trim() || null,
+            file_url: document.getElementById('edit-game-file-url').value.trim() || null,
+            multiplayer_type: document.getElementById('edit-game-multiplayer-type').value || null,
+            connection_method: document.getElementById('edit-game-connection-method').value.trim() || null,
+            connection_details: document.getElementById('edit-game-connection-details').value.trim() || null,
+            players_min: parseInt(document.getElementById('edit-game-players-min').value) || 1,
+            players_max: parseInt(document.getElementById('edit-game-players-max').value) || 1,
+            servers_available: document.getElementById('edit-game-servers-available').checked,
+            server_details: document.getElementById('edit-game-server-details')?.value.trim() || null,
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log('Updating game:', gameData);
+        
+        const { error } = await supabase
+            .from('games')
+            .update(gameData)
+            .eq('id', gameId);
+        
+        if (error) throw error;
+        
+        // Update displayed values without reloading page
+        updateDisplayedGame(gameData);
+        
+        // Close modal
+        closeEditGameModal();
+        
+        // Show success notification
+        showNotification('Game updated successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Error updating game:', error);
+        showNotification('Error updating game: ' + error.message, 'error');
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+function updateDisplayedGame(gameData) {
+    // Update all displayed fields
+    document.getElementById('game-title-display').textContent = gameData.title;
+    document.getElementById('game-console-display').textContent = gameData.console;
+    document.getElementById('game-year-display').textContent = gameData.year || '';
+    document.getElementById('game-description-display').textContent = gameData.description || '';
+    document.getElementById('game-multiplayer-display').textContent = gameData.multiplayer_type || 'Multiplayer';
+    
+    // Update player count display
+    const playerCount = gameData.players_min === gameData.players_max 
+        ? `${gameData.players_min} player${gameData.players_min > 1 ? 's' : ''}` 
+        : `${gameData.players_min}-${gameData.players_max} players`;
+    document.getElementById('game-players-display').textContent = playerCount;
+    
+    // Update connection details if they exist
+    if (gameData.connection_method) {
+        const methodElement = document.getElementById('game-connection-method-display');
+        if (methodElement) methodElement.textContent = gameData.connection_method;
+    }
+    if (gameData.connection_details) {
+        const detailsElement = document.getElementById('game-connection-details-display');
+        if (detailsElement) detailsElement.textContent = gameData.connection_details;
+    }
+    if (gameData.server_details) {
+        const serverElement = document.getElementById('game-server-details-display');
+        if (serverElement) serverElement.textContent = gameData.server_details;
+    }
+    
+    // Update servers available display
+    const serversElement = document.getElementById('game-servers-display');
+    if (serversElement) {
+        serversElement.textContent = gameData.servers_available ? 'Active servers available' : '';
+    }
+    
+    // Update cover image if URL changed
+    const coverImg = document.getElementById('game-cover-image-display');
+    if (coverImg && gameData.cover_image_url) {
+        coverImg.src = gameData.cover_image_url;
+    }
+}
+
+// Global functions for edit game modal
+window.openEditGameModal = function() {
+    const modal = document.getElementById('edit-game-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+};
+
+window.closeEditGameModal = function() {
+    const modal = document.getElementById('edit-game-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+};
+
+window.showDeleteGameConfirmation = function() {
+    const modal = document.getElementById('delete-game-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+};
+
+window.closeDeleteGameModal = function() {
+    const modal = document.getElementById('delete-game-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+};
+
+window.deleteGame = async function() {
+    if (!confirm('Are you absolutely sure? This will permanently delete the game and all associated comments.')) {
+        return;
+    }
+    
+    try {
+        const gameId = currentGameId;
+        
+        // First delete all comments for this game
+        await supabase
+            .from('game_comments')
+            .delete()
+            .eq('game_id', gameId);
+        
+        // Then delete the game
+        const { error } = await supabase
+            .from('games')
+            .delete()
+            .eq('id', gameId);
+        
+        if (error) throw error;
+        
+        showNotification('Game deleted successfully!', 'success');
+        
+        // Redirect back to games library after a delay
+        setTimeout(() => {
+            window.location.hash = '#/games';
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error deleting game:', error);
+        showNotification('Error deleting game: ' + error.message, 'error');
+    }
+};
+
+function showNotification(message, type = 'success') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition transform duration-300 ${
+        type === 'success' ? 'bg-green-600 text-white' :
+        type === 'error' ? 'bg-red-600 text-white' :
+        'bg-cyan-600 text-white'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('opacity-0', 'translate-x-full');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// -----------------------------------------------------------------
+// YOUR EXISTING FUNCTIONS BELOW (KEEP ALL OF THESE)
+// -----------------------------------------------------------------
 
 function renderComment(comment) {
     const timeAgo = getTimeAgo(comment.created_at);
