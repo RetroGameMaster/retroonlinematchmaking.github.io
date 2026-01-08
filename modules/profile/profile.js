@@ -133,7 +133,6 @@ function updateProfileDisplay(profile) {
     // Check if user is admin
     const adminCheck = isAdmin() || profile.role === 'admin';
             
-            <!-- Profile Header with Background -->
             <div class="relative overflow-hidden rounded-lg mb-8 border-2 border-cyan-500">
                 <!-- Custom Background Area -->
                 <div id="profile-background" class="absolute inset-0 -z-10"></div>
