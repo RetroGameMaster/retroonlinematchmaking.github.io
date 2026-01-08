@@ -4,6 +4,7 @@ import { supabase, getCurrentUser } from '../../lib/supabase.js';
 let currentRoom = null;
 let messageSubscription = null;
 let onlineUsersSubscription = null;
+let roomSubscription = null;
 
 export function initModule(rom) {
     console.log('💬 Chat module initialized');
@@ -38,13 +39,27 @@ async function initializeChat() {
     // Clean up on page leave
     window.addEventListener('beforeunload', async () => {
         await updateOnlineStatus(user, 'offline', null, displayUsername);
-        if (messageSubscription) messageSubscription.unsubscribe();
-        if (onlineUsersSubscription) onlineUsersSubscription.unsubscribe();
+        cleanupSubscriptions();
     });
     
     // Load initial stats
     updateOnlineCount();
     await updateMessageStats();
+}
+
+function cleanupSubscriptions() {
+    if (messageSubscription) {
+        messageSubscription.unsubscribe();
+        messageSubscription = null;
+    }
+    if (onlineUsersSubscription) {
+        onlineUsersSubscription.unsubscribe();
+        onlineUsersSubscription = null;
+    }
+    if (roomSubscription) {
+        roomSubscription.unsubscribe();
+        roomSubscription = null;
+    }
 }
 
 async function getUserProfile(userId) {
@@ -437,6 +452,30 @@ async function joinRoom(roomId) {
     }
 }
 
+// ADDED: Missing function that was causing the error
+function subscribeToRoomMessages(roomId) {
+    // Unsubscribe from previous room if any
+    if (roomSubscription) {
+        roomSubscription.unsubscribe();
+    }
+    
+    // Subscribe to new messages in this specific room
+    roomSubscription = supabase
+        .channel(`room-${roomId}-messages`)
+        .on('postgres_changes', 
+            { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'chat_messages',
+                filter: `room_id=eq.${roomId}`
+            },
+            (payload) => {
+                appendMessage(payload.new);
+            }
+        )
+        .subscribe();
+}
+
 async function leaveRoom(roomId, user, displayUsername) {
     if (!roomId || !user) return;
     
@@ -447,10 +486,10 @@ async function leaveRoom(roomId, user, displayUsername) {
         // Update online status
         await updateOnlineStatus(user, 'offline', roomId, displayUsername);
         
-        // Unsubscribe if needed
-        if (messageSubscription) {
-            messageSubscription.unsubscribe();
-            messageSubscription = null;
+        // Unsubscribe from room messages
+        if (roomSubscription) {
+            roomSubscription.unsubscribe();
+            roomSubscription = null;
         }
         
         console.log(`Left room: ${roomId}`);
@@ -602,7 +641,7 @@ async function sendSystemMessage(text, type, roomId, user) {
 }
 
 function setupRealtimeSubscriptions() {
-    // Subscribe to new messages
+    // Subscribe to new messages (global - for all rooms)
     messageSubscription = supabase
         .channel('chat-messages')
         .on('postgres_changes', 
