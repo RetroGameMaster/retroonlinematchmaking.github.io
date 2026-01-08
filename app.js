@@ -1,9 +1,9 @@
-// app.js
+// app.js - UPDATED WITH SEARCH MODULE
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
 
 let currentModule = null;
 
-// Initialize modules
+// Initialize modules - ADDED search-users
 const modules = {
     'home': () => import('./modules/home/home.js'),
     'games': () => import('./modules/games/games.js'),
@@ -12,10 +12,11 @@ const modules = {
     'chat': () => import('./modules/chat/chat.js'),
     'profile': () => import('./modules/profile/profile.js'),
     'game': () => import('./modules/game-detail/game-detail.js'),
-    'submit-game': () => import('./modules/submit-game/submit-game.js') // Add this
+    'submit-game': () => import('./modules/submit-game/submit-game.js'),
+    'search-users': () => import('./modules/search-users/search-users.js') // ADDED THIS LINE
 };
 
-// Fallback content for missing modules
+// Fallback content - ADDED search-users
 const fallbackContent = {
     'home': `
         <div class="text-center py-12 px-4">
@@ -100,6 +101,16 @@ const fallbackContent = {
                 <p class="mt-2 text-gray-300">Loading submission form...</p>
             </div>
         </div>
+    `,
+    // ADDED search-users fallback
+    'search-users': `
+        <div class="max-w-4xl mx-auto p-4">
+            <h1 class="text-3xl font-bold mb-6 text-cyan-400">🔍 Find Users</h1>
+            <div class="text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                <p class="mt-2 text-gray-300">Loading user search...</p>
+            </div>
+        </div>
     `
 };
 
@@ -159,6 +170,13 @@ async function loadModule(moduleName) {
         if (moduleName.startsWith('game/')) {
             const gameId = moduleName.split('/')[1];
             await loadGameDetail(gameId);
+            return;
+        }
+        
+        // Check for profile detail page (format: profile/:id)
+        if (moduleName.startsWith('profile/')) {
+            const profileId = moduleName.split('/')[1];
+            await loadProfileDetail(profileId);
             return;
         }
         
@@ -230,7 +248,7 @@ async function loadModule(moduleName) {
     }
 }
 
-// New function for game detail pages
+// Function for game detail pages
 async function loadGameDetail(gameId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
@@ -265,6 +283,45 @@ async function loadGameDetail(gameId) {
     } catch (error) {
         console.error('Error loading game detail:', error);
         showError('Error loading game', error.message);
+    }
+}
+
+// NEW FUNCTION: Load profile detail page
+async function loadProfileDetail(profileId) {
+    const appContent = document.getElementById('app-content');
+    if (!appContent) return;
+    
+    // Show loading
+    appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div>`;
+    
+    try {
+        // Load profile HTML
+        const response = await fetch('./modules/profile/profile.html');
+        if (!response.ok) throw new Error('Failed to load profile module');
+        
+        const html = await response.text();
+        appContent.innerHTML = html;
+        
+        // Load and initialize profile module with specific profile ID
+        const module = await import('./modules/profile/profile.js');
+        const rom = {
+            supabase: window.supabase,
+            currentUser: window.rom?.currentUser || null,
+            loadModule: loadModule,
+            navigateTo: function(module) {
+                window.location.hash = `#/${module}`;
+            }
+        };
+        
+        // We need to pass the profile ID to the module
+        if (module.initModule) {
+            await module.initModule(rom, profileId);
+        } else if (module.default && module.default.initModule) {
+            await module.default.initModule(rom, profileId);
+        }
+    } catch (error) {
+        console.error('Error loading profile detail:', error);
+        showError('Error loading profile', error.message);
     }
 }
 
