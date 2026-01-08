@@ -1,4 +1,4 @@
-// modules/profile/profile.js - FIXED VERSION
+// modules/profile/profile.js - UPDATED WITH FRIEND REQUEST HANDLING
 import { supabase, getCurrentUser, isAdmin, uploadBackground } from '../../lib/supabase.js';
 
 let currentProfile = null;
@@ -34,6 +34,11 @@ async function loadUserProfile() {
     
     await loadProfileData(profileId);
     setupEventListeners();
+    
+    // NEW: Check for incoming friend requests
+    if (isOwnProfile) {
+        await checkFriendRequests();
+    }
 }
 
 async function loadProfileData(profileId) {
@@ -75,6 +80,118 @@ async function loadProfileData(profileId) {
         console.error('Error loading profile:', error);
         showErrorState();
     }
+}
+
+// NEW FUNCTION: Check for incoming friend requests
+async function checkFriendRequests() {
+    try {
+        const { data: requests } = await supabase
+            .from('friends')
+            .select(`
+                *,
+                sender:profiles!friends_user_id_fkey(username, avatar_url, email)
+            `)
+            .eq('friend_id', currentUser.id)
+            .eq('status', 'pending');
+        
+        if (requests && requests.length > 0) {
+            showFriendRequestNotification(requests);
+        }
+    } catch (error) {
+        console.error('Error checking friend requests:', error);
+    }
+}
+
+// NEW FUNCTION: Show friend request notification
+function showFriendRequestNotification(requests) {
+    // Create notification badge
+    const badge = document.createElement('div');
+    badge.className = 'absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center text-white';
+    badge.textContent = requests.length;
+    
+    // Add to find users link in navigation
+    const findUsersLink = document.querySelector('a[href="#search-users"]');
+    if (findUsersLink) {
+        const existingBadge = findUsersLink.querySelector('.notification-badge');
+        if (existingBadge) existingBadge.remove();
+        
+        badge.classList.add('notification-badge');
+        findUsersLink.style.position = 'relative';
+        findUsersLink.appendChild(badge);
+    }
+}
+
+// NEW FUNCTION: Enhanced sendFriendRequest with better error handling
+async function sendFriendRequest() {
+    if (!currentProfile || isOwnProfile) return;
+    
+    try {
+        // Check if request already exists
+        const { data: existingRequest } = await supabase
+            .from('friends')
+            .select('id, status')
+            .eq('user_id', currentUser.id)
+            .eq('friend_id', currentProfile.id)
+            .single();
+        
+        if (existingRequest) {
+            if (existingRequest.status === 'pending') {
+                showNotification('Friend request already sent', 'info');
+                return;
+            } else if (existingRequest.status === 'accepted') {
+                showNotification('Already friends with this user', 'info');
+                return;
+            } else if (existingRequest.status === 'blocked') {
+                showNotification('This user is blocked', 'error');
+                return;
+            }
+        }
+        
+        const { error } = await supabase
+            .from('friends')
+            .insert({
+                user_id: currentUser.id,
+                friend_id: currentProfile.id,
+                status: 'pending'
+            });
+        
+        if (error) throw error;
+        
+        showNotification('Friend request sent!', 'success');
+        
+        // Update button in profile
+        const addFriendBtn = document.getElementById('add-friend-btn');
+        if (addFriendBtn) {
+            addFriendBtn.innerHTML = '⏳ Request Sent';
+            addFriendBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2';
+            addFriendBtn.onclick = null;
+            addFriendBtn.disabled = true;
+        }
+        
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        showNotification('Failed to send friend request', 'error');
+    }
+}
+
+// NEW FUNCTION: Show notification
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 ${
+        type === 'success' ? 'bg-green-600 text-white' :
+        type === 'error' ? 'bg-red-600 text-white' :
+        'bg-cyan-600 text-white'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 async function createProfile(userId) {
