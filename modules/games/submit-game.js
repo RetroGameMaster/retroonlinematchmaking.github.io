@@ -1,3 +1,6 @@
+// ADD THESE IMPORTS AT THE VERY TOP OF THE FILE
+import { supabase, getCurrentUser } from '../../lib/supabase.js';
+
 function initSubmitGame(rom) {
     console.log('Initializing game submission form...');
     
