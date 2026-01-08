@@ -388,31 +388,15 @@ async function loadGames() {
             return;
         }
         
-        // Get user emails for submitted_by
-        const userIds = [...new Set(games.map(g => g.submitted_by).filter(Boolean))];
-        const userEmails = {};
-        
+        // Get user emails for submitted_by - FIXED: Use submitted_email field instead of admin API
         console.log('📧 Mapping user emails from submitted_email field...');
         const userEmailMap = {};
         games.forEach(game => {
-        if (game.submitted_by && game.submitted_email) {
-        userEmailMap[game.submitted_by] = game.submitted_email;
-    }
-});
-console.log('User email map created:', userEmailMap);
-                    // Fallback to submitted_email if available
-                    const game = games.find(g => g.submitted_by === userId);
-                    if (game?.submitted_email) {
-                        userEmails[userId] = game.submitted_email;
-                    } else {
-                        userEmails[userId] = 'Unknown User';
-                    }
-                }
-            } catch (err) {
-                console.log(`Could not fetch user ${userId}:`, err.message);
-                userEmails[userId] = 'Unknown User';
+            if (game.submitted_by && game.submitted_email) {
+                userEmailMap[game.submitted_by] = game.submitted_email;
             }
-        }
+        });
+        console.log('User email map created:', userEmailMap);
         
         console.log('🎨 Rendering game cards...');
         gamesContainer.innerHTML = games.map(game => {
@@ -473,7 +457,7 @@ console.log('User email map created:', userEmailMap);
                             
                             <div class="flex flex-col md:flex-row justify-between items-center">
                                 <div class="text-gray-400 text-sm mb-4 md:mb-0">
-                                    Submitted by: ${userEmails[game.submitted_by] || game.submitted_email || 'Unknown'}
+                                    Submitted by: ${userEmailMap[game.submitted_by] || game.submitted_email || 'Unknown'}
                                     ${game.views_count ? ` • Views: ${game.views_count}` : ''}
                                 </div>
                                 
