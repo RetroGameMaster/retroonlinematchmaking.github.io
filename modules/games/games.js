@@ -392,14 +392,14 @@ async function loadGames() {
         const userIds = [...new Set(games.map(g => g.submitted_by).filter(Boolean))];
         const userEmails = {};
         
-        console.log('👤 Fetching user emails...');
-        for (const userId of userIds) {
-            try {
-                // Try to get user from auth (note: this requires proper permissions)
-                const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId);
-                if (!userError && user?.user?.email) {
-                    userEmails[userId] = user.user.email;
-                } else {
+        console.log('📧 Mapping user emails from submitted_email field...');
+        const userEmailMap = {};
+        games.forEach(game => {
+        if (game.submitted_by && game.submitted_email) {
+        userEmailMap[game.submitted_by] = game.submitted_email;
+    }
+});
+console.log('User email map created:', userEmailMap);
                     // Fallback to submitted_email if available
                     const game = games.find(g => g.submitted_by === userId);
                     if (game?.submitted_email) {
