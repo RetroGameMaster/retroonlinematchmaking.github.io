@@ -1,4 +1,4 @@
-// modules/search-users/search-users.js
+// modules/search-users/search-users.js - FIXED VERSION
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentUser = null;
@@ -6,12 +6,20 @@ let searchTimeout = null;
 
 export function initModule() {
     console.log('🔍 Search Users module initialized');
-    currentUser = getCurrentUser();
     loadSearchInterface();
     setupEventListeners();
 }
 
-function loadSearchInterface() {
+async function loadSearchInterface() {
+    // Get current user BEFORE loading interface
+    currentUser = await getCurrentUser();
+    
+    if (!currentUser) {
+        // Redirect to login if no user
+        window.location.hash = '#/auth';
+        return;
+    }
+    
     const appContent = document.getElementById('app-content');
     
     appContent.innerHTML = `
@@ -79,11 +87,16 @@ function loadSearchInterface() {
             </div>
         </div>
     `;
+    
+    // Setup event listeners AFTER HTML is loaded
+    setupEventListeners();
 }
 
 function setupEventListeners() {
     const searchInput = document.getElementById('user-search-input');
     const clearSearch = document.getElementById('clear-search');
+    
+    if (!searchInput) return;
     
     // Real-time search with debounce
     searchInput.addEventListener('input', (e) => {
@@ -146,11 +159,18 @@ async function searchUsers(query, filter = 'all') {
     try {
         console.log(`Searching for: "${query}" with filter: ${filter}`);
         
-        // Base query
+        // Verify currentUser exists
+        if (!currentUser || !currentUser.id) {
+            console.error('Current user not available');
+            showSearchError('Please log in to search users');
+            return;
+        }
+        
+        // Base query - FIXED: Properly check currentUser.id
         let supabaseQuery = supabase
             .from('profiles')
             .select('*')
-            .neq('id', currentUser.id) // Don't show current user
+            .neq('id', currentUser.id) // ✅ Now currentUser.id should be defined
             .or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`)
             .limit(20);
         
@@ -165,41 +185,66 @@ async function searchUsers(query, filter = 'all') {
                 // We'll implement this later
                 break;
             case 'same-console':
-                if (currentUser?.profile?.favorite_console) {
-                    supabaseQuery = supabaseQuery
-                        .eq('favorite_console', currentUser.profile.favorite_console);
+                // Need to get current user's favorite console first
+                try {
+                    const { data: userProfile } = await supabase
+                        .from('profiles')
+                        .select('favorite_console')
+                        .eq('id', currentUser.id)
+                        .single();
+                    
+                    if (userProfile?.favorite_console) {
+                        supabaseQuery = supabaseQuery
+                            .eq('favorite_console', userProfile.favorite_console);
+                    }
+                } catch (error) {
+                    console.log('Error getting user console preference:', error);
                 }
                 break;
         }
         
         const { data: users, error } = await supabaseQuery;
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase query error:', error);
+            throw error;
+        }
+        
+        console.log(`Found ${users?.length || 0} users`);
         
         // Get existing friend relationships
-        const { data: friendships } = await supabase
-            .from('friends')
-            .select('friend_id, status')
-            .eq('user_id', currentUser.id);
-        
-        const friendMap = {};
-        friendships?.forEach(f => {
-            friendMap[f.friend_id] = f.status;
-        });
+        let friendMap = {};
+        try {
+            const { data: friendships } = await supabase
+                .from('friends')
+                .select('friend_id, status')
+                .eq('user_id', currentUser.id);
+            
+            if (friendships) {
+                friendships.forEach(f => {
+                    friendMap[f.friend_id] = f.status;
+                });
+            }
+        } catch (friendError) {
+            console.error('Error loading friendships:', friendError);
+        }
         
         // Display results
         displaySearchResults(users || [], friendMap);
         
     } catch (error) {
         console.error('Error searching users:', error);
-        showSearchError();
+        showSearchError(error.message || 'Error searching users');
     } finally {
-        document.getElementById('search-loading').classList.add('hidden');
+        const loadingEl = document.getElementById('search-loading');
+        if (loadingEl) loadingEl.classList.add('hidden');
     }
 }
 
 function displaySearchResults(users, friendMap) {
     const container = document.getElementById('search-results-container');
+    
+    if (!container) return;
     
     if (users.length === 0) {
         document.getElementById('search-no-results').classList.remove('hidden');
@@ -220,7 +265,7 @@ function displaySearchResults(users, friendMap) {
                 <button class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold" disabled>
                     ✓ Friends
                 </button>
-                <button onclick="removeFriend('${user.id}', this)" 
+                <button onclick="removeFriendFromSearch('${user.id}', this)" 
                         class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
                     Remove
                 </button>
@@ -230,7 +275,7 @@ function displaySearchResults(users, friendMap) {
                 <button class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-semibold" disabled>
                     ⏳ Request Sent
                 </button>
-                <button onclick="cancelFriendRequest('${user.id}', this)" 
+                <button onclick="cancelFriendRequestFromSearch('${user.id}', this)" 
                         class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
                     Cancel
                 </button>
@@ -240,18 +285,18 @@ function displaySearchResults(users, friendMap) {
                 <button class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold" disabled>
                     ⛔ Blocked
                 </button>
-                <button onclick="unblockUser('${user.id}', this)" 
+                <button onclick="unblockUserFromSearch('${user.id}', this)" 
                         class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
                     Unblock
                 </button>
             `;
         } else {
             buttonHtml = `
-                <button onclick="sendFriendRequest('${user.id}', this)" 
+                <button onclick="sendFriendRequestFromSearch('${user.id}', this)" 
                         class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-semibold">
                     👥 Add Friend
                 </button>
-                <button onclick="viewProfile('${user.id}')" 
+                <button onclick="viewProfileFromSearch('${user.id}')" 
                         class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
                     View Profile
                 </button>
@@ -259,7 +304,7 @@ function displaySearchResults(users, friendMap) {
         }
         
         return `
-            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-between hover:border-cyan-500 transition">
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-between hover:border-cyan-500 transition search-result-card">
                 <div class="flex items-center gap-4">
                     <div class="relative">
                         <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
@@ -306,6 +351,8 @@ function displaySearchResults(users, friendMap) {
 
 function clearSearchResults() {
     const container = document.getElementById('search-results-container');
+    if (!container) return;
+    
     container.innerHTML = `
         <div class="text-center py-12">
             <div class="text-4xl mb-4">🔍</div>
@@ -313,23 +360,39 @@ function clearSearchResults() {
             <p class="text-gray-500 text-sm mt-2">Try searching by username, email, or favorite console</p>
         </div>
     `;
-    document.getElementById('search-no-results').classList.add('hidden');
+    
+    const noResults = document.getElementById('search-no-results');
+    if (noResults) noResults.classList.add('hidden');
 }
 
-function showSearchError() {
+function showSearchError(message = 'Error searching users') {
     const container = document.getElementById('search-results-container');
+    if (!container) return;
+    
     container.innerHTML = `
         <div class="text-center py-12">
             <div class="text-4xl mb-4">⚠️</div>
-            <p class="text-red-400">Error searching users</p>
+            <p class="text-red-400">${message}</p>
             <p class="text-gray-500 text-sm mt-2">Please try again later</p>
         </div>
     `;
+    
+    // Hide loading and no results
+    const loadingEl = document.getElementById('search-loading');
+    if (loadingEl) loadingEl.classList.add('hidden');
+    
+    const noResults = document.getElementById('search-no-results');
+    if (noResults) noResults.classList.add('hidden');
 }
 
-// Global functions for buttons
-window.sendFriendRequest = async function(userId, buttonElement) {
+// Global functions for search result buttons
+window.sendFriendRequestFromSearch = async function(userId, buttonElement) {
     try {
+        if (!currentUser || !currentUser.id) {
+            alert('Please log in to send friend requests');
+            return;
+        }
+        
         const { error } = await supabase
             .from('friends')
             .insert({
@@ -338,15 +401,21 @@ window.sendFriendRequest = async function(userId, buttonElement) {
                 status: 'pending'
             });
         
-        if (error) throw error;
+        if (error) {
+            if (error.code === '23505') { // Unique violation
+                alert('Friend request already sent!');
+                return;
+            }
+            throw error;
+        }
         
         // Update button state
         buttonElement.outerHTML = `
             <button class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-semibold" disabled>
                 ⏳ Request Sent
             </button>
-            <button onclick="cancelFriendRequest('${userId}', this)" 
-                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
+            <button onclick="cancelFriendRequestFromSearch('${userId}', this)" 
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">
                 Cancel
             </button>
         `;
@@ -356,11 +425,11 @@ window.sendFriendRequest = async function(userId, buttonElement) {
         
     } catch (error) {
         console.error('Error sending friend request:', error);
-        showNotification('Failed to send friend request', 'error');
+        showNotification('Failed to send friend request: ' + error.message, 'error');
     }
 };
 
-window.cancelFriendRequest = async function(userId, buttonElement) {
+window.cancelFriendRequestFromSearch = async function(userId, buttonElement) {
     try {
         const { error } = await supabase
             .from('friends')
@@ -371,14 +440,14 @@ window.cancelFriendRequest = async function(userId, buttonElement) {
         if (error) throw error;
         
         // Update UI
-        const parentDiv = buttonElement.closest('.bg-gray-800');
+        const parentDiv = buttonElement.closest('.search-result-card');
         const buttonsDiv = parentDiv.querySelector('div:last-child');
         buttonsDiv.innerHTML = `
-            <button onclick="sendFriendRequest('${userId}', this)" 
+            <button onclick="sendFriendRequestFromSearch('${userId}', this)" 
                     class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-semibold">
                 👥 Add Friend
             </button>
-            <button onclick="viewProfile('${userId}')" 
+            <button onclick="viewProfileFromSearch('${userId}')" 
                     class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
                 View Profile
             </button>
@@ -392,7 +461,7 @@ window.cancelFriendRequest = async function(userId, buttonElement) {
     }
 };
 
-window.removeFriend = async function(userId, buttonElement) {
+window.removeFriendFromSearch = async function(userId, buttonElement) {
     if (!confirm('Remove this friend?')) return;
     
     try {
@@ -406,14 +475,14 @@ window.removeFriend = async function(userId, buttonElement) {
         if (error) throw error;
         
         // Update UI
-        const parentDiv = buttonElement.closest('.bg-gray-800');
+        const parentDiv = buttonElement.closest('.search-result-card');
         const buttonsDiv = parentDiv.querySelector('div:last-child');
         buttonsDiv.innerHTML = `
-            <button onclick="sendFriendRequest('${userId}', this)" 
+            <button onclick="sendFriendRequestFromSearch('${userId}', this)" 
                     class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-semibold">
                 👥 Add Friend
             </button>
-            <button onclick="viewProfile('${userId}')" 
+            <button onclick="viewProfileFromSearch('${userId}')" 
                     class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
                 View Profile
             </button>
@@ -427,11 +496,11 @@ window.removeFriend = async function(userId, buttonElement) {
     }
 };
 
-window.viewProfile = function(userId) {
+window.viewProfileFromSearch = function(userId) {
     window.location.hash = `#/profile/${userId}`;
 };
 
-window.unblockUser = async function(userId, buttonElement) {
+window.unblockUserFromSearch = async function(userId, buttonElement) {
     try {
         const { error } = await supabase
             .from('friends')
@@ -443,14 +512,14 @@ window.unblockUser = async function(userId, buttonElement) {
         if (error) throw error;
         
         // Update UI
-        const parentDiv = buttonElement.closest('.bg-gray-800');
+        const parentDiv = buttonElement.closest('.search-result-card');
         const buttonsDiv = parentDiv.querySelector('div:last-child');
         buttonsDiv.innerHTML = `
-            <button onclick="sendFriendRequest('${userId}', this)" 
+            <button onclick="sendFriendRequestFromSearch('${userId}', this)" 
                     class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-semibold">
                 👥 Add Friend
             </button>
-            <button onclick="viewProfile('${userId}')" 
+            <button onclick="viewProfileFromSearch('${userId}')" 
                     class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
                 View Profile
             </button>
