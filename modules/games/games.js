@@ -92,9 +92,9 @@ function handleSearch() {
     gameCards.forEach(card => {
         const title = card.querySelector('h3')?.textContent.toLowerCase() || '';
         const description = card.querySelector('p.text-gray-300')?.textContent.toLowerCase() || '';
-        const console = card.querySelector('span.bg-cyan-600')?.textContent.toLowerCase() || '';
+        const platform = card.querySelector('span.bg-cyan-600')?.textContent.toLowerCase() || ''; // Changed from console to platform
         
-        if (title.includes(searchTerm) || description.includes(searchTerm) || console.includes(searchTerm)) {
+        if (title.includes(searchTerm) || description.includes(searchTerm) || platform.includes(searchTerm)) {
             card.classList.remove('hidden');
         } else {
             card.classList.add('hidden');
@@ -103,13 +103,13 @@ function handleSearch() {
 }
 
 function handleFilter() {
-    const selectedConsole = document.getElementById('console-filter').value;
+    const selectedPlatform = document.getElementById('console-filter').value; // Changed variable name
     const gameCards = document.querySelectorAll('#games-list > div');
     
     gameCards.forEach(card => {
-        const console = card.querySelector('span.bg-cyan-600')?.textContent || '';
+        const platform = card.querySelector('span.bg-cyan-600')?.textContent || ''; // Changed from console to platform
         
-        if (!selectedConsole || console === selectedConsole) {
+        if (!selectedPlatform || platform === selectedPlatform) {
             card.classList.remove('hidden');
         } else {
             card.classList.add('hidden');
@@ -134,10 +134,10 @@ async function handleGameSubmit(e, supabase, rom) {
     const user = rom.currentUser;
     console.log('✅ User authenticated:', user.email);
     
-    // Get form data
+    // Get form data - RENAMED console to gameConsole to avoid conflict
     const formData = new FormData(form);
     const title = formData.get('title');
-    const console = formData.get('console');
+    const gameConsole = formData.get('console'); // RENAMED: console -> gameConsole
     const year = formData.get('year');
     const description = formData.get('description');
     const notes = formData.get('notes');
@@ -158,12 +158,12 @@ async function handleGameSubmit(e, supabase, rom) {
     const screenshotFiles = Array.from(screenshotInput?.files || []);
     
     console.log('📝 Form data collected:', {
-        title, console, year, description,
+        title, gameConsole, year, description, // Updated to gameConsole
         connectionMethod, multiplayerType
     });
     
     // Validation
-    if (!title || !console || !year || !description || !connectionMethod || !multiplayerType) {
+    if (!title || !gameConsole || !year || !description || !connectionMethod || !multiplayerType) { // Updated to gameConsole
         alert('Please fill in all required fields.');
         return;
     }
@@ -225,7 +225,7 @@ async function handleGameSubmit(e, supabase, rom) {
         
         const submissionData = {
             title,
-            console,
+            console: gameConsole, // Use the renamed variable here
             year: parseInt(year),
             description,
             notes: notes || null,
@@ -259,7 +259,12 @@ async function handleGameSubmit(e, supabase, rom) {
             .single();
         
         if (error) {
-            console.error('❌ Supabase insert error:', error);
+            // FIXED: Use window.console to avoid variable shadowing
+            if (window.console && window.console.error) {
+                window.console.error('❌ Supabase insert error:', error);
+            } else {
+                console.log('❌ Supabase insert error:', error);
+            }
             throw error;
         }
         
@@ -277,7 +282,13 @@ async function handleGameSubmit(e, supabase, rom) {
         );
         
     } catch (error) {
-        console.error('❌ Error submitting game:', error);
+        // FIXED: Use window.console to avoid variable shadowing
+        if (window.console && window.console.error) {
+            window.console.error('❌ Error submitting game:', error);
+        } else {
+            console.log('❌ Error submitting game:', error);
+        }
+        
         alert('Error submitting game: ' + error.message);
         
         // Also save to localStorage as backup
@@ -286,7 +297,7 @@ async function handleGameSubmit(e, supabase, rom) {
             const backupData = {
                 id: 'backup_' + Date.now(),
                 title,
-                console,
+                console: gameConsole, // Use renamed variable
                 year: parseInt(year),
                 description,
                 notes,
@@ -309,7 +320,11 @@ async function handleGameSubmit(e, supabase, rom) {
             localStorage.setItem('rom_game_submissions', JSON.stringify(submissions));
             console.log('✅ Saved backup to localStorage');
         } catch (backupError) {
-            console.error('Failed to save backup:', backupError);
+            if (window.console && window.console.error) {
+                window.console.error('Failed to save backup:', backupError);
+            } else {
+                console.log('Failed to save backup:', backupError);
+            }
         }
     } finally {
         submitBtn.disabled = false;
@@ -346,7 +361,11 @@ async function uploadImage(file, bucket, type, supabase) {
         .upload(filePath, file);
     
     if (uploadError) {
-        console.error('Upload error:', uploadError);
+        if (window.console && window.console.error) {
+            window.console.error('Upload error:', uploadError);
+        } else {
+            console.log('Upload error:', uploadError);
+        }
         throw uploadError;
     }
     
@@ -379,7 +398,11 @@ async function uploadGameFile(file, supabase) {
         .upload(filePath, file);
     
     if (uploadError) {
-        console.error('Game file upload error:', uploadError);
+        if (window.console && window.console.error) {
+            window.console.error('Game file upload error:', uploadError);
+        } else {
+            console.log('Game file upload error:', uploadError);
+        }
         throw uploadError;
     }
     
@@ -479,7 +502,11 @@ async function loadGames(supabase) {
             .order('title', { ascending: true });
         
         if (error) {
-            console.error('Database error:', error);
+            if (window.console && window.console.error) {
+                window.console.error('Database error:', error);
+            } else {
+                console.log('Database error:', error);
+            }
             throw error;
         }
         
@@ -605,7 +632,12 @@ async function loadGames(supabase) {
         console.log('✅ Games loaded successfully');
         
     } catch (error) {
-        console.error('❌ Error loading games:', error);
+        if (window.console && window.console.error) {
+            window.console.error('❌ Error loading games:', error);
+        } else {
+            console.log('❌ Error loading games:', error);
+        }
+        
         gamesContainer.innerHTML = `
             <div class="bg-red-900 border border-red-700 rounded-lg p-6 text-center">
                 <h3 class="text-lg font-bold text-red-300 mb-2">Error Loading Games</h3>
@@ -752,7 +784,11 @@ window.showConnectionModal = async function(gameId, supabase) {
         document.body.insertAdjacentHTML('beforeend', modalHTML);
         
     } catch (error) {
-        console.error('Error loading connection details:', error);
+        if (window.console && window.console.error) {
+            window.console.error('Error loading connection details:', error);
+        } else {
+            console.log('Error loading connection details:', error);
+        }
         alert('Could not load connection details: ' + error.message);
     }
 };
@@ -768,6 +804,10 @@ window.loadGames = function() {
     if (supabase) {
         loadGames(supabase);
     } else {
-        console.error('Cannot load games: No Supabase client');
+        if (window.console && window.console.error) {
+            window.console.error('Cannot load games: No Supabase client');
+        } else {
+            console.log('Cannot load games: No Supabase client');
+        }
     }
 };
