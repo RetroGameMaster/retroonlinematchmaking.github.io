@@ -1,10 +1,31 @@
-import { supabase, getCurrentUser } from '../../lib/supabase.js';
-
-export function initModule() {
+// modules/games/games.js
+export function initModule(rom) {
     console.log('🎮 Games module initialized');
+    console.log('rom.supabase available:', !!rom?.supabase);
+    console.log('rom.currentUser:', rom?.currentUser?.email);
     
-    // Handle form submission
-    document.getElementById('game-form')?.addEventListener('submit', handleGameSubmit);
+    // Store rom globally for this module
+    window.rom = rom;
+    
+    // Get supabase from rom or window
+    const supabase = rom?.supabase || window.supabase;
+    
+    if (!supabase) {
+        console.error('❌ No Supabase client available!');
+        showError('Database connection error. Please refresh the page.');
+        return;
+    }
+    
+    console.log('✅ Supabase client available');
+    
+    // Handle form submission with proper supabase
+    const gameForm = document.getElementById('game-form');
+    if (gameForm) {
+        console.log('✅ Found game form, attaching submit handler');
+        gameForm.addEventListener('submit', (e) => handleGameSubmit(e, supabase, rom));
+    } else {
+        console.log('⚠️ No game form found on this page');
+    }
     
     // Handle server details toggle
     const serversCheckbox = document.querySelector('input[name="servers_available"]');
@@ -32,8 +53,8 @@ export function initModule() {
         });
     }
     
-    // Load existing games
-    loadGames();
+    // Load existing games with supabase
+    loadGames(supabase);
     
     // Setup search and filter
     setupSearchAndFilter();
@@ -96,40 +117,50 @@ function handleFilter() {
     });
 }
 
-async function handleGameSubmit(e) {
+async function handleGameSubmit(e, supabase, rom) {
     e.preventDefault();
+    console.log('📤 Form submission started...');
     
     const form = e.target;
     const submitBtn = form.querySelector('button[type="submit"]');
-    const user = await getCurrentUser();
     
-    if (!user) {
+    // Check if user is logged in
+    if (!rom?.currentUser) {
         alert('Please login to submit a game.');
         window.location.hash = '#/auth';
         return;
     }
     
+    const user = rom.currentUser;
+    console.log('✅ User authenticated:', user.email);
+    
     // Get form data
-    const title = form.querySelector('[name="title"]').value;
-    const console = form.querySelector('[name="console"]').value;
-    const year = form.querySelector('[name="year"]').value;
-    const description = form.querySelector('[name="description"]').value;
-    const notes = form.querySelector('[name="notes"]').value;
-    const gameFile = form.querySelector('[name="game_file"]').files[0];
+    const formData = new FormData(form);
+    const title = formData.get('title');
+    const console = formData.get('console');
+    const year = formData.get('year');
+    const description = formData.get('description');
+    const notes = formData.get('notes');
+    const gameFile = formData.get('game_file');
     
     // Connection fields
-    const connectionMethod = form.querySelector('[name="connection_method"]').value;
-    const connectionDetails = form.querySelector('[name="connection_details"]').value;
-    const multiplayerType = form.querySelector('[name="multiplayer_type"]').value;
-    const playersMin = parseInt(form.querySelector('[name="players_min"]').value) || 1;
-    const playersMax = parseInt(form.querySelector('[name="players_max"]').value) || 1;
-    const serversAvailable = form.querySelector('[name="servers_available"]').checked;
-    const serverDetails = form.querySelector('[name="server_details"]').value;
+    const connectionMethod = formData.get('connection_method');
+    const connectionDetails = formData.get('connection_details');
+    const multiplayerType = formData.get('multiplayer_type');
+    const playersMin = parseInt(formData.get('players_min')) || 1;
+    const playersMax = parseInt(formData.get('players_max')) || 1;
+    const serversAvailable = formData.get('servers_available') === 'on';
+    const serverDetails = formData.get('server_details');
     
     // Image files
-    const coverImage = document.getElementById('cover-image').files[0];
+    const coverImage = document.getElementById('cover-image')?.files[0];
     const screenshotInput = document.getElementById('screenshots');
     const screenshotFiles = Array.from(screenshotInput?.files || []);
+    
+    console.log('📝 Form data collected:', {
+        title, console, year, description,
+        connectionMethod, multiplayerType
+    });
     
     // Validation
     if (!title || !console || !year || !description || !connectionMethod || !multiplayerType) {
@@ -142,7 +173,8 @@ async function handleGameSubmit(e) {
         return;
     }
     
-    if (!form.querySelector('#agree-tos').checked) {
+    const agreeTos = document.getElementById('agree-tos');
+    if (agreeTos && !agreeTos.checked) {
         alert('You must agree to the Terms of Service.');
         return;
     }
@@ -164,39 +196,102 @@ async function handleGameSubmit(e) {
         
         // 1. Upload cover image
         submitBtn.textContent = 'Uploading cover image...';
-        coverImageUrl = await uploadImage(coverImage, 'game_covers', 'cover');
+        console.log('📸 Uploading cover image...');
+        coverImageUrl = await uploadImage(coverImage, 'game_covers', 'cover', supabase);
+        console.log('✅ Cover image uploaded:', coverImageUrl);
         
         // 2. Upload screenshots
         if (screenshotFiles.length > 0) {
             submitBtn.textContent = 'Uploading screenshots...';
+            console.log(`📸 Uploading ${screenshotFiles.length} screenshots...`);
             for (const screenshot of screenshotFiles) {
-                const url = await uploadImage(screenshot, 'game_screenshots', 'screenshot');
+                const url = await uploadImage(screenshot, 'game_screenshots', 'screenshot', supabase);
                 screenshotUrls.push(url);
             }
+            console.log('✅ Screenshots uploaded:', screenshotUrls.length);
         }
         
         // 3. Upload game file (if any)
         if (gameFile && gameFile.size > 0) {
             submitBtn.textContent = 'Uploading game file...';
-            fileUrl = await uploadGameFile(gameFile);
+            console.log('📁 Uploading game file...');
+            fileUrl = await uploadGameFile(gameFile, supabase);
+            console.log('✅ Game file uploaded:', fileUrl);
         }
         
         // 4. Save submission to database
         submitBtn.textContent = 'Saving submission...';
+        console.log('💾 Saving to Supabase...');
+        
+        const submissionData = {
+            title,
+            console,
+            year: parseInt(year),
+            description,
+            notes: notes || null,
+            file_url: fileUrl || null,
+            user_id: user.id,
+            user_email: user.email,
+            
+            // Connection details
+            connection_method: connectionMethod,
+            connection_details: connectionDetails || null,
+            multiplayer_type: multiplayerType,
+            players_min: playersMin,
+            players_max: playersMax,
+            servers_available: serversAvailable,
+            server_details: serverDetails || null,
+            
+            // Image details
+            cover_image_url: coverImageUrl,
+            screenshot_urls: screenshotUrls,
+            
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+        
+        console.log('📤 Inserting into Supabase:', submissionData);
         
         const { data, error } = await supabase
             .from('game_submissions')
-            .insert({
+            .insert([submissionData])
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('❌ Supabase insert error:', error);
+            throw error;
+        }
+        
+        console.log('✅ Game submission saved to Supabase:', data);
+        
+        // Show success
+        showSubmissionSuccess(
+            title, 
+            multiplayerType, 
+            connectionMethod, 
+            playersMin, 
+            playersMax, 
+            serversAvailable,
+            data.id
+        );
+        
+    } catch (error) {
+        console.error('❌ Error submitting game:', error);
+        alert('Error submitting game: ' + error.message);
+        
+        // Also save to localStorage as backup
+        try {
+            const submissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
+            const backupData = {
+                id: 'backup_' + Date.now(),
                 title,
                 console,
                 year: parseInt(year),
                 description,
                 notes,
-                file_url: fileUrl,
                 user_id: user.id,
                 user_email: user.email,
-                
-                // Connection details
                 connection_method: connectionMethod,
                 connection_details: connectionDetails,
                 multiplayer_type: multiplayerType,
@@ -204,25 +299,18 @@ async function handleGameSubmit(e) {
                 players_max: playersMax,
                 servers_available: serversAvailable,
                 server_details: serverDetails,
-                
-                // Image details
-                cover_image_url: coverImageUrl,
-                screenshot_urls: screenshotUrls,
-                
                 status: 'pending',
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-        
-        if (error) throw error;
-        
-        // Show success
-        showSubmissionSuccess(title, multiplayerType, connectionMethod, playersMin, playersMax, serversAvailable);
-        
-    } catch (error) {
-        console.error('Error submitting game:', error);
-        alert('Error submitting game: ' + error.message);
+                created_at: new Date().toISOString(),
+                error: error.message,
+                backup_saved: true
+            };
+            
+            submissions.push(backupData);
+            localStorage.setItem('rom_game_submissions', JSON.stringify(submissions));
+            console.log('✅ Saved backup to localStorage');
+        } catch (backupError) {
+            console.error('Failed to save backup:', backupError);
+        }
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -230,7 +318,9 @@ async function handleGameSubmit(e) {
     }
 }
 
-async function uploadImage(file, bucket, type) {
+async function uploadImage(file, bucket, type, supabase) {
+    console.log(`📤 Uploading ${type} image:`, file.name, file.type, file.size);
+    
     // Validate file
     const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
     const maxSize = 5 * 1024 * 1024; // 5MB
@@ -248,22 +338,30 @@ async function uploadImage(file, bucket, type) {
     const fileName = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
     
+    console.log(`Uploading to ${bucket}: ${filePath}`);
+    
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filePath, file);
     
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+    }
     
     // Get public URL
     const { data: urlData } = supabase.storage
         .from(bucket)
         .getPublicUrl(filePath);
     
+    console.log(`✅ Image uploaded successfully: ${urlData.publicUrl}`);
     return urlData.publicUrl;
 }
 
-async function uploadGameFile(file) {
+async function uploadGameFile(file, supabase) {
+    console.log('📁 Uploading game file:', file.name, file.size);
+    
     const maxSize = 100 * 1024 * 1024; // 100MB
     
     if (file.size > maxSize) {
@@ -274,20 +372,26 @@ async function uploadGameFile(file) {
     const fileName = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
     const filePath = `game_files/${fileName}`;
     
+    console.log(`Uploading game file: ${filePath}`);
+    
     const { error: uploadError } = await supabase.storage
         .from('game_files')
         .upload(filePath, file);
     
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+        console.error('Game file upload error:', uploadError);
+        throw uploadError;
+    }
     
     const { data: urlData } = supabase.storage
         .from('game_files')
         .getPublicUrl(filePath);
     
+    console.log(`✅ Game file uploaded: ${urlData.publicUrl}`);
     return urlData.publicUrl;
 }
 
-function showSubmissionSuccess(title, multiplayerType, connectionMethod, playersMin, playersMax, serversAvailable) {
+function showSubmissionSuccess(title, multiplayerType, connectionMethod, playersMin, playersMax, serversAvailable, submissionId) {
     const playerCount = playersMin === playersMax 
         ? `${playersMin} player${playersMin > 1 ? 's' : ''}` 
         : `${playersMin}-${playersMax} players`;
@@ -296,7 +400,7 @@ function showSubmissionSuccess(title, multiplayerType, connectionMethod, players
         <div class="bg-green-900 border border-green-700 rounded-lg p-8 text-center">
             <div class="text-5xl mb-4">🎮✅</div>
             <h3 class="text-2xl font-bold text-green-300 mb-2">Game Submitted Successfully!</h3>
-            <p class="text-green-200 mb-6">"${title}" has been submitted for admin review with images.</p>
+            <p class="text-green-200 mb-6">"${title}" has been submitted for admin review.</p>
             
             <div class="bg-gray-800 p-6 rounded-lg mb-6 text-left max-w-2xl mx-auto">
                 <h4 class="font-bold text-cyan-300 mb-3 text-lg">📋 Submission Details:</h4>
@@ -304,6 +408,7 @@ function showSubmissionSuccess(title, multiplayerType, connectionMethod, players
                     <div>
                         <p class="text-gray-300"><strong>🎮 Type:</strong> ${multiplayerType}</p>
                         <p class="text-gray-300"><strong>👥 Players:</strong> ${playerCount}</p>
+                        <p class="text-gray-300"><strong>🆔 Submission ID:</strong> ${submissionId.substring(0, 8)}...</p>
                     </div>
                     <div>
                         <p class="text-gray-300"><strong>🌐 Connection:</strong> ${connectionMethod}</p>
@@ -314,8 +419,8 @@ function showSubmissionSuccess(title, multiplayerType, connectionMethod, players
                     </div>
                 </div>
                 <div class="mt-4 pt-4 border-t border-gray-700">
-                    <p class="text-gray-300"><strong>📸 Images:</strong> Cover art + screenshots uploaded</p>
-                    <p class="text-gray-400 text-sm mt-1">Images will be visible once approved by admin.</p>
+                    <p class="text-gray-300"><strong>📸 Images:</strong> Cover art uploaded</p>
+                    <p class="text-gray-400 text-sm mt-1">Your game will be visible once approved by admin.</p>
                 </div>
             </div>
             
@@ -344,10 +449,14 @@ function showSubmissionSuccess(title, multiplayerType, connectionMethod, players
     const formContainer = document.querySelector('.bg-gray-800.p-8');
     if (formContainer) {
         formContainer.innerHTML = successHTML;
+    } else {
+        // If form container not found, show alert and redirect
+        alert(`Game "${title}" submitted successfully! Submission ID: ${submissionId}`);
+        window.location.hash = '#/games';
     }
 }
 
-async function loadGames() {
+async function loadGames(supabase) {
     const gamesContainer = document.getElementById('games-list');
     if (!gamesContainer) {
         console.error('Games container not found');
@@ -388,7 +497,7 @@ async function loadGames() {
             return;
         }
         
-        // Get user emails for submitted_by - FIXED: Use submitted_email field instead of admin API
+        // Get user emails for submitted_by
         console.log('📧 Mapping user emails from submitted_email field...');
         const userEmailMap = {};
         games.forEach(game => {
@@ -480,7 +589,7 @@ async function loadGames() {
                                         View Details
                                     </button>
                                     
-                                    <button onclick="showConnectionModal('${game.id}')" 
+                                    <button onclick="showConnectionModal('${game.id}', window.rom?.supabase || window.supabase)" 
                                             class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded inline-flex items-center transition">
                                         <span class="mr-2">🌐</span>
                                         Connection
@@ -502,7 +611,7 @@ async function loadGames() {
                 <h3 class="text-lg font-bold text-red-300 mb-2">Error Loading Games</h3>
                 <p class="text-red-200 mb-2">${error.message}</p>
                 <p class="text-gray-300 text-sm mb-4">This might be a database connection issue.</p>
-                <button onclick="loadGames()" 
+                <button onclick="loadGames(window.rom?.supabase || window.supabase)" 
                         class="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
                     Try Again
                 </button>
@@ -515,9 +624,33 @@ async function loadGames() {
     }
 }
 
-// Connection details modal
-window.showConnectionModal = async function(gameId) {
+function showError(message) {
+    const gamesContainer = document.getElementById('games-list');
+    if (gamesContainer) {
+        gamesContainer.innerHTML = `
+            <div class="bg-red-900/30 border border-red-500 rounded-lg p-6 text-center">
+                <h3 class="text-lg font-bold text-red-300 mb-2">Error</h3>
+                <p class="text-gray-300">${message}</p>
+                <button onclick="window.location.reload()" 
+                        class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
+                    Refresh Page
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Connection details modal - UPDATED to accept supabase parameter
+window.showConnectionModal = async function(gameId, supabase) {
     try {
+        if (!supabase) {
+            supabase = window.rom?.supabase || window.supabase;
+        }
+        
+        if (!supabase) {
+            throw new Error('Database connection not available');
+        }
+        
         const { data: game, error } = await supabase
             .from('games')
             .select('*')
@@ -630,4 +763,11 @@ window.closeConnectionModal = function() {
 };
 
 // Make loadGames available globally
-window.loadGames = loadGames;
+window.loadGames = function() {
+    const supabase = window.rom?.supabase || window.supabase;
+    if (supabase) {
+        loadGames(supabase);
+    } else {
+        console.error('Cannot load games: No Supabase client');
+    }
+};
