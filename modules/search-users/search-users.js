@@ -1,4 +1,3 @@
-// modules/search-users/search-users.js - FIXED VERSION
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentUser = null;
@@ -7,15 +6,13 @@ let searchTimeout = null;
 export function initModule() {
     console.log('🔍 Search Users module initialized');
     loadSearchInterface();
-    setupEventListeners();
 }
 
 async function loadSearchInterface() {
-    // Get current user BEFORE loading interface
+    // Get current user
     currentUser = await getCurrentUser();
     
     if (!currentUser) {
-        // Redirect to login if no user
         window.location.hash = '#/auth';
         return;
     }
@@ -65,7 +62,6 @@ async function loadSearchInterface() {
             
             <!-- Search Results Container -->
             <div id="search-results-container" class="space-y-4">
-                <!-- Results will load here -->
                 <div class="text-center py-12">
                     <div class="text-4xl mb-4">🔍</div>
                     <p class="text-gray-400">Search for users to connect with</p>
@@ -88,7 +84,6 @@ async function loadSearchInterface() {
         </div>
     `;
     
-    // Setup event listeners AFTER HTML is loaded
     setupEventListeners();
 }
 
@@ -106,12 +101,10 @@ function setupEventListeners() {
             clearSearch.classList.toggle('hidden', !query);
         }
         
-        // Clear previous timeout
         if (searchTimeout) {
             clearTimeout(searchTimeout);
         }
         
-        // Debounce search (500ms)
         if (query.length >= 2) {
             document.getElementById('search-loading').classList.remove('hidden');
             document.getElementById('search-no-results').classList.add('hidden');
@@ -120,7 +113,6 @@ function setupEventListeners() {
                 searchUsers(query);
             }, 500);
         } else if (query.length === 0) {
-            // Clear results if search is empty
             clearSearchResults();
         }
     });
@@ -137,7 +129,6 @@ function setupEventListeners() {
     // Filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            // Update active filter
             document.querySelectorAll('.filter-btn').forEach(b => {
                 b.classList.remove('active', 'bg-cyan-600', 'text-white');
                 b.classList.add('bg-gray-700', 'text-gray-300');
@@ -146,7 +137,6 @@ function setupEventListeners() {
             btn.classList.add('active', 'bg-cyan-600', 'text-white');
             btn.classList.remove('bg-gray-700', 'text-gray-300');
             
-            // Re-run search with filter
             const query = searchInput.value.trim();
             if (query.length >= 2) {
                 searchUsers(query, btn.dataset.filter);
@@ -159,33 +149,23 @@ async function searchUsers(query, filter = 'all') {
     try {
         console.log(`Searching for: "${query}" with filter: ${filter}`);
         
-        // Verify currentUser exists
+        // Verify currentUser exists with valid id
         if (!currentUser || !currentUser.id) {
-            console.error('Current user not available');
+            console.error('Current user not available or missing id:', currentUser);
             showSearchError('Please log in to search users');
             return;
         }
         
-        // Base query - FIXED: Properly check currentUser.id
+        // FIXED: Start with base query that excludes current user
         let supabaseQuery = supabase
             .from('profiles')
             .select('*')
-            .neq('id', currentUser.id) // ✅ Now currentUser.id should be defined
-            .or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`)
-            .limit(20);
+            .neq('id', currentUser.id)  // ✅ This should now be valid
+            .or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`);
         
-        // Apply filters
+        // Apply additional filters
         switch (filter) {
-            case 'online':
-                // Note: You'll need to implement online status tracking first
-                // For now, we'll just search
-                break;
-            case 'same-game':
-                // This would require checking games table
-                // We'll implement this later
-                break;
             case 'same-console':
-                // Need to get current user's favorite console first
                 try {
                     const { data: userProfile } = await supabase
                         .from('profiles')
@@ -203,16 +183,39 @@ async function searchUsers(query, filter = 'all') {
                 break;
         }
         
+        // Add limit and execute
+        supabaseQuery = supabaseQuery.limit(20);
+        
         const { data: users, error } = await supabaseQuery;
         
         if (error) {
             console.error('Supabase query error:', error);
+            
+            // Fallback: Try without the neq filter if it fails
+            if (error.message.includes('undefined') || error.code === '400') {
+                console.log('Trying fallback query without neq filter');
+                const { data: fallbackUsers, error: fallbackError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`)
+                    .limit(20);
+                
+                if (fallbackError) {
+                    throw fallbackError;
+                }
+                
+                // Filter out current user manually
+                const filteredUsers = fallbackUsers?.filter(user => user.id !== currentUser.id) || [];
+                displaySearchResults(filteredUsers, {});
+                return;
+            }
+            
             throw error;
         }
         
         console.log(`Found ${users?.length || 0} users`);
         
-        // Get existing friend relationships
+        // Get friend relationships
         let friendMap = {};
         try {
             const { data: friendships } = await supabase
@@ -229,12 +232,11 @@ async function searchUsers(query, filter = 'all') {
             console.error('Error loading friendships:', friendError);
         }
         
-        // Display results
         displaySearchResults(users || [], friendMap);
         
     } catch (error) {
         console.error('Error searching users:', error);
-        showSearchError(error.message || 'Error searching users');
+        showSearchError('Error searching users. Please try again.');
     } finally {
         const loadingEl = document.getElementById('search-loading');
         if (loadingEl) loadingEl.classList.add('hidden');
@@ -258,7 +260,7 @@ function displaySearchResults(users, friendMap) {
         const firstLetter = (user.username || user.email).charAt(0).toUpperCase();
         const friendStatus = friendMap[user.id];
         
-        // Determine button text and action based on friend status
+        // Determine button text based on friend status
         let buttonHtml = '';
         if (friendStatus === 'accepted') {
             buttonHtml = `
@@ -318,7 +320,6 @@ function displaySearchResults(users, friendMap) {
                                 </span>
                             `}
                         </div>
-                        <!-- Online status indicator (placeholder for now) -->
                         <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-600 rounded-full border-2 border-gray-800"></div>
                     </div>
                     
@@ -333,7 +334,6 @@ function displaySearchResults(users, friendMap) {
                                 </span>
                             ` : ''}
                             
-                            <!-- Stats badges -->
                             <span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs">
                                 ${user.stats?.games_submitted || 0} games
                             </span>
@@ -377,7 +377,6 @@ function showSearchError(message = 'Error searching users') {
         </div>
     `;
     
-    // Hide loading and no results
     const loadingEl = document.getElementById('search-loading');
     if (loadingEl) loadingEl.classList.add('hidden');
     
@@ -402,7 +401,7 @@ window.sendFriendRequestFromSearch = async function(userId, buttonElement) {
             });
         
         if (error) {
-            if (error.code === '23505') { // Unique violation
+            if (error.code === '23505') {
                 alert('Friend request already sent!');
                 return;
             }
@@ -410,7 +409,9 @@ window.sendFriendRequestFromSearch = async function(userId, buttonElement) {
         }
         
         // Update button state
-        buttonElement.outerHTML = `
+        const parentDiv = buttonElement.closest('.search-result-card');
+        const buttonsDiv = parentDiv.querySelector('div:last-child');
+        buttonsDiv.innerHTML = `
             <button class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-semibold" disabled>
                 ⏳ Request Sent
             </button>
@@ -420,12 +421,11 @@ window.sendFriendRequestFromSearch = async function(userId, buttonElement) {
             </button>
         `;
         
-        // Show notification
         showNotification('Friend request sent!', 'success');
         
     } catch (error) {
         console.error('Error sending friend request:', error);
-        showNotification('Failed to send friend request: ' + error.message, 'error');
+        showNotification('Failed to send friend request', 'error');
     }
 };
 
@@ -469,8 +469,7 @@ window.removeFriendFromSearch = async function(userId, buttonElement) {
             .from('friends')
             .delete()
             .eq('user_id', currentUser.id)
-            .eq('friend_id', userId)
-            .eq('status', 'accepted');
+            .eq('friend_id', userId);
         
         if (error) throw error;
         
@@ -506,8 +505,7 @@ window.unblockUserFromSearch = async function(userId, buttonElement) {
             .from('friends')
             .delete()
             .eq('user_id', currentUser.id)
-            .eq('friend_id', userId)
-            .eq('status', 'blocked');
+            .eq('friend_id', userId);
         
         if (error) throw error;
         
@@ -534,7 +532,6 @@ window.unblockUserFromSearch = async function(userId, buttonElement) {
 };
 
 function showNotification(message, type = 'info') {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 ${
         type === 'success' ? 'bg-green-600 text-white' :
@@ -545,7 +542,6 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
-    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
         setTimeout(() => notification.remove(), 300);
