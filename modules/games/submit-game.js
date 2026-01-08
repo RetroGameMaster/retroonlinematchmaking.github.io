@@ -203,34 +203,72 @@ function initSubmitGame(rom) {
         return { valid: true, message: 'Validation passed' };
     }
     
-    async function saveGameSubmission(gameData) {
-        // Generate unique ID
-        gameData.id = 'sub_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+   async function saveGameSubmission(gameData) {
+    try {
+        // Get user - you need to import supabase and getCurrentUser
+        // Add these imports at the top of your file:
+        // import { supabase, getCurrentUser } from '../../lib/supabase.js';
         
-        // Get existing submissions
-        const submissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
+        const user = await getCurrentUser();
         
-        // Check for duplicates (same title from same user)
-        const duplicate = submissions.find(sub => 
-            sub.title.toLowerCase() === gameData.title.toLowerCase() && 
-            sub.submittedByUserId === gameData.submittedByUserId
-        );
-        
-        if (duplicate) {
-            throw new Error('You have already submitted this game. Please wait for admin review.');
+        if (!user) {
+            throw new Error('You must be logged in to submit a game');
         }
         
-        // Add to submissions
-        submissions.push(gameData);
-        localStorage.setItem('rom_game_submissions', JSON.stringify(submissions));
+        // Prepare data for Supabase based on your game_submissions table schema
+        const submissionData = {
+            title: gameData.title,
+            console: gameData.platforms.length > 0 ? gameData.platforms[0] : 'Unknown', // Take first platform
+            year: parseInt(gameData.releaseYear) || null,
+            description: gameData.description,
+            
+            // Use the first connection method if available
+            connection_method: gameData.connectionMethods && gameData.connectionMethods.length > 0 
+                ? gameData.connectionMethods[0].name 
+                : 'Various',
+            
+            // Map multiplayer type
+            multiplayer_type: gameData.connectionMethods && gameData.connectionMethods.length > 0 
+                ? (gameData.connectionMethods[0].type === 'dns' ? 'Online' : 
+                   gameData.connectionMethods[0].type === 'vpn' ? 'LAN' : 'Other')
+                : 'Other',
+            
+            players_min: 2,
+            players_max: parseInt(gameData.maxPlayers) || 4,
+            
+            // Additional fields
+            user_id: user.id,
+            user_email: user.email,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            
+            // Optional fields from your form
+            notes: gameData.additionalNotes || null,
+            connection_details: gameData.connectionMethods && gameData.connectionMethods.length > 0 
+                ? gameData.connectionMethods[0].instructions 
+                : null
+        };
         
-        console.log('✅ Game submission saved:', gameData);
+        console.log('Submitting to Supabase:', submissionData);
         
-        // In a real app, you would save to Supabase here:
-        // await rom.supabase.from('game_submissions').insert(gameData);
+        // Submit to Supabase
+        const { data, error } = await supabase
+            .from('game_submissions')
+            .insert([submissionData])
+            .select();
         
-        return gameData;
+        if (error) throw error;
+        
+        console.log('✅ Game submission saved to Supabase:', data);
+        showNotification('Game submitted successfully! It will be reviewed by an admin.', 'success');
+        
+        return data[0];
+        
+    } catch (error) {
+        console.error('Error saving submission to Supabase:', error);
+        throw new Error('Failed to save submission: ' + error.message);
     }
+}
     
     function showResult(type, message) {
         const resultDiv = document.getElementById('submitResult');
