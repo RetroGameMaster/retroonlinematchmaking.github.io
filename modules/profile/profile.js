@@ -132,7 +132,10 @@ function updateProfileDisplay(profile) {
     
     // Check if user is admin
     const adminCheck = isAdmin() || profile.role === 'admin';
-            
+    
+    // FIXED: Added backticks and proper string assignment
+    appContent.innerHTML = `
+        <div class="max-w-6xl mx-auto">
             <div class="relative overflow-hidden rounded-lg mb-8 border-2 border-cyan-500">
                 <!-- Custom Background Area -->
                 <div id="profile-background" class="absolute inset-0 -z-10"></div>
@@ -794,6 +797,8 @@ async function loadFriends() {
 async function loadBackgroundCustomizer() {
     const container = document.getElementById('tab-content-container');
     
+    // FIXED: Added backticks and proper string assignment
+    container.innerHTML = `
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Background Preview -->
             <div>
