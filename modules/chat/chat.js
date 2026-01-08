@@ -1,11 +1,13 @@
+// modules/chat/chat.js
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentRoom = null;
 let messageSubscription = null;
 let onlineUsersSubscription = null;
 
-export function initModule() {
+export function initModule(rom) {
     console.log('💬 Chat module initialized');
+    window.rom = rom; // Store rom globally for this module
     initializeChat();
 }
 
@@ -17,24 +19,51 @@ async function initializeChat() {
         return;
     }
     
-    // Load chat interface
-    loadChatInterface(user);
+    // Get user's profile username
+    const profile = await getUserProfile(user.id);
+    const displayUsername = profile?.username || user.email.split('@')[0];
     
-    // Load chat rooms
+    // Load chat interface
+    loadChatInterface(user, displayUsername);
+    
+    // Load chat rooms (with updated genres)
     await loadChatRooms();
     
     // Set up real-time subscriptions
     setupRealtimeSubscriptions();
     
-    // Update online status
-    await updateOnlineStatus(user, 'online');
+    // Update online status with username
+    await updateOnlineStatus(user, 'online', null, displayUsername);
     
     // Clean up on page leave
     window.addEventListener('beforeunload', async () => {
-        await updateOnlineStatus(user, 'offline');
+        await updateOnlineStatus(user, 'offline', null, displayUsername);
         if (messageSubscription) messageSubscription.unsubscribe();
         if (onlineUsersSubscription) onlineUsersSubscription.unsubscribe();
     });
+    
+    // Load initial stats
+    updateOnlineCount();
+    await updateMessageStats();
+}
+
+async function getUserProfile(userId) {
+    try {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', userId)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching profile:', error);
+        }
+        
+        return profile;
+    } catch (error) {
+        console.error('Error in getUserProfile:', error);
+        return null;
+    }
 }
 
 function showLoginPrompt() {
@@ -54,7 +83,7 @@ function showLoginPrompt() {
     `;
 }
 
-async function loadChatInterface(user) {
+async function loadChatInterface(user, displayUsername) {
     const chatContent = document.getElementById('app-content');
     
     chatContent.innerHTML = `
@@ -69,7 +98,7 @@ async function loadChatInterface(user) {
                     <div class="flex items-center space-x-4">
                         <div class="flex items-center">
                             <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                            <span class="text-gray-300">${user.email}</span>
+                            <span class="text-gray-300">${displayUsername}</span>
                         </div>
                         <button id="create-room-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition">
                             🎮 Create Room
@@ -220,6 +249,10 @@ async function loadChatRooms() {
     if (!roomsList) return;
     
     try {
+        // First, check if we need to create default rooms
+        await ensureDefaultRooms();
+        
+        // Load all rooms
         const { data: rooms, error } = await supabase
             .from('chat_rooms')
             .select('*')
@@ -270,7 +303,6 @@ async function loadChatRooms() {
                         <div class="flex-1">
                             <div class="font-bold text-white">${room.name}</div>
                             <div class="text-gray-400 text-sm mt-1">${room.description || 'Join the conversation'}</div>
-                            ${room.console ? `<span class="inline-block mt-1 bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">${room.console}</span>` : ''}
                         </div>
                         <div class="text-right">
                             ${onlineCount > 0 ? `
@@ -295,14 +327,63 @@ async function loadChatRooms() {
     }
 }
 
+async function ensureDefaultRooms() {
+    const defaultRooms = [
+        // Core rooms (keep these)
+        { name: 'General', description: 'General retro gaming discussion', is_public: true, console: null },
+        { name: 'Tech Support', description: 'Help with setup and technical issues', is_public: true, console: null },
+        { name: 'Emulator Netplay', description: 'Emulator setup and multiplayer', is_public: true, console: null },
+        { name: 'LAN Play', description: 'Local network gaming and events', is_public: true, console: null },
+        
+        // Broad genre rooms (added these)
+        { name: 'FPS', description: 'First-Person Shooters', is_public: true, console: null },
+        { name: 'Racing', description: 'Racing and driving games', is_public: true, console: null },
+        { name: 'Fighting', description: 'Fighting games and tournaments', is_public: true, console: null },
+        { name: 'Sports', description: 'Sports games', is_public: true, console: null },
+        { name: 'RPG', description: 'Role-Playing Games', is_public: true, console: null },
+        { name: 'Strategy', description: 'Strategy and tactics games', is_public: true, console: null },
+        { name: 'Action', description: 'Action and adventure games', is_public: true, console: null },
+        { name: 'Platformer', description: 'Platform and jumping games', is_public: true, console: null },
+        { name: 'Simulation', description: 'Simulation games', is_public: true, console: null },
+        { name: 'Puzzle', description: 'Puzzle and brain teasers', is_public: true, console: null },
+        { name: 'Horror', description: 'Horror and survival games', is_public: true, console: null },
+        { name: 'MMO', description: 'Massively Multiplayer Online', is_public: true, console: null },
+        { name: 'Arcade', description: 'Arcade and classic games', is_public: true, console: null },
+    ];
+    
+    try {
+        for (const room of defaultRooms) {
+            // Check if room exists
+            const { data: existingRoom } = await supabase
+                .from('chat_rooms')
+                .select('id')
+                .eq('name', room.name)
+                .single();
+            
+            // Create if doesn't exist
+            if (!existingRoom) {
+                await supabase
+                    .from('chat_rooms')
+                    .insert([room]);
+            }
+        }
+    } catch (error) {
+        console.error('Error ensuring default rooms:', error);
+    }
+}
+
 async function joinRoom(roomId) {
     try {
         const user = await getCurrentUser();
         if (!user) return;
         
+        // Get user's profile username
+        const profile = await getUserProfile(user.id);
+        const displayUsername = profile?.username || user.email.split('@')[0];
+        
         // Leave current room if any
         if (currentRoom) {
-            await leaveRoom(currentRoom, user);
+            await leaveRoom(currentRoom, user, displayUsername);
         }
         
         // Join new room
@@ -337,11 +418,11 @@ async function joinRoom(roomId) {
         // Load room messages
         await loadRoomMessages(roomId);
         
-        // Update online status
-        await updateOnlineStatus(user, 'online', roomId);
+        // Update online status with username
+        await updateOnlineStatus(user, 'online', roomId, displayUsername);
         
         // Send join message
-        await sendSystemMessage(`${user.email} joined the room`, 'join', roomId, user);
+        await sendSystemMessage(`${displayUsername} joined the room`, 'join', roomId, user);
         
         // Load online users for this room
         await loadOnlineUsers(roomId);
@@ -356,15 +437,15 @@ async function joinRoom(roomId) {
     }
 }
 
-async function leaveRoom(roomId, user) {
+async function leaveRoom(roomId, user, displayUsername) {
     if (!roomId || !user) return;
     
     try {
         // Send leave message
-        await sendSystemMessage(`${user.email} left the room`, 'leave', roomId, user);
+        await sendSystemMessage(`${displayUsername} left the room`, 'leave', roomId, user);
         
         // Update online status
-        await updateOnlineStatus(user, 'offline', roomId);
+        await updateOnlineStatus(user, 'offline', roomId, displayUsername);
         
         // Unsubscribe if needed
         if (messageSubscription) {
@@ -386,12 +467,13 @@ async function loadRoomMessages(roomId) {
     messagesContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div></div>';
     
     try {
+        // Load messages with username from profile if available
         const { data: messages, error } = await supabase
             .from('chat_messages')
             .select('*')
             .eq('room_id', roomId)
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(100); // Increased from 50 to 100
         
         if (error) throw error;
         
@@ -409,6 +491,7 @@ async function loadRoomMessages(roomId) {
         // Reverse to show oldest first
         messages.reverse();
         
+        // Render all messages
         messagesContainer.innerHTML = messages.map(msg => renderMessage(msg)).join('');
         
         // Scroll to bottom
@@ -434,20 +517,23 @@ function renderMessage(msg) {
         `;
     }
     
+    // Get display name (prefer username from profile, fall back to stored username, then email)
+    const displayName = msg.username || msg.user_email?.split('@')[0] || 'User';
+    
     return `
         <div class="message mb-4">
             <div class="flex items-start">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold">
-                        ${msg.username?.charAt(0)?.toUpperCase() || 'U'}
+                        ${displayName.charAt(0).toUpperCase()}
                     </div>
                 </div>
                 <div class="ml-3 flex-1">
                     <div class="flex items-baseline">
-                        <span class="font-bold text-cyan-300">${msg.username || msg.user_email || 'User'}</span>
+                        <span class="font-bold text-cyan-300">${displayName}</span>
                         <span class="text-gray-500 text-sm ml-2">${timestamp}</span>
                     </div>
-                    <p class="text-gray-100 mt-1">${msg.message}</p>
+                    <p class="text-gray-100 mt-1 whitespace-pre-wrap break-words">${msg.message}</p>
                 </div>
             </div>
         </div>
@@ -464,13 +550,17 @@ async function sendMessage() {
     if (!user) return;
     
     try {
+        // Get user's profile username
+        const profile = await getUserProfile(user.id);
+        const displayUsername = profile?.username || user.email.split('@')[0];
+        
         const { error } = await supabase
             .from('chat_messages')
             .insert({
                 room_id: currentRoom,
                 user_id: user.id,
                 user_email: user.email,
-                username: user.email.split('@')[0],
+                username: displayUsername, // Store username from profile
                 message: message,
                 message_type: 'text'
             });
@@ -492,6 +582,10 @@ async function sendMessage() {
 
 async function sendSystemMessage(text, type, roomId, user) {
     try {
+        // Get user's profile username
+        const profile = await getUserProfile(user.id);
+        const displayUsername = profile?.username || user.email.split('@')[0];
+        
         await supabase
             .from('chat_messages')
             .insert({
@@ -553,14 +647,19 @@ function appendMessage(msg) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-async function updateOnlineStatus(user, status, roomId = null) {
+async function updateOnlineStatus(user, status, roomId = null, displayUsername = null) {
     try {
+        if (!displayUsername) {
+            const profile = await getUserProfile(user.id);
+            displayUsername = profile?.username || user.email.split('@')[0];
+        }
+        
         const { error } = await supabase
             .from('online_users')
             .upsert({
                 user_id: user.id,
                 user_email: user.email,
-                username: user.email.split('@')[0],
+                username: displayUsername, // Store username from profile
                 room_id: roomId,
                 status: status,
                 last_seen: new Date().toISOString()
@@ -605,7 +704,7 @@ async function loadOnlineUsers(roomId) {
             <div class="flex items-center py-2">
                 <div class="w-2 h-2 rounded-full mr-3 ${user.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}"></div>
                 <div class="flex-1">
-                    <div class="text-white">${user.username || user.user_email}</div>
+                    <div class="text-white">${user.username || user.user_email?.split('@')[0] || 'User'}</div>
                     <div class="text-gray-500 text-xs">${user.status === 'online' ? 'Online' : 'Away'}</div>
                 </div>
             </div>
@@ -634,17 +733,34 @@ async function updateOnlineCount() {
     }
 }
 
-function updateMessageStats() {
-    // This would query for today's messages and user's messages
-    // For now, we'll update incrementally
-    const yourMessages = document.getElementById('your-messages-count');
-    const totalMessages = document.getElementById('total-messages-count');
-    
-    if (yourMessages) {
-        yourMessages.textContent = parseInt(yourMessages.textContent) + 1;
-    }
-    if (totalMessages) {
-        totalMessages.textContent = parseInt(totalMessages.textContent) + 1;
+async function updateMessageStats() {
+    try {
+        const user = await getCurrentUser();
+        if (!user) return;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Get today's total messages
+        const { count: totalCount } = await supabase
+            .from('chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', today.toISOString())
+            .eq('message_type', 'text');
+        
+        // Get user's messages today
+        const { count: userCount } = await supabase
+            .from('chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', today.toISOString())
+            .eq('user_id', user.id)
+            .eq('message_type', 'text');
+        
+        document.getElementById('total-messages-count').textContent = totalCount || 0;
+        document.getElementById('your-messages-count').textContent = userCount || 0;
+        
+    } catch (error) {
+        console.error('Error updating message stats:', error);
     }
 }
 
@@ -677,8 +793,13 @@ window.chatModule = {
     joinRoom,
     leaveRoom: async () => {
         const user = await getCurrentUser();
-        if (currentRoom && user) {
-            await leaveRoom(currentRoom, user);
+        if (!user) return;
+        
+        const profile = await getUserProfile(user.id);
+        const displayUsername = profile?.username || user.email.split('@')[0];
+        
+        if (currentRoom) {
+            await leaveRoom(currentRoom, user, displayUsername);
             currentRoom = null;
             
             // Reset UI
@@ -693,6 +814,9 @@ window.chatModule = {
                     <p class="text-gray-400">Select a room to join the conversation.</p>
                 </div>
             `;
+            
+            // Update online status to no room
+            await updateOnlineStatus(user, 'online', null, displayUsername);
         }
     }
 };
