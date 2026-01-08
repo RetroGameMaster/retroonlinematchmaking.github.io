@@ -169,48 +169,98 @@ function initSubmitGame(rom) {
     }
     
     function validateSubmission(gameData, methods) {
-        if (!gameData.title || gameData.title.length < 2) {
-            return { valid: false, message: 'Please enter a valid game title (at least 2 characters)' };
-        }
-        
-        if (!gameData.description || gameData.description.length < 20) {
-            return { valid: false, message: 'Please provide a detailed description (at least 20 characters)' };
-        }
-        
-        if (!gameData.maxPlayers || gameData.maxPlayers < 2 || gameData.maxPlayers > 256) {
-            return { valid: false, message: 'Please enter a valid number of maximum players (2-256)' };
-        }
-        
-        if (gameData.genre.length === 0) {
-            return { valid: false, message: 'Please select at least one genre' };
-        }
-        
-        if (gameData.platforms.length === 0) {
-            return { valid: false, message: 'Please select at least one platform' };
-        }
-        
-        if (methods.length === 0) {
-            return { valid: false, message: 'Please add at least one connection method' };
-        }
-        
-        // Check each method has a name
-        for (const method of methods) {
-            if (!method.name || method.name.trim().length === 0) {
-                return { valid: false, message: 'All connection methods must have a name' };
-            }
-        }
-        
-        return { valid: true, message: 'Validation passed' };
+    if (!gameData.title || gameData.title.length < 2) {
+        return { valid: false, message: 'Please enter a valid game title (at least 2 characters)' };
     }
     
-    async function saveGameSubmission(gameData) {
-        // Generate unique ID
-        gameData.id = 'sub_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+    if (!gameData.description || gameData.description.length < 20) {
+        return { valid: false, message: 'Please provide a detailed description (at least 20 characters)' };
+    }
+    
+    if (!gameData.maxPlayers || gameData.maxPlayers < 2 || gameData.maxPlayers > 256) {
+        return { valid: false, message: 'Please enter a valid number of maximum players (2-256)' };
+    }
+    
+    if (gameData.genre.length === 0) {
+        return { valid: false, message: 'Please select at least one genre' };
+    }
+    
+    if (gameData.platforms.length === 0) {
+        return { valid: false, message: 'Please select at least one platform' };
+    }
+    
+    if (methods.length === 0) {
+        return { valid: false, message: 'Please add at least one connection method' };
+    }
+    
+    // Check each method has a name
+    for (const method of methods) {
+        if (!method.name || method.name.trim().length === 0) {
+            return { valid: false, message: 'All connection methods must have a name' };
+        }
+    }
+    
+    return { valid: true, message: 'Validation passed' };
+}
+    
+   async function saveGameSubmission(gameData) {
+    // Format the data for Supabase schema
+    const submissionData = {
+        title: gameData.title,
+        console: gameData.platforms.join(', '), // Combine platforms as comma-separated
+        year: gameData.releaseYear || null,
+        description: gameData.description,
+        notes: gameData.additionalNotes || null,
+        file_url: null, // You might want to add file upload later
+        user_id: gameData.submittedByUserId,
+        user_email: gameData.submittedBy,
+        connection_method: gameData.connectionMethods.map(m => m.name).join(', '),
+        connection_details: JSON.stringify(gameData.connectionMethods), // Store all methods as JSON
+        multiplayer_type: 'Online', // Default or could be dynamic
+        players_min: 1,
+        players_max: gameData.maxPlayers,
+        servers_available: gameData.connectionMethods.some(m => m.serverAddress) ? true : false,
+        server_details: gameData.connectionMethods.filter(m => m.serverAddress).map(m => m.serverAddress).join(', '),
+        status: 'pending',
+        review_notes: null,
+        reviewed_by: null,
+        created_at: new Date().toISOString(),
+        reviewed_at: null
+    };
+    
+    try {
+        // Save to Supabase
+        const { data, error } = await rom.supabase
+            .from('game_submissions')
+            .insert([submissionData])
+            .select();
         
-        // Get existing submissions
+        if (error) {
+            console.error('Supabase error:', error);
+            throw new Error(`Database error: ${error.message}`);
+        }
+        
+        console.log('✅ Game submission saved to Supabase:', data);
+        
+        // Also save to localStorage for backup/local reference
+        const submissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
+        submissions.push({
+            ...gameData,
+            supabase_id: data[0]?.id
+        });
+        localStorage.setItem('rom_game_submissions', JSON.stringify(submissions));
+        
+        return data[0];
+        
+    } catch (error) {
+        console.error('Failed to save to Supabase:', error);
+        
+        // Fallback: Save to localStorage only if Supabase fails
+        console.log('⚠️ Falling back to localStorage...');
+        gameData.id = 'sub_' + Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
         const submissions = JSON.parse(localStorage.getItem('rom_game_submissions') || '[]');
         
-        // Check for duplicates (same title from same user)
+        // Check for duplicates
         const duplicate = submissions.find(sub => 
             sub.title.toLowerCase() === gameData.title.toLowerCase() && 
             sub.submittedByUserId === gameData.submittedByUserId
@@ -220,17 +270,13 @@ function initSubmitGame(rom) {
             throw new Error('You have already submitted this game. Please wait for admin review.');
         }
         
-        // Add to submissions
         submissions.push(gameData);
         localStorage.setItem('rom_game_submissions', JSON.stringify(submissions));
         
-        console.log('✅ Game submission saved:', gameData);
-        
-        // In a real app, you would save to Supabase here:
-        // await rom.supabase.from('game_submissions').insert(gameData);
-        
+        console.log('✅ Game submission saved to localStorage (fallback):', gameData);
         return gameData;
     }
+}
     
     function showResult(type, message) {
         const resultDiv = document.getElementById('submitResult');
