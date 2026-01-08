@@ -795,7 +795,6 @@ async function loadFriends() {
 async function loadBackgroundCustomizer() {
     const container = document.getElementById('tab-content-container');
     
-    container.innerHTML = `
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Background Preview -->
             <div>
