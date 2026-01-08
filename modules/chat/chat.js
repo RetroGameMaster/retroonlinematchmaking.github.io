@@ -1,14 +1,19 @@
-// modules/chat/chat.js
+// modules/chat/chat.js - COMPLETE FIXED VERSION
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentRoom = null;
-let messageSubscription = null;
 let onlineUsersSubscription = null;
 let roomSubscription = null;
+let isJoiningRoom = false;
+let isSendingMessage = false;
 
 export function initModule(rom) {
     console.log('💬 Chat module initialized');
-    window.rom = rom; // Store rom globally for this module
+    window.rom = rom;
+    
+    // Clear any previous subscriptions
+    cleanupSubscriptions();
+    
     initializeChat();
 }
 
@@ -25,33 +30,28 @@ async function initializeChat() {
     const displayUsername = profile?.username || user.email.split('@')[0];
     
     // Load chat interface
-    loadChatInterface(user, displayUsername);
+    await loadChatInterface(user, displayUsername);
     
-    // Load chat rooms (with updated genres)
+    // Load chat rooms
     await loadChatRooms();
     
-    // Set up real-time subscriptions
-    setupRealtimeSubscriptions();
+    // Set up online users subscription
+    setupOnlineUsersSubscription();
     
     // Update online status with username
     await updateOnlineStatus(user, 'online', null, displayUsername);
     
-    // Clean up on page leave
-    window.addEventListener('beforeunload', async () => {
-        await updateOnlineStatus(user, 'offline', null, displayUsername);
-        cleanupSubscriptions();
-    });
+    // Set up heartbeat to keep user online
+    setupOnlineHeartbeat(user, displayUsername);
     
     // Load initial stats
     updateOnlineCount();
     await updateMessageStats();
+    
+    console.log('✅ Chat initialized for user:', displayUsername);
 }
 
 function cleanupSubscriptions() {
-    if (messageSubscription) {
-        messageSubscription.unsubscribe();
-        messageSubscription = null;
-    }
     if (onlineUsersSubscription) {
         onlineUsersSubscription.unsubscribe();
         onlineUsersSubscription = null;
@@ -62,6 +62,23 @@ function cleanupSubscriptions() {
     }
 }
 
+function setupOnlineHeartbeat(user, displayUsername) {
+    // Update online status every 2 minutes
+    setInterval(async () => {
+        if (user) {
+            await updateOnlineStatus(user, 'online', currentRoom, displayUsername);
+        }
+    }, 2 * 60 * 1000);
+    
+    // Update online status on visibility change
+    document.addEventListener('visibilitychange', async () => {
+        if (user) {
+            const status = document.hidden ? 'away' : 'online';
+            await updateOnlineStatus(user, status, currentRoom, displayUsername);
+        }
+    });
+}
+
 async function getUserProfile(userId) {
     try {
         const { data: profile, error } = await supabase
@@ -70,8 +87,9 @@ async function getUserProfile(userId) {
             .eq('id', userId)
             .single();
         
-        if (error && error.code !== 'PGRST116') {
-            console.error('Error fetching profile:', error);
+        if (error) {
+            console.log('No profile found for user, using email username');
+            return null;
         }
         
         return profile;
@@ -240,13 +258,12 @@ function setupChatListeners() {
     const sendBtn = document.getElementById('send-btn');
     
     if (messageInput && sendBtn) {
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+        // Only attach ONE Enter key listener
+        messageInput.removeEventListener('keypress', handleEnterKey);
+        messageInput.addEventListener('keypress', handleEnterKey);
         
+        // Only attach ONE click listener
+        sendBtn.removeEventListener('click', sendMessage);
         sendBtn.addEventListener('click', sendMessage);
     }
     
@@ -257,6 +274,14 @@ function setupChatListeners() {
             handleChatAction(action);
         });
     });
+}
+
+// Separate function for Enter key handling to prevent duplicates
+function handleEnterKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
 }
 
 async function loadChatRooms() {
@@ -350,7 +375,7 @@ async function ensureDefaultRooms() {
         { name: 'Emulator Netplay', description: 'Emulator setup and multiplayer', is_public: true, console: null },
         { name: 'LAN Play', description: 'Local network gaming and events', is_public: true, console: null },
         
-        // Broad genre rooms (added these)
+        // Broad genre rooms
         { name: 'FPS', description: 'First-Person Shooters', is_public: true, console: null },
         { name: 'Racing', description: 'Racing and driving games', is_public: true, console: null },
         { name: 'Fighting', description: 'Fighting games and tournaments', is_public: true, console: null },
@@ -388,6 +413,13 @@ async function ensureDefaultRooms() {
 }
 
 async function joinRoom(roomId) {
+    if (isJoiningRoom) {
+        console.log('Already joining a room, please wait...');
+        return;
+    }
+    
+    isJoiningRoom = true;
+    
     try {
         const user = await getCurrentUser();
         if (!user) return;
@@ -396,9 +428,19 @@ async function joinRoom(roomId) {
         const profile = await getUserProfile(user.id);
         const displayUsername = profile?.username || user.email.split('@')[0];
         
-        // Leave current room if any
-        if (currentRoom) {
+        console.log(`Joining room ${roomId} as ${displayUsername}`);
+        
+        // Leave current room if any (different room)
+        if (currentRoom && currentRoom !== roomId) {
             await leaveRoom(currentRoom, user, displayUsername);
+        }
+        
+        // If already in this room, just refresh
+        if (currentRoom === roomId) {
+            await loadRoomMessages(roomId);
+            await loadOnlineUsers(roomId);
+            isJoiningRoom = false;
+            return;
         }
         
         // Join new room
@@ -427,36 +469,61 @@ async function joinRoom(roomId) {
         
         // Show message input
         document.getElementById('message-input-area').classList.remove('hidden');
-        document.getElementById('message-input').disabled = false;
-        document.getElementById('send-btn').disabled = false;
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        if (messageInput) {
+            messageInput.disabled = false;
+            messageInput.focus();
+        }
+        if (sendBtn) sendBtn.disabled = false;
         
-        // Load room messages
+        // Load room messages FIRST (this is critical)
         await loadRoomMessages(roomId);
         
         // Update online status with username
         await updateOnlineStatus(user, 'online', roomId, displayUsername);
         
-        // Send join message
-        await sendSystemMessage(`${displayUsername} joined the room`, 'join', roomId, user);
+        // Send join message (but check if we already have one recently)
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        
+        // Check for recent join messages from this user
+        const { data: recentJoins } = await supabase
+            .from('chat_messages')
+            .select('created_at')
+            .eq('room_id', roomId)
+            .eq('user_id', user.id)
+            .eq('message_type', 'join')
+            .gte('created_at', fiveMinutesAgo.toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1);
+        
+        // Only send join message if not recently joined
+        if (!recentJoins || recentJoins.length === 0) {
+            await sendSystemMessage(`${displayUsername} joined the room`, 'join', roomId, user, displayUsername);
+        }
         
         // Load online users for this room
         await loadOnlineUsers(roomId);
         
-        // Subscribe to room messages
+        // Subscribe to room messages (clean up old subscription first)
         subscribeToRoomMessages(roomId);
         
-        console.log(`Joined room: ${roomId}`);
+        console.log(`✅ Successfully joined room: ${roomId}`);
         
     } catch (error) {
         console.error('Error joining room:', error);
+        alert('Failed to join room. Please try again.');
+    } finally {
+        isJoiningRoom = false;
     }
 }
 
-// ADDED: Missing function that was causing the error
 function subscribeToRoomMessages(roomId) {
     // Unsubscribe from previous room if any
     if (roomSubscription) {
         roomSubscription.unsubscribe();
+        roomSubscription = null;
     }
     
     // Subscribe to new messages in this specific room
@@ -470,10 +537,15 @@ function subscribeToRoomMessages(roomId) {
                 filter: `room_id=eq.${roomId}`
             },
             (payload) => {
-                appendMessage(payload.new);
+                // Only append if it's not our own message (prevents duplicates)
+                if (payload.new.room_id === currentRoom) {
+                    appendMessage(payload.new);
+                }
             }
         )
-        .subscribe();
+        .subscribe((status) => {
+            console.log(`Room subscription status: ${status}`);
+        });
 }
 
 async function leaveRoom(roomId, user, displayUsername) {
@@ -481,7 +553,7 @@ async function leaveRoom(roomId, user, displayUsername) {
     
     try {
         // Send leave message
-        await sendSystemMessage(`${displayUsername} left the room`, 'leave', roomId, user);
+        await sendSystemMessage(`${displayUsername} left the room`, 'leave', roomId, user, displayUsername);
         
         // Update online status
         await updateOnlineStatus(user, 'offline', roomId, displayUsername);
@@ -503,7 +575,8 @@ async function loadRoomMessages(roomId) {
     const messagesContainer = document.getElementById('chat-messages-container');
     if (!messagesContainer) return;
     
-    messagesContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div></div>';
+    // Show loading
+    messagesContainer.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="text-gray-400 mt-2">Loading messages...</p></div>';
     
     try {
         // Load messages with username from profile if available
@@ -511,8 +584,8 @@ async function loadRoomMessages(roomId) {
             .from('chat_messages')
             .select('*')
             .eq('room_id', roomId)
-            .order('created_at', { ascending: false })
-            .limit(100); // Increased from 50 to 100
+            .order('created_at', { ascending: true }) // Changed to ascending for proper display
+            .limit(100);
         
         if (error) throw error;
         
@@ -527,14 +600,15 @@ async function loadRoomMessages(roomId) {
             return;
         }
         
-        // Reverse to show oldest first
-        messages.reverse();
-        
-        // Render all messages
+        // Render all messages (they're already in order)
         messagesContainer.innerHTML = messages.map(msg => renderMessage(msg)).join('');
         
         // Scroll to bottom
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        setTimeout(() => {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+        
+        console.log(`Loaded ${messages.length} messages for room ${roomId}`);
         
     } catch (error) {
         console.error('Error loading messages:', error);
@@ -556,11 +630,11 @@ function renderMessage(msg) {
         `;
     }
     
-    // Get display name (prefer username from profile, fall back to stored username, then email)
+    // Get display name
     const displayName = msg.username || msg.user_email?.split('@')[0] || 'User';
     
     return `
-        <div class="message mb-4">
+        <div class="message mb-4" data-message-id="${msg.id}">
             <div class="flex items-start">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -580,31 +654,49 @@ function renderMessage(msg) {
 }
 
 async function sendMessage() {
+    if (isSendingMessage) {
+        console.log('Already sending a message, please wait...');
+        return;
+    }
+    
+    isSendingMessage = true;
+    
     const input = document.getElementById('message-input');
     const message = input?.value.trim();
     
-    if (!message || !currentRoom) return;
+    if (!message || !currentRoom) {
+        isSendingMessage = false;
+        return;
+    }
     
     const user = await getCurrentUser();
-    if (!user) return;
+    if (!user) {
+        isSendingMessage = false;
+        return;
+    }
     
     try {
         // Get user's profile username
         const profile = await getUserProfile(user.id);
         const displayUsername = profile?.username || user.email.split('@')[0];
         
-        const { error } = await supabase
+        // Send the message
+        const { data: sentMessage, error } = await supabase
             .from('chat_messages')
             .insert({
                 room_id: currentRoom,
                 user_id: user.id,
                 user_email: user.email,
-                username: displayUsername, // Store username from profile
+                username: displayUsername,
                 message: message,
                 message_type: 'text'
-            });
+            })
+            .select()
+            .single();
         
         if (error) throw error;
+        
+        console.log('Message sent:', sentMessage.id);
         
         // Clear input
         input.value = '';
@@ -613,18 +705,19 @@ async function sendMessage() {
         // Update stats
         updateMessageStats();
         
+        // The subscription will automatically add the message to the UI
+        // We don't need to manually append it
+        
     } catch (error) {
         console.error('Error sending message:', error);
-        alert('Failed to send message');
+        alert('Failed to send message. Please try again.');
+    } finally {
+        isSendingMessage = false;
     }
 }
 
-async function sendSystemMessage(text, type, roomId, user) {
+async function sendSystemMessage(text, type, roomId, user, displayUsername) {
     try {
-        // Get user's profile username
-        const profile = await getUserProfile(user.id);
-        const displayUsername = profile?.username || user.email.split('@')[0];
-        
         await supabase
             .from('chat_messages')
             .insert({
@@ -640,20 +733,7 @@ async function sendSystemMessage(text, type, roomId, user) {
     }
 }
 
-function setupRealtimeSubscriptions() {
-    // Subscribe to new messages (global - for all rooms)
-    messageSubscription = supabase
-        .channel('chat-messages')
-        .on('postgres_changes', 
-            { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-            (payload) => {
-                if (payload.new.room_id === currentRoom) {
-                    appendMessage(payload.new);
-                }
-            }
-        )
-        .subscribe();
-    
+function setupOnlineUsersSubscription() {
     // Subscribe to online users
     onlineUsersSubscription = supabase
         .channel('online-users')
@@ -666,12 +746,21 @@ function setupRealtimeSubscriptions() {
                 updateOnlineCount();
             }
         )
-        .subscribe();
+        .subscribe((status) => {
+            console.log(`Online users subscription status: ${status}`);
+        });
 }
 
 function appendMessage(msg) {
     const messagesContainer = document.getElementById('chat-messages-container');
     if (!messagesContainer) return;
+    
+    // Check if this message already exists (prevents duplicates)
+    const existingMessage = messagesContainer.querySelector(`[data-message-id="${msg.id}"]`);
+    if (existingMessage) {
+        console.log('Message already exists, skipping duplicate');
+        return;
+    }
     
     // Remove "no messages" placeholder if present
     if (messagesContainer.querySelector('.text-center')) {
@@ -683,7 +772,9 @@ function appendMessage(msg) {
     messagesContainer.appendChild(messageElement);
     
     // Scroll to bottom
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    setTimeout(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }, 50);
 }
 
 async function updateOnlineStatus(user, status, roomId = null, displayUsername = null) {
@@ -698,12 +789,12 @@ async function updateOnlineStatus(user, status, roomId = null, displayUsername =
             .upsert({
                 user_id: user.id,
                 user_email: user.email,
-                username: displayUsername, // Store username from profile
+                username: displayUsername,
                 room_id: roomId,
                 status: status,
                 last_seen: new Date().toISOString()
             }, {
-                onConflict: 'user_id,room_id'
+                onConflict: 'user_id'
             });
         
         if (error) throw error;
@@ -804,7 +895,6 @@ async function updateMessageStats() {
 }
 
 function showCreateRoomModal() {
-    // Implementation for creating custom rooms
     alert('Room creation feature coming soon!');
 }
 
@@ -823,7 +913,6 @@ function handleChatAction(action) {
 }
 
 function showGameInviteModal() {
-    // Implementation for game invites
     alert('Game invite feature coming soon!');
 }
 
