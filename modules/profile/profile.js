@@ -1,4 +1,4 @@
-// modules/profile/profile.js - UPDATED WITH FRIEND REQUEST HANDLING
+// modules/profile/profile.js - FIXED VERSION (NO DUPLICATE FUNCTIONS)
 import { supabase, getCurrentUser, isAdmin, uploadBackground } from '../../lib/supabase.js';
 
 let currentProfile = null;
@@ -35,7 +35,7 @@ async function loadUserProfile() {
     await loadProfileData(profileId);
     setupEventListeners();
     
-    // NEW: Check for incoming friend requests
+    // Check for incoming friend requests
     if (isOwnProfile) {
         await checkFriendRequests();
     }
@@ -80,118 +80,6 @@ async function loadProfileData(profileId) {
         console.error('Error loading profile:', error);
         showErrorState();
     }
-}
-
-// NEW FUNCTION: Check for incoming friend requests
-async function checkFriendRequests() {
-    try {
-        const { data: requests } = await supabase
-            .from('friends')
-            .select(`
-                *,
-                sender:profiles!friends_user_id_fkey(username, avatar_url, email)
-            `)
-            .eq('friend_id', currentUser.id)
-            .eq('status', 'pending');
-        
-        if (requests && requests.length > 0) {
-            showFriendRequestNotification(requests);
-        }
-    } catch (error) {
-        console.error('Error checking friend requests:', error);
-    }
-}
-
-// NEW FUNCTION: Show friend request notification
-function showFriendRequestNotification(requests) {
-    // Create notification badge
-    const badge = document.createElement('div');
-    badge.className = 'absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center text-white';
-    badge.textContent = requests.length;
-    
-    // Add to find users link in navigation
-    const findUsersLink = document.querySelector('a[href="#search-users"]');
-    if (findUsersLink) {
-        const existingBadge = findUsersLink.querySelector('.notification-badge');
-        if (existingBadge) existingBadge.remove();
-        
-        badge.classList.add('notification-badge');
-        findUsersLink.style.position = 'relative';
-        findUsersLink.appendChild(badge);
-    }
-}
-
-// NEW FUNCTION: Enhanced sendFriendRequest with better error handling
-async function sendFriendRequest() {
-    if (!currentProfile || isOwnProfile) return;
-    
-    try {
-        // Check if request already exists
-        const { data: existingRequest } = await supabase
-            .from('friends')
-            .select('id, status')
-            .eq('user_id', currentUser.id)
-            .eq('friend_id', currentProfile.id)
-            .single();
-        
-        if (existingRequest) {
-            if (existingRequest.status === 'pending') {
-                showNotification('Friend request already sent', 'info');
-                return;
-            } else if (existingRequest.status === 'accepted') {
-                showNotification('Already friends with this user', 'info');
-                return;
-            } else if (existingRequest.status === 'blocked') {
-                showNotification('This user is blocked', 'error');
-                return;
-            }
-        }
-        
-        const { error } = await supabase
-            .from('friends')
-            .insert({
-                user_id: currentUser.id,
-                friend_id: currentProfile.id,
-                status: 'pending'
-            });
-        
-        if (error) throw error;
-        
-        showNotification('Friend request sent!', 'success');
-        
-        // Update button in profile
-        const addFriendBtn = document.getElementById('add-friend-btn');
-        if (addFriendBtn) {
-            addFriendBtn.innerHTML = '⏳ Request Sent';
-            addFriendBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2';
-            addFriendBtn.onclick = null;
-            addFriendBtn.disabled = true;
-        }
-        
-    } catch (error) {
-        console.error('Error sending friend request:', error);
-        showNotification('Failed to send friend request', 'error');
-    }
-}
-
-// NEW FUNCTION: Show notification
-function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 ${
-        type === 'success' ? 'bg-green-600 text-white' :
-        type === 'error' ? 'bg-red-600 text-white' :
-        'bg-cyan-600 text-white'
-    }`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
 }
 
 async function createProfile(userId) {
@@ -250,7 +138,6 @@ function updateProfileDisplay(profile) {
     // Check if user is admin
     const adminCheck = isAdmin() || profile.role === 'admin';
     
-    // FIXED: Added backticks and proper string assignment
     appContent.innerHTML = `
         <div class="max-w-6xl mx-auto">
             <div class="relative overflow-hidden rounded-lg mb-8 border-2 border-cyan-500">
@@ -416,6 +303,9 @@ function updateProfileDisplay(profile) {
                         👥 Friends
                     </button>
                     ${isOwnProfile ? `
+                        <button class="profile-tab px-6 py-3 text-gray-400 font-semibold" data-tab="friend-requests">
+                            📨 Requests
+                        </button>
                         <button class="profile-tab px-6 py-3 text-gray-400 font-semibold" data-tab="backgrounds">
                             🎨 Backgrounds
                         </button>
@@ -767,6 +657,12 @@ function setupTabs() {
                     await loadFriends();
                     break;
                     
+                case 'friend-requests':
+                    if (isOwnProfile) {
+                        await loadFriendRequests();
+                    }
+                    break;
+                    
                 case 'backgrounds':
                     if (isOwnProfile) {
                         await loadBackgroundCustomizer();
@@ -843,6 +739,7 @@ async function loadFriends() {
     const container = document.getElementById('tab-content-container');
     
     try {
+        // Get accepted friends
         const { data: friends } = await supabase
             .from('friends')
             .select(`
@@ -911,10 +808,171 @@ async function loadFriends() {
     }
 }
 
+async function loadFriendRequests() {
+    const container = document.getElementById('tab-content-container');
+    
+    try {
+        // Get incoming friend requests
+        const { data: incomingRequests } = await supabase
+            .from('friends')
+            .select(`
+                *,
+                sender:profiles!friends_user_id_fkey(id, username, email, avatar_url, bio, favorite_console)
+            `)
+            .eq('friend_id', currentProfile.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+
+        // Get outgoing friend requests
+        const { data: outgoingRequests } = await supabase
+            .from('friends')
+            .select(`
+                *,
+                recipient:profiles!friends_friend_id_fkey(id, username, email, avatar_url, bio, favorite_console)
+            `)
+            .eq('user_id', currentProfile.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+
+        container.innerHTML = `
+            <div class="space-y-8">
+                <!-- Incoming Requests -->
+                <div>
+                    <h2 class="text-xl font-bold text-white mb-4">📨 Incoming Friend Requests</h2>
+                    
+                    ${incomingRequests && incomingRequests.length > 0 ? `
+                        <div class="space-y-4">
+                            ${incomingRequests.map(request => `
+                                <div class="bg-gray-800 rounded-lg p-4 border border-purple-500">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                                                ${request.sender.avatar_url ? `
+                                                    <img src="${request.sender.avatar_url}" 
+                                                         alt="${request.sender.username}" 
+                                                         class="w-full h-full rounded-full object-cover">
+                                                ` : `
+                                                    <span class="text-white font-bold text-xl">
+                                                        ${request.sender.username?.charAt(0) || request.sender.email.charAt(0).toUpperCase()}
+                                                    </span>
+                                                `}
+                                            </div>
+                                            <div>
+                                                <h3 class="text-white font-semibold">${request.sender.username || request.sender.email.split('@')[0]}</h3>
+                                                <p class="text-gray-400 text-sm">${request.sender.email}</p>
+                                                ${request.sender.favorite_console ? `
+                                                    <span class="inline-block mt-1 bg-yellow-600 text-white px-2 py-1 rounded text-xs">
+                                                        🎮 ${request.sender.favorite_console}
+                                                    </span>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                        <span class="text-gray-500 text-sm">
+                                            ${new Date(request.created_at).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    
+                                    ${request.sender.bio ? `
+                                        <p class="text-gray-300 text-sm mb-4">${request.sender.bio}</p>
+                                    ` : ''}
+                                    
+                                    <div class="flex gap-2">
+                                        <button onclick="acceptFriendRequest('${request.id}')" 
+                                                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">
+                                            ✅ Accept
+                                        </button>
+                                        <button onclick="declineFriendRequest('${request.id}')" 
+                                                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+                                            ❌ Decline
+                                        </button>
+                                        <button onclick="viewProfile('${request.sender.id}')" 
+                                                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg">
+                                            👤 View Profile
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div class="text-center py-8 bg-gray-800/50 rounded-lg border border-gray-700">
+                            <div class="text-4xl mb-4">📭</div>
+                            <p class="text-gray-400">No incoming friend requests</p>
+                        </div>
+                    `}
+                </div>
+
+                <!-- Outgoing Requests -->
+                <div>
+                    <h2 class="text-xl font-bold text-white mb-4">📤 Sent Friend Requests</h2>
+                    
+                    ${outgoingRequests && outgoingRequests.length > 0 ? `
+                        <div class="space-y-4">
+                            ${outgoingRequests.map(request => `
+                                <div class="bg-gray-800 rounded-lg p-4 border border-yellow-500">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center">
+                                                ${request.recipient.avatar_url ? `
+                                                    <img src="${request.recipient.avatar_url}" 
+                                                         alt="${request.recipient.username}" 
+                                                         class="w-full h-full rounded-full object-cover">
+                                                ` : `
+                                                    <span class="text-white font-bold text-xl">
+                                                        ${request.recipient.username?.charAt(0) || request.recipient.email.charAt(0).toUpperCase()}
+                                                    </span>
+                                                `}
+                                            </div>
+                                            <div>
+                                                <h3 class="text-white font-semibold">${request.recipient.username || request.recipient.email.split('@')[0]}</h3>
+                                                <p class="text-gray-400 text-sm">${request.recipient.email}</p>
+                                                ${request.recipient.favorite_console ? `
+                                                    <span class="inline-block mt-1 bg-yellow-600 text-white px-2 py-1 rounded text-xs">
+                                                        🎮 ${request.recipient.favorite_console}
+                                                    </span>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                        <span class="text-gray-500 text-sm">
+                                            Sent ${new Date(request.created_at).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="flex gap-2">
+                                        <button onclick="cancelFriendRequest('${request.id}')" 
+                                                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+                                            ❌ Cancel Request
+                                        </button>
+                                        <button onclick="viewProfile('${request.recipient.id}')" 
+                                                class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg">
+                                            👤 View Profile
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div class="text-center py-8 bg-gray-800/50 rounded-lg border border-gray-700">
+                            <div class="text-4xl mb-4">📤</div>
+                            <p class="text-gray-400">No sent friend requests</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Error loading friend requests:', error);
+        container.innerHTML = `
+            <div class="text-center py-12">
+                <p class="text-red-400">Error loading friend requests</p>
+            </div>
+        `;
+    }
+}
+
 async function loadBackgroundCustomizer() {
     const container = document.getElementById('tab-content-container');
     
-    // FIXED: Added backticks and proper string assignment
     container.innerHTML = `
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Background Preview -->
@@ -1029,7 +1087,7 @@ async function loadBackgroundCustomizer() {
                             <span class="text-white text-sm font-semibold">Matrix</span>
                         </button>
                         <button class="h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded border-2 border-gray-700 hover:border-cyan-500"
-                                onclick="applyGradient('linear-gradient(to right, #eab308, #f97316)')">
+                                onclick="applyGradient('linear-gradient(to right, #eab308, #f97316')">
                             <span class="text-white text-sm font-semibold">Sunset</span>
                         </button>
                     </div>
@@ -1050,7 +1108,6 @@ async function loadBackgroundCustomizer() {
         </div>
     `;
 
-    // Setup event listeners for background controls
     setupBackgroundControls();
 }
 
@@ -1065,7 +1122,6 @@ function setupBackgroundControls() {
         opacity: '1'
     };
     
-    // Initialize controls
     const positionSelect = document.getElementById('bg-position');
     const sizeSelect = document.getElementById('bg-size');
     const blurSlider = document.getElementById('bg-blur');
@@ -1076,10 +1132,8 @@ function setupBackgroundControls() {
     if (blurSlider) blurSlider.value = currentBackground.blur || '0';
     if (opacitySlider) opacitySlider.value = currentBackground.opacity || '1';
     
-    // Update preview
     updateBackgroundPreview();
     
-    // Event listeners
     positionSelect?.addEventListener('change', (e) => {
         currentBackground.position = e.target.value;
         updateBackgroundPreview();
@@ -1102,7 +1156,6 @@ function setupBackgroundControls() {
         updateBackgroundPreview();
     });
     
-    // Upload functionality - FIXED: Upload to Supabase, not blob URL
     const uploadInput = document.getElementById('bg-upload');
     uploadInput?.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -1118,7 +1171,6 @@ function setupBackgroundControls() {
             return;
         }
         
-        // Show progress
         const progressDiv = document.getElementById('upload-progress');
         const progressBar = progressDiv.querySelector('div > div');
         const statusText = document.getElementById('upload-status');
@@ -1128,37 +1180,29 @@ function setupBackgroundControls() {
         statusText.textContent = 'Uploading...';
         
         try {
-            // Create temporary blob URL for immediate preview
             const blobUrl = URL.createObjectURL(file);
             
-            // Show immediate preview with blob URL
             currentBackground.type = 'image';
-            currentBackground.image_url = blobUrl; // Temporary for preview
+            currentBackground.image_url = blobUrl;
             currentBackground.value = '';
             updateBackgroundPreview();
             
-            // Now upload to Supabase for persistence
             progressBar.style.width = '50%';
             statusText.textContent = 'Saving to server...';
             
-            // Use the uploadBackground function from supabase.js
             const result = await uploadBackground(file, currentProfile.id);
             
             if (!result.success) {
                 throw new Error(result.error || 'Upload failed');
             }
             
-            console.log('Background uploaded to Supabase:', result.url);
-            
-            // Update with permanent Supabase URL
-            currentBackground.image_url = result.url; // This is the persistent URL
+            currentBackground.image_url = result.url;
             updateBackgroundPreview();
             
             progressBar.style.width = '100%';
             statusText.textContent = 'Upload complete!';
             statusText.className = 'text-sm text-green-400 mt-1';
             
-            // Clean up blob URL after 5 seconds
             setTimeout(() => {
                 URL.revokeObjectURL(blobUrl);
             }, 5000);
@@ -1172,7 +1216,6 @@ function setupBackgroundControls() {
             statusText.textContent = 'Upload failed: ' + error.message;
             statusText.className = 'text-sm text-red-400 mt-1';
             
-            // Fall back to color if upload fails
             currentBackground.type = 'color';
             currentBackground.value = '#1f2937';
             currentBackground.image_url = '';
@@ -1180,18 +1223,15 @@ function setupBackgroundControls() {
         }
     });
     
-    // Save button
     const saveButton = document.getElementById('save-background-btn');
     saveButton?.addEventListener('click', async () => {
         try {
-            // Check if we have a blob URL instead of Supabase URL
             if (currentBackground.type === 'image' && currentBackground.image_url) {
                 if (currentBackground.image_url.startsWith('blob:')) {
                     alert('Please wait for the background upload to complete before saving!');
                     return;
                 }
                 
-                // Verify it's a Supabase URL
                 if (!currentBackground.image_url.includes('supabase.co/storage')) {
                     console.warn('Background URL is not from Supabase storage:', currentBackground.image_url);
                     if (!confirm('This background URL may not persist. Save anyway?')) {
@@ -1210,13 +1250,9 @@ function setupBackgroundControls() {
             
             if (error) throw error;
             
-            // Update current profile
             currentProfile.custom_background = currentBackground;
-            
-            // Apply to profile
             applyCustomBackground(currentBackground);
             
-            // Show success
             alert('Background saved successfully! It will persist after refresh.');
             console.log('Saved background to database:', currentBackground);
             
@@ -1226,7 +1262,6 @@ function setupBackgroundControls() {
         }
     });
     
-    // Global functions for buttons
     window.applyColor = function(color) {
         currentBackground.type = 'color';
         currentBackground.value = color;
@@ -1270,7 +1305,6 @@ function setupBackgroundControls() {
         const preview = document.getElementById('background-preview');
         if (!preview) return;
         
-        // Clear previous background
         preview.style.background = '';
         preview.style.backgroundImage = '';
         preview.style.filter = '';
@@ -1295,7 +1329,6 @@ function setupBackgroundControls() {
                 break;
         }
         
-        // Apply effects
         if (currentBackground.blur && currentBackground.blur !== '0') {
             preview.style.filter = `blur(${currentBackground.blur}px)`;
         }
@@ -1371,29 +1404,17 @@ async function loadSettings() {
         </div>
     `;
     
-    // Setup settings save button
     document.getElementById('save-settings-btn')?.addEventListener('click', saveSettings);
 }
 
 function setupEventListeners() {
-    // Edit profile button
     document.getElementById('edit-profile-btn')?.addEventListener('click', openEditModal);
-    
-    // Edit username button
     document.getElementById('edit-username-btn')?.addEventListener('click', openUsernameModal);
-    
-    // Customize background button
     document.getElementById('customize-background-btn')?.addEventListener('click', openBackgroundModal);
-    
-    // View friends button
     document.getElementById('view-friends-btn')?.addEventListener('click', () => {
         document.querySelector('[data-tab="friends"]')?.click();
     });
-    
-    // Add friend button
-    document.getElementById('add-friend-btn')?.addEventListener('click', sendFriendRequest);
-    
-    // Message button
+    document.getElementById('add-friend-btn')?.addEventListener('click', handleAddFriend);
     document.getElementById('message-btn')?.addEventListener('click', () => {
         alert('Messaging system coming soon!');
     });
@@ -1405,7 +1426,6 @@ function openEditModal() {
     
     modal.classList.remove('hidden');
     
-    // Load edit form
     const form = document.getElementById('profile-edit-form');
     form.innerHTML = `
         <div class="space-y-6">
@@ -1510,7 +1530,6 @@ function openEditModal() {
         </div>
     `;
     
-    // Setup avatar upload preview
     const avatarUpload = document.getElementById('avatar-upload');
     const avatarUrl = document.getElementById('avatar-url');
     const avatarPreview = document.getElementById('avatar-preview');
@@ -1529,7 +1548,6 @@ function openEditModal() {
             return;
         }
         
-        // Preview image
         const reader = new FileReader();
         reader.onload = (e) => {
             avatarPreview.innerHTML = `<img src="${e.target.result}" class="w-full h-full rounded-full object-cover">`;
@@ -1546,7 +1564,6 @@ function openEditModal() {
         }
     });
     
-    // Handle form submission
     form.onsubmit = async (e) => {
         e.preventDefault();
         
@@ -1559,7 +1576,6 @@ function openEditModal() {
         const avatarUrl = document.getElementById('avatar-url').value.trim();
         
         try {
-            // Check if username already exists (if changed)
             if (username && username !== currentProfile.username) {
                 const { data: existingUser } = await supabase
                     .from('profiles')
@@ -1593,10 +1609,7 @@ function openEditModal() {
             
             if (error) throw error;
             
-            // Update local profile
             currentProfile = { ...currentProfile, ...updates };
-            
-            // Close modal and refresh
             closeEditModal();
             window.location.reload();
             
@@ -1617,12 +1630,10 @@ function openUsernameModal() {
     const input = document.getElementById('new-username');
     const availability = document.getElementById('username-availability');
     
-    // Set current username as placeholder
     input.value = currentProfile.username || '';
     input.placeholder = currentProfile.username || 'Enter new username';
     availability.classList.add('hidden');
     
-    // Check username availability on input
     input.addEventListener('input', async () => {
         const username = input.value.trim();
         
@@ -1638,7 +1649,6 @@ function openUsernameModal() {
             return;
         }
         
-        // Validate username format
         const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
         if (!usernameRegex.test(username)) {
             availability.textContent = 'Use 3-30 letters, numbers, or underscores';
@@ -1647,7 +1657,6 @@ function openUsernameModal() {
             return;
         }
         
-        // Check availability
         const { data: existingUser } = await supabase
             .from('profiles')
             .select('id')
@@ -1665,7 +1674,6 @@ function openUsernameModal() {
         availability.classList.remove('hidden');
     });
     
-    // Handle form submission
     form.onsubmit = async (e) => {
         e.preventDefault();
         
@@ -1676,7 +1684,6 @@ function openUsernameModal() {
             return;
         }
         
-        // Validate username format
         const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
         if (!usernameRegex.test(username)) {
             alert('Username must be 3-30 characters and can only contain letters, numbers, and underscores');
@@ -1689,7 +1696,6 @@ function openUsernameModal() {
         }
         
         try {
-            // Check availability one more time
             const { data: existingUser } = await supabase
                 .from('profiles')
                 .select('id')
@@ -1701,7 +1707,6 @@ function openUsernameModal() {
                 return;
             }
             
-            // Update username
             const { error } = await supabase
                 .from('profiles')
                 .update({ username })
@@ -1709,10 +1714,7 @@ function openUsernameModal() {
             
             if (error) throw error;
             
-            // Update local profile
             currentProfile.username = username;
-            
-            // Close modal and refresh
             closeUsernameModal();
             window.location.reload();
             
@@ -1748,9 +1750,7 @@ async function saveSettings() {
         
         if (error) throw error;
         
-        // Update local profile
         currentProfile.preferences = { show_email: showEmail, show_activity: showActivity };
-        
         alert('Settings saved successfully!');
         
     } catch (error) {
@@ -1759,7 +1759,168 @@ async function saveSettings() {
     }
 }
 
-// Global modal functions
+// Friend Request Functions (GLOBAL FUNCTIONS)
+window.handleAddFriend = async function() {
+    if (!currentProfile || isOwnProfile) return;
+    
+    try {
+        // Check if request already exists
+        const { data: existingRequest } = await supabase
+            .from('friends')
+            .select('id, status')
+            .eq('user_id', currentUser.id)
+            .eq('friend_id', currentProfile.id)
+            .single();
+        
+        if (existingRequest) {
+            if (existingRequest.status === 'pending') {
+                alert('Friend request already sent!');
+                return;
+            } else if (existingRequest.status === 'accepted') {
+                alert('Already friends with this user!');
+                return;
+            }
+        }
+        
+        const { error } = await supabase
+            .from('friends')
+            .insert({
+                user_id: currentUser.id,
+                friend_id: currentProfile.id,
+                status: 'pending'
+            });
+        
+        if (error) throw error;
+        
+        alert('Friend request sent!');
+        
+        // Update button
+        const addFriendBtn = document.getElementById('add-friend-btn');
+        if (addFriendBtn) {
+            addFriendBtn.innerHTML = '⏳ Request Sent';
+            addFriendBtn.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2';
+            addFriendBtn.onclick = null;
+            addFriendBtn.disabled = true;
+        }
+        
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        alert('Failed to send friend request');
+    }
+};
+
+window.acceptFriendRequest = async function(requestId) {
+    try {
+        const { error } = await supabase
+            .from('friends')
+            .update({ status: 'accepted' })
+            .eq('id', requestId);
+        
+        if (error) throw error;
+        
+        alert('Friend request accepted!');
+        // Reload the friend requests tab
+        document.querySelector('[data-tab="friend-requests"]')?.click();
+        
+    } catch (error) {
+        console.error('Error accepting friend request:', error);
+        alert('Failed to accept friend request');
+    }
+};
+
+window.declineFriendRequest = async function(requestId) {
+    if (!confirm('Decline this friend request?')) return;
+    
+    try {
+        const { error } = await supabase
+            .from('friends')
+            .delete()
+            .eq('id', requestId);
+        
+        if (error) throw error;
+        
+        alert('Friend request declined');
+        // Reload the friend requests tab
+        document.querySelector('[data-tab="friend-requests"]')?.click();
+        
+    } catch (error) {
+        console.error('Error declining friend request:', error);
+        alert('Failed to decline friend request');
+    }
+};
+
+window.cancelFriendRequest = async function(requestId) {
+    if (!confirm('Cancel this friend request?')) return;
+    
+    try {
+        const { error } = await supabase
+            .from('friends')
+            .delete()
+            .eq('id', requestId);
+        
+        if (error) throw error;
+        
+        alert('Friend request cancelled');
+        // Reload the friend requests tab
+        document.querySelector('[data-tab="friend-requests"]')?.click();
+        
+    } catch (error) {
+        console.error('Error cancelling friend request:', error);
+        alert('Failed to cancel friend request');
+    }
+};
+
+window.removeFriend = async function(friendId, targetUserId = null) {
+    if (!confirm('Remove this friend?')) return;
+    
+    try {
+        // Try to delete by friendship ID first
+        let query = supabase
+            .from('friends')
+            .delete()
+            .eq('id', friendId);
+        
+        // If we have target user ID, also try to delete the reciprocal friendship
+        if (targetUserId) {
+            query = query.or(`id.eq.${friendId},and(user_id.eq.${currentUser.id},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${currentUser.id})`);
+        }
+        
+        const { error } = await query;
+        
+        if (error) throw error;
+        
+        alert('Friend removed');
+        // Reload the friends tab
+        document.querySelector('[data-tab="friends"]')?.click();
+        
+    } catch (error) {
+        console.error('Error removing friend:', error);
+        alert('Failed to remove friend');
+    }
+};
+
+window.viewProfile = function(userId) {
+    window.location.hash = `#/profile/${userId}`;
+};
+
+// Check for incoming friend requests
+async function checkFriendRequests() {
+    try {
+        const { data: requests } = await supabase
+            .from('friends')
+            .select('id')
+            .eq('friend_id', currentUser.id)
+            .eq('status', 'pending');
+        
+        if (requests && requests.length > 0) {
+            console.log(`Found ${requests.length} pending friend requests`);
+        }
+    } catch (error) {
+        console.error('Error checking friend requests:', error);
+    }
+}
+
+// Modal functions
 window.closeEditModal = function() {
     const modal = document.getElementById('edit-profile-modal');
     if (modal) modal.classList.add('hidden');
@@ -1775,49 +1936,7 @@ window.closeBackgroundModal = function() {
     if (modal) modal.classList.add('hidden');
 };
 
-// Global helper functions
-async function sendFriendRequest() {
-    if (!currentProfile || isOwnProfile) return;
-    
-    try {
-        const { error } = await supabase
-            .from('friends')
-            .insert({
-                user_id: currentUser.id,
-                friend_id: currentProfile.id,
-                status: 'pending'
-            });
-        
-        if (error) throw error;
-        
-        alert('Friend request sent!');
-        
-    } catch (error) {
-        console.error('Error sending friend request:', error);
-        alert('Failed to send friend request');
-    }
-}
-
-async function removeFriend(friendId) {
-    if (!confirm('Remove this friend?')) return;
-    
-    try {
-        const { error } = await supabase
-            .from('friends')
-            .delete()
-            .eq('id', friendId);
-        
-        if (error) throw error;
-        
-        // Refresh friends list
-        await loadFriends();
-        
-    } catch (error) {
-        console.error('Error removing friend:', error);
-        alert('Failed to remove friend');
-    }
-}
-
+// Helper functions
 function exportData() {
     alert('Data export feature coming soon!');
 }
