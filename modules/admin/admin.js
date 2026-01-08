@@ -1,8 +1,9 @@
-// modules/admin/admin.js - SIMPLIFIED WORKING VERSION
+// modules/admin/admin.js - UPDATED WITH ADMIN MANAGEMENT
 import { supabase, getCurrentUser, isAdmin } from '../../lib/supabase.js';
 
 let allGames = [];
 let currentDeleteGameId = null;
+let currentUser = null;
 
 export function initModule() {
     console.log('Admin module initialized');
@@ -10,31 +11,49 @@ export function initModule() {
 }
 
 async function loadAdminPanel() {
-    const user = await getCurrentUser();
-    
-    if (!user) {
+    currentUser = await getCurrentUser();
+
+    if (!currentUser) {
         alert('Please login to access admin panel');
         window.location.hash = '#/auth';
         return;
     }
-    
+
     // Check admin status directly
     const adminStatus = await isAdmin();
     console.log('Admin status:', adminStatus);
-    
+
     if (!adminStatus) {
         alert('Admin access required');
         window.location.hash = '#/';
         return;
     }
-    
-    // Load admin interface
+
+    // Load admin interface with tabs
     document.getElementById('app-content').innerHTML = `
         <div class="max-w-7xl mx-auto p-4">
             <h1 class="text-3xl font-bold text-white mb-6">👑 Admin Panel</h1>
             
+            <!-- Navigation Tabs -->
+            <div class="mb-6 border-b border-gray-700">
+                <nav class="flex flex-wrap -mb-px">
+                    <button id="tab-submissions" class="admin-tab active py-3 px-4 font-medium text-sm border-b-2 border-cyan-500 text-cyan-500">
+                        📥 Submissions (0)
+                    </button>
+                    <button id="tab-games" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+                        🎮 Games (0)
+                    </button>
+                    <button id="tab-admins" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+                        👑 Admins
+                    </button>
+                    <button id="tab-users" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+                        👥 Users
+                    </button>
+                </nav>
+            </div>
+            
             <!-- Quick Actions -->
-            <div class="mb-6">
+            <div class="mb-6" id="admin-actions">
                 <button id="refresh-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded mr-3">
                     🔄 Refresh
                 </button>
@@ -44,22 +63,26 @@ async function loadAdminPanel() {
             </div>
             
             <!-- Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div class="bg-gray-800 p-6 rounded-lg border border-cyan-500">
-                    <h3 class="text-xl font-bold text-cyan-300 mb-2">Pending Submissions</h3>
+                    <h3 class="text-xl font-bold text-cyan-300 mb-2">Pending</h3>
                     <p class="text-4xl font-bold text-white" id="pending-count">0</p>
                 </div>
                 <div class="bg-gray-800 p-6 rounded-lg border border-purple-500">
                     <h3 class="text-xl font-bold text-purple-300 mb-2">Total Games</h3>
                     <p class="text-4xl font-bold text-white" id="total-games">0</p>
                 </div>
+                <div class="bg-gray-800 p-6 rounded-lg border border-yellow-500">
+                    <h3 class="text-xl font-bold text-yellow-300 mb-2">Total Users</h3>
+                    <p class="text-4xl font-bold text-white" id="total-users">0</p>
+                </div>
                 <div class="bg-gray-800 p-6 rounded-lg border border-green-500">
-                    <h3 class="text-xl font-bold text-green-300 mb-2">Admin Status</h3>
-                    <p class="text-2xl font-bold text-white">✅ Active</p>
+                    <h3 class="text-xl font-bold text-green-300 mb-2">Admins</h3>
+                    <p class="text-4xl font-bold text-white" id="admin-count">0</p>
                 </div>
             </div>
             
-            <!-- Main Content -->
+            <!-- Main Content Area -->
             <div id="admin-content" class="bg-gray-800 rounded-lg p-6 border border-gray-700 min-h-[400px]">
                 <div class="text-center py-8">
                     <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
@@ -68,21 +91,107 @@ async function loadAdminPanel() {
             </div>
         </div>
     `;
+
+    // Setup tab listeners
+    setupTabListeners();
     
     // Setup event listeners
-    document.getElementById('refresh-btn').addEventListener('click', loadPendingSubmissions);
-    document.getElementById('test-submission-btn').addEventListener('click', createTestSubmission);
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+        const activeTab = document.querySelector('.admin-tab.active').id;
+        switch(activeTab) {
+            case 'tab-submissions':
+                loadPendingSubmissions();
+                break;
+            case 'tab-games':
+                loadAdminGames();
+                break;
+            case 'tab-admins':
+                loadAdminList();
+                break;
+            case 'tab-users':
+                loadAllUsers();
+                break;
+        }
+    });
     
+    document.getElementById('test-submission-btn').addEventListener('click', createTestSubmission);
+
     // Load initial data
+    await loadInitialStats();
     await loadPendingSubmissions();
-    await loadAdminGames();
+}
+
+function setupTabListeners() {
+    const tabs = document.querySelectorAll('.admin-tab');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Update active tab
+            tabs.forEach(t => {
+                t.classList.remove('active', 'border-cyan-500', 'text-cyan-500');
+                t.classList.add('border-transparent', 'text-gray-400');
+            });
+            
+            tab.classList.add('active', 'border-cyan-500', 'text-cyan-500');
+            tab.classList.remove('border-transparent', 'text-gray-400');
+            
+            // Load content based on tab
+            switch(tab.id) {
+                case 'tab-submissions':
+                    loadPendingSubmissions();
+                    break;
+                case 'tab-games':
+                    loadAdminGames();
+                    break;
+                case 'tab-admins':
+                    loadAdminList();
+                    break;
+                case 'tab-users':
+                    loadAllUsers();
+                    break;
+            }
+        });
+    });
+}
+
+async function loadInitialStats() {
+    try {
+        // Get pending submissions count
+        const { count: pendingCount } = await supabase
+            .from('game_submissions')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'pending');
+        
+        document.getElementById('pending-count').textContent = pendingCount || 0;
+        
+        // Get total games count
+        const { count: totalGames } = await supabase
+            .from('games')
+            .select('*', { count: 'exact', head: true });
+        document.getElementById('total-games').textContent = totalGames || 0;
+        
+        // Get total users count
+        const { count: totalUsers } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true });
+        document.getElementById('total-users').textContent = totalUsers || 0;
+        
+        // Get admin count
+        const { count: adminCount } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_admin', true);
+        document.getElementById('admin-count').textContent = adminCount || 0;
+        
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
 }
 
 async function loadPendingSubmissions() {
     try {
         console.log('Loading pending submissions...');
-        
-        // Clear and show loading
+
         const content = document.getElementById('admin-content');
         content.innerHTML = `
             <div class="text-center py-8">
@@ -90,40 +199,19 @@ async function loadPendingSubmissions() {
                 <p class="text-gray-400 mt-2">Loading submissions...</p>
             </div>
         `;
-        
-        // Query game_submissions table - SIMPLE DIRECT QUERY
+
         const { data: submissions, error } = await supabase
             .from('game_submissions')
             .select('*')
             .eq('status', 'pending')
             .order('created_at', { ascending: false });
-        
-        console.log('Submission query result:', { submissions, error });
-        
-        if (error) {
-            console.error('Error loading submissions:', error);
-            content.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-4xl mb-4">❌</div>
-                    <h3 class="text-xl font-bold text-white mb-2">Error Loading Submissions</h3>
-                    <p class="text-red-400 mb-4">${error.message}</p>
-                    <button onclick="loadPendingSubmissions()" class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
-                        Try Again
-                    </button>
-                </div>
-            `;
-            return;
-        }
-        
+
+        if (error) throw error;
+
         // Update count
         document.getElementById('pending-count').textContent = submissions?.length || 0;
-        
-        // Update total games count
-        const { count: totalGames } = await supabase
-            .from('games')
-            .select('*', { count: 'exact', head: true });
-        document.getElementById('total-games').textContent = totalGames || 0;
-        
+        document.querySelector('#tab-submissions').textContent = `📥 Submissions (${submissions?.length || 0})`;
+
         if (!submissions || submissions.length === 0) {
             content.innerHTML = `
                 <div class="text-center py-12">
@@ -139,10 +227,9 @@ async function loadPendingSubmissions() {
             `;
             return;
         }
-        
-        // Display submissions
+
         let html = `<div class="space-y-6">`;
-        
+
         submissions.forEach(submission => {
             html += `
                 <div class="bg-gray-900 rounded-lg p-6 border border-gray-700">
@@ -187,10 +274,10 @@ async function loadPendingSubmissions() {
                 </div>
             `;
         });
-        
+
         html += `</div>`;
         content.innerHTML = html;
-        
+
     } catch (error) {
         console.error('Error in loadPendingSubmissions:', error);
         document.getElementById('admin-content').innerHTML = `
@@ -203,197 +290,618 @@ async function loadPendingSubmissions() {
     }
 }
 
-// Global function for approving submissions
-window.approveSubmission = async (submissionId) => {
-    if (!confirm('Approve this game submission?')) return;
-    
+// ADMIN MANAGEMENT FUNCTIONS
+async function loadAdminList() {
     try {
-        const user = await getCurrentUser();
-        
-        // Get the submission first
-        const { data: submission, error: fetchError } = await supabase
-            .from('game_submissions')
+        const content = document.getElementById('admin-content');
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                <p class="text-gray-400 mt-2">Loading admin list...</p>
+            </div>
+        `;
+
+        // Check if current user is the main admin (retrogamemasterra@gmail.com)
+        if (currentUser.email !== 'retrogamemasterra@gmail.com') {
+            content.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-5xl mb-4">🔒</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Restricted Access</h3>
+                    <p class="text-gray-400">Only the main administrator (retrogamemasterra@gmail.com) can manage admin users.</p>
+                    <div class="mt-6">
+                        <button onclick="loadPendingSubmissions()" class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
+                            Go to Submissions
+                        </button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Get all admin users
+        const { data: admins, error } = await supabase
+            .from('profiles')
             .select('*')
-            .eq('id', submissionId)
+            .eq('is_admin', true)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Get current user's profile to check admin status
+        const { data: currentUserProfile } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', currentUser.id)
             .single();
-        
-        if (fetchError) throw fetchError;
-        
-        // Insert into games table
-        const gameData = {
-            title: submission.title,
-            console: submission.console,
-            year: submission.year,
-            description: submission.description,
-            file_url: submission.file_url,
-            submitted_by: submission.user_id,
-            submitted_email: submission.user_email,
-            approved_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            
-            // Copy connection details
-            connection_method: submission.connection_method,
-            connection_details: submission.connection_details,
-            multiplayer_type: submission.multiplayer_type,
-            players_min: submission.players_min,
-            players_max: submission.players_max,
-            servers_available: submission.servers_available,
-            server_details: submission.server_details
-        };
-        
-        console.log('Inserting game:', gameData);
-        
-        // Add to games table
-        const { error: insertError } = await supabase
-            .from('games')
-            .insert([gameData]);
-        
-        if (insertError) throw insertError;
-        
-        // Update submission status
-        const { error: updateError } = await supabase
-            .from('game_submissions')
-            .update({
-                status: 'approved',
-                reviewed_at: new Date().toISOString(),
-                reviewed_by: user.id
-            })
-            .eq('id', submissionId);
-        
-        if (updateError) throw updateError;
-        
-        showNotification('✅ Game approved and added to library!');
-        
-        // Reload data
-        await loadPendingSubmissions();
-        await loadAdminGames();
-        
-    } catch (error) {
-        console.error('Error approving submission:', error);
-        showNotification('❌ Error: ' + error.message, 'error');
-    }
-};
 
-window.rejectSubmission = async (submissionId) => {
-    const reason = prompt('Reason for rejection (optional):');
-    
-    try {
-        const user = await getCurrentUser();
-        
-        const { error } = await supabase
-            .from('game_submissions')
-            .update({
-                status: 'rejected',
-                reviewed_at: new Date().toISOString(),
-                reviewed_by: user.id,
-                review_notes: reason || 'Rejected by admin'
-            })
-            .eq('id', submissionId);
-        
-        if (error) throw error;
-        
-        showNotification('✅ Game submission rejected');
-        await loadPendingSubmissions();
-        
-    } catch (error) {
-        console.error('Error rejecting submission:', error);
-        showNotification('❌ Error: ' + error.message, 'error');
-    }
-};
+        let html = `
+            <div>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-white">Admin Users</h2>
+                    <button id="add-admin-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center">
+                        <span class="mr-2">➕</span>
+                        Add Admin
+                    </button>
+                </div>
+                
+                <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    User
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Email
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Admin Since
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminsList" class="bg-gray-900 divide-y divide-gray-800">
+                            ${admins?.map(admin => `
+                                <tr class="hover:bg-gray-800">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
+                                                <span class="text-white font-bold">
+                                                    ${(admin.username || admin.email).charAt(0).toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-white">
+                                                    ${admin.username || 'No username'}
+                                                    ${admin.email === 'retrogamemasterra@gmail.com' ? 
+                                                        '<span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Main Admin</span>' : ''}
+                                                </div>
+                                                <div class="text-sm text-gray-300">
+                                                    ${admin.favorite_console || 'No console set'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-300">${admin.email}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                        ${new Date(admin.updated_at || admin.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        ${admin.email === 'retrogamemasterra@gmail.com' ? 
+                                            `<span class="text-gray-400">Cannot remove main admin</span>` :
+                                            `<button onclick="removeAdminFromList('${admin.id}', '${escapeString(admin.email)}')" 
+                                                     class="text-red-400 hover:text-red-300 bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
+                                                Remove Admin
+                                            </button>`
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('') || `
+                                <tr>
+                                    <td colspan="4" class="px-6 py-8 text-center text-gray-400">
+                                        No admin users found.
+                                    </td>
+                                </tr>
+                            `}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-6 bg-gray-900 p-6 rounded-lg border border-yellow-600">
+                    <h3 class="text-lg font-bold text-yellow-400 mb-2">⚠️ Important Notes</h3>
+                    <ul class="text-gray-300 space-y-1">
+                        <li>• Only the main admin (retrogamemasterra@gmail.com) can manage admin users</li>
+                        <li>• Admin users can approve/reject game submissions and manage games</li>
+                        <li>• Removing admin access does not delete the user account</li>
+                        <li>• Main admin cannot be removed for security reasons</li>
+                    </ul>
+                </div>
+            </div>
+        `;
 
-// Create a test submission
-async function createTestSubmission() {
-    try {
-        const user = await getCurrentUser();
-        
-        const testSubmission = {
-            title: 'Test Game - ' + new Date().toLocaleTimeString(),
-            console: 'PS2',
-            year: 2005,
-            description: 'Test game submission to verify admin panel is working.',
-            user_id: user.id,
-            user_email: user.email,
-            connection_method: 'LAN',
-            multiplayer_type: 'LAN',
-            players_min: 2,
-            players_max: 4,
-            status: 'pending',
-            created_at: new Date().toISOString()
-        };
-        
-        const { data, error } = await supabase
-            .from('game_submissions')
-            .insert([testSubmission])
-            .select();
-        
-        if (error) throw error;
-        
-        showNotification('🧪 Test submission created!');
-        await loadPendingSubmissions();
-        
+        content.innerHTML = html;
+
+        // Add event listener for add admin button
+        document.getElementById('add-admin-btn')?.addEventListener('click', showAddAdminModal);
+
     } catch (error) {
-        console.error('Error creating test submission:', error);
-        showNotification('❌ Error: ' + error.message, 'error');
+        console.error('Error loading admin list:', error);
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <div class="text-4xl mb-4">⚠️</div>
+                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                <p class="text-red-400">${error.message}</p>
+            </div>
+        `;
     }
 }
 
-// Game management functions
+async function showAddAdminModal() {
+    // Get all non-admin users
+    const { data: nonAdmins, error } = await supabase
+        .from('profiles')
+        .select('id, email, username')
+        .eq('is_admin', false)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        showNotification('Error loading users: ' + error.message, 'error');
+        return;
+    }
+
+    if (!nonAdmins || nonAdmins.length === 0) {
+        showNotification('No non-admin users found', 'info');
+        return;
+    }
+
+    const modalHtml = `
+        <div id="add-admin-modal" class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <!-- Background overlay -->
+                <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"></div>
+                
+                <!-- Modal panel -->
+                <div class="inline-block align-bottom bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-bold text-white mb-4">
+                                ➕ Add New Admin
+                            </h3>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-300 mb-2">
+                                    Select User to Promote to Admin
+                                </label>
+                                <select id="admin-user-select" 
+                                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                    <option value="">-- Select a user --</option>
+                                    ${nonAdmins.map(user => `
+                                        <option value="${user.id}">
+                                            ${user.email} (${user.username || 'no username'})
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            
+                            <div class="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-3 mb-4">
+                                <p class="text-sm text-yellow-200">
+                                    ⚠️ This user will be able to approve/reject game submissions and manage games.
+                                </p>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 mt-6">
+                                <button type="button" 
+                                        onclick="closeAddAdminModal()"
+                                        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
+                                    Cancel
+                                </button>
+                                <button type="button" 
+                                        onclick="promoteToAdmin()"
+                                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">
+                                    Promote to Admin
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add modal to body
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHtml;
+    document.body.appendChild(modalContainer);
+
+    // Make functions available globally
+    window.closeAddAdminModal = function() {
+        document.getElementById('add-admin-modal')?.remove();
+    };
+
+    window.promoteToAdmin = async function() {
+        const select = document.getElementById('admin-user-select');
+        const userId = select.value;
+        
+        if (!userId) {
+            showNotification('Please select a user', 'error');
+            return;
+        }
+        
+        try {
+            // Update user to admin
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_admin: true, updated_at: new Date().toISOString() })
+                .eq('id', userId);
+            
+            if (error) throw error;
+            
+            showNotification('✅ User promoted to admin successfully!');
+            
+            // Close modal and refresh admin list
+            window.closeAddAdminModal();
+            await loadAdminList();
+            await loadInitialStats(); // Refresh stats
+            
+        } catch (error) {
+            console.error('Error promoting to admin:', error);
+            showNotification('❌ Error: ' + error.message, 'error');
+        }
+    };
+}
+
+// Remove admin function
+window.removeAdminFromList = async function(userId, userEmail) {
+    // Extra confirmation for admin removal
+    if (!confirm(`Are you sure you want to remove admin privileges from ${userEmail}?\n\nThey will no longer be able to access the admin panel.`)) {
+        return;
+    }
+    
+    try {
+        // Check if current user is main admin
+        if (currentUser.email !== 'retrogamemasterra@gmail.com') {
+            showNotification('Only the main admin can remove admin privileges', 'error');
+            return;
+        }
+        
+        // Update user to remove admin status
+        const { error } = await supabase
+            .from('profiles')
+            .update({ 
+                is_admin: false, 
+                updated_at: new Date().toISOString(),
+                admin_removed_at: new Date().toISOString(),
+                admin_removed_by: currentUser.id
+            })
+            .eq('id', userId);
+        
+        if (error) throw error;
+        
+        showNotification('✅ Admin privileges removed successfully!');
+        await loadAdminList();
+        await loadInitialStats(); // Refresh stats
+        
+    } catch (error) {
+        console.error('Error removing admin:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+};
+
+// USER MANAGEMENT FUNCTION (for completeness)
+async function loadAllUsers() {
+    try {
+        const content = document.getElementById('admin-content');
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                <p class="text-gray-400 mt-2">Loading users...</p>
+            </div>
+        `;
+
+        const { data: users, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        let html = `
+            <div>
+                <h2 class="text-2xl font-bold text-white mb-6">All Users (${users?.length || 0})</h2>
+                
+                <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    User
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Email
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Joined
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersList" class="bg-gray-900 divide-y divide-gray-800">
+                            ${users?.map(user => `
+                                <tr class="hover:bg-gray-800">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
+                                                <span class="text-white font-bold">
+                                                    ${(user.username || user.email).charAt(0).toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-white">
+                                                    ${user.username || 'No username'}
+                                                    ${user.is_admin ? 
+                                                        '<span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Admin</span>' : ''}
+                                                </div>
+                                                <div class="text-sm text-gray-300">
+                                                    ${user.favorite_console || 'No console'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                        ${user.email}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                            user.is_admin ? 'bg-yellow-900 text-yellow-200' : 'bg-green-900 text-green-200'
+                                        }">
+                                            ${user.is_admin ? 'Admin' : 'User'}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                        ${new Date(user.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div class="flex space-x-2">
+                                            ${user.email === 'retrogamemasterra@gmail.com' ? 
+                                                '<span class="text-gray-400">Main Admin</span>' :
+                                                user.is_admin ? 
+                                                    `<button onclick="removeAdminFromList('${user.id}', '${escapeString(user.email)}')" 
+                                                             class="text-red-400 hover:text-red-300 bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
+                                                        Remove Admin
+                                                    </button>` :
+                                                    currentUser.email === 'retrogamemasterra@gmail.com' ?
+                                                        `<button onclick="promoteUserToAdmin('${user.id}', '${escapeString(user.email)}')" 
+                                                                 class="text-green-400 hover:text-green-300 bg-green-600 hover:bg-green-700 px-3 py-1 rounded">
+                                                            Make Admin
+                                                        </button>` :
+                                                        '<span class="text-gray-400">Main admin only</span>'
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('') || `
+                                <tr>
+                                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
+                                        No users found.
+                                    </td>
+                                </tr>
+                            `}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        content.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error loading users:', error);
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <div class="text-4xl mb-4">⚠️</div>
+                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                <p class="text-red-400">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Promote user to admin from users list
+window.promoteUserToAdmin = async function(userId, userEmail) {
+    if (currentUser.email !== 'retrogamemasterra@gmail.com') {
+        showNotification('Only the main admin can promote users to admin', 'error');
+        return;
+    }
+    
+    if (!confirm(`Promote ${userEmail} to admin?\n\nThey will be able to approve/reject game submissions and manage games.`)) {
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .update({ 
+                is_admin: true, 
+                updated_at: new Date().toISOString(),
+                admin_promoted_at: new Date().toISOString(),
+                admin_promoted_by: currentUser.id
+            })
+            .eq('id', userId);
+        
+        if (error) throw error;
+        
+        showNotification('✅ User promoted to admin successfully!');
+        await loadAllUsers();
+        await loadInitialStats();
+        
+    } catch (error) {
+        console.error('Error promoting user:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+};
+
+// Game management functions (keep from original)
 async function loadAdminGames() {
     try {
+        const content = document.getElementById('admin-content');
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                <p class="text-gray-400 mt-2">Loading games...</p>
+            </div>
+        `;
+
         const { data: games, error } = await supabase
             .from('games')
             .select('*')
             .order('updated_at', { ascending: false });
-        
+
         if (error) throw error;
-        
+
         allGames = games || [];
         
-        // If we have a games list element, update it
-        const gamesListEl = document.getElementById('gamesList');
-        if (gamesListEl) {
-            renderGamesTable(allGames);
-        }
-        
+        // Update tab count
+        document.querySelector('#tab-games').textContent = `🎮 Games (${allGames.length})`;
+
+        let html = `
+            <div>
+                <h2 class="text-2xl font-bold text-white mb-6">Game Library (${allGames.length})</h2>
+                
+                <div class="mb-4">
+                    <input type="text" 
+                           id="game-search" 
+                           placeholder="Search games..." 
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                
+                <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Game
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Submitted By
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="gamesList" class="bg-gray-900 divide-y divide-gray-800">
+                            ${allGames.map(game => `
+                                <tr class="hover:bg-gray-800">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center">
+                                            <div>
+                                                <div class="text-white font-medium">${game.title}</div>
+                                                <div class="text-gray-400 text-sm">${game.console} • ${game.year || 'N/A'}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-300">${game.submitted_email || 'N/A'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-900 text-green-200">
+                                            Approved
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-wrap gap-2">
+                                            <button onclick="adminEditGame('${game.id}')" 
+                                                    class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded-lg transition">
+                                                Edit
+                                            </button>
+                                            <button onclick="adminDeleteGame('${game.id}', '${escapeString(game.title)}')" 
+                                                    class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('') || `
+                                <tr>
+                                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
+                                        No games found in the library.
+                                    </td>
+                                </tr>
+                            `}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        content.innerHTML = html;
+
+        // Add search functionality
+        document.getElementById('game-search')?.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredGames = allGames.filter(game => 
+                game.title.toLowerCase().includes(searchTerm) ||
+                game.console.toLowerCase().includes(searchTerm) ||
+                (game.submitted_email && game.submitted_email.toLowerCase().includes(searchTerm))
+            );
+            renderGamesTable(filteredGames);
+        });
+
     } catch (error) {
         console.error('Error loading admin games:', error);
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <div class="text-4xl mb-4">⚠️</div>
+                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                <p class="text-red-400">${error.message}</p>
+            </div>
+        `;
     }
 }
 
 function renderGamesTable(games) {
     const gamesListEl = document.getElementById('gamesList');
     if (!gamesListEl) return;
-    
+
     if (!games || games.length === 0) {
         gamesListEl.innerHTML = `
             <tr>
-                <td colspan="5" class="py-8 text-center text-gray-400">
-                    No games found in the library.
+                <td colspan="4" class="px-6 py-8 text-center text-gray-400">
+                    No games found matching your search.
                 </td>
             </tr>
         `;
         return;
     }
-    
+
     gamesListEl.innerHTML = games.map(game => `
         <tr class="hover:bg-gray-800">
-            <td class="py-3 px-4">
-                <div class="flex items-center gap-3">
+            <td class="px-6 py-4">
+                <div class="flex items-center">
                     <div>
                         <div class="text-white font-medium">${game.title}</div>
                         <div class="text-gray-400 text-sm">${game.console} • ${game.year || 'N/A'}</div>
                     </div>
                 </div>
             </td>
-            <td class="py-3 px-4 text-gray-300">${game.submitted_email || 'N/A'}</td>
-            <td class="py-3 px-4">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    game.approved_at ? 'bg-green-900 text-green-200' : 'bg-yellow-900 text-yellow-200'
-                }">
-                    ${game.approved_at ? 'Approved' : 'Pending'}
+            <td class="px-6 py-4 text-gray-300">${game.submitted_email || 'N/A'}</td>
+            <td class="px-6 py-4">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-900 text-green-200">
+                    Approved
                 </span>
             </td>
-            <td class="py-3 px-4">
+            <td class="px-6 py-4">
                 <div class="flex flex-wrap gap-2">
                     <button onclick="adminEditGame('${game.id}')" 
                             class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded-lg transition">
@@ -409,6 +917,183 @@ function renderGamesTable(games) {
     `).join('');
 }
 
+// Existing functions (keep these unchanged)
+window.approveSubmission = async (submissionId) => {
+    if (!confirm('Approve this game submission?')) return;
+
+    try {
+        const user = await getCurrentUser();
+
+        const { data: submission, error: fetchError } = await supabase
+            .from('game_submissions')
+            .select('*')
+            .eq('id', submissionId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        const gameData = {
+            title: submission.title,
+            console: submission.console,
+            year: submission.year,
+            description: submission.description,
+            file_url: submission.file_url,
+            submitted_by: submission.user_id,
+            submitted_email: submission.user_email,
+            approved_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            connection_method: submission.connection_method,
+            connection_details: submission.connection_details,
+            multiplayer_type: submission.multiplayer_type,
+            players_min: submission.players_min,
+            players_max: submission.players_max,
+            servers_available: submission.servers_available,
+            server_details: submission.server_details
+        };
+
+        const { error: insertError } = await supabase
+            .from('games')
+            .insert([gameData]);
+
+        if (insertError) throw insertError;
+
+        const { error: updateError } = await supabase
+            .from('game_submissions')
+            .update({
+                status: 'approved',
+                reviewed_at: new Date().toISOString(),
+                reviewed_by: user.id
+            })
+            .eq('id', submissionId);
+
+        if (updateError) throw updateError;
+
+        showNotification('✅ Game approved and added to library!');
+        await loadPendingSubmissions();
+        await loadAdminGames();
+
+    } catch (error) {
+        console.error('Error approving submission:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+};
+
+window.rejectSubmission = async (submissionId) => {
+    const reason = prompt('Reason for rejection (optional):');
+
+    try {
+        const user = await getCurrentUser();
+
+        const { error } = await supabase
+            .from('game_submissions')
+            .update({
+                status: 'rejected',
+                reviewed_at: new Date().toISOString(),
+                reviewed_by: user.id,
+                review_notes: reason || 'Rejected by admin'
+            })
+            .eq('id', submissionId);
+
+        if (error) throw error;
+
+        showNotification('✅ Game submission rejected');
+        await loadPendingSubmissions();
+
+    } catch (error) {
+        console.error('Error rejecting submission:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+};
+
+async function createTestSubmission() {
+    try {
+        const user = await getCurrentUser();
+
+        const testSubmission = {
+            title: 'Test Game - ' + new Date().toLocaleTimeString(),
+            console: 'PS2',
+            year: 2005,
+            description: 'Test game submission to verify admin panel is working.',
+            user_id: user.id,
+            user_email: user.email,
+            connection_method: 'LAN',
+            multiplayer_type: 'LAN',
+            players_min: 2,
+            players_max: 4,
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('game_submissions')
+            .insert([testSubmission])
+            .select();
+
+        if (error) throw error;
+
+        showNotification('🧪 Test submission created!');
+        await loadPendingSubmissions();
+
+    } catch (error) {
+        console.error('Error creating test submission:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+}
+
+window.adminDeleteGame = async function(gameId, gameTitle) {
+    if (!confirm(`Are you sure you want to delete "${gameTitle}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('games')
+            .delete()
+            .eq('id', gameId);
+
+        if (error) throw error;
+
+        showNotification('✅ Game deleted successfully!');
+        await loadAdminGames();
+
+    } catch (error) {
+        console.error('Error deleting game:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+};
+
+window.adminEditGame = async function(gameId) {
+    try {
+        const { data: game, error } = await supabase
+            .from('games')
+            .select('*')
+            .eq('id', gameId)
+            .single();
+
+        if (error) throw error;
+
+        const newTitle = prompt('Enter new game title:', game.title);
+        if (!newTitle) return;
+
+        const { error: updateError } = await supabase
+            .from('games')
+            .update({ 
+                title: newTitle,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', gameId);
+
+        if (updateError) throw updateError;
+
+        showNotification('✅ Game updated successfully!');
+        await loadAdminGames();
+
+    } catch (error) {
+        console.error('Error editing game:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+};
+
 // Helper functions
 function escapeString(str) {
     if (!str) return '';
@@ -416,7 +1101,6 @@ function escapeString(str) {
 }
 
 function showNotification(message, type = 'success') {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition transform duration-300 ${
         type === 'success' ? 'bg-green-600 text-white' :
@@ -424,10 +1108,9 @@ function showNotification(message, type = 'success') {
         'bg-cyan-600 text-white'
     }`;
     notification.textContent = message;
-    
+
     document.body.appendChild(notification);
-    
-    // Auto-remove after 3 seconds
+
     setTimeout(() => {
         notification.classList.add('opacity-0', 'translate-x-full');
         setTimeout(() => notification.remove(), 300);
@@ -437,60 +1120,3 @@ function showNotification(message, type = 'success') {
 // Make functions globally accessible
 window.loadPendingSubmissions = loadPendingSubmissions;
 window.createTestSubmission = createTestSubmission;
-
-// Delete game function (simplified)
-window.adminDeleteGame = async function(gameId, gameTitle) {
-    if (!confirm(`Are you sure you want to delete "${gameTitle}"? This action cannot be undone.`)) {
-        return;
-    }
-    
-    try {
-        const { error } = await supabase
-            .from('games')
-            .delete()
-            .eq('id', gameId);
-        
-        if (error) throw error;
-        
-        showNotification('✅ Game deleted successfully!');
-        await loadAdminGames();
-        
-    } catch (error) {
-        console.error('Error deleting game:', error);
-        showNotification('❌ Error: ' + error.message, 'error');
-    }
-};
-
-// Edit game function (simplified)
-window.adminEditGame = async function(gameId) {
-    try {
-        const { data: game, error } = await supabase
-            .from('games')
-            .select('*')
-            .eq('id', gameId)
-            .single();
-        
-        if (error) throw error;
-        
-        // Simple edit modal
-        const newTitle = prompt('Enter new game title:', game.title);
-        if (!newTitle) return;
-        
-        const { error: updateError } = await supabase
-            .from('games')
-            .update({ 
-                title: newTitle,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', gameId);
-        
-        if (updateError) throw updateError;
-        
-        showNotification('✅ Game updated successfully!');
-        await loadAdminGames();
-        
-    } catch (error) {
-        console.error('Error editing game:', error);
-        showNotification('❌ Error: ' + error.message, 'error');
-    }
-};
