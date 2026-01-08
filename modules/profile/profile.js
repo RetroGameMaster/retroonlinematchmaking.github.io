@@ -132,15 +132,6 @@ function updateProfileDisplay(profile) {
     
     // Check if user is admin
     const adminCheck = isAdmin() || profile.role === 'admin';
-    
-    appContent.innerHTML = `
-        <div class="max-w-6xl mx-auto">
-            <!-- Custom Background Notice -->
-            ${isOwnProfile && currentProfile?.custom_background?.type === 'image' ? `
-                <div class="mb-4 p-3 bg-gray-800 border border-cyan-500 rounded-lg">
-                    <p class="text-cyan-300 text-sm">✨ Your custom Myspace-style background is active!</p>
-                </div>
-            ` : ''}
             
             <!-- Profile Header with Background -->
             <div class="relative overflow-hidden rounded-lg mb-8 border-2 border-cyan-500">
