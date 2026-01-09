@@ -1,4 +1,4 @@
-// modules/search-users/search-users.js
+// modules/search-users/search-users.js - FIXED VERSION WITH NO EMAIL DISPLAY
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentUser = null;
@@ -25,7 +25,7 @@ async function loadSearchInterface() {
             <!-- Search Header -->
             <div class="mb-8">
                 <h1 class="text-3xl font-bold text-white mb-2">👥 Find Users</h1>
-                <p class="text-gray-400">Search for users by username, email, or gaming interests</p>
+                <p class="text-gray-400">Search for users by username or gaming interests</p>
             </div>
             
             <!-- Search Bar -->
@@ -34,7 +34,7 @@ async function loadSearchInterface() {
                     <input type="text" 
                            id="user-search-input" 
                            class="w-full p-4 pl-12 bg-gray-800 border-2 border-cyan-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                           placeholder="Search by username, email, or console..."
+                           placeholder="Search by username or console..."
                            autocomplete="off">
                     <div class="absolute left-4 top-4 text-gray-400">
                         🔍
@@ -66,7 +66,7 @@ async function loadSearchInterface() {
                 <div class="text-center py-12">
                     <div class="text-4xl mb-4">🔍</div>
                     <p class="text-gray-400">Search for users to connect with</p>
-                    <p class="text-gray-500 text-sm mt-2">Try searching by username, email, or favorite console</p>
+                    <p class="text-gray-500 text-sm mt-2">Try searching by username or favorite console</p>
                 </div>
             </div>
             
@@ -157,11 +157,11 @@ async function searchUsers(query, filter = 'all') {
             return;
         }
         
-        // FIXED: Start with base query that excludes current user
+        // Start with base query that excludes current user
         let supabaseQuery = supabase
             .from('profiles')
             .select('*')
-            .neq('id', currentUser.id)  // ✅ This should now be valid
+            .neq('id', currentUser.id)
             .or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`);
         
         // Apply additional filters
@@ -309,7 +309,6 @@ function displaySearchResults(users, friendMap) {
             `;
         }
         
-        // Make the entire user info area clickable (except buttons)
         return `
             <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-between hover:border-cyan-500 transition search-result-card">
                 <a href="#/profile/${user.id}" 
@@ -332,9 +331,10 @@ function displaySearchResults(users, friendMap) {
                     
                     <div class="flex-1">
                         <h4 class="text-white font-semibold">${user.username || user.email.split('@')[0]}</h4>
-                        <div class="text-gray-400 text-sm">
-                            ${isOwnProfile ? user.email : 'Email hidden for privacy'}
-                        </div>
+                        
+                        ${user.bio ? `
+                            <p class="text-gray-400 text-sm mt-1 truncate">${user.bio}</p>
+                        ` : ''}
                         
                         <div class="flex flex-wrap gap-2 mt-2">
                             ${user.favorite_console ? `
@@ -366,7 +366,7 @@ function clearSearchResults() {
         <div class="text-center py-12">
             <div class="text-4xl mb-4">🔍</div>
             <p class="text-gray-400">Search for users to connect with</p>
-            <p class="text-gray-500 text-sm mt-2">Try searching by username, email, or favorite console</p>
+            <p class="text-gray-500 text-sm mt-2">Try searching by username or favorite console</p>
         </div>
     `;
     
