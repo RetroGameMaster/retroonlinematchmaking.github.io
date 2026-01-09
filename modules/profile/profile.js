@@ -765,11 +765,11 @@ async function loadFriends() {
                             </div>
                             <div>
                                 <h4 class="text-white font-semibold">${friend.friend.username || friend.friend.email.split('@')[0]}</h4>
-                                <p class="text-gray-400 text-sm">Email hidden for privacy</p>
+                                <p class="text-gray-400 text-sm">Friend</p>
                             </div>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="window.location.hash='#profile/${friend.friend_id}'" 
+                            <button onclick="window.location.hash='#/profile/${friend.friend_id}'" 
                                     class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded text-sm">
                                 View Profile
                             </button>
@@ -856,7 +856,6 @@ async function loadFriendRequests() {
                                             </div>
                                             <div>
                                                 <h3 class="text-white font-semibold">${request.sender.username || request.sender.email.split('@')[0]}</h3>
-                                                <p class="text-gray-400 text-sm">Email hidden for privacy</p>
                                                 ${request.sender.favorite_console ? `
                                                     <span class="inline-block mt-1 bg-yellow-600 text-white px-2 py-1 rounded text-xs">
                                                         🎮 ${request.sender.favorite_console}
@@ -882,7 +881,7 @@ async function loadFriendRequests() {
                                                 class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
                                             ❌ Decline
                                         </button>
-                                        <button onclick="viewProfile('${request.sender.id}')" 
+                                        <button onclick="window.viewProfile('${request.sender.id}')" 
                                                 class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg">
                                             👤 View Profile
                                         </button>
@@ -921,7 +920,6 @@ async function loadFriendRequests() {
                                             </div>
                                             <div>
                                                 <h3 class="text-white font-semibold">${request.recipient.username || request.recipient.email.split('@')[0]}</h3>
-                                                <p class="text-gray-400 text-sm">Email hidden for privacy</p>
                                                 ${request.recipient.favorite_console ? `
                                                     <span class="inline-block mt-1 bg-yellow-600 text-white px-2 py-1 rounded text-xs">
                                                         🎮 ${request.recipient.favorite_console}
@@ -939,7 +937,7 @@ async function loadFriendRequests() {
                                                 class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
                                             ❌ Cancel Request
                                         </button>
-                                        <button onclick="viewProfile('${request.recipient.id}')" 
+                                        <button onclick="window.viewProfile('${request.recipient.id}')" 
                                                 class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg">
                                             👤 View Profile
                                         </button>
