@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - UPDATED FOR SLUG SUPPORT
+// modules/game-detail/game-detail.js - FIXED COLUMN NAMES
 async function initGameDetail(rom, identifier) {
     console.log('🎮 Initializing game detail module for identifier:', identifier);
     
@@ -38,14 +38,10 @@ async function initGameDetail(rom, identifier) {
         console.log('Loading game with identifier:', identifier);
         
         try {
+            // First get the game
             let query = rom.supabase
                 .from('games')
-                .select(`
-                    *,
-                    comments:game_comments(count),
-                    ratings:game_ratings(avg_rating, count),
-                    user_favorites!left(user_id)
-                `);
+                .select('*');
             
             // Check if identifier is a UUID (ID) or a slug
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
@@ -56,22 +52,52 @@ async function initGameDetail(rom, identifier) {
                 query = query.eq('slug', identifier);
             }
             
-            const { data, error } = await query.single();
+            const { data: game, error } = await query.single();
             
             if (error) {
                 console.error('Error loading game:', error);
-                
-                // If not found by slug, try ID as fallback
-                if (!isUuid) {
-                    console.log('Trying as ID fallback...');
-                    return await loadGameByIdentifier(identifier); // Will now treat as UUID if it matches pattern
-                }
-                
                 return null;
             }
             
-            console.log('Game loaded successfully:', data.title);
-            return data;
+            // Get average rating
+            const { data: ratings } = await rom.supabase
+                .from('game_ratings')
+                .select('rating')
+                .eq('game_id', game.id);
+            
+            // Get comment count
+            const { count: commentCount } = await rom.supabase
+                .from('game_comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('game_id', game.id);
+            
+            // Calculate average rating
+            const avgRating = ratings && ratings.length > 0 
+                ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+                : 0;
+            
+            // Check if user has favorited this game
+            let isFavorited = false;
+            if (rom.currentUser) {
+                const { data: favorite } = await rom.supabase
+                    .from('user_favorites')
+                    .select('id')
+                    .eq('user_id', rom.currentUser.id)
+                    .eq('game_id', game.id)
+                    .single()
+                    .catch(() => ({ data: null }));
+                
+                isFavorited = !!favorite;
+            }
+            
+            console.log('Game loaded successfully:', game.title);
+            return {
+                ...game,
+                avg_rating: avgRating,
+                rating_count: ratings?.length || 0,
+                comment_count: commentCount || 0,
+                is_favorited: isFavorited
+            };
             
         } catch (error) {
             console.error('Error in loadGameByIdentifier:', error);
@@ -85,7 +111,10 @@ async function initGameDetail(rom, identifier) {
         document.title = `${game.title} - Retro Online Matchmaking`;
         
         // Set game ID as data attribute for reference
-        document.getElementById('gameDetail').dataset.gameId = game.id;
+        const gameDetail = document.getElementById('gameDetail');
+        if (gameDetail) {
+            gameDetail.dataset.gameId = game.id;
+        }
         
         // Update game title
         const titleElement = document.getElementById('gameTitle');
@@ -144,32 +173,28 @@ async function initGameDetail(rom, identifier) {
         }
         
         // Update rating
-        const rating = game.ratings?.[0]?.avg_rating || 0;
-        const ratingCount = game.ratings?.[0]?.count || 0;
         const ratingElement = document.getElementById('gameRating');
         if (ratingElement) {
             ratingElement.innerHTML = `
                 <span class="text-yellow-400 text-xl">★</span>
-                <span class="text-2xl font-bold ml-2">${rating.toFixed(1)}</span>
-                <span class="text-gray-400 ml-2">(${ratingCount} ratings)</span>
+                <span class="text-2xl font-bold ml-2">${game.avg_rating.toFixed(1)}</span>
+                <span class="text-gray-400 ml-2">(${game.rating_count} ratings)</span>
             `;
         }
         
         // Update comments count
         const commentsElement = document.getElementById('gameCommentsCount');
         if (commentsElement) {
-            const commentCount = game.comments?.[0]?.count || 0;
-            commentsElement.textContent = `${commentCount} comments`;
+            commentsElement.textContent = `${game.comment_count} comments`;
         }
         
         // Update favorite button
         const favoriteBtn = document.getElementById('favoriteBtn');
         if (favoriteBtn) {
-            const isFavorited = game.user_favorites?.length > 0;
-            favoriteBtn.innerHTML = isFavorited ? 
+            favoriteBtn.innerHTML = game.is_favorited ? 
                 '♥ Remove from Favorites' : 
                 '♡ Add to Favorites';
-            favoriteBtn.dataset.favorited = isFavorited;
+            favoriteBtn.dataset.favorited = game.is_favorited;
             
             favoriteBtn.onclick = () => toggleFavorite(game.id, favoriteBtn);
         }
@@ -462,12 +487,10 @@ async function initGameDetail(rom, identifier) {
             if (game) {
                 const ratingElement = document.getElementById('gameRating');
                 if (ratingElement) {
-                    const avgRating = game.ratings?.[0]?.avg_rating || 0;
-                    const ratingCount = game.ratings?.[0]?.count || 0;
                     ratingElement.innerHTML = `
                         <span class="text-yellow-400 text-xl">★</span>
-                        <span class="text-2xl font-bold ml-2">${avgRating.toFixed(1)}</span>
-                        <span class="text-gray-400 ml-2">(${ratingCount} ratings)</span>
+                        <span class="text-2xl font-bold ml-2">${game.avg_rating.toFixed(1)}</span>
+                        <span class="text-gray-400 ml-2">(${game.rating_count} ratings)</span>
                     `;
                 }
             }
@@ -486,7 +509,8 @@ async function initGameDetail(rom, identifier) {
         // Show edit button if user is admin or game submitter
         const canEdit = rom.currentUser && (
             rom.currentUser.email === game.submitted_by || 
-            rom.currentUser.email === 'retrogamemasterra@gmail.com'
+            rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
+            rom.currentUser.email === 'admin@retroonlinematchmaking.com'
         );
         
         if (canEdit) {
