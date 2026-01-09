@@ -18,8 +18,6 @@ export function initModule(rom) {
     
     console.log('✅ Supabase client available');
     
-    // REMOVED: Form submission handling - using submit-game module instead
-    
     // Load existing games with supabase
     loadGames(supabase);
     
@@ -128,13 +126,7 @@ async function loadGames(supabase) {
         console.log('📡 Querying games from Supabase...');
         const { data: games, error, count } = await supabase
             .from('games')
-            .select(`
-                *,
-                profiles:submitted_by (
-                    username,
-                    avatar_url
-                )
-            `)
+            .select('*')
             .order('title', { ascending: true });
         
         if (error) {
@@ -165,9 +157,10 @@ async function loadGames(supabase) {
             const coverImage = game.cover_image_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=600&fit=crop';
             const screenshots = game.screenshot_urls || [];
             
-            // Get display name for submitted by
-            const submittedByDisplay = game.profiles?.username || 
-                                      (game.submitted_email ? game.submitted_email.split('@')[0] : 'Unknown');
+            // Get display name for submitted by (extract from email)
+            const submittedByDisplay = game.submitted_email ? 
+                                      game.submitted_email.split('@')[0] : 
+                                      (game.submitted_by ? game.submitted_by.split('@')[0] : 'Unknown');
             
             return `
                 <div class="bg-gray-800 p-6 rounded-lg mb-6 border border-gray-700 hover:border-cyan-500 transition group">
