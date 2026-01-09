@@ -261,6 +261,9 @@ function displaySearchResults(users, friendMap) {
         const firstLetter = (user.username || user.email).charAt(0).toUpperCase();
         const friendStatus = friendMap[user.id];
         
+        // Check if this is the current user's own profile
+        const isOwnProfile = currentUser && user.id === currentUser.id;
+        
         // Determine button text based on friend status
         let buttonHtml = '';
         if (friendStatus === 'accepted') {
@@ -329,7 +332,9 @@ function displaySearchResults(users, friendMap) {
                     
                     <div class="flex-1">
                         <h4 class="text-white font-semibold">${user.username || user.email.split('@')[0]}</h4>
-                        <p class="text-gray-400 text-sm">${user.email}</p>
+                        <div class="text-gray-400 text-sm">
+                            ${isOwnProfile ? user.email : 'Email hidden for privacy'}
+                        </div>
                         
                         <div class="flex flex-wrap gap-2 mt-2">
                             ${user.favorite_console ? `
