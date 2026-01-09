@@ -1,5 +1,6 @@
 // modules/chat/chat.js - COMPLETE FIXED VERSION
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
+import { createUserProfileLink, createUserAvatarLink } from '../../lib/userLinks.js';
 
 let currentRoom = null;
 let onlineUsersSubscription = null;
@@ -630,20 +631,22 @@ function renderMessage(msg) {
         `;
     }
     
-    // Get display name
+    // Use clickable username link
     const displayName = msg.username || msg.user_email?.split('@')[0] || 'User';
+    const usernameLink = createUserProfileLink(msg.user_id, displayName, msg.user_email);
+    
+    // Use clickable avatar link
+    const avatarLink = createUserAvatarLink(msg.user_id, displayName);
     
     return `
-        <div class="message mb-4" data-message-id="${msg.id}">
+        <div class="message mb-4" data-message-id="${msg.id}" data-user-id="${msg.user_id}">
             <div class="flex items-start">
                 <div class="flex-shrink-0">
-                    <div class="w-8 h-8 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold">
-                        ${displayName.charAt(0).toUpperCase()}
-                    </div>
+                    ${avatarLink}
                 </div>
                 <div class="ml-3 flex-1">
                     <div class="flex items-baseline">
-                        <span class="font-bold text-cyan-300">${displayName}</span>
+                        ${usernameLink}
                         <span class="text-gray-500 text-sm ml-2">${timestamp}</span>
                     </div>
                     <p class="text-gray-100 mt-1 whitespace-pre-wrap break-words">${msg.message}</p>
@@ -830,13 +833,20 @@ async function loadOnlineUsers(roomId) {
             return;
         }
         
+        // Use clickable user cards for online users
         onlineList.innerHTML = users.map(user => `
-            <div class="flex items-center py-2">
-                <div class="w-2 h-2 rounded-full mr-3 ${user.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}"></div>
-                <div class="flex-1">
-                    <div class="text-white">${user.username || user.user_email?.split('@')[0] || 'User'}</div>
-                    <div class="text-gray-500 text-xs">${user.status === 'online' ? 'Online' : 'Away'}</div>
-                </div>
+            <div class="user-card py-2 border-b border-gray-700 last:border-0">
+                <a href="#/profile/${user.user_id}" 
+                   class="flex items-center gap-3 hover:bg-gray-800/50 p-2 rounded transition"
+                   onclick="event.stopPropagation()">
+                    <div class="w-2 h-2 rounded-full ${user.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}"></div>
+                    <div class="flex-1">
+                        <div class="text-white font-semibold user-profile-link hover:text-cyan-300 cursor-pointer">
+                            ${user.username || user.user_email?.split('@')[0] || 'User'}
+                        </div>
+                        <div class="text-gray-500 text-xs">${user.status === 'online' ? 'Online' : 'Away'}</div>
+                    </div>
+                </a>
             </div>
         `).join('');
         
