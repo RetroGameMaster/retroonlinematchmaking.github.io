@@ -1,3 +1,4 @@
+// modules/search-users/search-users.js
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentUser = null;
@@ -305,9 +306,12 @@ function displaySearchResults(users, friendMap) {
             `;
         }
         
+        // Make the entire user info area clickable (except buttons)
         return `
             <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-between hover:border-cyan-500 transition search-result-card">
-                <div class="flex items-center gap-4">
+                <a href="#/profile/${user.id}" 
+                   class="flex items-center gap-4 flex-1"
+                   onclick="event.stopPropagation()">
                     <div class="relative">
                         <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
                             ${user.avatar_url ? `
@@ -320,10 +324,10 @@ function displaySearchResults(users, friendMap) {
                                 </span>
                             `}
                         </div>
-                        <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-gray-600 rounded-full border-2 border-gray-800"></div>
+                        <div class="absolute -bottom-1 -right-1 w-3 h-3 ${user.status === 'online' ? 'bg-green-500' : 'bg-gray-600'} rounded-full border-2 border-gray-800"></div>
                     </div>
                     
-                    <div>
+                    <div class="flex-1">
                         <h4 class="text-white font-semibold">${user.username || user.email.split('@')[0]}</h4>
                         <p class="text-gray-400 text-sm">${user.email}</p>
                         
@@ -339,7 +343,7 @@ function displaySearchResults(users, friendMap) {
                             </span>
                         </div>
                     </div>
-                </div>
+                </a>
                 
                 <div class="flex gap-2">
                     ${buttonHtml}
