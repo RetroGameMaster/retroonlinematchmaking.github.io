@@ -1,4 +1,6 @@
+// modules/game-detail/game-detail.js
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
+import { createUserProfileLink } from '../../lib/userLinks.js';
 
 let currentGameId = null;
 let commentsSubscription = null;
@@ -1024,7 +1026,7 @@ function showNotification(message, type = 'success') {
 }
 
 // -----------------------------------------------------------------
-// YOUR EXISTING FUNCTIONS BELOW (KEEP ALL OF THESE)
+// COMMENT FUNCTIONS WITH CLICKABLE USERNAMES
 // -----------------------------------------------------------------
 
 function renderComment(comment) {
@@ -1032,19 +1034,28 @@ function renderComment(comment) {
     const isEdited = comment.is_edited ? '<span class="text-gray-500 text-sm ml-2">(edited)</span>' : '';
     const isPinned = comment.is_pinned ? '<span class="bg-yellow-600 text-white text-xs px-2 py-1 rounded ml-2">📌 Pinned</span>' : '';
     
+    const displayName = comment.username || comment.user_email || 'User';
+    const usernameLink = createUserProfileLink(comment.user_id, displayName, comment.user_email);
+    
     return `
         <div class="comment-box bg-gray-800 p-4 rounded-xl" data-comment-id="${comment.id}">
             <div class="flex">
-                <!-- User Avatar -->
-                <div class="comment-avatar rounded-full flex-shrink-0 flex items-center justify-center mr-3">
-                    <span class="text-white font-bold">${comment.username?.charAt(0)?.toUpperCase() || 'U'}</span>
+                <!-- User Avatar with Profile Link -->
+                <div class="comment-avatar rounded-full flex-shrink-0 mr-3">
+                    <a href="#/profile/${comment.user_id}" 
+                       class="block"
+                       onclick="event.stopPropagation()">
+                        <div class="w-8 h-8 bg-cyan-600 rounded-full flex items-center justify-center text-white font-bold hover:ring-2 hover:ring-cyan-400 transition">
+                            ${displayName.charAt(0).toUpperCase()}
+                        </div>
+                    </a>
                 </div>
                 
                 <!-- Comment Content -->
                 <div class="flex-1">
                     <div class="flex justify-between items-start mb-2">
                         <div>
-                            <span class="font-bold text-cyan-300">${comment.username || comment.user_email || 'User'}</span>
+                            ${usernameLink}
                             <span class="text-gray-500 text-sm ml-2">${timeAgo}</span>
                             ${isEdited}
                             ${isPinned}
