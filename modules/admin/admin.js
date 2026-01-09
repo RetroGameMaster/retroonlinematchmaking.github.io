@@ -1,4 +1,4 @@
-// modules/admin/admin.js - UPDATED WITH ADMIN MANAGEMENT
+// modules/admin/admin.js - FIXED VERSION
 import { supabase, getCurrentUser, isAdmin } from '../../lib/supabase.js';
 
 let allGames = [];
@@ -176,12 +176,17 @@ async function loadInitialStats() {
             .select('*', { count: 'exact', head: true });
         document.getElementById('total-users').textContent = totalUsers || 0;
         
-        // Get admin count
-        const { count: adminCount } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('is_admin', true);
-        document.getElementById('admin-count').textContent = adminCount || 0;
+        // Try to get admin count - handle missing column gracefully
+        try {
+            const { count: adminCount } = await supabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('is_admin', true);
+            document.getElementById('admin-count').textContent = adminCount || 0;
+        } catch (adminError) {
+            console.log('Admin column not available yet:', adminError.message);
+            document.getElementById('admin-count').textContent = '1'; // Assuming you're the only admin
+        }
         
     } catch (error) {
         console.error('Error loading stats:', error);
@@ -280,20 +285,24 @@ async function loadPendingSubmissions() {
 
     } catch (error) {
         console.error('Error in loadPendingSubmissions:', error);
-        document.getElementById('admin-content').innerHTML = `
-            <div class="text-center py-8">
-                <div class="text-4xl mb-4">⚠️</div>
-                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
-                <p class="text-red-400">${error.message}</p>
-            </div>
-        `;
+        const content = document.getElementById('admin-content');
+        if (content) {
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-4">⚠️</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                    <p class="text-red-400">${error.message}</p>
+                </div>
+            `;
+        }
     }
 }
 
 // ADMIN MANAGEMENT FUNCTIONS
 async function loadAdminList() {
+    const content = document.getElementById('admin-content');
+    
     try {
-        const content = document.getElementById('admin-content');
         content.innerHTML = `
             <div class="text-center py-8">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
@@ -318,14 +327,58 @@ async function loadAdminList() {
             return;
         }
 
-        // Get all admin users
-        const { data: admins, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('is_admin', true)
-            .order('created_at', { ascending: false });
+        // Try to get all admin users - handle missing column gracefully
+        let admins = [];
+        try {
+            const { data: adminData, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('is_admin', true)
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                // If column doesn't exist, show setup instructions
+                if (error.message.includes('column profiles.is_admin does not exist')) {
+                    throw new Error('Admin column not set up. Please run the SQL to add is_admin column.');
+                }
+                throw error;
+            }
+            
+            admins = adminData || [];
+            
+        } catch (dbError) {
+            console.error('Database error:', dbError);
+            
+            // Show setup instructions instead of error
+            content.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-5xl mb-4">🔧</div>
+                    <h3 class="text-xl font-bold text-white mb-4">Database Setup Required</h3>
+                    <p class="text-gray-300 mb-6">To manage admins, you need to add the <code class="bg-gray-900 px-2 py-1 rounded">is_admin</code> column to your profiles table.</p>
+                    
+                    <div class="bg-gray-900 p-6 rounded-lg border border-cyan-500 mb-6">
+                        <h4 class="text-lg font-bold text-cyan-300 mb-3">SQL to Run in Supabase:</h4>
+                        <pre class="bg-black p-4 rounded text-sm text-gray-200 overflow-x-auto">
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
 
-        if (error) throw error;
+-- Make yourself admin
+UPDATE profiles 
+SET is_admin = TRUE 
+WHERE email = 'retrogamemasterra@gmail.com';</pre>
+                        
+                        <div class="mt-4 flex justify-center space-x-4">
+                            <button onclick="loadAdminList()" class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
+                                🔄 Retry After Setup
+                            </button>
+                            <button onclick="loadPendingSubmissions()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                                Go to Submissions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
 
         // Get current user's profile to check admin status
         const { data: currentUserProfile } = await supabase
@@ -337,79 +390,81 @@ async function loadAdminList() {
         let html = `
             <div>
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-white">Admin Users</h2>
+                    <h2 class="text-2xl font-bold text-white">Admin Users (${admins.length})</h2>
                     <button id="add-admin-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center">
                         <span class="mr-2">➕</span>
                         Add Admin
                     </button>
                 </div>
                 
-                <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-                    <table class="min-w-full divide-y divide-gray-700">
-                        <thead class="bg-gray-800">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                    User
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                    Email
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                    Admin Since
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="adminsList" class="bg-gray-900 divide-y divide-gray-800">
-                            ${admins?.map(admin => `
-                                <tr class="hover:bg-gray-800">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
-                                                <span class="text-white font-bold">
-                                                    ${(admin.username || admin.email).charAt(0).toUpperCase()}
-                                                </span>
-                                            </div>
-                                            <div class="ml-4">
-                                                <div class="text-sm font-medium text-white">
-                                                    ${admin.username || 'No username'}
-                                                    ${admin.email === 'retrogamemasterra@gmail.com' ? 
-                                                        '<span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Main Admin</span>' : ''}
-                                                </div>
-                                                <div class="text-sm text-gray-300">
-                                                    ${admin.favorite_console || 'No console set'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-300">${admin.email}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                        ${new Date(admin.updated_at || admin.created_at).toLocaleDateString()}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        ${admin.email === 'retrogamemasterra@gmail.com' ? 
-                                            `<span class="text-gray-400">Cannot remove main admin</span>` :
-                                            `<button onclick="removeAdminFromList('${admin.id}', '${escapeString(admin.email)}')" 
-                                                     class="text-red-400 hover:text-red-300 bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
-                                                Remove Admin
-                                            </button>`
-                                        }
-                                    </td>
-                                </tr>
-                            `).join('') || `
+                ${admins.length === 0 ? `
+                    <div class="text-center py-12 bg-gray-900 rounded-lg border border-gray-700">
+                        <div class="text-6xl mb-4">👑</div>
+                        <h3 class="text-xl font-bold text-white mb-2">No Admins Found</h3>
+                        <p class="text-gray-400">You are currently the only admin.</p>
+                    </div>
+                ` : `
+                    <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="bg-gray-800">
                                 <tr>
-                                    <td colspan="4" class="px-6 py-8 text-center text-gray-400">
-                                        No admin users found.
-                                    </td>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        User
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        Email
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        Admin Since
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                        Actions
+                                    </th>
                                 </tr>
-                            `}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody id="adminsList" class="bg-gray-900 divide-y divide-gray-800">
+                                ${admins.map(admin => `
+                                    <tr class="hover:bg-gray-800">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
+                                                    <span class="text-white font-bold">
+                                                        ${(admin.username || admin.email).charAt(0).toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-medium text-white">
+                                                        ${admin.username || 'No username'}
+                                                        ${admin.email === 'retrogamemasterra@gmail.com' ? 
+                                                            '<span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Main Admin</span>' : ''}
+                                                    </div>
+                                                    <div class="text-sm text-gray-300">
+                                                        ${admin.favorite_console || 'No console set'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-300">${admin.email}</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                            ${new Date(admin.updated_at || admin.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            ${admin.email === 'retrogamemasterra@gmail.com' ? 
+                                                `<span class="text-gray-400">Cannot remove main admin</span>` :
+                                                `<button onclick="removeAdminFromList('${admin.id}', '${escapeString(admin.email)}')" 
+                                                         class="text-red-400 hover:text-red-300 bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
+                                                    Remove Admin
+                                                </button>`
+                                            }
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `}
                 
                 <div class="mt-6 bg-gray-900 p-6 rounded-lg border border-yellow-600">
                     <h3 class="text-lg font-bold text-yellow-400 mb-2">⚠️ Important Notes</h3>
@@ -430,129 +485,172 @@ async function loadAdminList() {
 
     } catch (error) {
         console.error('Error loading admin list:', error);
-        content.innerHTML = `
-            <div class="text-center py-8">
-                <div class="text-4xl mb-4">⚠️</div>
-                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
-                <p class="text-red-400">${error.message}</p>
-            </div>
-        `;
+        
+        // FIX: Ensure content is defined before using it
+        if (content) {
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-4">⚠️</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                    <p class="text-red-400">${error.message}</p>
+                </div>
+            `;
+        }
     }
 }
 
 async function showAddAdminModal() {
-    // Get all non-admin users
-    const { data: nonAdmins, error } = await supabase
-        .from('profiles')
-        .select('id, email, username')
-        .eq('is_admin', false)
-        .order('created_at', { ascending: false })
-        .limit(50);
+    try {
+        // Get all non-admin users - handle missing column
+        let nonAdmins = [];
+        try {
+            const { data: usersData, error } = await supabase
+                .from('profiles')
+                .select('id, email, username, is_admin')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            
+            if (error) {
+                // If column doesn't exist, treat all users as non-admins
+                if (error.message.includes('column profiles.is_admin does not exist')) {
+                    const { data: allUsers } = await supabase
+                        .from('profiles')
+                        .select('id, email, username')
+                        .order('created_at', { ascending: false })
+                        .limit(50);
+                    nonAdmins = allUsers || [];
+                } else {
+                    throw error;
+                }
+            } else {
+                // Filter out admins
+                nonAdmins = usersData.filter(user => !user.is_admin);
+            }
+            
+        } catch (dbError) {
+            console.error('Error loading users for admin modal:', dbError);
+            
+            // Fallback: Get all users
+            const { data: allUsers } = await supabase
+                .from('profiles')
+                .select('id, email, username')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            nonAdmins = allUsers || [];
+        }
 
-    if (error) {
-        showNotification('Error loading users: ' + error.message, 'error');
-        return;
-    }
+        if (!nonAdmins || nonAdmins.length === 0) {
+            showNotification('No non-admin users found', 'info');
+            return;
+        }
 
-    if (!nonAdmins || nonAdmins.length === 0) {
-        showNotification('No non-admin users found', 'info');
-        return;
-    }
-
-    const modalHtml = `
-        <div id="add-admin-modal" class="fixed inset-0 z-50 overflow-y-auto">
-            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                <!-- Background overlay -->
-                <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"></div>
-                
-                <!-- Modal panel -->
-                <div class="inline-block align-bottom bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                    <div class="sm:flex sm:items-start">
-                        <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                            <h3 class="text-lg leading-6 font-bold text-white mb-4">
-                                ➕ Add New Admin
-                            </h3>
-                            
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-300 mb-2">
-                                    Select User to Promote to Admin
-                                </label>
-                                <select id="admin-user-select" 
-                                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                                    <option value="">-- Select a user --</option>
-                                    ${nonAdmins.map(user => `
-                                        <option value="${user.id}">
-                                            ${user.email} (${user.username || 'no username'})
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            
-                            <div class="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-3 mb-4">
-                                <p class="text-sm text-yellow-200">
-                                    ⚠️ This user will be able to approve/reject game submissions and manage games.
-                                </p>
-                            </div>
-                            
-                            <div class="flex justify-end space-x-3 mt-6">
-                                <button type="button" 
-                                        onclick="closeAddAdminModal()"
-                                        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
-                                    Cancel
-                                </button>
-                                <button type="button" 
-                                        onclick="promoteToAdmin()"
-                                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">
-                                    Promote to Admin
-                                </button>
+        const modalHtml = `
+            <div id="add-admin-modal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                    <!-- Background overlay -->
+                    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"></div>
+                    
+                    <!-- Modal panel -->
+                    <div class="inline-block align-bottom bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-bold text-white mb-4">
+                                    ➕ Add New Admin
+                                </h3>
+                                
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                                        Select User to Promote to Admin
+                                    </label>
+                                    <select id="admin-user-select" 
+                                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                        <option value="">-- Select a user --</option>
+                                        ${nonAdmins.map(user => `
+                                            <option value="${user.id}">
+                                                ${user.email} (${user.username || 'no username'})
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+                                
+                                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-3 mb-4">
+                                    <p class="text-sm text-yellow-200">
+                                        ⚠️ This user will be able to approve/reject game submissions and manage games.
+                                    </p>
+                                </div>
+                                
+                                <div class="flex justify-end space-x-3 mt-6">
+                                    <button type="button" 
+                                            onclick="closeAddAdminModal()"
+                                            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
+                                        Cancel
+                                    </button>
+                                    <button type="button" 
+                                            onclick="promoteToAdmin()"
+                                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold">
+                                        Promote to Admin
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
 
-    // Add modal to body
-    const modalContainer = document.createElement('div');
-    modalContainer.innerHTML = modalHtml;
-    document.body.appendChild(modalContainer);
+        // Add modal to body
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
 
-    // Make functions available globally
-    window.closeAddAdminModal = function() {
-        document.getElementById('add-admin-modal')?.remove();
-    };
+        // Make functions available globally
+        window.closeAddAdminModal = function() {
+            const modal = document.getElementById('add-admin-modal');
+            if (modal) modal.remove();
+        };
 
-    window.promoteToAdmin = async function() {
-        const select = document.getElementById('admin-user-select');
-        const userId = select.value;
-        
-        if (!userId) {
-            showNotification('Please select a user', 'error');
-            return;
-        }
-        
-        try {
-            // Update user to admin
-            const { error } = await supabase
-                .from('profiles')
-                .update({ is_admin: true, updated_at: new Date().toISOString() })
-                .eq('id', userId);
+        window.promoteToAdmin = async function() {
+            const select = document.getElementById('admin-user-select');
+            const userId = select.value;
             
-            if (error) throw error;
+            if (!userId) {
+                showNotification('Please select a user', 'error');
+                return;
+            }
             
-            showNotification('✅ User promoted to admin successfully!');
-            
-            // Close modal and refresh admin list
-            window.closeAddAdminModal();
-            await loadAdminList();
-            await loadInitialStats(); // Refresh stats
-            
-        } catch (error) {
-            console.error('Error promoting to admin:', error);
-            showNotification('❌ Error: ' + error.message, 'error');
-        }
-    };
+            try {
+                // Update user to admin
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ is_admin: true, updated_at: new Date().toISOString() })
+                    .eq('id', userId);
+                
+                if (error) {
+                    // If column doesn't exist, show error with instructions
+                    if (error.message.includes('column "is_admin" of relation "profiles" does not exist')) {
+                        showNotification('❌ Error: Admin column not set up. Please run the SQL first.', 'error');
+                        return;
+                    }
+                    throw error;
+                }
+                
+                showNotification('✅ User promoted to admin successfully!');
+                
+                // Close modal and refresh admin list
+                window.closeAddAdminModal();
+                await loadAdminList();
+                await loadInitialStats(); // Refresh stats
+                
+            } catch (error) {
+                console.error('Error promoting to admin:', error);
+                showNotification('❌ Error: ' + error.message, 'error');
+            }
+        };
+
+    } catch (error) {
+        console.error('Error showing add admin modal:', error);
+        showNotification('Error loading users: ' + error.message, 'error');
+    }
 }
 
 // Remove admin function
@@ -580,7 +678,13 @@ window.removeAdminFromList = async function(userId, userEmail) {
             })
             .eq('id', userId);
         
-        if (error) throw error;
+        if (error) {
+            if (error.message.includes('column "is_admin" of relation "profiles" does not exist')) {
+                showNotification('❌ Error: Admin column not set up.', 'error');
+                return;
+            }
+            throw error;
+        }
         
         showNotification('✅ Admin privileges removed successfully!');
         await loadAdminList();
@@ -592,10 +696,11 @@ window.removeAdminFromList = async function(userId, userEmail) {
     }
 };
 
-// USER MANAGEMENT FUNCTION (for completeness)
+// USER MANAGEMENT FUNCTION
 async function loadAllUsers() {
+    const content = document.getElementById('admin-content');
+    
     try {
-        const content = document.getElementById('admin-content');
         content.innerHTML = `
             <div class="text-center py-8">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
@@ -636,7 +741,10 @@ async function loadAllUsers() {
                             </tr>
                         </thead>
                         <tbody id="usersList" class="bg-gray-900 divide-y divide-gray-800">
-                            ${users?.map(user => `
+                            ${users?.map(user => {
+                                // Check if user is admin - handle missing column
+                                const isUserAdmin = user.is_admin === true;
+                                return `
                                 <tr class="hover:bg-gray-800">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
@@ -648,7 +756,9 @@ async function loadAllUsers() {
                                             <div class="ml-4">
                                                 <div class="text-sm font-medium text-white">
                                                     ${user.username || 'No username'}
-                                                    ${user.is_admin ? 
+                                                    ${user.email === 'retrogamemasterra@gmail.com' ? 
+                                                        '<span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Main Admin</span>' : ''}
+                                                    ${isUserAdmin && user.email !== 'retrogamemasterra@gmail.com' ? 
                                                         '<span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Admin</span>' : ''}
                                                 </div>
                                                 <div class="text-sm text-gray-300">
@@ -662,9 +772,9 @@ async function loadAllUsers() {
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                            user.is_admin ? 'bg-yellow-900 text-yellow-200' : 'bg-green-900 text-green-200'
+                                            isUserAdmin ? 'bg-yellow-900 text-yellow-200' : 'bg-green-900 text-green-200'
                                         }">
-                                            ${user.is_admin ? 'Admin' : 'User'}
+                                            ${isUserAdmin ? 'Admin' : 'User'}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
@@ -674,7 +784,7 @@ async function loadAllUsers() {
                                         <div class="flex space-x-2">
                                             ${user.email === 'retrogamemasterra@gmail.com' ? 
                                                 '<span class="text-gray-400">Main Admin</span>' :
-                                                user.is_admin ? 
+                                                isUserAdmin ? 
                                                     `<button onclick="removeAdminFromList('${user.id}', '${escapeString(user.email)}')" 
                                                              class="text-red-400 hover:text-red-300 bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
                                                         Remove Admin
@@ -689,7 +799,7 @@ async function loadAllUsers() {
                                         </div>
                                     </td>
                                 </tr>
-                            `).join('') || `
+                            `}).join('') || `
                                 <tr>
                                     <td colspan="5" class="px-6 py-8 text-center text-gray-400">
                                         No users found.
@@ -706,13 +816,15 @@ async function loadAllUsers() {
 
     } catch (error) {
         console.error('Error loading users:', error);
-        content.innerHTML = `
-            <div class="text-center py-8">
-                <div class="text-4xl mb-4">⚠️</div>
-                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
-                <p class="text-red-400">${error.message}</p>
-            </div>
-        `;
+        if (content) {
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-4">⚠️</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                    <p class="text-red-400">${error.message}</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -738,7 +850,13 @@ window.promoteUserToAdmin = async function(userId, userEmail) {
             })
             .eq('id', userId);
         
-        if (error) throw error;
+        if (error) {
+            if (error.message.includes('column "is_admin" of relation "profiles" does not exist')) {
+                showNotification('❌ Error: Admin column not set up. Please run the SQL first.', 'error');
+                return;
+            }
+            throw error;
+        }
         
         showNotification('✅ User promoted to admin successfully!');
         await loadAllUsers();
@@ -750,10 +868,11 @@ window.promoteUserToAdmin = async function(userId, userEmail) {
     }
 };
 
-// Game management functions (keep from original)
+// Game management functions
 async function loadAdminGames() {
+    const content = document.getElementById('admin-content');
+    
     try {
-        const content = document.getElementById('admin-content');
         content.innerHTML = `
             <div class="text-center py-8">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
@@ -860,13 +979,15 @@ async function loadAdminGames() {
 
     } catch (error) {
         console.error('Error loading admin games:', error);
-        content.innerHTML = `
-            <div class="text-center py-8">
-                <div class="text-4xl mb-4">⚠️</div>
-                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
-                <p class="text-red-400">${error.message}</p>
-            </div>
-        `;
+        if (content) {
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-4">⚠️</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                    <p class="text-red-400">${error.message}</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -917,7 +1038,7 @@ function renderGamesTable(games) {
     `).join('');
 }
 
-// Existing functions (keep these unchanged)
+// Existing functions
 window.approveSubmission = async (submissionId) => {
     if (!confirm('Approve this game submission?')) return;
 
