@@ -1,0 +1,173 @@
+<!-- modules/messages/messages.html -->
+<div class="max-w-6xl mx-auto">
+    <!-- Messages Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">💬 Messages</h1>
+                <p class="text-gray-400">Private conversations with your friends</p>
+            </div>
+            <button id="new-message-btn" 
+                    class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2">
+                <span>✉️</span>
+                New Message
+            </button>
+        </div>
+    </div>
+    
+    <!-- Messages Container -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Conversations List -->
+        <div class="lg:col-span-1">
+            <div class="bg-gray-800 rounded-lg border border-cyan-500 overflow-hidden">
+                <!-- Search Bar -->
+                <div class="p-4 border-b border-gray-700">
+                    <div class="relative">
+                        <input type="text" 
+                               id="message-search" 
+                               class="w-full p-3 pl-10 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
+                               placeholder="Search conversations...">
+                        <div class="absolute left-3 top-3 text-gray-400">
+                            🔍
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Conversations List -->
+                <div id="conversations-list" class="max-h-[600px] overflow-y-auto">
+                    <div class="text-center py-12">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                        <p class="text-gray-400 mt-2">Loading conversations...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Messages Panel -->
+        <div class="lg:col-span-3">
+            <div class="bg-gray-800 rounded-lg border border-cyan-500 h-[600px] overflow-hidden flex flex-col">
+                <!-- Empty State -->
+                <div id="empty-message-state" class="flex-1 flex flex-col items-center justify-center p-8">
+                    <div class="text-6xl mb-6">💬</div>
+                    <h3 class="text-2xl font-bold text-white mb-3">Your Messages</h3>
+                    <p class="text-gray-400 text-center mb-6">Select a conversation or start a new one to begin messaging</p>
+                    <button id="start-conversation-btn" 
+                            class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg font-semibold">
+                        Start New Conversation
+                    </button>
+                </div>
+                
+                <!-- Active Conversation -->
+                <div id="active-conversation" class="hidden flex-1 flex flex-col">
+                    <!-- Conversation Header -->
+                    <div class="p-4 border-b border-gray-700 bg-gray-900 flex items-center justify-between">
+                        <div class="flex items-center gap-3" id="conversation-header">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="conversation-info-btn" 
+                                    class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+                                ⓘ
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Messages Container -->
+                    <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <!-- Messages will be loaded here -->
+                    </div>
+                    
+                    <!-- Message Input -->
+                    <div class="p-4 border-t border-gray-700 bg-gray-900">
+                        <form id="message-form" class="flex gap-3">
+                            <input type="text" 
+                                   id="message-input" 
+                                   class="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
+                                   placeholder="Type your message..." 
+                                   autocomplete="off"
+                                   required>
+                            <button type="submit" 
+                                    class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg font-semibold">
+                                Send
+                            </button>
+                        </form>
+                        <p class="text-gray-500 text-xs mt-2">
+                            Press Enter to send • Shift+Enter for new line
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .conversation-item {
+        transition: all 0.2s;
+    }
+    
+    .conversation-item:hover {
+        background-color: rgba(55, 65, 81, 0.5);
+    }
+    
+    .message {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    .own-message .bg-cyan-600 {
+        background-color: #0891b2;
+    }
+    
+    .other-message .bg-gray-700 {
+        background-color: #374151;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    #messages-container {
+        scrollbar-width: thin;
+        scrollbar-color: #4b5563 #1f2937;
+    }
+    
+    #messages-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    #messages-container::-webkit-scrollbar-track {
+        background: #1f2937;
+    }
+    
+    #messages-container::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+        border-radius: 4px;
+    }
+    
+    #conversations-list {
+        scrollbar-width: thin;
+        scrollbar-color: #4b5563 #1f2937;
+    }
+    
+    #conversations-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    #conversations-list::-webkit-scrollbar-track {
+        background: #1f2937;
+    }
+    
+    #conversations-list::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+        border-radius: 3px;
+    }
+</style>
+
+<!-- Note: All JavaScript functionality is in messages.js -->
