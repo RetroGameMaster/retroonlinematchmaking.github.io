@@ -58,16 +58,10 @@ function loadGameFromURL() {
 
 async function loadGame(gameId) {
     try {
-        // First get the game with user profile information
+        // First get the game (NO JOIN - submitted_by might be email, not user_id)
         const { data: game, error: fetchError } = await supabase
             .from('games')
-            .select(`
-                *,
-                profiles:submitted_by (
-                    username,
-                    avatar_url
-                )
-            `)
+            .select('*')
             .eq('id', gameId)
             .single();
         
@@ -124,9 +118,10 @@ function renderGame(game, comments) {
         day: 'numeric'
     });
     
-    // Get display name for submitted by
-    const submittedByDisplay = game.profiles?.username || 
-                               (game.submitted_email ? game.submitted_email.split('@')[0] : 'Unknown');
+    // Get display name for submitted by (extract from email)
+    const submittedByDisplay = game.submitted_email ? 
+                               game.submitted_email.split('@')[0] : 
+                               (game.submitted_by ? game.submitted_by.split('@')[0] : 'Unknown');
     
     // Build screenshots HTML
     const screenshotsHTML = game.screenshot_urls && game.screenshot_urls.length > 0 
