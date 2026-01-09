@@ -58,10 +58,16 @@ function loadGameFromURL() {
 
 async function loadGame(gameId) {
     try {
-        // First get the game to get current view count
+        // First get the game with user profile information
         const { data: game, error: fetchError } = await supabase
             .from('games')
-            .select('*')
+            .select(`
+                *,
+                profiles:submitted_by (
+                    username,
+                    avatar_url
+                )
+            `)
             .eq('id', gameId)
             .single();
         
@@ -117,6 +123,10 @@ function renderGame(game, comments) {
         month: 'long',
         day: 'numeric'
     });
+    
+    // Get display name for submitted by
+    const submittedByDisplay = game.profiles?.username || 
+                               (game.submitted_email ? game.submitted_email.split('@')[0] : 'Unknown');
     
     // Build screenshots HTML
     const screenshotsHTML = game.screenshot_urls && game.screenshot_urls.length > 0 
@@ -192,6 +202,18 @@ function renderGame(game, comments) {
                                 class="block w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition">
                             🔗 Share Game
                         </button>
+                    </div>
+                    
+                    <!-- Submitted By Info -->
+                    <div class="mt-4 pt-4 border-t border-gray-700">
+                        <p class="text-gray-400 text-sm">
+                            <span class="text-gray-500">Submitted by:</span>
+                            <span class="text-cyan-300 ml-1 font-medium">${submittedByDisplay}</span>
+                        </p>
+                        <p class="text-gray-500 text-xs mt-1">
+                            <span class="mr-3">👁️ Views: ${game.views_count || 0}</span>
+                            <span>✅ Approved: ${approvedDate}</span>
+                        </p>
                     </div>
                 </div>
                 
