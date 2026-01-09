@@ -1,4 +1,4 @@
-// modules/games/games.js - UPDATED FOR SLUG URLS
+// modules/games/games.js - FIXED COLUMN NAMES
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
     
@@ -74,25 +74,50 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Load games
+    // Load games - FIXED QUERY
     async function loadGames() {
         showLoading(true);
         
         try {
+            // First, get all games
             const { data: games, error } = await rom.supabase
                 .from('games')
-                .select(`
-                    *,
-                    comments:game_comments(count),
-                    ratings:game_ratings(avg_rating)
-                `)
+                .select('*')
                 .order('created_at', { ascending: false });
             
             if (error) {
                 throw error;
             }
             
-            displayGames(games || []);
+            // Get ratings for each game
+            const gamesWithDetails = await Promise.all(
+                (games || []).map(async (game) => {
+                    // Get average rating
+                    const { data: ratings } = await rom.supabase
+                        .from('game_ratings')
+                        .select('rating')
+                        .eq('game_id', game.id);
+                    
+                    // Get comment count
+                    const { count: commentCount } = await rom.supabase
+                        .from('game_comments')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('game_id', game.id);
+                    
+                    // Calculate average rating
+                    const avgRating = ratings && ratings.length > 0 
+                        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+                        : 0;
+                    
+                    return {
+                        ...game,
+                        avg_rating: avgRating,
+                        comment_count: commentCount || 0
+                    };
+                })
+            );
+            
+            displayGames(gamesWithDetails);
             
         } catch (error) {
             console.error('Error loading games:', error);
@@ -102,18 +127,14 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Search games
+    // Search games - FIXED QUERY
     async function searchGames(query) {
         showLoading(true);
         
         try {
             const { data: games, error } = await rom.supabase
                 .from('games')
-                .select(`
-                    *,
-                    comments:game_comments(count),
-                    ratings:game_ratings(avg_rating)
-                `)
+                .select('*')
                 .or(`title.ilike.%${query}%,description.ilike.%${query}%,console.ilike.%${query}%`)
                 .order('title', { ascending: true });
             
@@ -121,12 +142,40 @@ async function initGamesModule(rom) {
                 throw error;
             }
             
-            displayGames(games || []);
+            // Get ratings for each game
+            const gamesWithDetails = await Promise.all(
+                (games || []).map(async (game) => {
+                    // Get average rating
+                    const { data: ratings } = await rom.supabase
+                        .from('game_ratings')
+                        .select('rating')
+                        .eq('game_id', game.id);
+                    
+                    // Get comment count
+                    const { count: commentCount } = await rom.supabase
+                        .from('game_comments')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('game_id', game.id);
+                    
+                    // Calculate average rating
+                    const avgRating = ratings && ratings.length > 0 
+                        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+                        : 0;
+                    
+                    return {
+                        ...game,
+                        avg_rating: avgRating,
+                        comment_count: commentCount || 0
+                    };
+                })
+            );
+            
+            displayGames(gamesWithDetails);
             
             // Update results count
             const resultsCount = document.getElementById('resultsCount');
             if (resultsCount) {
-                resultsCount.textContent = `Found ${games?.length || 0} games`;
+                resultsCount.textContent = `Found ${gamesWithDetails.length} games`;
                 resultsCount.classList.remove('hidden');
             }
             
@@ -138,18 +187,14 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Apply filters
+    // Apply filters - FIXED QUERY
     async function applyFilters() {
         showLoading(true);
         
         try {
             let query = rom.supabase
                 .from('games')
-                .select(`
-                    *,
-                    comments:game_comments(count),
-                    ratings:game_ratings(avg_rating)
-                `);
+                .select('*');
             
             // Platform filter
             const platformFilter = document.querySelector('input[name="platformFilter"]:checked');
@@ -225,7 +270,35 @@ async function initGamesModule(rom) {
                 throw error;
             }
             
-            displayGames(games || []);
+            // Get ratings for each game
+            const gamesWithDetails = await Promise.all(
+                (games || []).map(async (game) => {
+                    // Get average rating
+                    const { data: ratings } = await rom.supabase
+                        .from('game_ratings')
+                        .select('rating')
+                        .eq('game_id', game.id);
+                    
+                    // Get comment count
+                    const { count: commentCount } = await rom.supabase
+                        .from('game_comments')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('game_id', game.id);
+                    
+                    // Calculate average rating
+                    const avgRating = ratings && ratings.length > 0 
+                        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+                        : 0;
+                    
+                    return {
+                        ...game,
+                        avg_rating: avgRating,
+                        comment_count: commentCount || 0
+                    };
+                })
+            );
+            
+            displayGames(gamesWithDetails);
             
         } catch (error) {
             console.error('Error filtering games:', error);
@@ -307,8 +380,8 @@ async function initGamesModule(rom) {
     
     // Create game card HTML - UPDATED FOR SLUG URLS
     function createGameCard(game) {
-        const rating = game.ratings?.[0]?.avg_rating || 0;
-        const commentCount = game.comments?.[0]?.count || 0;
+        const rating = game.avg_rating || 0;
+        const commentCount = game.comment_count || 0;
         
         // Get platforms as array
         const platforms = game.console?.split(',').map(p => p.trim()) || [];
