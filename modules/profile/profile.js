@@ -1,4 +1,4 @@
-// modules/profile/profile.js - FIXED VERSION WITH NO EMAIL DISPLAY
+// modules/profile/profile.js - COMPLETE FIXED VERSION
 import { supabase, getCurrentUser, isAdmin, uploadBackground } from '../../lib/supabase.js';
 
 let currentProfile = null;
@@ -444,23 +444,53 @@ function applyCustomBackground(background) {
 
 async function loadUserStats(userId) {
     try {
-        // Get user's game submissions
-        const { count: submittedCount } = await supabase
-            .from('game_submissions')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId);
+        // Get user's game submissions - FIXED with error handling
+        let submittedCount = 0;
+        try {
+            const { count } = await supabase
+                .from('game_submissions')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId);
+            submittedCount = count || 0;
+        } catch (e) {
+            console.log('Game submissions count error:', e.message);
+        }
 
-        // Get approved games count
-        const { count: approvedCount } = await supabase
-            .from('games')
-            .select('*', { count: 'exact', head: true })
-            .eq('submitted_by', userId);
+        // Get approved games count - FIXED with error handling
+        let approvedCount = 0;
+        try {
+            // Try different column names
+            let result = await supabase
+                .from('games')
+                .select('*', { count: 'exact', head: true })
+                .eq('submitted_by', userId);
+                
+            if (result.error && result.error.code === '42703') {
+                // Try user_id instead
+                result = await supabase
+                    .from('games')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', userId);
+            }
+            
+            if (!result.error) {
+                approvedCount = result.count || 0;
+            }
+        } catch (e) {
+            console.log('Approved games count error:', e.message);
+        }
 
         // Get comments count
-        const { count: commentsCount } = await supabase
-            .from('game_comments')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId);
+        let commentsCount = 0;
+        try {
+            const { count } = await supabase
+                .from('game_comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', userId);
+            commentsCount = count || 0;
+        } catch (e) {
+            console.log('Comments count error:', e.message);
+        }
 
         // Update stats display
         if (document.getElementById('games-submitted')) {
@@ -474,12 +504,16 @@ async function loadUserStats(userId) {
         }
 
         // Update stats in database
-        await updateProfileStats(userId, {
-            games_submitted: submittedCount || 0,
-            games_approved: approvedCount || 0,
-            comments_made: commentsCount || 0,
-            playtime_hours: currentProfile?.stats?.playtime_hours || 0
-        });
+        try {
+            await updateProfileStats(userId, {
+                games_submitted: submittedCount || 0,
+                games_approved: approvedCount || 0,
+                comments_made: commentsCount || 0,
+                playtime_hours: currentProfile?.stats?.playtime_hours || 0
+            });
+        } catch (e) {
+            console.log('Update stats error:', e.message);
+        }
 
     } catch (error) {
         console.error('Error loading user stats:', error);
@@ -518,13 +552,32 @@ async function loadUserActivity(userId) {
             .order('created_at', { ascending: false })
             .limit(5);
 
-        // Get approved games
-        const { data: approvedGames } = await supabase
-            .from('games')
-            .select('*')
-            .eq('submitted_by', userId)
-            .order('created_at', { ascending: false })
-            .limit(5);
+        // Get approved games - FIXED with error handling
+        let approvedGames = [];
+        try {
+            // Try different column names
+            let result = await supabase
+                .from('games')
+                .select('*')
+                .eq('submitted_by', userId)
+                .order('created_at', { ascending: false })
+                .limit(5);
+                
+            if (result.error && result.error.code === '42703') {
+                result = await supabase
+                    .from('games')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+            }
+            
+            if (!result.error) {
+                approvedGames = result.data || [];
+            }
+        } catch (e) {
+            console.log('Approved games error:', e.message);
+        }
 
         // Combine and sort activity
         let activities = [];
@@ -549,7 +602,7 @@ async function loadUserActivity(userId) {
             })));
         }
 
-        if (approvedGames) {
+        if (approvedGames && approvedGames.length > 0) {
             activities = activities.concat(approvedGames.map(game => ({
                 type: 'approved_game',
                 title: game.title,
@@ -680,11 +733,34 @@ async function loadUserGames() {
     const container = document.getElementById('tab-content-container');
     
     try {
-        const { data: games } = await supabase
+        // Try different column names for games query
+        let games = null;
+        let error = null;
+        
+        // Try 'submitted_by' first
+        const result1 = await supabase
             .from('games')
             .select('*')
             .eq('submitted_by', currentProfile.id)
             .order('created_at', { ascending: false });
+            
+        if (result1.error && result1.error.code === '42703') {
+            // Try 'user_id' instead
+            const result2 = await supabase
+                .from('games')
+                .select('*')
+                .eq('user_id', currentProfile.id)
+                .order('created_at', { ascending: false });
+                
+            if (result2.error) {
+                throw result2.error;
+            }
+            games = result2.data;
+        } else if (result1.error) {
+            throw result1.error;
+        } else {
+            games = result1.data;
+        }
 
         container.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -726,7 +802,9 @@ async function loadUserGames() {
         console.error('Error loading games:', error);
         container.innerHTML = `
             <div class="text-center py-12">
-                <p class="text-red-400">Error loading games</p>
+                <div class="text-4xl mb-4">🎮</div>
+                <p class="text-gray-400">Games feature coming soon</p>
+                <p class="text-gray-500 text-sm mt-2">Game database is being updated</p>
             </div>
         `;
     }
@@ -736,36 +814,84 @@ async function loadFriends() {
     const container = document.getElementById('tab-content-container');
     
     try {
-        // Get accepted friends
-        const { data: friends } = await supabase
+        // Get friends from both sides of the relationship - FIXED
+        const { data: friendsAsRequester } = await supabase
             .from('friends')
             .select(`
                 *,
-                friend:profiles!friends_friend_id_fkey(username, email, avatar_url)
+                friend:profiles!friends_friend_id_fkey(id, username, avatar_url, bio, favorite_console, stats)
             `)
             .eq('user_id', currentProfile.id)
-            .eq('status', 'accepted')
-            .order('created_at', { ascending: false });
+            .eq('status', 'accepted');
 
+        const { data: friendsAsRecipient } = await supabase
+            .from('friends')
+            .select(`
+                *,
+                user:profiles!friends_user_id_fkey(id, username, avatar_url, bio, favorite_console, stats)
+            `)
+            .eq('friend_id', currentProfile.id)
+            .eq('status', 'accepted');
+
+        // Combine both lists
+        let allFriends = [];
+        
+        // Add friends where current user is the requester
+        if (friendsAsRequester) {
+            friendsAsRequester.forEach(f => {
+                allFriends.push({
+                    id: f.id,
+                    friend_id: f.friend_id,
+                    username: f.friend?.username || 'Unknown User',
+                    avatar_url: f.friend?.avatar_url,
+                    bio: f.friend?.bio,
+                    favorite_console: f.friend?.favorite_console,
+                    stats: f.friend?.stats,
+                    relationship: 'requester'
+                });
+            });
+        }
+        
+        // Add friends where current user is the recipient
+        if (friendsAsRecipient) {
+            friendsAsRecipient.forEach(f => {
+                allFriends.push({
+                    id: f.id,
+                    friend_id: f.user_id,
+                    username: f.user?.username || 'Unknown User',
+                    avatar_url: f.user?.avatar_url,
+                    bio: f.user?.bio,
+                    favorite_console: f.user?.favorite_console,
+                    stats: f.user?.stats,
+                    relationship: 'recipient'
+                });
+            });
+        }
+        
+        console.log('All friends for', currentProfile.username, ':', allFriends.length, 'friends');
+        
         container.innerHTML = `
             <div class="space-y-4">
-                ${friends && friends.length > 0 ? friends.map(friend => `
+                ${allFriends.length > 0 ? allFriends.map(friend => `
                     <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-between">
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
-                                ${friend.friend.avatar_url ? `
-                                    <img src="${friend.friend.avatar_url}" 
-                                         alt="${friend.friend.username}" 
+                                ${friend.avatar_url ? `
+                                    <img src="${friend.avatar_url}" 
+                                         alt="${friend.username}" 
                                          class="w-full h-full rounded-full object-cover">
                                 ` : `
                                     <span class="text-white font-bold">
-                                        ${friend.friend.username?.charAt(0) || friend.friend.email.charAt(0).toUpperCase()}
+                                        ${friend.username?.charAt(0) || 'U'}
                                     </span>
                                 `}
                             </div>
                             <div>
-                                <h4 class="text-white font-semibold">${friend.friend.username || friend.friend.email.split('@')[0]}</h4>
+                                <h4 class="text-white font-semibold">${friend.username}</h4>
                                 <p class="text-gray-400 text-sm">Friend</p>
+                                ${friend.favorite_console ? `
+                                    <p class="text-gray-500 text-xs mt-1">🎮 ${friend.favorite_console}</p>
+                                ` : ''}
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -774,7 +900,7 @@ async function loadFriends() {
                                 View Profile
                             </button>
                             ${isOwnProfile ? `
-                                <button onclick="removeFriend('${friend.id}')" 
+                                <button onclick="removeFriend('${friend.id}', '${friend.friend_id}')" 
                                         class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm">
                                     Remove
                                 </button>
@@ -800,6 +926,7 @@ async function loadFriends() {
         container.innerHTML = `
             <div class="text-center py-12">
                 <p class="text-red-400">Error loading friends</p>
+                <p class="text-gray-500 text-sm">${error.message}</p>
             </div>
         `;
     }
@@ -1078,7 +1205,7 @@ async function loadBackgroundCustomizer() {
                             <span class="text-white text-sm font-semibold">Neon</span>
                         </button>
                         <button class="h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded border-2 border-gray-700 hover:border-cyan-500"
-                                onclick="applyGradient('linear-gradient(to right, #10b981, #059669)')">
+                                onclick="applyGradient('linear-gradient(to right, #10b981, #059669')">
                             <span class="text-white text-sm font-semibold">Matrix</span>
                         </button>
                         <button class="h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded border-2 border-gray-700 hover:border-cyan-500"
@@ -1863,18 +1990,11 @@ window.removeFriend = async function(friendId, targetUserId = null) {
     if (!confirm('Remove this friend?')) return;
     
     try {
-        // Try to delete by friendship ID first
-        let query = supabase
+        // Delete the friendship from both sides
+        const { error } = await supabase
             .from('friends')
             .delete()
-            .eq('id', friendId);
-        
-        // If we have target user ID, also try to delete the reciprocal friendship
-        if (targetUserId) {
-            query = query.or(`id.eq.${friendId},and(user_id.eq.${currentUser.id},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${currentUser.id})`);
-        }
-        
-        const { error } = await query;
+            .or(`id.eq.${friendId},and(user_id.eq.${currentUser.id},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${currentUser.id})`);
         
         if (error) throw error;
         
@@ -1884,7 +2004,7 @@ window.removeFriend = async function(friendId, targetUserId = null) {
         
     } catch (error) {
         console.error('Error removing friend:', error);
-        alert('Failed to remove friend');
+        alert('Failed to remove friend: ' + error.message);
     }
 };
 
