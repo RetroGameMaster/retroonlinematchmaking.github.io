@@ -1,4 +1,4 @@
-// modules/profile/profile.js - FIXED VERSION (NO DUPLICATE FUNCTIONS)
+// modules/profile/profile.js - FIXED VERSION WITH NO EMAIL DISPLAY
 import { supabase, getCurrentUser, isAdmin, uploadBackground } from '../../lib/supabase.js';
 
 let currentProfile = null;
@@ -106,7 +106,7 @@ async function createProfile(userId) {
                     opacity: '1'
                 },
                 favorite_console: '',
-                preferences: { show_email: false, show_activity: true },
+                preferences: { show_activity: true },
                 stats: { games_submitted: 0, games_approved: 0, comments_made: 0, playtime_hours: 0 }
             });
         
@@ -182,10 +182,7 @@ function updateProfileDisplay(profile) {
                                     </button>
                                 ` : ''}
                             </h1>
-                            <p id="profile-email" class="text-gray-300 mb-4">
-                                ${profile.email}
-                            </p>
-                            <p id="profile-member-since" class="text-gray-400 text-sm mb-6">
+                            <p id="profile-member-since" class="text-gray-400 text-sm mb-4">
                                 Member since: ${memberSince}
                             </p>
 
@@ -768,7 +765,7 @@ async function loadFriends() {
                             </div>
                             <div>
                                 <h4 class="text-white font-semibold">${friend.friend.username || friend.friend.email.split('@')[0]}</h4>
-                                <p class="text-gray-400 text-sm">${friend.friend.email}</p>
+                                <p class="text-gray-400 text-sm">Email hidden for privacy</p>
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -859,7 +856,7 @@ async function loadFriendRequests() {
                                             </div>
                                             <div>
                                                 <h3 class="text-white font-semibold">${request.sender.username || request.sender.email.split('@')[0]}</h3>
-                                                <p class="text-gray-400 text-sm">${request.sender.email}</p>
+                                                <p class="text-gray-400 text-sm">Email hidden for privacy</p>
                                                 ${request.sender.favorite_console ? `
                                                     <span class="inline-block mt-1 bg-yellow-600 text-white px-2 py-1 rounded text-xs">
                                                         🎮 ${request.sender.favorite_console}
@@ -924,7 +921,7 @@ async function loadFriendRequests() {
                                             </div>
                                             <div>
                                                 <h3 class="text-white font-semibold">${request.recipient.username || request.recipient.email.split('@')[0]}</h3>
-                                                <p class="text-gray-400 text-sm">${request.recipient.email}</p>
+                                                <p class="text-gray-400 text-sm">Email hidden for privacy</p>
                                                 ${request.recipient.favorite_console ? `
                                                     <span class="inline-block mt-1 bg-yellow-600 text-white px-2 py-1 rounded text-xs">
                                                         🎮 ${request.recipient.favorite_console}
@@ -1352,13 +1349,6 @@ async function loadSettings() {
                     <h4 class="text-lg font-semibold text-white mb-4">🔒 Privacy</h4>
                     <div class="space-y-3">
                         <label class="flex items-center justify-between cursor-pointer">
-                            <span class="text-gray-300">Show email on profile</span>
-                            <input type="checkbox" 
-                                   id="setting-show-email" 
-                                   class="w-5 h-5 rounded"
-                                   ${currentProfile.preferences?.show_email ? 'checked' : ''}>
-                        </label>
-                        <label class="flex items-center justify-between cursor-pointer">
                             <span class="text-gray-300">Show my activity to others</span>
                             <input type="checkbox" 
                                    id="setting-show-activity" 
@@ -1366,6 +1356,9 @@ async function loadSettings() {
                                    ${currentProfile.preferences?.show_activity !== false ? 'checked' : ''}>
                         </label>
                     </div>
+                    <p class="text-gray-400 text-sm mt-3">
+                        🔒 Emails are never shown on public profiles for privacy.
+                    </p>
                 </div>
                 
                 <!-- Account Management -->
@@ -1735,14 +1728,12 @@ function openBackgroundModal() {
 
 async function saveSettings() {
     try {
-        const showEmail = document.getElementById('setting-show-email')?.checked || false;
         const showActivity = document.getElementById('setting-show-activity')?.checked !== false;
         
         const { error } = await supabase
             .from('profiles')
             .update({
                 preferences: {
-                    show_email: showEmail,
                     show_activity: showActivity
                 }
             })
@@ -1750,7 +1741,7 @@ async function saveSettings() {
         
         if (error) throw error;
         
-        currentProfile.preferences = { show_email: showEmail, show_activity: showActivity };
+        currentProfile.preferences = { show_activity: showActivity };
         alert('Settings saved successfully!');
         
     } catch (error) {
