@@ -881,7 +881,8 @@ async function saveGameChanges() {
             description: document.getElementById('edit-game-description').value.trim(),
             cover_image_url: document.getElementById('edit-game-cover-image').value.trim() || null,
             file_url: document.getElementById('edit-game-file-url').value.trim() || null,
-            multiplayer_type: document.getElementById('edit-game-multiplayer-type').value || null,
+            // FIXED: Use 'none' as default instead of null
+            multiplayer_type: document.getElementById('edit-game-multiplayer-type').value || 'none',
             connection_method: document.getElementById('edit-game-connection-method').value.trim() || null,
             connection_details: document.getElementById('edit-game-connection-details').value.trim() || null,
             players_min: parseInt(document.getElementById('edit-game-players-min').value) || 1,
