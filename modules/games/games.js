@@ -128,7 +128,13 @@ async function loadGames(supabase) {
         console.log('📡 Querying games from Supabase...');
         const { data: games, error, count } = await supabase
             .from('games')
-            .select('*', { count: 'exact' })
+            .select(`
+                *,
+                profiles:submitted_by (
+                    username,
+                    avatar_url
+                )
+            `)
             .order('title', { ascending: true });
         
         if (error) {
@@ -150,16 +156,6 @@ async function loadGames(supabase) {
             return;
         }
         
-        // Get user emails for submitted_by
-        console.log('📧 Mapping user emails from submitted_email field...');
-        const userEmailMap = {};
-        games.forEach(game => {
-            if (game.submitted_by && game.submitted_email) {
-                userEmailMap[game.submitted_by] = game.submitted_email;
-            }
-        });
-        console.log('User email map created:', userEmailMap);
-        
         console.log('🎨 Rendering game cards...');
         gamesContainer.innerHTML = games.map(game => {
             const playerCount = game.players_min === game.players_max 
@@ -168,6 +164,10 @@ async function loadGames(supabase) {
             
             const coverImage = game.cover_image_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=600&fit=crop';
             const screenshots = game.screenshot_urls || [];
+            
+            // Get display name for submitted by
+            const submittedByDisplay = game.profiles?.username || 
+                                      (game.submitted_email ? game.submitted_email.split('@')[0] : 'Unknown');
             
             return `
                 <div class="bg-gray-800 p-6 rounded-lg mb-6 border border-gray-700 hover:border-cyan-500 transition group">
@@ -219,7 +219,7 @@ async function loadGames(supabase) {
                             
                             <div class="flex flex-col md:flex-row justify-between items-center">
                                 <div class="text-gray-400 text-sm mb-4 md:mb-0">
-                                    Submitted by: ${userEmailMap[game.submitted_by] || game.submitted_email || 'Unknown'}
+                                    Submitted by: ${submittedByDisplay}
                                     ${game.views_count ? ` • Views: ${game.views_count}` : ''}
                                 </div>
                                 
