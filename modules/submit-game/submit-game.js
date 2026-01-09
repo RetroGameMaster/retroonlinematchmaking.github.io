@@ -1,4 +1,4 @@
-// modules/submit-game/submit-game.js
+// modules/submit-game/submit-game.js - UPDATED WITH SLUG SUPPORT
 function initSubmitGame(rom) {
     console.log('🎮 Initializing game submission form...');
     console.log('rom.supabase available:', !!rom?.supabase);
@@ -115,9 +115,11 @@ function initSubmitGame(rom) {
             status: 'pending',
             reviewedBy: null,
             reviewedAt: null,
-            adminNotes: null,
-            slug: generateSlug(document.getElementById('gameTitle').value.trim())
+            adminNotes: null
         };
+        
+        // Generate slug for the game
+        gameData.slug = await generateSlug(gameData.title);
         
         // Collect connection methods
         const methods = [];
@@ -164,6 +166,7 @@ function initSubmitGame(rom) {
                 You'll be notified when it's approved or if we need more information.
                 
                 Submission ID: ${result.id}<br>
+                Generated URL: /game-detail/${gameData.slug}<br>
                 Submitted: ${new Date(result.created_at).toLocaleDateString()}
                 
                 Thank you for contributing to the ROM community!
@@ -185,12 +188,37 @@ function initSubmitGame(rom) {
     });
     
     // Helper functions
-    function generateSlug(title) {
+    
+    // Generate slug using Supabase function
+    async function generateSlug(title) {
+        try {
+            const { data, error } = await rom.supabase.rpc('generate_game_slug', {
+                title_param: title
+            });
+            
+            if (error) {
+                console.warn('Failed to generate slug via RPC, using client-side fallback:', error);
+                // Fallback to client-side slug generation
+                return createSlug(title);
+            }
+            
+            console.log('Generated slug via RPC:', data);
+            return data;
+        } catch (error) {
+            console.error('Error generating slug:', error);
+            return createSlug(title);
+        }
+    }
+    
+    // Client-side slug generation (fallback)
+    function createSlug(title) {
         return title
             .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-            .substring(0, 50);
+            .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+            .replace(/\s+/g, '-') // Replace spaces with hyphens
+            .replace(/-+/g, '-') // Replace multiple hyphens with single
+            .replace(/^-+|-+$/g, '') // Trim hyphens from ends
+            .substring(0, 100);
     }
     
     function validateSubmission(gameData, methods) {
