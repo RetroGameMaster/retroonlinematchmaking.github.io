@@ -1,6 +1,15 @@
-// modules/games/games.js - FIXED FOR FALLBACK HTML
+// modules/games/games.js - FIXED DOUBLE INITIALIZATION
+let isInitialized = false; // Add this at the top
+
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
+    
+    // Prevent double initialization
+    if (isInitialized) {
+        console.log('⚠️ Games module already initialized, skipping...');
+        return;
+    }
+    isInitialized = true;
     
     // Ensure we have supabase
     if (!rom.supabase) {
@@ -330,31 +339,32 @@ async function initGamesModule(rom) {
         
         console.log(`✅ Added ${games.length} game cards to grid`);
         
-        // Add click event listeners
-        document.querySelectorAll('.game-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (e.target.closest('.favorite-btn')) {
-                    return;
-                }
-                
-                const gameId = card.dataset.gameId;
-                const gameSlug = card.dataset.gameSlug;
-                
-                console.log(`🎮 Clicked game: ${gameId}, slug: ${gameSlug}`);
-                
-                if (gameSlug) {
-                    rom.loadModule(`game/${gameSlug}`);
-                } else {
-                    rom.loadModule(`game/${gameId}`);
-                }
+        // Add click event listeners - FIXED EVENT LISTENER
+        setTimeout(() => {
+            document.querySelectorAll('.game-card').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    // Don't navigate if clicking on favorite button
+                    if (e.target.closest('.favorite-btn') || e.target.classList.contains('favorite-btn')) {
+                        return;
+                    }
+                    
+                    const gameId = this.dataset.gameId;
+                    const gameSlug = this.dataset.gameSlug;
+                    
+                    console.log(`🎮 Clicked game: ${gameId}, slug: ${gameSlug || 'none'}`);
+                    
+                    // Use slug URL if available, otherwise use ID
+                    if (gameSlug) {
+                        window.location.hash = `#/game/${gameSlug}`;
+                    } else {
+                        window.location.hash = `#/game/${gameId}`;
+                    }
+                });
             });
-        });
-        
-        // Initialize favorite buttons
-        initFavoriteButtons(games);
+        }, 100);
     }
     
-    // Create game card HTML
+    // Create game card HTML - FIXED CLICK ISSUE
     function createGameCard(game) {
         const rating = game.rating || 0;
         const views = game.views_count || 0;
@@ -431,62 +441,17 @@ async function initGamesModule(rom) {
                         </div>
                     </div>
                     
-                    <a href="${gameUrl}" class="block mt-2 text-center bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-4 rounded transition">
-                        View Details
-                    </a>
+                    <div class="mt-2 text-center">
+                        <button class="view-game-btn bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-4 rounded transition w-full"
+                                data-game-id="${game.id}"
+                                data-game-slug="${game.slug || ''}">
+                            View Details
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
     }
-    
-    // Initialize favorite buttons
-    function initFavoriteButtons(games) {
-        games.forEach(game => {
-            const favoriteBtn = document.querySelector(`.favorite-btn[data-game-id="${game.id}"]`);
-            if (favoriteBtn) {
-                updateFavoriteButton(favoriteBtn, game.id);
-            }
-        });
-    }
-    
-    // Check if game is favorited
-    function isFavorite(gameId) {
-        const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
-        return favorites.includes(gameId);
-    }
-    
-    // Update favorite button state
-    function updateFavoriteButton(button, gameId) {
-        if (isFavorite(gameId)) {
-            button.classList.add('text-red-400');
-            button.classList.remove('text-gray-400');
-        } else {
-            button.classList.remove('text-red-400');
-            button.classList.add('text-gray-400');
-        }
-    }
-    
-    // Toggle favorite
-    window.toggleFavorite = async function(gameId) {
-        const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
-        const index = favorites.indexOf(gameId);
-        
-        if (index === -1) {
-            favorites.push(gameId);
-            showMessage('success', 'Added to favorites');
-        } else {
-            favorites.splice(index, 1);
-            showMessage('info', 'Removed from favorites');
-        }
-        
-        localStorage.setItem('rom_favorites', JSON.stringify(favorites));
-        
-        // Update button
-        const button = document.querySelector(`.favorite-btn[data-game-id="${gameId}"]`);
-        if (button) {
-            updateFavoriteButton(button, gameId);
-        }
-    };
     
     // Show loading state
     function showLoading(show) {
@@ -549,8 +514,8 @@ async function initGamesModule(rom) {
 // Export for module system
 export default initGamesModule;
 
-// Auto-initialize if loaded directly
-if (typeof window.rom !== 'undefined') {
-    console.log('Auto-initializing games module...');
-    initGamesModule(window.rom);
-}
+// REMOVE THE AUTO-INITIALIZE AT THE BOTTOM - this is causing double initialization
+// if (typeof window.rom !== 'undefined') {
+//     console.log('Auto-initializing games module...');
+//     initGamesModule(window.rom);
+// }
