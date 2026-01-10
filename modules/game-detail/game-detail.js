@@ -685,9 +685,5 @@ async function initGameDetail(rom, identifier) {
 // Export for module system
 export default initGameDetail;
 
-// REMOVE THE AUTO-INITIALIZE AT THE BOTTOM
-// if (typeof window.rom !== 'undefined' && window.location.hash.includes('game')) {
-//     console.log('Auto-initializing game detail module...');
-//     const identifier = window.location.hash.split('/').pop();
-//     initGameDetail(window.rom, identifier);
-// }
+// Add this to ensure the function is available globally
+window.initGameDetail = initGameDetail;
