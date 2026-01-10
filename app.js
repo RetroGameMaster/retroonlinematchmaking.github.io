@@ -1,9 +1,9 @@
-// app.js - UPDATED FOR SEO-FRIENDLY URLS
+// app.js - FIXED MODULE MAPPING
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
 
 let currentModule = null;
 
-// Initialize modules
+// Initialize modules - CORRECT MAPPING
 const modules = {
     'home': () => import('./modules/home/home.js'),
     'games': () => import('./modules/games/games.js'),
@@ -11,7 +11,7 @@ const modules = {
     'admin': () => import('./modules/admin/admin.js'),
     'chat': () => import('./modules/chat/chat.js'),
     'profile': () => import('./modules/profile/profile.js'),
-    'game-detail': () => import('./modules/game-detail/game-detail.js'),
+    'game': () => import('./modules/game-detail/game-detail.js'), // ← THIS MUST BE 'game' NOT 'game-detail'
     'submit-game': () => import('./modules/submit-game/submit-game.js'),
     'search-users': () => import('./modules/search-users/search-users.js')
 };
@@ -154,26 +154,19 @@ async function initializeApp() {
     }
 }
 
-// Handle hash changes with slug support
+// Handle hash changes with SEO-friendly URL support
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     await loadModule(hash);
 }
 
-// Load module function with slug support
+// Load module function with SEO support
 async function loadModule(moduleName) {
     try {
         console.log(`📦 Loading module: ${moduleName}`);
         
-        // Check for game detail page with ID (backward compatibility)
-        if (moduleName.startsWith('game/')) {
-            const identifier = moduleName.split('/')[1];
-            await loadGameDetail(identifier);
-            return;
-        }
-        
-        // Check for game detail page with slug (new SEO-friendly URLs)
-        if (moduleName.startsWith('game-detail/')) {
+        // Check for game detail page with ID (old format) or slug (new format)
+        if (moduleName.startsWith('game/') || moduleName.startsWith('game-detail/')) {
             const identifier = moduleName.split('/')[1];
             await loadGameDetail(identifier);
             return;
@@ -263,7 +256,7 @@ async function loadGameDetail(identifier) {
     appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading game details...</p></div>`;
     
     try {
-        // Load game detail HTML
+        // Load game detail HTML - the folder is game-detail but module mapping is 'game'
         const response = await fetch('./modules/game-detail/game-detail.html');
         if (!response.ok) throw new Error('Failed to load game detail module');
         
@@ -281,12 +274,12 @@ async function loadGameDetail(identifier) {
             }
         };
         
-        if (module.initModule) {
+        if (module.default && typeof module.default === 'function') {
+            await module.default(rom, identifier);
+        } else if (module.initModule) {
             await module.initModule(rom, identifier);
         } else if (module.default && module.default.initModule) {
             await module.default.initModule(rom, identifier);
-        } else if (module.default) {
-            await module.default(rom, identifier);
         }
     } catch (error) {
         console.error('Error loading game detail:', error);
@@ -321,10 +314,10 @@ async function loadProfileDetail(profileId) {
             }
         };
         
-        if (module.initModule) {
+        if (module.default && typeof module.default === 'function') {
+            await module.default(rom, profileId);
+        } else if (module.initModule) {
             await module.initModule(rom, profileId);
-        } else if (module.default && module.default.initModule) {
-            await module.default.initModule(rom, profileId);
         }
     } catch (error) {
         console.error('Error loading profile detail:', error);
