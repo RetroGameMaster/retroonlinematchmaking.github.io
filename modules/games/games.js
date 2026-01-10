@@ -1,4 +1,4 @@
-// modules/games/games.js - WORKING VERSION WITH SEO IMPROVEMENTS
+// modules/games/games.js - FIXED FOR FALLBACK HTML
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
     
@@ -13,10 +13,13 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Initialize filters and search
-    initFilters();
-    initSearch();
-    loadGames();
+    // Wait a moment for HTML to be fully loaded
+    setTimeout(() => {
+        // Initialize filters and search
+        initFilters();
+        initSearch();
+        loadGames();
+    }, 100);
     
     // Initialize filters
     function initFilters() {
@@ -24,6 +27,11 @@ async function initGamesModule(rom) {
         const filterPanel = document.getElementById('filterPanel');
         const applyFiltersBtn = document.getElementById('applyFilters');
         const clearFiltersBtn = document.getElementById('clearFilters');
+        const resetViewBtn = document.getElementById('resetViewBtn');
+        
+        console.log('Initializing filters...');
+        console.log('filterBtn:', !!filterBtn);
+        console.log('filterPanel:', !!filterPanel);
         
         if (filterBtn && filterPanel) {
             filterBtn.addEventListener('click', () => {
@@ -45,12 +53,23 @@ async function initGamesModule(rom) {
                 filterPanel.classList.add('hidden');
             });
         }
+        
+        if (resetViewBtn) {
+            resetViewBtn.addEventListener('click', () => {
+                clearFilters();
+                loadGames();
+            });
+        }
     }
     
     // Initialize search
     function initSearch() {
         const searchInput = document.getElementById('gameSearch');
         const searchBtn = document.getElementById('searchBtn');
+        
+        console.log('Initializing search...');
+        console.log('searchInput:', !!searchInput);
+        console.log('searchBtn:', !!searchBtn);
         
         const performSearch = () => {
             const query = searchInput.value.trim();
@@ -74,12 +93,12 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Load games - SIMPLE VERSION THAT WORKS
+    // Load games
     async function loadGames() {
+        console.log('🔄 Loading games...');
         showLoading(true);
         
         try {
-            // Get all games - simple query that works with your schema
             const { data: games, error } = await rom.supabase
                 .from('games')
                 .select('*')
@@ -91,7 +110,10 @@ async function initGamesModule(rom) {
             
             console.log(`✅ Loaded ${games?.length || 0} games`);
             
-            // Display games
+            if (games && games.length > 0) {
+                console.log('📋 Sample game:', games[0].title);
+            }
+            
             displayGames(games || []);
             
         } catch (error) {
@@ -242,7 +264,8 @@ async function initGamesModule(rom) {
             if (radio.value === 'all') radio.checked = true;
         });
         
-        document.getElementById('sortOrder').value = 'newest';
+        const sortOrder = document.getElementById('sortOrder');
+        if (sortOrder) sortOrder.value = 'newest';
         
         // Clear search
         const searchInput = document.getElementById('gameSearch');
@@ -257,18 +280,40 @@ async function initGamesModule(rom) {
         const gamesGrid = document.getElementById('gamesGrid');
         const emptyState = document.getElementById('emptyState');
         
+        console.log('🖥️ Displaying games...');
+        console.log('gamesGrid element:', !!gamesGrid);
+        console.log('emptyState element:', !!emptyState);
+        console.log(`Number of games: ${games.length}`);
+        
         if (!gamesGrid) {
-            console.error('❌ gamesGrid element not found!');
+            console.error('❌ gamesGrid element not found! Trying to create it...');
+            // Try to find or create the games grid
+            const appContent = document.getElementById('app-content');
+            if (appContent) {
+                appContent.innerHTML += `
+                    <div id="gamesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"></div>
+                `;
+                // Try again with the newly created element
+                const newGamesGrid = document.getElementById('gamesGrid');
+                if (newGamesGrid) {
+                    console.log('✅ Created gamesGrid element');
+                    displayGamesInElement(newGamesGrid, games, emptyState);
+                    return;
+                }
+            }
             return;
         }
         
-        console.log(`📊 Displaying ${games.length} games`);
-        
+        displayGamesInElement(gamesGrid, games, emptyState);
+    }
+    
+    function displayGamesInElement(gamesGrid, games, emptyState) {
         if (games.length === 0) {
             gamesGrid.innerHTML = '';
             if (emptyState) {
                 emptyState.classList.remove('hidden');
             }
+            console.log('📭 No games to display');
             return;
         }
         
@@ -276,10 +321,8 @@ async function initGamesModule(rom) {
             emptyState.classList.add('hidden');
         }
         
-        // Clear the grid first
+        // Clear and add games
         gamesGrid.innerHTML = '';
-        
-        // Add game cards
         games.forEach(game => {
             const gameCard = createGameCard(game);
             gamesGrid.innerHTML += gameCard;
@@ -287,10 +330,9 @@ async function initGamesModule(rom) {
         
         console.log(`✅ Added ${games.length} game cards to grid`);
         
-        // Add click event listeners to cards
+        // Add click event listeners
         document.querySelectorAll('.game-card').forEach(card => {
             card.addEventListener('click', (e) => {
-                // Don't navigate if clicking on favorite button
                 if (e.target.closest('.favorite-btn')) {
                     return;
                 }
@@ -300,17 +342,19 @@ async function initGamesModule(rom) {
                 
                 console.log(`🎮 Clicked game: ${gameId}, slug: ${gameSlug}`);
                 
-                // Use slug URL if available, otherwise use ID
                 if (gameSlug) {
-                    rom.loadModule(`game/${gameSlug}`); // ← THIS MUST BE 'game' NOT 'game-detail'
+                    rom.loadModule(`game/${gameSlug}`);
                 } else {
                     rom.loadModule(`game/${gameId}`);
                 }
             });
         });
+        
+        // Initialize favorite buttons
+        initFavoriteButtons(games);
     }
     
-    // Create game card HTML - WITH SEO URLS
+    // Create game card HTML
     function createGameCard(game) {
         const rating = game.rating || 0;
         const views = game.views_count || 0;
@@ -320,17 +364,17 @@ async function initGamesModule(rom) {
         
         // Create platform badges
         const platformBadges = platforms.map(platform => 
-            `<span class="platform-badge">${platform}</span>`
+            `<span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">${platform}</span>`
         ).join('');
         
-        // Determine game URL - use slug if available, otherwise use ID
+        // Determine game URL
         const gameUrl = game.slug ? `#/game/${game.slug}` : `#/game/${game.id}`;
         
         // Format date
         const approvedDate = game.approved_at ? new Date(game.approved_at).toLocaleDateString() : 'N/A';
         
         return `
-            <div class="game-card bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/20"
+            <div class="game-card bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all duration-300 cursor-pointer"
                  data-game-id="${game.id}"
                  data-game-slug="${game.slug || ''}">
                 <div class="relative">
@@ -341,7 +385,7 @@ async function initGamesModule(rom) {
                         }
                     </div>
                     <div class="absolute top-3 right-3">
-                        <button class="favorite-btn p-2 bg-gray-900/80 backdrop-blur-sm rounded-full hover:bg-red-500/80 transition ${isFavorite(game.id) ? 'text-red-400' : 'text-gray-400'}"
+                        <button class="favorite-btn p-2 bg-gray-900/80 backdrop-blur-sm rounded-full hover:bg-red-500/80 transition"
                                 data-game-id="${game.id}"
                                 onclick="event.stopPropagation(); toggleFavorite('${game.id}')">
                             ♥
@@ -361,7 +405,7 @@ async function initGamesModule(rom) {
                         ${escapeHtml(game.description || 'No description available')}
                     </p>
                     
-                    <div class="flex flex-wrap gap-1 mb-3">
+                    <div class="mb-3">
                         ${platformBadges}
                     </div>
                     
@@ -395,10 +439,31 @@ async function initGamesModule(rom) {
         `;
     }
     
+    // Initialize favorite buttons
+    function initFavoriteButtons(games) {
+        games.forEach(game => {
+            const favoriteBtn = document.querySelector(`.favorite-btn[data-game-id="${game.id}"]`);
+            if (favoriteBtn) {
+                updateFavoriteButton(favoriteBtn, game.id);
+            }
+        });
+    }
+    
     // Check if game is favorited
     function isFavorite(gameId) {
         const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
         return favorites.includes(gameId);
+    }
+    
+    // Update favorite button state
+    function updateFavoriteButton(button, gameId) {
+        if (isFavorite(gameId)) {
+            button.classList.add('text-red-400');
+            button.classList.remove('text-gray-400');
+        } else {
+            button.classList.remove('text-red-400');
+            button.classList.add('text-gray-400');
+        }
     }
     
     // Toggle favorite
@@ -419,13 +484,7 @@ async function initGamesModule(rom) {
         // Update button
         const button = document.querySelector(`.favorite-btn[data-game-id="${gameId}"]`);
         if (button) {
-            if (isFavorite(gameId)) {
-                button.classList.add('text-red-400');
-                button.classList.remove('text-gray-400');
-            } else {
-                button.classList.remove('text-red-400');
-                button.classList.add('text-gray-400');
-            }
+            updateFavoriteButton(button, gameId);
         }
     };
     
@@ -445,6 +504,8 @@ async function initGamesModule(rom) {
     
     // Show message
     function showMessage(type, text) {
+        console.log(`💬 ${type.toUpperCase()}: ${text}`);
+        
         // Create or get message container
         let messageContainer = document.getElementById('gamesMessage');
         if (!messageContainer) {
