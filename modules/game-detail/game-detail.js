@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - FIXED COLUMN NAMES
+// modules/game-detail/game-detail.js - FIXED FOR YOUR SCHEMA
 async function initGameDetail(rom, identifier) {
     console.log('🎮 Initializing game detail module for identifier:', identifier);
     
@@ -59,7 +59,7 @@ async function initGameDetail(rom, identifier) {
                 return null;
             }
             
-            // Get average rating
+            // Get average rating from game_ratings table
             const { data: ratings } = await rom.supabase
                 .from('game_ratings')
                 .select('rating')
@@ -71,10 +71,10 @@ async function initGameDetail(rom, identifier) {
                 .select('*', { count: 'exact', head: true })
                 .eq('game_id', game.id);
             
-            // Calculate average rating
-            const avgRating = ratings && ratings.length > 0 
+            // Calculate average rating (use existing rating column if available)
+            const avgRating = game.rating || (ratings && ratings.length > 0 
                 ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
-                : 0;
+                : 0);
             
             // Check if user has favorited this game
             let isFavorited = false;
@@ -82,8 +82,8 @@ async function initGameDetail(rom, identifier) {
                 const { data: favorite } = await rom.supabase
                     .from('user_favorites')
                     .select('id')
-                    .eq('user_id', rom.currentUser.id)
-                    .eq('game_id', game.id)
+                    .eq('user1', rom.currentUser.email)
+                    .eq('user2', game.id)
                     .single()
                     .catch(() => ({ data: null }));
                 
@@ -105,7 +105,7 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Display game data
+    // Display game data - FIXED FOR YOUR SCHEMA
     function displayGame(game) {
         // Update page title
         document.title = `${game.title} - Retro Online Matchmaking`;
@@ -182,6 +182,35 @@ async function initGameDetail(rom, identifier) {
             `;
         }
         
+        // Update game stats
+        const statsElement = document.getElementById('gameStats');
+        if (statsElement) {
+            const views = game.views_count || 0;
+            const downloads = game.downloads || 0;
+            const approvedDate = game.approved_at ? new Date(game.approved_at).toLocaleDateString() : 'Unknown';
+            
+            statsElement.innerHTML = `
+                <div class="flex flex-wrap gap-4">
+                    <div class="stat-item">
+                        <span class="text-gray-400">Views:</span>
+                        <span class="text-cyan-300 ml-2">${views}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="text-gray-400">Downloads:</span>
+                        <span class="text-cyan-300 ml-2">${downloads}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="text-gray-400">Approved:</span>
+                        <span class="text-cyan-300 ml-2">${approvedDate}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="text-gray-400">Submitted by:</span>
+                        <span class="text-cyan-300 ml-2">${game.submitted_by || 'Unknown'}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
         // Update comments count
         const commentsElement = document.getElementById('gameCommentsCount');
         if (commentsElement) {
@@ -204,6 +233,28 @@ async function initGameDetail(rom, identifier) {
         if (editBtn) {
             editBtn.dataset.gameId = game.id;
             editBtn.dataset.gameSlug = game.slug || '';
+        }
+        
+        // Display cover image if available
+        const coverImageElement = document.getElementById('gameCoverImage');
+        if (coverImageElement && game.cover_image_url) {
+            coverImageElement.innerHTML = `
+                <img src="${game.cover_image_url}" alt="${escapeHtml(game.title)}" 
+                     class="w-full h-64 object-cover rounded-lg">
+            `;
+        }
+        
+        // Display screenshots if available
+        const screenshotsElement = document.getElementById('gameScreenshots');
+        if (screenshotsElement && game.screenshot_urls && game.screenshot_urls.length > 0) {
+            screenshotsElement.innerHTML = `
+                <h3 class="text-xl font-bold text-cyan-300 mb-4">Screenshots</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    ${game.screenshot_urls.map(url => `
+                        <img src="${url}" alt="Screenshot" class="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80">
+                    `).join('')}
+                </div>
+            `;
         }
         
         // Update URL if we're using ID but have slug
@@ -306,7 +357,7 @@ async function initGameDetail(rom, identifier) {
                     <div class="flex-1">
                         <div class="flex justify-between items-center">
                             <div>
-                                <span class="font-bold text-cyan-300">${user?.username || 'Anonymous'}</span>
+                                <span class="font-bold text-cyan-300">${user?.username || comment.username || 'Anonymous'}</span>
                                 <span class="text-gray-500 text-sm ml-2">${date}</span>
                             </div>
                             ${comment.user_id === rom.currentUser?.id ? `
@@ -316,7 +367,7 @@ async function initGameDetail(rom, identifier) {
                                 </button>
                             ` : ''}
                         </div>
-                        <p class="text-gray-300 mt-2">${escapeHtml(comment.content)}</p>
+                        <p class="text-gray-300 mt-2">${escapeHtml(comment.comment || comment.content)}</p>
                     </div>
                 </div>
             </div>
@@ -373,7 +424,9 @@ async function initGameDetail(rom, identifier) {
                     .insert({
                         game_id: gameId,
                         user_id: rom.currentUser.id,
-                        content: content,
+                        user_email: rom.currentUser.email,
+                        username: rom.currentUser.email, // You might want to get the actual username
+                        comment: content,
                         created_at: new Date().toISOString()
                     });
                 
@@ -384,6 +437,15 @@ async function initGameDetail(rom, identifier) {
                 
                 // Reload comments
                 loadComments(gameId);
+                
+                // Update comment count
+                const game = await loadGameByIdentifier(identifier);
+                if (game) {
+                    const commentsElement = document.getElementById('gameCommentsCount');
+                    if (commentsElement) {
+                        commentsElement.textContent = `${game.comment_count} comments`;
+                    }
+                }
                 
             } catch (error) {
                 console.error('Error adding comment:', error);
@@ -471,8 +533,7 @@ async function initGameDetail(rom, identifier) {
                 .upsert({
                     game_id: gameId,
                     user_id: rom.currentUser.id,
-                    rating: rating,
-                    created_at: new Date().toISOString()
+                    rating: rating
                 }, {
                     onConflict: 'game_id,user_id'
                 });
@@ -501,14 +562,14 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Initialize edit button
+    // Initialize edit button - FIXED FOR YOUR SCHEMA
     function initEditButton(game) {
         const editBtn = document.getElementById('editGameBtn');
         if (!editBtn) return;
         
         // Show edit button if user is admin or game submitter
         const canEdit = rom.currentUser && (
-            rom.currentUser.email === game.submitted_by || 
+            rom.currentUser.email === game.submitted_email || 
             rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
             rom.currentUser.email === 'admin@retroonlinematchmaking.com'
         );
@@ -521,7 +582,7 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Edit game function
+    // Edit game function - FIXED FOR YOUR SCHEMA
     async function editGame(game) {
         console.log('Editing game:', game.title);
         
@@ -530,15 +591,18 @@ async function initGameDetail(rom, identifier) {
         const gameDisplay = document.getElementById('gameDisplay');
         
         if (editForm && gameDisplay) {
-            // Populate form
+            // Populate form with correct column names
             document.getElementById('editGameId').value = game.id;
             document.getElementById('editTitle').value = game.title;
             document.getElementById('editYear').value = game.year || '';
             document.getElementById('editDescription').value = game.description || '';
-            document.getElementById('editPlayersMax').value = game.players_max || 4;
+            document.getElementById('editPlayersMin').value = game.players_min || 1;
+            document.getElementById('editPlayersMax').value = game.players_max || 1;
             document.getElementById('editConsole').value = game.console || '';
             document.getElementById('editConnectionMethod').value = game.connection_method || '';
             document.getElementById('editServerDetails').value = game.server_details || '';
+            document.getElementById('editCoverImage').value = game.cover_image_url || '';
+            document.getElementById('editMultiplayerType').value = game.multiplayer_type || 'Online';
             
             // Show form, hide display
             editForm.classList.remove('hidden');
@@ -549,7 +613,7 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Toggle favorite
+    // Toggle favorite - FIXED FOR YOUR SCHEMA
     async function toggleFavorite(gameId, button) {
         if (!rom.currentUser) {
             showMessage('error', 'Please log in to save favorites');
@@ -561,12 +625,12 @@ async function initGameDetail(rom, identifier) {
         
         try {
             if (isFavorited) {
-                // Remove favorite
+                // Remove favorite - using user_favorites table
                 const { error } = await rom.supabase
                     .from('user_favorites')
                     .delete()
-                    .eq('user_id', rom.currentUser.id)
-                    .eq('game_id', gameId);
+                    .eq('user1', rom.currentUser.email)
+                    .eq('user2', gameId);
                 
                 if (error) throw error;
                 
@@ -575,12 +639,12 @@ async function initGameDetail(rom, identifier) {
                 showMessage('info', 'Removed from favorites');
                 
             } else {
-                // Add favorite
+                // Add favorite - using user_favorites table
                 const { error } = await rom.supabase
                     .from('user_favorites')
                     .upsert({
-                        user_id: rom.currentUser.id,
-                        game_id: gameId,
+                        user1: rom.currentUser.email,
+                        user2: gameId,
                         created_at: new Date().toISOString()
                     });
                 
@@ -671,7 +735,7 @@ async function initGameDetail(rom, identifier) {
         }
     };
     
-    // Save edit function (exposed globally)
+    // Save edit function (exposed globally) - FIXED FOR YOUR SCHEMA
     window.saveGameEdit = async function() {
         const gameId = document.getElementById('editGameId').value;
         const title = document.getElementById('editTitle').value.trim();
@@ -693,12 +757,15 @@ async function initGameDetail(rom, identifier) {
             
             const updates = {
                 title: title,
-                year: document.getElementById('editYear').value || null,
+                year: document.getElementById('editYear').value ? parseInt(document.getElementById('editYear').value) : null,
                 description: description,
-                players_max: parseInt(document.getElementById('editPlayersMax').value) || 4,
+                players_min: parseInt(document.getElementById('editPlayersMin').value) || 1,
+                players_max: parseInt(document.getElementById('editPlayersMax').value) || 1,
                 console: document.getElementById('editConsole').value.trim(),
                 connection_method: document.getElementById('editConnectionMethod').value.trim(),
                 server_details: document.getElementById('editServerDetails').value.trim(),
+                cover_image_url: document.getElementById('editCoverImage').value.trim() || null,
+                multiplayer_type: document.getElementById('editMultiplayerType').value,
                 slug: slug,
                 updated_at: new Date().toISOString()
             };
@@ -759,6 +826,7 @@ async function initGameDetail(rom, identifier) {
     
     // Utility function to escape HTML
     function escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
