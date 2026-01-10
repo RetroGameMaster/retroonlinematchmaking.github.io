@@ -1,6 +1,15 @@
-// modules/game-detail/game-detail.js - WORKING VERSION WITH SEO
+// modules/game-detail/game-detail.js - FIXED REFERENCE ERROR
+let isInitialized = false; // Add this at the top
+
 async function initGameDetail(rom, identifier) {
     console.log('🎮 Initializing game detail module for identifier:', identifier);
+    
+    // Prevent double initialization
+    if (isInitialized) {
+        console.log('⚠️ Game detail module already initialized, skipping...');
+        return;
+    }
+    isInitialized = true;
     
     // Ensure we have supabase
     if (!rom.supabase) {
@@ -30,7 +39,7 @@ async function initGameDetail(rom, identifier) {
     // Initialize rating
     initRating(game.id);
     
-    // Initialize edit button (if admin)
+    // Initialize edit button (if admin) - FIXED: Define this function before using it
     initEditButton(game);
     
     // Load game by identifier (slug or ID)
@@ -45,6 +54,8 @@ async function initGameDetail(rom, identifier) {
             // Check if identifier is a UUID (ID) or a slug
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
             
+            console.log(`Is UUID? ${isUuid} for identifier: ${identifier}`);
+            
             if (isUuid) {
                 query = query.eq('id', identifier);
             } else {
@@ -56,8 +67,8 @@ async function initGameDetail(rom, identifier) {
             if (error) {
                 console.error('Error loading game:', error);
                 
-                // If not found by slug, try ID as fallback
-                if (!isUuid) {
+                // If not found by slug, try ID as fallback (only if it looks like a UUID)
+                if (!isUuid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
                     console.log('Trying as ID fallback...');
                     const { data: gameById, error: idError } = await rom.supabase
                         .from('games')
@@ -120,7 +131,7 @@ async function initGameDetail(rom, identifier) {
         if (platformsElement) {
             const platforms = game.console?.split(',').map(p => p.trim()) || [];
             platformsElement.innerHTML = platforms.map(platform => 
-                `<span class="platform-badge">${platform}</span>`
+                `<span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">${platform}</span>`
             ).join('');
         }
         
@@ -135,7 +146,7 @@ async function initGameDetail(rom, identifier) {
         if (connectionElement && game.connection_method) {
             const methods = game.connection_method.split(',').map(m => m.trim());
             connectionElement.innerHTML = methods.map(method => 
-                `<span class="method-badge">${method}</span>`
+                `<span class="inline-block bg-cyan-900/50 text-cyan-300 text-xs px-2 py-1 rounded mr-1 mb-1">${method}</span>`
             ).join('');
         }
         
@@ -199,27 +210,6 @@ async function initGameDetail(rom, identifier) {
             favoriteBtn.onclick = () => toggleFavorite(game.id, favoriteBtn);
         }
         
-        // Update edit button visibility
-        const editBtn = document.getElementById('editGameBtn');
-        if (editBtn) {
-            editBtn.dataset.gameId = game.id;
-            editBtn.dataset.gameSlug = game.slug || '';
-            
-            // Show edit button if user is admin or game submitter
-            const canEdit = rom.currentUser && (
-                rom.currentUser.email === game.submitted_email || 
-                rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
-                rom.currentUser.email === 'admin@retroonlinematchmaking.com'
-            );
-            
-            if (canEdit) {
-                editBtn.classList.remove('hidden');
-                editBtn.onclick = () => editGame(game);
-            } else {
-                editBtn.classList.add('hidden');
-            }
-        }
-        
         // Display cover image if available
         const coverImageElement = document.getElementById('gameCoverImage');
         if (coverImageElement && game.cover_image_url) {
@@ -235,13 +225,23 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Update URL to use slug (for SEO)
-    function updateUrlToSlug(slug) {
-        const currentHash = window.location.hash;
-        if (!currentHash.includes(`/${slug}`)) {
-            const newHash = `#/game/${slug}`;
-            window.history.replaceState(null, '', newHash);
-            console.log('Updated URL to slug:', newHash);
+    // Initialize edit button - NOW DEFINED BEFORE BEING CALLED
+    function initEditButton(game) {
+        const editBtn = document.getElementById('editGameBtn');
+        if (!editBtn) return;
+        
+        // Show edit button if user is admin or game submitter
+        const canEdit = rom.currentUser && (
+            rom.currentUser.email === game.submitted_email || 
+            rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
+            rom.currentUser.email === 'admin@retroonlinematchmaking.com'
+        );
+        
+        if (canEdit) {
+            editBtn.classList.remove('hidden');
+            editBtn.onclick = () => editGame(game);
+        } else {
+            editBtn.classList.add('hidden');
         }
     }
     
@@ -276,6 +276,47 @@ async function initGameDetail(rom, identifier) {
             const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
             favorites.push(gameId);
             localStorage.setItem('rom_favorites', JSON.stringify(favorites));
+        }
+    }
+    
+    // Update URL to use slug (for SEO)
+    function updateUrlToSlug(slug) {
+        const currentHash = window.location.hash;
+        if (!currentHash.includes(`/${slug}`)) {
+            const newHash = `#/game/${slug}`;
+            window.history.replaceState(null, '', newHash);
+            console.log('Updated URL to slug:', newHash);
+        }
+    }
+    
+    // Edit game function
+    async function editGame(game) {
+        console.log('Editing game:', game.title);
+        
+        // Show edit form
+        const editForm = document.getElementById('editGameForm');
+        const gameDisplay = document.getElementById('gameDisplay');
+        
+        if (editForm && gameDisplay) {
+            // Populate form
+            document.getElementById('editGameId').value = game.id;
+            document.getElementById('editTitle').value = game.title;
+            document.getElementById('editYear').value = game.year || '';
+            document.getElementById('editDescription').value = game.description || '';
+            document.getElementById('editPlayersMin').value = game.players_min || 1;
+            document.getElementById('editPlayersMax').value = game.players_max || 1;
+            document.getElementById('editConsole').value = game.console || '';
+            document.getElementById('editConnectionMethod').value = game.connection_method || '';
+            document.getElementById('editServerDetails').value = game.server_details || '';
+            document.getElementById('editCoverImage').value = game.cover_image_url || '';
+            document.getElementById('editMultiplayerType').value = game.multiplayer_type || 'Online';
+            
+            // Show form, hide display
+            editForm.classList.remove('hidden');
+            gameDisplay.classList.add('hidden');
+            
+            // Focus on title
+            document.getElementById('editTitle').focus();
         }
     }
     
@@ -493,37 +534,6 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Edit game function
-    async function editGame(game) {
-        console.log('Editing game:', game.title);
-        
-        // Show edit form
-        const editForm = document.getElementById('editGameForm');
-        const gameDisplay = document.getElementById('gameDisplay');
-        
-        if (editForm && gameDisplay) {
-            // Populate form
-            document.getElementById('editGameId').value = game.id;
-            document.getElementById('editTitle').value = game.title;
-            document.getElementById('editYear').value = game.year || '';
-            document.getElementById('editDescription').value = game.description || '';
-            document.getElementById('editPlayersMin').value = game.players_min || 1;
-            document.getElementById('editPlayersMax').value = game.players_max || 1;
-            document.getElementById('editConsole').value = game.console || '';
-            document.getElementById('editConnectionMethod').value = game.connection_method || '';
-            document.getElementById('editServerDetails').value = game.server_details || '';
-            document.getElementById('editCoverImage').value = game.cover_image_url || '';
-            document.getElementById('editMultiplayerType').value = game.multiplayer_type || 'Online';
-            
-            // Show form, hide display
-            editForm.classList.remove('hidden');
-            gameDisplay.classList.add('hidden');
-            
-            // Focus on title
-            document.getElementById('editTitle').focus();
-        }
-    }
-    
     // Show not found message
     function showNotFound() {
         const gameDetail = document.getElementById('gameDetail');
@@ -675,9 +685,9 @@ async function initGameDetail(rom, identifier) {
 // Export for module system
 export default initGameDetail;
 
-// Auto-initialize if loaded directly
-if (typeof window.rom !== 'undefined' && window.location.hash.includes('game')) {
-    console.log('Auto-initializing game detail module...');
-    const identifier = window.location.hash.split('/').pop();
-    initGameDetail(window.rom, identifier);
-}
+// REMOVE THE AUTO-INITIALIZE AT THE BOTTOM
+// if (typeof window.rom !== 'undefined' && window.location.hash.includes('game')) {
+//     console.log('Auto-initializing game detail module...');
+//     const identifier = window.location.hash.split('/').pop();
+//     initGameDetail(window.rom, identifier);
+// }
