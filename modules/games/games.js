@@ -1,4 +1,4 @@
-// modules/games/games.js - FIXED FOR YOUR SCHEMA
+// modules/games/games.js - WORKING VERSION WITH SEO IMPROVEMENTS
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
     
@@ -74,12 +74,12 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Load games - FIXED FOR YOUR SCHEMA
+    // Load games - SIMPLE VERSION THAT WORKS
     async function loadGames() {
         showLoading(true);
         
         try {
-            // Get all games using the correct column names from your schema
+            // Get all games - simple query that works with your schema
             const { data: games, error } = await rom.supabase
                 .from('games')
                 .select('*')
@@ -89,35 +89,10 @@ async function initGamesModule(rom) {
                 throw error;
             }
             
-            // Get additional data for each game
-            const gamesWithDetails = await Promise.all(
-                (games || []).map(async (game) => {
-                    // Get average rating
-                    const { data: ratings } = await rom.supabase
-                        .from('game_ratings')
-                        .select('rating')
-                        .eq('game_id', game.id);
-                    
-                    // Get comment count
-                    const { count: commentCount } = await rom.supabase
-                        .from('game_comments')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('game_id', game.id);
-                    
-                    // Calculate average rating (use existing rating column if available)
-                    const avgRating = game.rating || (ratings && ratings.length > 0 
-                        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
-                        : 0);
-                    
-                    return {
-                        ...game,
-                        avg_rating: avgRating,
-                        comment_count: commentCount || 0
-                    };
-                })
-            );
+            console.log(`✅ Loaded ${games?.length || 0} games`);
             
-            displayGames(gamesWithDetails);
+            // Display games
+            displayGames(games || []);
             
         } catch (error) {
             console.error('Error loading games:', error);
@@ -127,7 +102,7 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Search games - FIXED FOR YOUR SCHEMA
+    // Search games
     async function searchGames(query) {
         showLoading(true);
         
@@ -142,40 +117,12 @@ async function initGamesModule(rom) {
                 throw error;
             }
             
-            // Get additional data for each game
-            const gamesWithDetails = await Promise.all(
-                (games || []).map(async (game) => {
-                    // Get average rating
-                    const { data: ratings } = await rom.supabase
-                        .from('game_ratings')
-                        .select('rating')
-                        .eq('game_id', game.id);
-                    
-                    // Get comment count
-                    const { count: commentCount } = await rom.supabase
-                        .from('game_comments')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('game_id', game.id);
-                    
-                    // Calculate average rating
-                    const avgRating = game.rating || (ratings && ratings.length > 0 
-                        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
-                        : 0);
-                    
-                    return {
-                        ...game,
-                        avg_rating: avgRating,
-                        comment_count: commentCount || 0
-                    };
-                })
-            );
-            
-            displayGames(gamesWithDetails);
+            displayGames(games || []);
             
             // Update results count
             const resultsCount = document.getElementById('resultsCount');
             if (resultsCount) {
-                resultsCount.textContent = `Found ${gamesWithDetails.length} games`;
+                resultsCount.textContent = `Found ${games?.length || 0} games`;
                 resultsCount.classList.remove('hidden');
             }
             
@@ -187,7 +134,7 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Apply filters - FIXED FOR YOUR SCHEMA
+    // Apply filters
     async function applyFilters() {
         showLoading(true);
         
@@ -244,7 +191,7 @@ async function initGamesModule(rom) {
                 }
             }
             
-            // Sort order - FIXED FOR YOUR SCHEMA COLUMNS
+            // Sort order
             const sortOrder = document.getElementById('sortOrder').value;
             switch(sortOrder) {
                 case 'newest':
@@ -262,12 +209,6 @@ async function initGamesModule(rom) {
                 case 'most_players':
                     query = query.order('players_max', { ascending: false });
                     break;
-                case 'most_views':
-                    query = query.order('views_count', { ascending: false });
-                    break;
-                case 'highest_rating':
-                    query = query.order('rating', { ascending: false });
-                    break;
             }
             
             const { data: games, error } = await query;
@@ -276,35 +217,7 @@ async function initGamesModule(rom) {
                 throw error;
             }
             
-            // Get additional data for each game
-            const gamesWithDetails = await Promise.all(
-                (games || []).map(async (game) => {
-                    // Get average rating
-                    const { data: ratings } = await rom.supabase
-                        .from('game_ratings')
-                        .select('rating')
-                        .eq('game_id', game.id);
-                    
-                    // Get comment count
-                    const { count: commentCount } = await rom.supabase
-                        .from('game_comments')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('game_id', game.id);
-                    
-                    // Calculate average rating
-                    const avgRating = game.rating || (ratings && ratings.length > 0 
-                        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
-                        : 0);
-                    
-                    return {
-                        ...game,
-                        avg_rating: avgRating,
-                        comment_count: commentCount || 0
-                    };
-                })
-            );
-            
-            displayGames(gamesWithDetails);
+            displayGames(games || []);
             
         } catch (error) {
             console.error('Error filtering games:', error);
@@ -344,7 +257,12 @@ async function initGamesModule(rom) {
         const gamesGrid = document.getElementById('gamesGrid');
         const emptyState = document.getElementById('emptyState');
         
-        if (!gamesGrid) return;
+        if (!gamesGrid) {
+            console.error('❌ gamesGrid element not found!');
+            return;
+        }
+        
+        console.log(`📊 Displaying ${games.length} games`);
         
         if (games.length === 0) {
             gamesGrid.innerHTML = '';
@@ -358,38 +276,44 @@ async function initGamesModule(rom) {
             emptyState.classList.add('hidden');
         }
         
-        gamesGrid.innerHTML = games.map(game => createGameCard(game)).join('');
+        // Clear the grid first
+        gamesGrid.innerHTML = '';
+        
+        // Add game cards
+        games.forEach(game => {
+            const gameCard = createGameCard(game);
+            gamesGrid.innerHTML += gameCard;
+        });
+        
+        console.log(`✅ Added ${games.length} game cards to grid`);
         
         // Add click event listeners to cards
         document.querySelectorAll('.game-card').forEach(card => {
             card.addEventListener('click', (e) => {
                 // Don't navigate if clicking on favorite button
-                if (e.target.closest('.favorite-btn') || e.target.closest('.rating-stars')) {
+                if (e.target.closest('.favorite-btn')) {
                     return;
                 }
                 
                 const gameId = card.dataset.gameId;
                 const gameSlug = card.dataset.gameSlug;
                 
+                console.log(`🎮 Clicked game: ${gameId}, slug: ${gameSlug}`);
+                
                 // Use slug URL if available, otherwise use ID
                 if (gameSlug) {
-                    rom.loadModule(`game-detail/${gameSlug}`);
+                    rom.loadModule(`game/${gameSlug}`); // ← THIS MUST BE 'game' NOT 'game-detail'
                 } else {
-                    rom.loadModule(`game-detail/${gameId}`);
+                    rom.loadModule(`game/${gameId}`);
                 }
             });
         });
-        
-        // Initialize favorite buttons
-        initFavoriteButtons(games);
     }
     
-    // Create game card HTML - FIXED FOR YOUR SCHEMA
+    // Create game card HTML - WITH SEO URLS
     function createGameCard(game) {
-        const rating = game.avg_rating || 0;
-        const commentCount = game.comment_count || 0;
+        const rating = game.rating || 0;
         const views = game.views_count || 0;
-        const downloads = game.downloads || 0;
         
         // Get platforms as array
         const platforms = game.console?.split(',').map(p => p.trim()) || [];
@@ -400,7 +324,7 @@ async function initGamesModule(rom) {
         ).join('');
         
         // Determine game URL - use slug if available, otherwise use ID
-        const gameUrl = game.slug ? `#/game-detail/${game.slug}` : `#/game-detail/${game.id}`;
+        const gameUrl = game.slug ? `#/game/${game.slug}` : `#/game/${game.id}`;
         
         // Format date
         const approvedDate = game.approved_at ? new Date(game.approved_at).toLocaleDateString() : 'N/A';
@@ -427,7 +351,7 @@ async function initGamesModule(rom) {
                 
                 <div class="p-4">
                     <div class="flex justify-between items-start mb-2">
-                        <h3 class="text-xl font-bold text-cyan-300 truncate">${escapeHtml(game.title)}</h3>
+                        <h3 class="text-xl font-bold text-cyan-300 truncate">${escapeHtml(game.title || 'Untitled')}</h3>
                         <span class="bg-cyan-900/50 text-cyan-300 text-sm px-2 py-1 rounded">
                             ${game.year || 'N/A'}
                         </span>
@@ -446,7 +370,7 @@ async function initGamesModule(rom) {
                             <span>👥 ${game.players_min || 1}-${game.players_max || 1}</span>
                         </div>
                         <div class="text-xs text-gray-500">
-                            Added: ${approvedDate}
+                            ${approvedDate}
                         </div>
                     </div>
                     
@@ -455,10 +379,6 @@ async function initGamesModule(rom) {
                             <div class="flex items-center gap-1">
                                 <span class="text-yellow-400">★</span>
                                 <span>${rating.toFixed(1)}</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <span>💬</span>
-                                <span>${commentCount}</span>
                             </div>
                             <div class="flex items-center gap-1">
                                 <span>👁️</span>
@@ -475,31 +395,10 @@ async function initGamesModule(rom) {
         `;
     }
     
-    // Initialize favorite buttons
-    function initFavoriteButtons(games) {
-        games.forEach(game => {
-            const favoriteBtn = document.querySelector(`.favorite-btn[data-game-id="${game.id}"]`);
-            if (favoriteBtn) {
-                updateFavoriteButton(favoriteBtn, game.id);
-            }
-        });
-    }
-    
     // Check if game is favorited
     function isFavorite(gameId) {
         const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
         return favorites.includes(gameId);
-    }
-    
-    // Update favorite button state
-    function updateFavoriteButton(button, gameId) {
-        if (isFavorite(gameId)) {
-            button.classList.add('text-red-400');
-            button.classList.remove('text-gray-400');
-        } else {
-            button.classList.remove('text-red-400');
-            button.classList.add('text-gray-400');
-        }
     }
     
     // Toggle favorite
@@ -520,48 +419,15 @@ async function initGamesModule(rom) {
         // Update button
         const button = document.querySelector(`.favorite-btn[data-game-id="${gameId}"]`);
         if (button) {
-            updateFavoriteButton(button, gameId);
-        }
-        
-        // If user is logged in, sync with server
-        if (rom.currentUser) {
-            try {
-                await syncFavoritesWithServer(gameId, index === -1);
-            } catch (error) {
-                console.error('Failed to sync favorite with server:', error);
+            if (isFavorite(gameId)) {
+                button.classList.add('text-red-400');
+                button.classList.remove('text-gray-400');
+            } else {
+                button.classList.remove('text-red-400');
+                button.classList.add('text-gray-400');
             }
         }
     };
-    
-    // Sync favorites with server
-    async function syncFavoritesWithServer(gameId, isFavorite) {
-        if (!rom.currentUser) return;
-        
-        try {
-            if (isFavorite) {
-                const { error } = await rom.supabase
-                    .from('user_favorites')
-                    .upsert({
-                        user1: rom.currentUser.email,
-                        user2: gameId,
-                        created_at: new Date().toISOString()
-                    });
-                
-                if (error) throw error;
-            } else {
-                const { error } = await rom.supabase
-                    .from('user_favorites')
-                    .delete()
-                    .eq('user1', rom.currentUser.email)
-                    .eq('user2', gameId);
-                
-                if (error) throw error;
-            }
-        } catch (error) {
-            console.error('Failed to sync favorite:', error);
-            throw error;
-        }
-    }
     
     // Show loading state
     function showLoading(show) {
