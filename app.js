@@ -153,14 +153,14 @@ async function initializeApp() {
     }
 }
 
-// Handle hash changes - FIXED THIS FUNCTION
+// Handle hash changes
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     
-    // Check for game detail page FIRST
+    // Check for game detail page - accept both ID and slug
     if (hash.startsWith('game/')) {
-        const gameId = hash.split('/')[1];
-        await loadGameDetail(gameId);
+        const identifier = hash.split('/')[1];
+        await loadGameDetail(identifier);
         return;
     }
     
