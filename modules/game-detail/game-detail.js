@@ -1,5 +1,4 @@
-// modules/game-detail/game-detail.js - FIXED REFERENCE ERROR
-let isInitialized = false; // Add this at the top
+let isInitialized = false;
 
 async function initGameDetail(rom, identifier) {
     console.log('🎮 Initializing game detail module for identifier:', identifier);
@@ -22,25 +21,52 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Load game data
-    const game = await loadGameByIdentifier(identifier);
+    // Get the container elements from your HTML
+    const gameLoading = document.getElementById('game-loading');
+    const gameContent = document.getElementById('game-content');
+    const gameError = document.getElementById('game-error');
     
-    if (!game) {
-        showNotFound();
+    if (!gameLoading || !gameContent || !gameError) {
+        console.error('❌ Game detail container elements not found');
         return;
     }
     
-    // Display game data
-    displayGame(game);
-    
-    // Load comments
-    loadComments(game.id);
-    
-    // Initialize rating
-    initRating(game.id);
-    
-    // Initialize edit button (if admin) - FIXED: Define this function before using it
-    initEditButton(game);
+    // Load game data
+    try {
+        const game = await loadGameByIdentifier(identifier);
+        
+        if (!game) {
+            // Show error state
+            gameLoading.classList.add('hidden');
+            gameError.classList.remove('hidden');
+            return;
+        }
+        
+        // Hide loading, show content
+        gameLoading.classList.add('hidden');
+        gameContent.classList.remove('hidden');
+        
+        // Display game data in the content container
+        displayGame(game, gameContent);
+        
+        // Load comments if there's a comments container
+        if (document.getElementById('commentsContainer')) {
+            loadComments(game.id);
+        }
+        
+        // Initialize rating if stars exist
+        if (document.getElementById('ratingStars')) {
+            initRating(game.id);
+        }
+        
+        // Initialize edit button
+        initEditButton(game);
+        
+    } catch (error) {
+        console.error('Error loading game:', error);
+        gameLoading.classList.add('hidden');
+        gameError.classList.remove('hidden');
+    }
     
     // Load game by identifier (slug or ID)
     async function loadGameByIdentifier(identifier) {
@@ -97,127 +123,366 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Display game data
-    function displayGame(game) {
+    // Display game data - UPDATED FOR YOUR HTML STRUCTURE
+    function displayGame(game, container) {
         // Update page title
         document.title = `${game.title} - Retro Online Matchmaking`;
         
         // Set game ID as data attribute for reference
-        const gameDetail = document.getElementById('gameDetail');
-        if (gameDetail) {
-            gameDetail.dataset.gameId = game.id;
-        }
+        container.dataset.gameId = game.id;
         
-        // Update game title
-        const titleElement = document.getElementById('gameTitle');
-        if (titleElement) {
-            titleElement.textContent = game.title;
-        }
-        
-        // Update game year
-        const yearElement = document.getElementById('gameYear');
-        if (yearElement) {
-            yearElement.textContent = game.year || 'N/A';
-        }
-        
-        // Update game description
-        const descriptionElement = document.getElementById('gameDescription');
-        if (descriptionElement) {
-            descriptionElement.innerHTML = formatDescription(game.description);
-        }
-        
-        // Update platforms
-        const platformsElement = document.getElementById('gamePlatforms');
-        if (platformsElement) {
-            const platforms = game.console?.split(',').map(p => p.trim()) || [];
-            platformsElement.innerHTML = platforms.map(platform => 
-                `<span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">${platform}</span>`
-            ).join('');
-        }
-        
-        // Update player count
-        const playersElement = document.getElementById('gamePlayers');
-        if (playersElement) {
-            playersElement.textContent = `${game.players_min || 1}-${game.players_max || '?'} players`;
-        }
-        
-        // Update connection methods
-        const connectionElement = document.getElementById('gameConnection');
-        if (connectionElement && game.connection_method) {
-            const methods = game.connection_method.split(',').map(m => m.trim());
-            connectionElement.innerHTML = methods.map(method => 
-                `<span class="inline-block bg-cyan-900/50 text-cyan-300 text-xs px-2 py-1 rounded mr-1 mb-1">${method}</span>`
-            ).join('');
-        }
-        
-        // Update server details
-        const serverElement = document.getElementById('gameServers');
-        if (serverElement && game.server_details) {
-            const servers = game.server_details.split(',').map(s => s.trim());
-            serverElement.innerHTML = servers.map(server => 
-                `<div class="server-item">
-                    <span class="text-green-400">●</span>
-                    <code class="ml-2 font-mono text-sm">${server}</code>
-                </div>`
-            ).join('');
-        } else if (serverElement) {
-            serverElement.innerHTML = '<span class="text-gray-500">No server details available</span>';
-        }
-        
-        // Update rating
-        const ratingElement = document.getElementById('gameRating');
-        if (ratingElement) {
-            ratingElement.innerHTML = `
-                <span class="text-yellow-400 text-xl">★</span>
-                <span class="text-2xl font-bold ml-2">${(game.rating || 0).toFixed(1)}</span>
-            `;
-        }
-        
-        // Update game stats
-        const statsElement = document.getElementById('gameStats');
-        if (statsElement) {
-            const views = game.views_count || 0;
-            const downloads = game.downloads || 0;
-            const approvedDate = game.approved_at ? new Date(game.approved_at).toLocaleDateString() : 'Unknown';
-            
-            statsElement.innerHTML = `
-                <div class="flex flex-wrap gap-4">
-                    <div class="stat-item">
-                        <span class="text-gray-400">Views:</span>
-                        <span class="text-cyan-300 ml-2">${views}</span>
+        // Create the game detail HTML structure
+        const gameHTML = `
+            <div class="max-w-7xl mx-auto p-4 md:p-6">
+                <!-- Navigation back -->
+                <div class="mb-6">
+                    <a href="#/games" class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Back to Games
+                    </a>
+                </div>
+                
+                <!-- Game header -->
+                <div class="flex flex-col lg:flex-row gap-8 mb-8">
+                    <!-- Left column: Cover image and basic info -->
+                    <div class="lg:w-1/3">
+                        <!-- Cover image -->
+                        <div class="mb-6">
+                            ${game.cover_image_url ? 
+                                `<img src="${game.cover_image_url}" alt="${escapeHtml(game.title)}" 
+                                      class="w-full rounded-lg shadow-lg game-screenshot">` :
+                                `<div class="w-full h-64 bg-gray-800 rounded-lg flex items-center justify-center">
+                                    <span class="text-gray-500 text-4xl">🎮</span>
+                                </div>`
+                            }
+                        </div>
+                        
+                        <!-- Basic info box -->
+                        <div class="bg-gray-800/50 rounded-lg p-4 mb-4">
+                            <h3 class="text-lg font-bold text-white mb-3">📊 Game Info</h3>
+                            
+                            <div class="space-y-3">
+                                <div>
+                                    <span class="text-gray-400 text-sm">Release Year:</span>
+                                    <p class="text-white">${game.year || 'N/A'}</p>
+                                </div>
+                                
+                                <div>
+                                    <span class="text-gray-400 text-sm">Players:</span>
+                                    <p class="text-white">${game.players_min || 1}-${game.players_max || '?'}</p>
+                                </div>
+                                
+                                <div>
+                                    <span class="text-gray-400 text-sm">Multiplayer Type:</span>
+                                    <p class="text-cyan-300">${game.multiplayer_type || 'Online'}</p>
+                                </div>
+                                
+                                <div>
+                                    <span class="text-gray-400 text-sm">Connection Method:</span>
+                                    <p class="text-green-300">${game.connection_method || 'Not specified'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Rating -->
+                        <div class="bg-gray-800/50 rounded-lg p-4 mb-4">
+                            <h3 class="text-lg font-bold text-white mb-3">⭐ Rating</h3>
+                            <div class="flex items-center">
+                                <span class="text-yellow-400 text-2xl mr-2">★</span>
+                                <span class="text-3xl font-bold text-white">${(game.rating || 0).toFixed(1)}</span>
+                                <span class="text-gray-400 ml-2">/5.0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Action buttons -->
+                        <div class="space-y-3">
+                            <button id="favoriteBtn" 
+                                    class="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-3 px-4 rounded-lg transition-colors">
+                                ♡ Add to Favorites
+                            </button>
+                            
+                            ${rom.currentUser && (rom.currentUser.email === game.submitted_email || 
+                              rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
+                              rom.currentUser.email === 'admin@retroonlinematchmaking.com') ? 
+                                `<button id="editGameBtn" 
+                                        class="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg transition-colors">
+                                    ✏️ Edit Game
+                                </button>` : ''
+                            }
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="text-gray-400">Downloads:</span>
-                        <span class="text-cyan-300 ml-2">${downloads}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="text-gray-400">Approved:</span>
-                        <span class="text-cyan-300 ml-2">${approvedDate}</span>
+                    
+                    <!-- Right column: Details -->
+                    <div class="lg:w-2/3">
+                        <!-- Title and platforms -->
+                        <div class="mb-6">
+                            <h1 id="gameTitle" class="text-4xl font-bold text-white mb-3">${escapeHtml(game.title)}</h1>
+                            
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                ${game.console ? game.console.split(',').map(platform => 
+                                    `<span class="inline-block bg-gray-700 text-gray-300 text-sm px-3 py-1 rounded">
+                                        ${platform.trim()}
+                                    </span>`
+                                ).join('') : ''}
+                            </div>
+                            
+                            <div class="flex items-center text-gray-400 text-sm">
+                                <span class="mr-4">Submitted by: ${game.submitted_by || 'Unknown'}</span>
+                                <span>Approved: ${new Date(game.approved_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="mb-8">
+                            <h2 class="text-2xl font-bold text-white mb-4">📝 Description</h2>
+                            <div id="gameDescription" class="text-gray-300 leading-relaxed text-lg">
+                                ${formatDescription(game.description)}
+                            </div>
+                        </div>
+                        
+                        <!-- Connection Details -->
+                        ${game.connection_details ? `
+                            <div class="mb-8">
+                                <h2 class="text-2xl font-bold text-white mb-4">🔗 Connection Details</h2>
+                                <div class="bg-gray-800/30 rounded-lg p-4">
+                                    <p class="text-gray-300 whitespace-pre-line">${escapeHtml(game.connection_details)}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Server Details -->
+                        ${game.server_details ? `
+                            <div class="mb-8">
+                                <h2 class="text-2xl font-bold text-white mb-4">🖥️ Server Details</h2>
+                                <div class="bg-gray-800/30 rounded-lg p-4">
+                                    <p class="text-gray-300 whitespace-pre-line">${escapeHtml(game.server_details)}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Game Stats -->
+                        <div class="mb-8">
+                            <h2 class="text-2xl font-bold text-white mb-4">📊 Game Stats</h2>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
+                                    <div class="text-cyan-300 text-2xl font-bold">${game.views_count || 0}</div>
+                                    <div class="text-gray-400 text-sm">Views</div>
+                                </div>
+                                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
+                                    <div class="text-green-300 text-2xl font-bold">${game.downloads || 0}</div>
+                                    <div class="text-gray-400 text-sm">Downloads</div>
+                                </div>
+                                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
+                                    <div class="text-yellow-300 text-2xl font-bold">${game.rating ? game.rating.toFixed(1) : '0.0'}</div>
+                                    <div class="text-gray-400 text-sm">Rating</div>
+                                </div>
+                                <div class="bg-gray-800/50 rounded-lg p-4 text-center">
+                                    <div class="text-purple-300 text-2xl font-bold">
+                                        ${game.last_activity ? new Date(game.last_activity).getFullYear() : 'N/A'}
+                                    </div>
+                                    <div class="text-gray-400 text-sm">Last Active</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Comments Section -->
+                        <div>
+                            <h2 class="text-2xl font-bold text-white mb-4">💬 Comments</h2>
+                            
+                            <!-- Comment form -->
+                            <div id="loginToComment" class="hidden mb-6 p-4 bg-gray-800/50 rounded-lg">
+                                <p class="text-gray-300">Please <a href="#/auth" class="text-cyan-400 hover:underline">log in</a> to comment.</p>
+                            </div>
+                            
+                            <form id="commentForm" class="${rom.currentUser ? '' : 'hidden'} mb-6">
+                                <textarea id="commentInput" 
+                                        class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-white mb-3 focus:border-cyan-500 focus:outline-none"
+                                        rows="4"
+                                        placeholder="Add a comment about this game..."></textarea>
+                                <div class="flex justify-end">
+                                    <button type="submit" 
+                                            id="submitComment"
+                                            class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                                        Post Comment
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <!-- Comments container -->
+                            <div id="commentsContainer" class="space-y-4">
+                                <div class="text-center py-8">
+                                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                                    <p class="text-gray-400 mt-2">Loading comments...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            `;
-        }
+                
+                <!-- Edit Form (hidden initially) -->
+                <div id="editGameForm" class="hidden bg-gray-800/70 rounded-lg p-6 mt-8 border border-gray-700">
+                    <h2 class="text-2xl font-bold text-white mb-6">✏️ Edit Game</h2>
+                    
+                    <input type="hidden" id="editGameId" value="${game.id}">
+                    
+                    <div class="grid md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block text-gray-300 mb-2">Title *</label>
+                            <input type="text" id="editTitle" value="${escapeHtml(game.title)}" 
+                                   class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Year</label>
+                            <input type="number" id="editYear" value="${game.year || ''}" 
+                                   class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Description *</label>
+                        <textarea id="editDescription" rows="4" 
+                                  class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">${escapeHtml(game.description || '')}</textarea>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block text-gray-300 mb-2">Minimum Players</label>
+                            <input type="number" id="editPlayersMin" value="${game.players_min || 1}" 
+                                   class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Maximum Players</label>
+                            <input type="number" id="editPlayersMax" value="${game.players_max || 1}" 
+                                   class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Console(s) (comma separated)</label>
+                        <input type="text" id="editConsole" value="${escapeHtml(game.console || '')}" 
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Connection Method</label>
+                        <input type="text" id="editConnectionMethod" value="${escapeHtml(game.connection_method || '')}" 
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Multiplayer Type</label>
+                        <select id="editMultiplayerType" 
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                            <option value="LAN" ${game.multiplayer_type === 'LAN' ? 'selected' : ''}>LAN</option>
+                            <option value="Online" ${game.multiplayer_type === 'Online' ? 'selected' : ''}>Online</option>
+                            <option value="Split-screen" ${game.multiplayer_type === 'Split-screen' ? 'selected' : ''}>Split-screen</option>
+                            <option value="Hotseat" ${game.multiplayer_type === 'Hotseat' ? 'selected' : ''}>Hotseat</option>
+                            <option value="Mixed" ${game.multiplayer_type === 'Mixed' ? 'selected' : ''}>Mixed</option>
+                            <option value="Other" ${game.multiplayer_type === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-gray-300 mb-2">Server Details</label>
+                        <textarea id="editServerDetails" rows="3" 
+                                  class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">${escapeHtml(game.server_details || '')}</textarea>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-gray-300 mb-2">Cover Image URL</label>
+                        <input type="text" id="editCoverImage" value="${escapeHtml(game.cover_image_url || '')}" 
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+                        <p class="text-gray-400 text-sm mt-1">Enter a direct URL to an image (optional)</p>
+                    </div>
+                    
+                    <div class="flex justify-end gap-3">
+                        <button onclick="cancelEdit()" 
+                                class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button onclick="saveGameEdit()" 
+                                class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg transition-colors">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
         
-        // Update favorite button
-        const favoriteBtn = document.getElementById('favoriteBtn');
-        if (favoriteBtn) {
-            const isFavorited = isFavorite(game.id);
-            favoriteBtn.innerHTML = isFavorited ? 
-                '♥ Remove from Favorites' : 
-                '♡ Add to Favorites';
-            favoriteBtn.dataset.favorited = isFavorited;
+        // Insert the HTML into the container
+        container.innerHTML = gameHTML;
+        
+        // Initialize event listeners after HTML is inserted
+        setTimeout(() => {
+            // Favorite button
+            const favoriteBtn = document.getElementById('favoriteBtn');
+            if (favoriteBtn) {
+                const isFavorited = isFavorite(game.id);
+                favoriteBtn.innerHTML = isFavorited ? 
+                    '♥ Remove from Favorites' : 
+                    '♡ Add to Favorites';
+                favoriteBtn.dataset.favorited = isFavorited;
+                favoriteBtn.onclick = () => toggleFavorite(game.id, favoriteBtn);
+            }
             
-            favoriteBtn.onclick = () => toggleFavorite(game.id, favoriteBtn);
-        }
-        
-        // Display cover image if available
-        const coverImageElement = document.getElementById('gameCoverImage');
-        if (coverImageElement && game.cover_image_url) {
-            coverImageElement.innerHTML = `
-                <img src="${game.cover_image_url}" alt="${escapeHtml(game.title)}" 
-                     class="w-full h-64 object-cover rounded-lg">
-            `;
-        }
+            // Edit button
+            const editBtn = document.getElementById('editGameBtn');
+            if (editBtn) {
+                editBtn.onclick = () => editGame(game);
+            }
+            
+            // Comment form
+            const commentForm = document.getElementById('commentForm');
+            const commentInput = document.getElementById('commentInput');
+            if (commentForm && commentInput) {
+                commentForm.onsubmit = async (e) => {
+                    e.preventDefault();
+                    
+                    if (!rom.currentUser) {
+                        showMessage('error', 'Please log in to comment');
+                        rom.loadModule('auth');
+                        return;
+                    }
+                    
+                    const content = commentInput.value.trim();
+                    if (!content) {
+                        showMessage('error', 'Please enter a comment');
+                        return;
+                    }
+                    
+                    try {
+                        const { error } = await rom.supabase
+                            .from('game_comments')
+                            .insert({
+                                game_id: game.id,
+                                user_id: rom.currentUser.id,
+                                user_email: rom.currentUser.email,
+                                username: rom.currentUser.email.split('@')[0],
+                                comment: content,
+                                created_at: new Date().toISOString()
+                            });
+                        
+                        if (error) throw error;
+                        
+                        showMessage('success', 'Comment added successfully');
+                        commentInput.value = '';
+                        
+                        // Reload comments
+                        loadComments(game.id);
+                        
+                    } catch (error) {
+                        console.error('Error adding comment:', error);
+                        showMessage('error', `Failed to add comment: ${error.message}`);
+                    }
+                };
+            }
+            
+            // Load comments
+            loadComments(game.id);
+            
+        }, 100);
         
         // Update URL if we're using ID but have slug
         if (game.slug && !identifier.includes(game.slug)) {
@@ -225,24 +490,9 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Initialize edit button - NOW DEFINED BEFORE BEING CALLED
+    // Initialize edit button
     function initEditButton(game) {
-        const editBtn = document.getElementById('editGameBtn');
-        if (!editBtn) return;
-        
-        // Show edit button if user is admin or game submitter
-        const canEdit = rom.currentUser && (
-            rom.currentUser.email === game.submitted_email || 
-            rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
-            rom.currentUser.email === 'admin@retroonlinematchmaking.com'
-        );
-        
-        if (canEdit) {
-            editBtn.classList.remove('hidden');
-            editBtn.onclick = () => editGame(game);
-        } else {
-            editBtn.classList.add('hidden');
-        }
+        // Already handled in the displayGame function
     }
     
     // Check if game is favorited
@@ -290,44 +540,34 @@ async function initGameDetail(rom, identifier) {
     }
     
     // Edit game function
-    async function editGame(game) {
+    function editGame(game) {
         console.log('Editing game:', game.title);
         
         // Show edit form
         const editForm = document.getElementById('editGameForm');
-        const gameDisplay = document.getElementById('gameDisplay');
+        const gameDisplay = document.querySelector('#game-content > div');
         
         if (editForm && gameDisplay) {
-            // Populate form
-            document.getElementById('editGameId').value = game.id;
-            document.getElementById('editTitle').value = game.title;
-            document.getElementById('editYear').value = game.year || '';
-            document.getElementById('editDescription').value = game.description || '';
-            document.getElementById('editPlayersMin').value = game.players_min || 1;
-            document.getElementById('editPlayersMax').value = game.players_max || 1;
-            document.getElementById('editConsole').value = game.console || '';
-            document.getElementById('editConnectionMethod').value = game.connection_method || '';
-            document.getElementById('editServerDetails').value = game.server_details || '';
-            document.getElementById('editCoverImage').value = game.cover_image_url || '';
-            document.getElementById('editMultiplayerType').value = game.multiplayer_type || 'Online';
-            
-            // Show form, hide display
-            editForm.classList.remove('hidden');
+            // Hide game display, show edit form
             gameDisplay.classList.add('hidden');
+            editForm.classList.remove('hidden');
             
-            // Focus on title
-            document.getElementById('editTitle').focus();
+            // Scroll to edit form
+            editForm.scrollIntoView({ behavior: 'smooth' });
         }
     }
     
-    // Format description with line breaks
+    // Format description with line breaks and basic BBCode
     function formatDescription(text) {
-        if (!text) return '<span class="text-gray-500">No description available</span>';
-        return text
+        if (!text) return '<span class="text-gray-500 italic">No description available</span>';
+        
+        return escapeHtml(text)
             .replace(/\n/g, '<br>')
-            .replace(/\[b\](.*?)\[\/b\]/g, '<strong>$1</strong>')
-            .replace(/\[i\](.*?)\[\/i\]/g, '<em>$1</em>')
-            .replace(/\[url\](.*?)\[\/url\]/g, '<a href="$1" target="_blank" class="text-cyan-400 hover:underline">$1</a>');
+            .replace(/\[b\](.*?)\[\/b\]/gi, '<strong>$1</strong>')
+            .replace(/\[i\](.*?)\[\/i\]/gi, '<em>$1</em>')
+            .replace(/\[u\](.*?)\[\/u\]/gi, '<u>$1</u>')
+            .replace(/\[url\](.*?)\[\/url\]/gi, '<a href="$1" target="_blank" class="text-cyan-400 hover:underline">$1</a>')
+            .replace(/\[url=(.*?)\](.*?)\[\/url\]/gi, '<a href="$1" target="_blank" class="text-cyan-400 hover:underline">$2</a>');
     }
     
     // Load comments
@@ -371,9 +611,6 @@ async function initGameDetail(rom, identifier) {
         }
         
         commentsContainer.innerHTML = comments.map(comment => createCommentHTML(comment)).join('');
-        
-        // Initialize comment form
-        initCommentForm();
     }
     
     // Create comment HTML
@@ -386,8 +623,10 @@ async function initGameDetail(rom, identifier) {
             minute: '2-digit'
         });
         
+        const username = comment.username || comment.user_email?.split('@')[0] || 'Anonymous';
+        
         return `
-            <div class="comment bg-gray-800/50 rounded-lg p-4 mb-4">
+            <div class="comment bg-gray-800/50 rounded-lg p-4">
                 <div class="flex items-start gap-3 mb-3">
                     <div class="flex-shrink-0">
                         <div class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
@@ -395,160 +634,23 @@ async function initGameDetail(rom, identifier) {
                         </div>
                     </div>
                     <div class="flex-1">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center mb-2">
                             <div>
-                                <span class="font-bold text-cyan-300">${comment.username || comment.user_email || 'Anonymous'}</span>
+                                <span class="font-bold text-cyan-300">${username}</span>
                                 <span class="text-gray-500 text-sm ml-2">${date}</span>
                             </div>
+                            ${comment.is_edited ? '<span class="text-gray-400 text-xs">(edited)</span>' : ''}
                         </div>
-                        <p class="text-gray-300 mt-2">${escapeHtml(comment.comment || comment.content)}</p>
+                        <p class="text-gray-300">${escapeHtml(comment.comment)}</p>
                     </div>
                 </div>
             </div>
         `;
     }
     
-    // Initialize comment form
-    function initCommentForm() {
-        const commentForm = document.getElementById('commentForm');
-        const commentInput = document.getElementById('commentInput');
-        const submitCommentBtn = document.getElementById('submitComment');
-        
-        if (!commentForm || !commentInput || !submitCommentBtn) return;
-        
-        // Show/hide form based on auth
-        if (rom.currentUser) {
-            commentForm.classList.remove('hidden');
-            commentInput.placeholder = 'Add a comment...';
-        } else {
-            commentForm.classList.add('hidden');
-            // Show login prompt
-            const loginPrompt = document.getElementById('loginToComment');
-            if (loginPrompt) {
-                loginPrompt.classList.remove('hidden');
-            }
-        }
-        
-        // Handle comment submission
-        commentForm.onsubmit = async (e) => {
-            e.preventDefault();
-            
-            if (!rom.currentUser) {
-                showMessage('error', 'Please log in to comment');
-                rom.loadModule('auth');
-                return;
-            }
-            
-            const content = commentInput.value.trim();
-            if (!content) {
-                showMessage('error', 'Please enter a comment');
-                return;
-            }
-            
-            const gameId = document.getElementById('gameDetail').dataset.gameId;
-            
-            try {
-                const { error } = await rom.supabase
-                    .from('game_comments')
-                    .insert({
-                        game_id: gameId,
-                        user_id: rom.currentUser.id,
-                        user_email: rom.currentUser.email,
-                        username: rom.currentUser.email,
-                        comment: content,
-                        created_at: new Date().toISOString()
-                    });
-                
-                if (error) throw error;
-                
-                showMessage('success', 'Comment added successfully');
-                commentInput.value = '';
-                
-                // Reload comments
-                loadComments(gameId);
-                
-            } catch (error) {
-                console.error('Error adding comment:', error);
-                showMessage('error', `Failed to add comment: ${error.message}`);
-            }
-        };
-    }
-    
-    // Initialize rating system
+    // Initialize rating system (simplified)
     function initRating(gameId) {
-        const ratingStars = document.getElementById('ratingStars');
-        if (!ratingStars) return;
-        
-        // Show/hide based on auth
-        if (rom.currentUser) {
-            ratingStars.classList.remove('hidden');
-        } else {
-            ratingStars.classList.add('hidden');
-        }
-        
-        // Star click events
-        const stars = ratingStars.querySelectorAll('.star');
-        stars.forEach((star, index) => {
-            star.onclick = () => submitRating(gameId, index + 1);
-        });
-    }
-    
-    // Submit rating
-    async function submitRating(gameId, rating) {
-        if (!rom.currentUser) {
-            showMessage('error', 'Please log in to rate games');
-            rom.loadModule('auth');
-            return;
-        }
-        
-        try {
-            const { error } = await rom.supabase
-                .from('game_ratings')
-                .upsert({
-                    game_id: gameId,
-                    user_id: rom.currentUser.id,
-                    rating: rating
-                }, {
-                    onConflict: 'game_id,user_id'
-                });
-            
-            if (error) throw error;
-            
-            showMessage('success', `Rated ${rating} star${rating !== 1 ? 's' : ''}`);
-            
-            // Reload game to update rating
-            const game = await loadGameByIdentifier(identifier);
-            if (game) {
-                const ratingElement = document.getElementById('gameRating');
-                if (ratingElement) {
-                    ratingElement.innerHTML = `
-                        <span class="text-yellow-400 text-xl">★</span>
-                        <span class="text-2xl font-bold ml-2">${(game.rating || 0).toFixed(1)}</span>
-                    `;
-                }
-            }
-            
-        } catch (error) {
-            console.error('Error submitting rating:', error);
-            showMessage('error', `Failed to submit rating: ${error.message}`);
-        }
-    }
-    
-    // Show not found message
-    function showNotFound() {
-        const gameDetail = document.getElementById('gameDetail');
-        if (gameDetail) {
-            gameDetail.innerHTML = `
-                <div class="text-center py-16 px-4">
-                    <div class="text-6xl mb-6">🎮</div>
-                    <h2 class="text-2xl font-bold text-red-400 mb-4">Game Not Found</h2>
-                    <p class="text-gray-400 mb-8">The game you're looking for doesn't exist or has been removed.</p>
-                    <a href="#/games" class="inline-block bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">
-                        Browse All Games
-                    </a>
-                </div>
-            `;
-        }
+        // You can implement this if you want star ratings
     }
     
     // Show message
@@ -584,101 +686,98 @@ async function initGameDetail(rom, identifier) {
         }, 5000);
     }
     
-    // Save edit function (exposed globally)
-    window.saveGameEdit = async function() {
-        const gameId = document.getElementById('editGameId').value;
-        const title = document.getElementById('editTitle').value.trim();
-        const description = document.getElementById('editDescription').value.trim();
-        
-        if (!title) {
-            showMessage('error', 'Title is required');
-            return;
-        }
-        
-        if (!description) {
-            showMessage('error', 'Description is required');
-            return;
-        }
-        
-        try {
-            // Generate slug from title
-            const slug = await generateSlug(title, gameId);
-            
-            const updates = {
-                title: title,
-                year: document.getElementById('editYear').value ? parseInt(document.getElementById('editYear').value) : null,
-                description: description,
-                players_min: parseInt(document.getElementById('editPlayersMin').value) || 1,
-                players_max: parseInt(document.getElementById('editPlayersMax').value) || 1,
-                console: document.getElementById('editConsole').value.trim(),
-                connection_method: document.getElementById('editConnectionMethod').value.trim(),
-                server_details: document.getElementById('editServerDetails').value.trim(),
-                cover_image_url: document.getElementById('editCoverImage').value.trim() || null,
-                multiplayer_type: document.getElementById('editMultiplayerType').value,
-                slug: slug,
-                updated_at: new Date().toISOString()
-            };
-            
-            const { error } = await rom.supabase
-                .from('games')
-                .update(updates)
-                .eq('id', gameId);
-            
-            if (error) throw error;
-            
-            showMessage('success', 'Game updated successfully');
-            
-            // Hide form, show updated game
-            document.getElementById('editGameForm').classList.add('hidden');
-            document.getElementById('gameDisplay').classList.remove('hidden');
-            
-            // Reload game data
-            const game = await loadGameByIdentifier(slug);
-            if (game) {
-                displayGame(game);
-            }
-            
-        } catch (error) {
-            console.error('Error updating game:', error);
-            showMessage('error', `Failed to update game: ${error.message}`);
-        }
-    };
-    
-    // Cancel edit function (exposed globally)
-    window.cancelEdit = function() {
-        document.getElementById('editGameForm').classList.add('hidden');
-        document.getElementById('gameDisplay').classList.remove('hidden');
-    };
-    
-    // Generate slug function
-    async function generateSlug(title, gameId) {
-        try {
-            // Call Supabase function to generate slug
-            const { data, error } = await rom.supabase.rpc('generate_game_slug', {
-                title_param: title,
-                existing_id_param: gameId
-            });
-            
-            if (error) throw error;
-            
-            return data;
-        } catch (error) {
-            console.error('Error generating slug:', error);
-            // Fallback to simple slug generation
-            return title
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '')
-                .substring(0, 100);
-        }
-    }
-    
     // Utility function to escape HTML
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+}
+
+// Global functions for edit form
+window.saveGameEdit = async function() {
+    const rom = window.rom;
+    const gameId = document.getElementById('editGameId').value;
+    const title = document.getElementById('editTitle').value.trim();
+    const description = document.getElementById('editDescription').value.trim();
+    
+    if (!title) {
+        showMessage('error', 'Title is required');
+        return;
+    }
+    
+    if (!description) {
+        showMessage('error', 'Description is required');
+        return;
+    }
+    
+    try {
+        // Generate slug from title
+        const slug = await generateSlug(title, gameId);
+        
+        const updates = {
+            title: title,
+            year: document.getElementById('editYear').value ? parseInt(document.getElementById('editYear').value) : null,
+            description: description,
+            players_min: parseInt(document.getElementById('editPlayersMin').value) || 1,
+            players_max: parseInt(document.getElementById('editPlayersMax').value) || 1,
+            console: document.getElementById('editConsole').value.trim(),
+            connection_method: document.getElementById('editConnectionMethod').value.trim(),
+            server_details: document.getElementById('editServerDetails').value.trim(),
+            cover_image_url: document.getElementById('editCoverImage').value.trim() || null,
+            multiplayer_type: document.getElementById('editMultiplayerType').value,
+            slug: slug,
+            updated_at: new Date().toISOString()
+        };
+        
+        const { error } = await rom.supabase
+            .from('games')
+            .update(updates)
+            .eq('id', gameId);
+        
+        if (error) throw error;
+        
+        showMessage('success', 'Game updated successfully');
+        
+        // Reload the page to show updated content
+        setTimeout(() => {
+            window.location.hash = `#/game/${slug}`;
+            window.location.reload();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error updating game:', error);
+        showMessage('error', `Failed to update game: ${error.message}`);
+    }
+};
+
+window.cancelEdit = function() {
+    const editForm = document.getElementById('editGameForm');
+    const gameDisplay = document.querySelector('#game-content > div');
+    
+    if (editForm && gameDisplay) {
+        editForm.classList.add('hidden');
+        gameDisplay.classList.remove('hidden');
+    }
+};
+
+// Generate slug function
+async function generateSlug(title, gameId) {
+    try {
+        // Simple slug generation
+        return title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .substring(0, 100);
+    } catch (error) {
+        console.error('Error generating slug:', error);
+        return title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .substring(0, 100);
     }
 }
 
