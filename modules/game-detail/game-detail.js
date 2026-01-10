@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - FIXED FOR YOUR SCHEMA
+// modules/game-detail/game-detail.js - WORKING VERSION WITH SEO
 async function initGameDetail(rom, identifier) {
     console.log('🎮 Initializing game detail module for identifier:', identifier);
     
@@ -38,7 +38,6 @@ async function initGameDetail(rom, identifier) {
         console.log('Loading game with identifier:', identifier);
         
         try {
-            // First get the game
             let query = rom.supabase
                 .from('games')
                 .select('*');
@@ -56,48 +55,30 @@ async function initGameDetail(rom, identifier) {
             
             if (error) {
                 console.error('Error loading game:', error);
+                
+                // If not found by slug, try ID as fallback
+                if (!isUuid) {
+                    console.log('Trying as ID fallback...');
+                    const { data: gameById, error: idError } = await rom.supabase
+                        .from('games')
+                        .select('*')
+                        .eq('id', identifier)
+                        .single();
+                    
+                    if (idError) {
+                        console.error('Also not found by ID:', idError);
+                        return null;
+                    }
+                    
+                    console.log('Found by ID fallback:', gameById.title);
+                    return gameById;
+                }
+                
                 return null;
             }
             
-            // Get average rating from game_ratings table
-            const { data: ratings } = await rom.supabase
-                .from('game_ratings')
-                .select('rating')
-                .eq('game_id', game.id);
-            
-            // Get comment count
-            const { count: commentCount } = await rom.supabase
-                .from('game_comments')
-                .select('*', { count: 'exact', head: true })
-                .eq('game_id', game.id);
-            
-            // Calculate average rating (use existing rating column if available)
-            const avgRating = game.rating || (ratings && ratings.length > 0 
-                ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
-                : 0);
-            
-            // Check if user has favorited this game
-            let isFavorited = false;
-            if (rom.currentUser) {
-                const { data: favorite } = await rom.supabase
-                    .from('user_favorites')
-                    .select('id')
-                    .eq('user1', rom.currentUser.email)
-                    .eq('user2', game.id)
-                    .single()
-                    .catch(() => ({ data: null }));
-                
-                isFavorited = !!favorite;
-            }
-            
             console.log('Game loaded successfully:', game.title);
-            return {
-                ...game,
-                avg_rating: avgRating,
-                rating_count: ratings?.length || 0,
-                comment_count: commentCount || 0,
-                is_favorited: isFavorited
-            };
+            return game;
             
         } catch (error) {
             console.error('Error in loadGameByIdentifier:', error);
@@ -105,7 +86,7 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Display game data - FIXED FOR YOUR SCHEMA
+    // Display game data
     function displayGame(game) {
         // Update page title
         document.title = `${game.title} - Retro Online Matchmaking`;
@@ -177,8 +158,7 @@ async function initGameDetail(rom, identifier) {
         if (ratingElement) {
             ratingElement.innerHTML = `
                 <span class="text-yellow-400 text-xl">★</span>
-                <span class="text-2xl font-bold ml-2">${game.avg_rating.toFixed(1)}</span>
-                <span class="text-gray-400 ml-2">(${game.rating_count} ratings)</span>
+                <span class="text-2xl font-bold ml-2">${(game.rating || 0).toFixed(1)}</span>
             `;
         }
         
@@ -203,27 +183,18 @@ async function initGameDetail(rom, identifier) {
                         <span class="text-gray-400">Approved:</span>
                         <span class="text-cyan-300 ml-2">${approvedDate}</span>
                     </div>
-                    <div class="stat-item">
-                        <span class="text-gray-400">Submitted by:</span>
-                        <span class="text-cyan-300 ml-2">${game.submitted_by || 'Unknown'}</span>
-                    </div>
                 </div>
             `;
-        }
-        
-        // Update comments count
-        const commentsElement = document.getElementById('gameCommentsCount');
-        if (commentsElement) {
-            commentsElement.textContent = `${game.comment_count} comments`;
         }
         
         // Update favorite button
         const favoriteBtn = document.getElementById('favoriteBtn');
         if (favoriteBtn) {
-            favoriteBtn.innerHTML = game.is_favorited ? 
+            const isFavorited = isFavorite(game.id);
+            favoriteBtn.innerHTML = isFavorited ? 
                 '♥ Remove from Favorites' : 
                 '♡ Add to Favorites';
-            favoriteBtn.dataset.favorited = game.is_favorited;
+            favoriteBtn.dataset.favorited = isFavorited;
             
             favoriteBtn.onclick = () => toggleFavorite(game.id, favoriteBtn);
         }
@@ -233,6 +204,20 @@ async function initGameDetail(rom, identifier) {
         if (editBtn) {
             editBtn.dataset.gameId = game.id;
             editBtn.dataset.gameSlug = game.slug || '';
+            
+            // Show edit button if user is admin or game submitter
+            const canEdit = rom.currentUser && (
+                rom.currentUser.email === game.submitted_email || 
+                rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
+                rom.currentUser.email === 'admin@retroonlinematchmaking.com'
+            );
+            
+            if (canEdit) {
+                editBtn.classList.remove('hidden');
+                editBtn.onclick = () => editGame(game);
+            } else {
+                editBtn.classList.add('hidden');
+            }
         }
         
         // Display cover image if available
@@ -241,19 +226,6 @@ async function initGameDetail(rom, identifier) {
             coverImageElement.innerHTML = `
                 <img src="${game.cover_image_url}" alt="${escapeHtml(game.title)}" 
                      class="w-full h-64 object-cover rounded-lg">
-            `;
-        }
-        
-        // Display screenshots if available
-        const screenshotsElement = document.getElementById('gameScreenshots');
-        if (screenshotsElement && game.screenshot_urls && game.screenshot_urls.length > 0) {
-            screenshotsElement.innerHTML = `
-                <h3 class="text-xl font-bold text-cyan-300 mb-4">Screenshots</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    ${game.screenshot_urls.map(url => `
-                        <img src="${url}" alt="Screenshot" class="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80">
-                    `).join('')}
-                </div>
             `;
         }
         
@@ -267,9 +239,43 @@ async function initGameDetail(rom, identifier) {
     function updateUrlToSlug(slug) {
         const currentHash = window.location.hash;
         if (!currentHash.includes(`/${slug}`)) {
-            const newHash = `#/game-detail/${slug}`;
+            const newHash = `#/game/${slug}`;
             window.history.replaceState(null, '', newHash);
             console.log('Updated URL to slug:', newHash);
+        }
+    }
+    
+    // Check if game is favorited
+    function isFavorite(gameId) {
+        const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
+        return favorites.includes(gameId);
+    }
+    
+    // Toggle favorite
+    async function toggleFavorite(gameId, button) {
+        const isFavorited = button.dataset.favorited === 'true';
+        
+        if (isFavorited) {
+            button.innerHTML = '♡ Add to Favorites';
+            button.dataset.favorited = 'false';
+            showMessage('info', 'Removed from favorites');
+            
+            // Remove from localStorage
+            const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
+            const index = favorites.indexOf(gameId);
+            if (index > -1) {
+                favorites.splice(index, 1);
+                localStorage.setItem('rom_favorites', JSON.stringify(favorites));
+            }
+        } else {
+            button.innerHTML = '♥ Remove from Favorites';
+            button.dataset.favorited = 'true';
+            showMessage('success', 'Added to favorites');
+            
+            // Add to localStorage
+            const favorites = JSON.parse(localStorage.getItem('rom_favorites') || '[]');
+            favorites.push(gameId);
+            localStorage.setItem('rom_favorites', JSON.stringify(favorites));
         }
     }
     
@@ -291,10 +297,7 @@ async function initGameDetail(rom, identifier) {
         try {
             const { data: comments, error } = await rom.supabase
                 .from('game_comments')
-                .select(`
-                    *,
-                    user:profiles(username, avatar_url)
-                `)
+                .select('*')
                 .eq('game_id', gameId)
                 .order('created_at', { ascending: false });
             
@@ -334,7 +337,6 @@ async function initGameDetail(rom, identifier) {
     
     // Create comment HTML
     function createCommentHTML(comment) {
-        const user = comment.user;
         const date = new Date(comment.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -348,24 +350,15 @@ async function initGameDetail(rom, identifier) {
                 <div class="flex items-start gap-3 mb-3">
                     <div class="flex-shrink-0">
                         <div class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
-                            ${user?.avatar_url ? 
-                                `<img src="${user.avatar_url}" class="w-10 h-10 rounded-full" alt="${user.username}">` :
-                                `<span class="text-gray-400">👤</span>`
-                            }
+                            <span class="text-gray-400">👤</span>
                         </div>
                     </div>
                     <div class="flex-1">
                         <div class="flex justify-between items-center">
                             <div>
-                                <span class="font-bold text-cyan-300">${user?.username || comment.username || 'Anonymous'}</span>
+                                <span class="font-bold text-cyan-300">${comment.username || comment.user_email || 'Anonymous'}</span>
                                 <span class="text-gray-500 text-sm ml-2">${date}</span>
                             </div>
-                            ${comment.user_id === rom.currentUser?.id ? `
-                                <button onclick="deleteComment('${comment.id}')" 
-                                        class="text-red-400 hover:text-red-300 text-sm">
-                                    Delete
-                                </button>
-                            ` : ''}
                         </div>
                         <p class="text-gray-300 mt-2">${escapeHtml(comment.comment || comment.content)}</p>
                     </div>
@@ -411,11 +404,6 @@ async function initGameDetail(rom, identifier) {
                 return;
             }
             
-            if (content.length > 1000) {
-                showMessage('error', 'Comment must be less than 1000 characters');
-                return;
-            }
-            
             const gameId = document.getElementById('gameDetail').dataset.gameId;
             
             try {
@@ -425,7 +413,7 @@ async function initGameDetail(rom, identifier) {
                         game_id: gameId,
                         user_id: rom.currentUser.id,
                         user_email: rom.currentUser.email,
-                        username: rom.currentUser.email, // You might want to get the actual username
+                        username: rom.currentUser.email,
                         comment: content,
                         created_at: new Date().toISOString()
                     });
@@ -437,15 +425,6 @@ async function initGameDetail(rom, identifier) {
                 
                 // Reload comments
                 loadComments(gameId);
-                
-                // Update comment count
-                const game = await loadGameByIdentifier(identifier);
-                if (game) {
-                    const commentsElement = document.getElementById('gameCommentsCount');
-                    if (commentsElement) {
-                        commentsElement.textContent = `${game.comment_count} comments`;
-                    }
-                }
                 
             } catch (error) {
                 console.error('Error adding comment:', error);
@@ -462,7 +441,6 @@ async function initGameDetail(rom, identifier) {
         // Show/hide based on auth
         if (rom.currentUser) {
             ratingStars.classList.remove('hidden');
-            loadUserRating(gameId);
         } else {
             ratingStars.classList.add('hidden');
         }
@@ -471,52 +449,7 @@ async function initGameDetail(rom, identifier) {
         const stars = ratingStars.querySelectorAll('.star');
         stars.forEach((star, index) => {
             star.onclick = () => submitRating(gameId, index + 1);
-            star.onmouseover = () => highlightStars(index + 1);
-            star.onmouseout = resetStars;
         });
-        
-        ratingStars.onmouseout = resetStars;
-    }
-    
-    // Load user's existing rating
-    async function loadUserRating(gameId) {
-        if (!rom.currentUser) return;
-        
-        try {
-            const { data, error } = await rom.supabase
-                .from('game_ratings')
-                .select('rating')
-                .eq('game_id', gameId)
-                .eq('user_id', rom.currentUser.id)
-                .single();
-            
-            if (!error && data) {
-                highlightStars(data.rating);
-            }
-        } catch (error) {
-            // No existing rating is fine
-        }
-    }
-    
-    // Highlight stars
-    function highlightStars(rating) {
-        const stars = document.querySelectorAll('.star');
-        stars.forEach((star, index) => {
-            if (index < rating) {
-                star.classList.add('text-yellow-400');
-                star.classList.remove('text-gray-400');
-            } else {
-                star.classList.remove('text-yellow-400');
-                star.classList.add('text-gray-400');
-            }
-        });
-    }
-    
-    // Reset stars to current rating
-    function resetStars() {
-        // This would reset to the user's current rating
-        // For simplicity, we'll just remove all highlights
-        // In a real implementation, you'd want to track the current rating
     }
     
     // Submit rating
@@ -541,17 +474,15 @@ async function initGameDetail(rom, identifier) {
             if (error) throw error;
             
             showMessage('success', `Rated ${rating} star${rating !== 1 ? 's' : ''}`);
-            highlightStars(rating);
             
-            // Reload game to update average rating
+            // Reload game to update rating
             const game = await loadGameByIdentifier(identifier);
             if (game) {
                 const ratingElement = document.getElementById('gameRating');
                 if (ratingElement) {
                     ratingElement.innerHTML = `
                         <span class="text-yellow-400 text-xl">★</span>
-                        <span class="text-2xl font-bold ml-2">${game.avg_rating.toFixed(1)}</span>
-                        <span class="text-gray-400 ml-2">(${game.rating_count} ratings)</span>
+                        <span class="text-2xl font-bold ml-2">${(game.rating || 0).toFixed(1)}</span>
                     `;
                 }
             }
@@ -562,27 +493,7 @@ async function initGameDetail(rom, identifier) {
         }
     }
     
-    // Initialize edit button - FIXED FOR YOUR SCHEMA
-    function initEditButton(game) {
-        const editBtn = document.getElementById('editGameBtn');
-        if (!editBtn) return;
-        
-        // Show edit button if user is admin or game submitter
-        const canEdit = rom.currentUser && (
-            rom.currentUser.email === game.submitted_email || 
-            rom.currentUser.email === 'retrogamemasterra@gmail.com' ||
-            rom.currentUser.email === 'admin@retroonlinematchmaking.com'
-        );
-        
-        if (canEdit) {
-            editBtn.classList.remove('hidden');
-            editBtn.onclick = () => editGame(game);
-        } else {
-            editBtn.classList.add('hidden');
-        }
-    }
-    
-    // Edit game function - FIXED FOR YOUR SCHEMA
+    // Edit game function
     async function editGame(game) {
         console.log('Editing game:', game.title);
         
@@ -591,7 +502,7 @@ async function initGameDetail(rom, identifier) {
         const gameDisplay = document.getElementById('gameDisplay');
         
         if (editForm && gameDisplay) {
-            // Populate form with correct column names
+            // Populate form
             document.getElementById('editGameId').value = game.id;
             document.getElementById('editTitle').value = game.title;
             document.getElementById('editYear').value = game.year || '';
@@ -610,54 +521,6 @@ async function initGameDetail(rom, identifier) {
             
             // Focus on title
             document.getElementById('editTitle').focus();
-        }
-    }
-    
-    // Toggle favorite - FIXED FOR YOUR SCHEMA
-    async function toggleFavorite(gameId, button) {
-        if (!rom.currentUser) {
-            showMessage('error', 'Please log in to save favorites');
-            rom.loadModule('auth');
-            return;
-        }
-        
-        const isFavorited = button.dataset.favorited === 'true';
-        
-        try {
-            if (isFavorited) {
-                // Remove favorite - using user_favorites table
-                const { error } = await rom.supabase
-                    .from('user_favorites')
-                    .delete()
-                    .eq('user1', rom.currentUser.email)
-                    .eq('user2', gameId);
-                
-                if (error) throw error;
-                
-                button.innerHTML = '♡ Add to Favorites';
-                button.dataset.favorited = 'false';
-                showMessage('info', 'Removed from favorites');
-                
-            } else {
-                // Add favorite - using user_favorites table
-                const { error } = await rom.supabase
-                    .from('user_favorites')
-                    .upsert({
-                        user1: rom.currentUser.email,
-                        user2: gameId,
-                        created_at: new Date().toISOString()
-                    });
-                
-                if (error) throw error;
-                
-                button.innerHTML = '♥ Remove from Favorites';
-                button.dataset.favorited = 'true';
-                showMessage('success', 'Added to favorites');
-            }
-            
-        } catch (error) {
-            console.error('Error toggling favorite:', error);
-            showMessage('error', `Failed to update favorites: ${error.message}`);
         }
     }
     
@@ -711,31 +574,7 @@ async function initGameDetail(rom, identifier) {
         }, 5000);
     }
     
-    // Delete comment function (exposed globally)
-    window.deleteComment = async function(commentId) {
-        if (!confirm('Are you sure you want to delete this comment?')) return;
-        
-        try {
-            const { error } = await rom.supabase
-                .from('game_comments')
-                .delete()
-                .eq('id', commentId);
-            
-            if (error) throw error;
-            
-            showMessage('success', 'Comment deleted');
-            
-            // Reload comments
-            const gameId = document.getElementById('gameDetail').dataset.gameId;
-            loadComments(gameId);
-            
-        } catch (error) {
-            console.error('Error deleting comment:', error);
-            showMessage('error', `Failed to delete comment: ${error.message}`);
-        }
-    };
-    
-    // Save edit function (exposed globally) - FIXED FOR YOUR SCHEMA
+    // Save edit function (exposed globally)
     window.saveGameEdit = async function() {
         const gameId = document.getElementById('editGameId').value;
         const title = document.getElementById('editTitle').value.trim();
