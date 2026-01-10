@@ -1,9 +1,9 @@
-// app.js - UPDATED WITH SEARCH MODULE
+// app.js - UPDATED WITH FIXED GAME DETAIL ROUTING
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
 
 let currentModule = null;
 
-// Initialize modules - ADDED search-users
+// Initialize modules
 const modules = {
     'home': () => import('./modules/home/home.js'),
     'games': () => import('./modules/games/games.js'),
@@ -11,12 +11,11 @@ const modules = {
     'admin': () => import('./modules/admin/admin.js'),
     'chat': () => import('./modules/chat/chat.js'),
     'profile': () => import('./modules/profile/profile.js'),
-    'game': () => import('./modules/game-detail/game-detail.js'),
     'submit-game': () => import('./modules/submit-game/submit-game.js'),
-    'search-users': () => import('./modules/search-users/search-users.js') // ADDED THIS LINE
+    'search-users': () => import('./modules/search-users/search-users.js')
 };
 
-// Fallback content - ADDED search-users
+// Fallback content
 const fallbackContent = {
     'home': `
         <div class="text-center py-12 px-4">
@@ -102,7 +101,6 @@ const fallbackContent = {
             </div>
         </div>
     `,
-    // ADDED search-users fallback
     'search-users': `
         <div class="max-w-4xl mx-auto p-4">
             <h1 class="text-3xl font-bold mb-6 text-cyan-400">🔍 Find Users</h1>
@@ -155,9 +153,25 @@ async function initializeApp() {
     }
 }
 
-// Handle hash changes
+// Handle hash changes - FIXED THIS FUNCTION
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
+    
+    // Check for game detail page FIRST
+    if (hash.startsWith('game/')) {
+        const gameId = hash.split('/')[1];
+        await loadGameDetail(gameId);
+        return;
+    }
+    
+    // Check for profile detail page
+    if (hash.startsWith('profile/')) {
+        const profileId = hash.split('/')[1];
+        await loadProfileDetail(profileId);
+        return;
+    }
+    
+    // For all other modules
     await loadModule(hash);
 }
 
@@ -165,20 +179,6 @@ async function handleHashChange() {
 async function loadModule(moduleName) {
     try {
         console.log(`📦 Loading module: ${moduleName}`);
-        
-        // Check for game detail page (format: game/:id)
-        if (moduleName.startsWith('game/')) {
-            const gameId = moduleName.split('/')[1];
-            await loadGameDetail(gameId);
-            return;
-        }
-        
-        // Check for profile detail page (format: profile/:id)
-        if (moduleName.startsWith('profile/')) {
-            const profileId = moduleName.split('/')[1];
-            await loadProfileDetail(profileId);
-            return;
-        }
         
         // Clear current content
         const appContent = document.getElementById('app-content');
@@ -275,10 +275,20 @@ async function loadGameDetail(gameId) {
             }
         };
         
-        if (module.initModule) {
-            await module.initModule(rom, gameId);
-        } else if (module.default && module.default.initModule) {
-            await module.default.initModule(rom, gameId);
+        // Call the initGameDetail function directly
+        if (module.default && typeof module.default === 'function') {
+            await module.default(rom, gameId);
+        } else if (module.initGameDetail) {
+            await module.initGameDetail(rom, gameId);
+        } else if (module.default && module.default.initGameDetail) {
+            await module.default.initGameDetail(rom, gameId);
+        } else if (typeof module === 'function') {
+            await module(rom, gameId);
+        } else {
+            // If none of the above, try calling initGameDetail directly from window
+            if (window.initGameDetail) {
+                await window.initGameDetail(rom, gameId);
+            }
         }
     } catch (error) {
         console.error('Error loading game detail:', error);
@@ -286,7 +296,7 @@ async function loadGameDetail(gameId) {
     }
 }
 
-// NEW FUNCTION: Load profile detail page
+// Function for profile detail page
 async function loadProfileDetail(profileId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
@@ -313,8 +323,10 @@ async function loadProfileDetail(profileId) {
             }
         };
         
-        // We need to pass the profile ID to the module
-        if (module.initModule) {
+        // Pass the profile ID to the module
+        if (module.default && typeof module.default === 'function') {
+            await module.default(rom, profileId);
+        } else if (module.initModule) {
             await module.initModule(rom, profileId);
         } else if (module.default && module.default.initModule) {
             await module.default.initModule(rom, profileId);
