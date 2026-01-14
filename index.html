@@ -483,6 +483,123 @@
             background-color: #ef4444;
             color: #fff;
         }
+        /* Lightbox styles */
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+.lightbox-content {
+    margin: auto;
+    display: block;
+    width: 80%;
+    max-width: 1200px;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.close-lightbox {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-lightbox:hover {
+    color: #bbb;
+}
+
+/* Image Upload Styles */
+.file-upload-area {
+    border: 2px dashed #4b5563;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: #06b6d4;
+    background-color: rgba(6, 182, 212, 0.05);
+}
+
+.file-upload-area.dragover {
+    border-color: #06b6d4;
+    background-color: rgba(6, 182, 212, 0.1);
+}
+
+.screenshot-preview {
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.screenshot-preview:hover {
+    transform: scale(1.02);
+}
+
+.remove-screenshot-btn {
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: #dc2626;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.screenshot-preview:hover .remove-screenshot-btn {
+    opacity: 1;
+}
+
+/* Animation for messages */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Form styling */
+.form-label.required::after {
+    content: " *";
+    color: #ff3333;
+}
+
+/* Game detail specific */
+.game-screenshot {
+    transition: transform 0.3s;
+}
+
+.game-screenshot:hover {
+    transform: scale(1.02);
+}
+
+.comment-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+}
     </style>
 </head>
 <body class="bg-gray-900">
