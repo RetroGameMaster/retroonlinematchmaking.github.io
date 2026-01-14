@@ -182,6 +182,21 @@ function initSubmitGame(rom) {
         });
         
         gameData.connectionMethods = methods;
+
+        // Validate
+    const validation = validateSubmission(gameData, methods);
+    if (!validation.valid) {
+        showResult('error', validation.message);
+        return;
+    }
+    
+    // Check cover image - ADD THIS HERE!
+    if (!selectedCoverImage) {
+        // Show the error message
+        const coverError = document.getElementById('coverError');
+        if (coverError) coverError.classList.remove('hidden');
+        showResult('error', 'Cover image is required');
+        return;
         
         // Show loading
         const submitBtn = document.getElementById('submitButton');
@@ -228,80 +243,83 @@ function initSubmitGame(rom) {
     });
     
     // IMAGE UPLOAD FUNCTIONS
-    function addImageUploadSection() {
-        // Find the basic info section
-        const basicInfoSection = document.querySelector('.form-section');
-        if (!basicInfoSection) return;
-        
-        // Create image upload HTML
-        const imageHTML = `
-            <div class="form-section fade-in">
-                <h3>🖼️ Game Images</h3>
-                <p class="text-gray-400 text-sm mb-4">Upload cover art (required) and up to 3 screenshots (optional)</p>
-                
-                <!-- Cover Art Upload -->
-                <div class="mb-6">
-                    <label class="form-label required">Cover Art *</label>
-                    <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-cyan-500 transition-colors"
-                         id="coverUploadArea">
-                        <div class="mb-4">
-                            <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                            </svg>
-                        </div>
-                        <p class="text-gray-300 mb-2">Drag & drop or click to upload cover art</p>
-                        <input type="file" id="coverImage" accept="image/*" required class="hidden">
-                        <button type="button" onclick="document.getElementById('coverImage').click()" 
-                                class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded mt-2">
-                            Choose File
-                        </button>
-                        <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB</p>
+  function addImageUploadSection() {
+    // Find the basic info section
+    const basicInfoSection = document.querySelector('.form-section');
+    if (!basicInfoSection) return;
+    
+    // Create image upload HTML
+    const imageHTML = `
+        <div class="form-section fade-in">
+            <h3>🖼️ Game Images</h3>
+            <p class="text-gray-400 text-sm mb-4">Upload cover art (required) and up to 3 screenshots (optional)</p>
+            
+            <!-- Cover Art Upload -->
+            <div class="mb-6">
+                <label class="form-label required">Cover Art *</label>
+                <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-cyan-500 transition-colors"
+                     id="coverUploadArea">
+                    <div class="mb-4">
+                        <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
                     </div>
-                    
-                    <div id="coverPreview" class="hidden">
-                        <p class="text-gray-300 mb-2">Preview:</p>
-                        <div class="flex items-center gap-4">
-                            <img id="coverPreviewImg" class="w-32 h-48 object-cover rounded border border-cyan-500">
-                            <button type="button" onclick="removeCoverImage()" 
-                                    class="text-red-400 hover:text-red-300">
-                                ✕ Remove
-                            </button>
-                        </div>
-                    </div>
+                    <p class="text-gray-300 mb-2">Drag & drop or click to upload cover art</p>
+                    <button type="button" onclick="document.getElementById('coverImage').click()" 
+                            class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded mt-2">
+                        Choose File
+                    </button>
+                    <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB</p>
+                    <!-- Hidden file input WITHOUT required attribute - we'll validate manually -->
+                    <input type="file" id="coverImage" accept="image/*" class="hidden">
+                    <input type="hidden" id="coverImageRequired" value="false">
                 </div>
                 
-                <!-- Screenshots Upload -->
-                <div>
-                    <label class="form-label">Screenshots (Optional, max 3)</label>
-                    <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-purple-500 transition-colors"
-                         id="screenshotsUploadArea">
-                        <div class="mb-4">
-                            <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        <p class="text-gray-300 mb-2">Drag & drop or click to upload screenshots</p>
-                        <input type="file" id="screenshotImages" accept="image/*" multiple class="hidden">
-                        <button type="button" onclick="document.getElementById('screenshotImages').click()" 
-                                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded mt-2">
-                            Choose Files
+                <div id="coverPreview" class="hidden">
+                    <p class="text-gray-300 mb-2">Preview:</p>
+                    <div class="flex items-center gap-4">
+                        <img id="coverPreviewImg" class="w-32 h-48 object-cover rounded border border-cyan-500">
+                        <button type="button" onclick="removeCoverImage()" 
+                                class="text-red-400 hover:text-red-300">
+                            ✕ Remove
                         </button>
-                        <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB each (max 3 files)</p>
                     </div>
-                    
-                    <div id="screenshotsPreview" class="grid grid-cols-3 gap-4 mt-4"></div>
                 </div>
+                <div id="coverError" class="text-red-400 text-sm mt-2 hidden">Cover image is required</div>
             </div>
-        `;
-        
-        // Insert after basic info section
-        basicInfoSection.insertAdjacentHTML('afterend', imageHTML);
-        
-        // Setup event listeners for image upload
-        setTimeout(() => {
-            initImageUploadListeners();
-        }, 100);
-    }
+            
+            <!-- Screenshots Upload -->
+            <div>
+                <label class="form-label">Screenshots (Optional, max 3)</label>
+                <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-purple-500 transition-colors"
+                     id="screenshotsUploadArea">
+                    <div class="mb-4">
+                        <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-gray-300 mb-2">Drag & drop or click to upload screenshots</p>
+                    <button type="button" onclick="document.getElementById('screenshotImages').click()" 
+                            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded mt-2">
+                        Choose Files
+                    </button>
+                    <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB each (max 3 files)</p>
+                    <input type="file" id="screenshotImages" accept="image/*" multiple class="hidden">
+                </div>
+                
+                <div id="screenshotsPreview" class="grid grid-cols-3 gap-4 mt-4"></div>
+            </div>
+        </div>
+    `;
+    
+    // Insert after basic info section
+    basicInfoSection.insertAdjacentHTML('afterend', imageHTML);
+    
+    // Setup event listeners for image upload
+    setTimeout(() => {
+        initImageUploadListeners();
+    }, 100);
+}
     
     function initImageUploadListeners() {
         // Cover image upload
@@ -362,10 +380,12 @@ function initSubmitGame(rom) {
         
         // Make remove functions available globally
         window.removeCoverImage = function() {
-            selectedCoverImage = null;
-            document.getElementById('coverPreview').classList.add('hidden');
-            document.getElementById('coverImage').value = '';
-        };
+    selectedCoverImage = null;
+    document.getElementById('coverPreview').classList.add('hidden');
+    document.getElementById('coverImage').value = '';
+    document.getElementById('coverImageRequired').value = 'false';
+    document.getElementById('coverError').classList.remove('hidden');
+};
         
         window.removeScreenshot = function(index) {
             selectedScreenshots.splice(index, 1);
@@ -373,52 +393,36 @@ function initSubmitGame(rom) {
         };
     }
     
-    function handleCoverImageUpload(file) {
-        if (!file.type.startsWith('image/')) {
-            showResult('error', 'Please select an image file (PNG, JPG)');
-            return;
-        }
-        
-        if (file.size > 2 * 1024 * 1024) {
-            showResult('error', 'Image must be less than 2MB');
-            return;
-        }
-        
-        // Show preview
-        const preview = document.getElementById('coverPreview');
-        const previewImg = document.getElementById('coverPreviewImg');
-        const reader = new FileReader();
-        
-        reader.onload = (e) => {
-            previewImg.src = e.target.result;
-            preview.classList.remove('hidden');
-            
-            // Store file for submission
-            selectedCoverImage = file;
-        };
-        reader.readAsDataURL(file);
+   function handleCoverImageUpload(file) {
+    if (!file.type.startsWith('image/')) {
+        showResult('error', 'Please select an image file (PNG, JPG)');
+        return;
     }
     
-    function handleScreenshotsUpload(files) {
-        const validFiles = Array.from(files).filter(file => 
-            file.type.startsWith('image/') && file.size <= 2 * 1024 * 1024
-        );
-        
-        if (validFiles.length === 0) {
-            showResult('error', 'Please select valid image files (PNG/JPG, max 2MB each)');
-            return;
-        }
-        
-        // Check if adding these would exceed 3 total
-        if (selectedScreenshots.length + validFiles.length > 3) {
-            showResult('error', 'You can only upload up to 3 screenshots total');
-            return;
-        }
-        
-        // Add to selected screenshots
-        selectedScreenshots.push(...validFiles);
-        updateScreenshotsPreview();
+    if (file.size > 2 * 1024 * 1024) {
+        showResult('error', 'Image must be less than 2MB');
+        return;
     }
+    
+    // Show preview
+    const preview = document.getElementById('coverPreview');
+    const previewImg = document.getElementById('coverPreviewImg');
+    const coverError = document.getElementById('coverError');
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        preview.classList.remove('hidden');
+        coverError.classList.add('hidden');
+        
+        // Store file for submission
+        selectedCoverImage = file;
+        
+        // Mark as valid
+        document.getElementById('coverImageRequired').value = 'true';
+    };
+    reader.readAsDataURL(file);
+}
     
     function updateScreenshotsPreview() {
         const container = document.getElementById('screenshotsPreview');
