@@ -1,4 +1,4 @@
-// modules/admin/admin.js - FIXED VERSION
+// modules/admin/admin.js - COMPLETE FIXED VERSION
 import { supabase, getCurrentUser, isAdmin } from '../../lib/supabase.js';
 
 let allGames = [];
@@ -8,6 +8,29 @@ let currentUser = null;
 export function initModule() {
     console.log('Admin module initialized');
     loadAdminPanel();
+}
+
+// NEW FUNCTION: Handle game edit from direct link
+export async function editGame(rom, gameId) {
+    console.log('Edit game called for:', gameId);
+    currentUser = await getCurrentUser();
+    
+    if (!currentUser) {
+        alert('Please login to edit games');
+        rom.loadModule('auth');
+        return;
+    }
+    
+    // Check admin status
+    const adminStatus = await isAdmin();
+    if (!adminStatus) {
+        alert('Admin access required');
+        rom.loadModule('home');
+        return;
+    }
+    
+    // Load and show edit form
+    await showGameEditForm(gameId);
 }
 
 async function loadAdminPanel() {
@@ -247,6 +270,25 @@ async function loadPendingSubmissions() {
                                 <span class="bg-gray-700 text-white px-3 py-1 rounded text-sm">${submission.multiplayer_type}</span>
                             </div>
                             <p class="text-gray-300 mb-4">${submission.description || 'No description provided.'}</p>
+                            
+                            <!-- Show images if available -->
+                            ${submission.cover_image_url ? `
+                                <div class="mb-4">
+                                    <p class="text-gray-300 mb-2">Cover Image:</p>
+                                    <img src="${submission.cover_image_url}" alt="Cover" class="w-32 h-48 object-cover rounded border border-gray-600">
+                                </div>
+                            ` : ''}
+                            
+                            ${submission.screenshot_urls && submission.screenshot_urls.length > 0 ? `
+                                <div class="mb-4">
+                                    <p class="text-gray-300 mb-2">Screenshots (${submission.screenshot_urls.length}):</p>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        ${submission.screenshot_urls.map(url => `
+                                            <img src="${url}" alt="Screenshot" class="w-full h-24 object-cover rounded border border-gray-600">
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <div>
@@ -1038,6 +1080,485 @@ function renderGamesTable(games) {
     `).join('');
 }
 
+// SHOW GAME EDIT FORM FUNCTION
+async function showGameEditForm(gameId) {
+    try {
+        // Load game data
+        const { data: game, error } = await supabase
+            .from('games')
+            .select('*')
+            .eq('id', gameId)
+            .single();
+
+        if (error) {
+            console.error('Error loading game:', error);
+            showNotification('❌ Error loading game: ' + error.message, 'error');
+            return;
+        }
+
+        // Create edit form in admin content area
+        const content = document.getElementById('admin-content');
+        if (!content) {
+            // If we're in standalone edit mode, create the container
+            const appContent = document.getElementById('app-content');
+            if (appContent) {
+                appContent.innerHTML = `
+                    <div class="max-w-7xl mx-auto p-4">
+                        <div class="mb-6">
+                            <a href="#/games" class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
+                                ← Back to Games
+                            </a>
+                        </div>
+                        <div id="edit-game-container"></div>
+                    </div>
+                `;
+                content = document.getElementById('edit-game-container');
+            }
+        }
+
+        if (content) {
+            content.innerHTML = createGameEditForm(game);
+            setupGameEditForm(game);
+        }
+
+    } catch (error) {
+        console.error('Error showing game edit form:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    }
+}
+
+function createGameEditForm(game) {
+    const adminEmails = ['retrogamemasterra@gmail.com', 'admin@retroonlinematchmaking.com'];
+    const isAdmin = currentUser && adminEmails.includes(currentUser.email?.toLowerCase());
+    
+    return `
+        <div class="bg-gray-800 rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-white mb-6">✏️ Edit Game: ${game.title}</h2>
+            
+            <!-- Image Management Section -->
+            <div class="bg-gray-900 rounded-lg p-6 mb-6 border border-gray-700">
+                <h3 class="text-lg font-bold text-white mb-4">🖼️ Game Images</h3>
+                
+                <!-- Cover Art -->
+                <div class="mb-6">
+                    <h4 class="text-md font-bold text-cyan-300 mb-3">Cover Art</h4>
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="md:w-1/3">
+                            <div class="current-image mb-4">
+                                <p class="text-gray-300 mb-2">Current:</p>
+                                ${game.cover_image_url ? 
+                                    `<img src="${game.cover_image_url}" alt="Cover" 
+                                         class="w-full h-64 object-cover rounded-lg border border-gray-600"
+                                         id="currentCoverImage">` :
+                                    `<div class="w-full h-64 bg-gray-700 rounded-lg flex items-center justify-center">
+                                        <span class="text-gray-500 text-2xl">🎮</span>
+                                    </div>`
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="md:w-2/3">
+                            <div class="mb-4">
+                                <label class="block text-gray-300 mb-2">Update Cover Image</label>
+                                <input type="file" id="newCoverImage" accept="image/*" 
+                                       class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
+                            </div>
+                            <div id="coverPreview" class="hidden mb-4">
+                                <p class="text-gray-300 mb-2">Preview:</p>
+                                <img id="coverPreviewImage" class="w-32 h-32 object-cover rounded-lg border border-cyan-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Screenshots (Admin Only) -->
+                ${isAdmin ? `
+                    <div>
+                        <h4 class="text-md font-bold text-purple-300 mb-3">Screenshots</h4>
+                        <div class="mb-4">
+                            <div class="mb-3">
+                                <label class="block text-gray-300 mb-2">Add Screenshots</label>
+                                <input type="file" id="newScreenshots" accept="image/*" multiple 
+                                       class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
+                            </div>
+                            
+                            <div id="screenshotsContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                ${game.screenshot_urls && game.screenshot_urls.length > 0 ? 
+                                    game.screenshot_urls.map((url, index) => `
+                                        <div class="screenshot-item relative" data-index="${index}">
+                                            <img src="${url}" alt="Screenshot ${index + 1}" 
+                                                 class="w-full h-32 object-cover rounded-lg border border-gray-600">
+                                            <button type="button" onclick="removeGameScreenshot('${game.id}', ${index})" 
+                                                    class="absolute top-0 right-0 bg-red-600 text-white w-6 h-6 rounded-full text-xs">
+                                                ✕
+                                            </button>
+                                        </div>
+                                    `).join('') : 
+                                    '<p class="text-gray-500 col-span-4 text-center py-4">No screenshots yet</p>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Game Details Form -->
+            <form id="gameEditForm" class="space-y-4">
+                <input type="hidden" id="editGameId" value="${game.id}">
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Title *</label>
+                        <input type="text" id="editTitle" value="${game.title}" required 
+                               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Console *</label>
+                        <input type="text" id="editConsole" value="${game.console}" required 
+                               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                    </div>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Year</label>
+                        <input type="number" id="editYear" value="${game.year || ''}" 
+                               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 mb-2">Multiplayer Type</label>
+                        <select id="editMultiplayerType" 
+                                class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                            <option value="Online" ${game.multiplayer_type === 'Online' ? 'selected' : ''}>Online</option>
+                            <option value="LAN" ${game.multiplayer_type === 'LAN' ? 'selected' : ''}>LAN</option>
+                            <option value="Split-screen" ${game.multiplayer_type === 'Split-screen' ? 'selected' : ''}>Split-screen</option>
+                            <option value="Hotseat" ${game.multiplayer_type === 'Hotseat' ? 'selected' : ''}>Hotseat</option>
+                            <option value="Mixed" ${game.multiplayer_type === 'Mixed' ? 'selected' : ''}>Mixed</option>
+                            <option value="Other" ${game.multiplayer_type === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">Description *</label>
+                    <textarea id="editDescription" rows="6" required 
+                              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">${game.description || ''}</textarea>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Connection Method</label>
+                        <input type="text" id="editConnectionMethod" value="${game.connection_method || ''}" 
+                               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-gray-300 mb-2">Min Players</label>
+                            <input type="number" id="editPlayersMin" value="${game.players_min || 1}" min="1" max="99"
+                                   class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-2">Max Players</label>
+                            <input type="number" id="editPlayersMax" value="${game.players_max || 1}" min="1" max="99"
+                                   class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">Connection Details</label>
+                    <textarea id="editConnectionDetails" rows="3"
+                              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">${game.connection_details || ''}</textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">Server Details</label>
+                    <textarea id="editServerDetails" rows="3"
+                              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">${game.server_details || ''}</textarea>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="editServersAvailable" ${game.servers_available ? 'checked' : ''}
+                           class="w-4 h-4 text-cyan-500 bg-gray-700 border-gray-600 rounded">
+                    <label class="ml-2 text-gray-300">Active servers available</label>
+                </div>
+                
+                <div class="flex justify-end gap-3 pt-6">
+                    <button type="button" onclick="window.location.hash = '#/game/${game.slug || game.id}'" 
+                            class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg">
+                        Cancel
+                    </button>
+                    <button type="submit" id="saveGameBtn" 
+                            class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Delete Game (Admin Only) -->
+            ${isAdmin ? `
+                <div class="mt-8 pt-6 border-t border-gray-700">
+                    <h3 class="text-lg font-bold text-red-400 mb-3">⚠️ Admin Actions</h3>
+                    <button onclick="adminDeleteGame('${game.id}', '${escapeString(game.title)}')"
+                            class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg">
+                        🗑️ Delete Game
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function setupGameEditForm(game) {
+    const form = document.getElementById('gameEditForm');
+    if (!form) return;
+    
+    // Cover image preview
+    const coverInput = document.getElementById('newCoverImage');
+    if (coverInput) {
+        coverInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('coverPreview');
+                    const img = document.getElementById('coverPreviewImage');
+                    img.src = e.target.result;
+                    preview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Screenshots preview
+    const screenshotsInput = document.getElementById('newScreenshots');
+    if (screenshotsInput) {
+        screenshotsInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                // Show loading indicator
+                const container = document.getElementById('screenshotsContainer');
+                const loadingMsg = document.createElement('p');
+                loadingMsg.className = 'text-gray-500 col-span-4 text-center py-4';
+                loadingMsg.textContent = 'Uploading...';
+                container.appendChild(loadingMsg);
+                
+                // Upload files
+                setTimeout(async () => {
+                    await uploadScreenshots(game.id, files);
+                    loadingMsg.remove();
+                }, 100);
+            }
+        });
+    }
+    
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await saveGameEditForm(game);
+    });
+    
+    // Make remove function available
+    window.removeGameScreenshot = async function(gameId, index) {
+        if (!confirm('Remove this screenshot?')) return;
+        
+        try {
+            const { data: gameData } = await supabase
+                .from('games')
+                .select('screenshot_urls')
+                .eq('id', gameId)
+                .single();
+            
+            if (gameData && gameData.screenshot_urls) {
+                const newScreenshots = [...gameData.screenshot_urls];
+                newScreenshots.splice(index, 1);
+                
+                await supabase
+                    .from('games')
+                    .update({ screenshot_urls: newScreenshots })
+                    .eq('id', gameId);
+                
+                showNotification('✅ Screenshot removed!');
+                // Remove from UI
+                const screenshotItem = document.querySelector(`.screenshot-item[data-index="${index}"]`);
+                if (screenshotItem) {
+                    screenshotItem.remove();
+                }
+                // Update indices
+                updateScreenshotIndices(gameId);
+            }
+        } catch (error) {
+            console.error('Error removing screenshot:', error);
+            showNotification('❌ Error: ' + error.message, 'error');
+        }
+    };
+}
+
+async function saveGameEditForm(game) {
+    const saveBtn = document.getElementById('saveGameBtn');
+    const originalText = saveBtn.textContent;
+    
+    saveBtn.textContent = 'Saving...';
+    saveBtn.disabled = true;
+    
+    try {
+        const gameId = document.getElementById('editGameId').value;
+        
+        // Handle cover image upload if new one selected
+        const coverInput = document.getElementById('newCoverImage');
+        let coverImageUrl = game.cover_image_url;
+        
+        if (coverInput.files.length > 0) {
+            const coverFile = coverInput.files[0];
+            if (coverFile && coverFile.type.startsWith('image/')) {
+                const fileExt = coverFile.name.split('.').pop();
+                const fileName = `covers/${gameId}/${Date.now()}.${fileExt}`;
+                
+                const { data, error } = await supabase.storage
+                    .from('game-media')
+                    .upload(fileName, coverFile, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+                
+                if (!error) {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('game-media')
+                        .getPublicUrl(fileName);
+                    coverImageUrl = publicUrl;
+                }
+            }
+        }
+        
+        // Prepare updates
+        const updates = {
+            title: document.getElementById('editTitle').value.trim(),
+            console: document.getElementById('editConsole').value.trim(),
+            year: document.getElementById('editYear').value ? parseInt(document.getElementById('editYear').value) : null,
+            description: document.getElementById('editDescription').value.trim(),
+            multiplayer_type: document.getElementById('editMultiplayerType').value,
+            connection_method: document.getElementById('editConnectionMethod').value.trim() || null,
+            connection_details: document.getElementById('editConnectionDetails').value.trim() || null,
+            server_details: document.getElementById('editServerDetails').value.trim() || null,
+            players_min: parseInt(document.getElementById('editPlayersMin').value) || 1,
+            players_max: parseInt(document.getElementById('editPlayersMax').value) || 1,
+            servers_available: document.getElementById('editServersAvailable').checked,
+            cover_image_url: coverImageUrl,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Save to database
+        const { error } = await supabase
+            .from('games')
+            .update(updates)
+            .eq('id', gameId);
+        
+        if (error) throw error;
+        
+        showNotification('✅ Game updated successfully!', 'success');
+        
+        // Redirect to game page
+        setTimeout(() => {
+            window.location.hash = `#/game/${game.slug || gameId}`;
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error saving game edit:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
+    } finally {
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+    }
+}
+
+async function uploadScreenshots(gameId, files) {
+    try {
+        // Get current screenshots
+        const { data: game } = await supabase
+            .from('games')
+            .select('screenshot_urls')
+            .eq('id', gameId)
+            .single();
+        
+        const currentScreenshots = game?.screenshot_urls || [];
+        const newScreenshots = [...currentScreenshots];
+        
+        // Upload each file
+        for (let i = 0; i < files.length && i < 10; i++) {
+            const file = files[i];
+            if (file.type.startsWith('image/')) {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `screenshots/${gameId}/${Date.now()}_${i}.${fileExt}`;
+                
+                const { data, error } = await supabase.storage
+                    .from('game-media')
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+                
+                if (!error) {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('game-media')
+                        .getPublicUrl(fileName);
+                    newScreenshots.push(publicUrl);
+                }
+            }
+        }
+        
+        // Update game record
+        await supabase
+            .from('games')
+            .update({ screenshot_urls: newScreenshots })
+            .eq('id', gameId);
+        
+        showNotification(`✅ Added ${files.length} screenshot(s)!`);
+        
+        // Update UI
+        updateScreenshotsUI(gameId, newScreenshots);
+        
+    } catch (error) {
+        console.error('Error uploading screenshots:', error);
+        showNotification('❌ Error uploading images: ' + error.message, 'error');
+    }
+}
+
+function updateScreenshotsUI(gameId, screenshotUrls) {
+    const container = document.getElementById('screenshotsContainer');
+    if (!container) return;
+    
+    if (!screenshotUrls || screenshotUrls.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 col-span-4 text-center py-4">No screenshots yet</p>';
+        return;
+    }
+    
+    container.innerHTML = screenshotUrls.map((url, index) => `
+        <div class="screenshot-item relative" data-index="${index}">
+            <img src="${url}" alt="Screenshot ${index + 1}" 
+                 class="w-full h-32 object-cover rounded-lg border border-gray-600">
+            <button type="button" onclick="removeGameScreenshot('${gameId}', ${index})" 
+                    class="absolute top-0 right-0 bg-red-600 text-white w-6 h-6 rounded-full text-xs">
+                ✕
+            </button>
+        </div>
+    `).join('');
+}
+
+function updateScreenshotIndices(gameId) {
+    const items = document.querySelectorAll('.screenshot-item');
+    items.forEach((item, index) => {
+        item.setAttribute('data-index', index);
+        const button = item.querySelector('button');
+        if (button) {
+            button.setAttribute('onclick', `removeGameScreenshot('${gameId}', ${index})`);
+        }
+    });
+}
+
 // Existing functions
 window.approveSubmission = async (submissionId) => {
     if (!confirm('Approve this game submission?')) return;
@@ -1069,7 +1590,9 @@ window.approveSubmission = async (submissionId) => {
             players_min: submission.players_min,
             players_max: submission.players_max,
             servers_available: submission.servers_available,
-            server_details: submission.server_details
+            server_details: submission.server_details,
+            cover_image_url: submission.cover_image_url,
+            screenshot_urls: submission.screenshot_urls || []
         };
 
         const { error: insertError } = await supabase
@@ -1175,7 +1698,11 @@ window.adminDeleteGame = async function(gameId, gameTitle) {
         if (error) throw error;
 
         showNotification('✅ Game deleted successfully!');
-        await loadAdminGames();
+        
+        // Redirect to games list
+        setTimeout(() => {
+            window.location.hash = '#/games';
+        }, 1500);
 
     } catch (error) {
         console.error('Error deleting game:', error);
@@ -1183,34 +1710,57 @@ window.adminDeleteGame = async function(gameId, gameTitle) {
     }
 };
 
+// UPDATED adminEditGame function
 window.adminEditGame = async function(gameId) {
     try {
-        const { data: game, error } = await supabase
-            .from('games')
-            .select('*')
-            .eq('id', gameId)
-            .single();
+        console.log('Admin edit game called for:', gameId);
+        
+        // Check if we're in admin panel or standalone
+        const inAdminPanel = document.getElementById('admin-content');
+        
+        if (inAdminPanel) {
+            // We're in admin panel, show modal
+            const { data: game, error } = await supabase
+                .from('games')
+                .select('*')
+                .eq('id', gameId)
+                .single();
 
-        if (error) throw error;
-
-        const newTitle = prompt('Enter new game title:', game.title);
-        if (!newTitle) return;
-
-        const { error: updateError } = await supabase
-            .from('games')
-            .update({ 
-                title: newTitle,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', gameId);
-
-        if (updateError) throw updateError;
-
-        showNotification('✅ Game updated successfully!');
-        await loadAdminGames();
+            if (error) throw error;
+            
+            // Create modal
+            const modalHtml = `
+                <div id="edit-game-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+                    <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-white">✏️ Edit Game: ${game.title}</h2>
+                                <button onclick="document.getElementById('edit-game-modal').remove()" class="text-gray-400 hover:text-white">
+                                    ✕
+                                </button>
+                            </div>
+                            <div id="modal-edit-content"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const modalContainer = document.createElement('div');
+            modalContainer.innerHTML = modalHtml;
+            document.body.appendChild(modalContainer);
+            
+            // Load edit form into modal
+            const modalContent = document.getElementById('modal-edit-content');
+            modalContent.innerHTML = createGameEditForm(game);
+            setupGameEditForm(game);
+            
+        } else {
+            // We're not in admin panel, redirect to edit page
+            window.location.hash = `#/edit-game/${gameId}`;
+        }
 
     } catch (error) {
-        console.error('Error editing game:', error);
+        console.error('Error in adminEditGame:', error);
         showNotification('❌ Error: ' + error.message, 'error');
     }
 };
