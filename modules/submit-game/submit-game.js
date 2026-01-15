@@ -1,4 +1,4 @@
-// modules/submit-game/submit-game.js - COMPLETELY FIXED VERSION
+// modules/submit-game/submit-game.js - COMPLETE FIXED VERSION WITH SLUGS
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 function initSubmitGame(rom) {
@@ -199,7 +199,7 @@ function initSubmitGame(rom) {
         submitBtn.disabled = true;
         
         try {
-            // First, save the game submission
+            // First, save the game submission WITH SLUG
             const result = await saveGameSubmission(gameData, rom.supabase);
             
             // Upload images
@@ -214,6 +214,7 @@ function initSubmitGame(rom) {
                 You'll be notified when it's approved or if we need more information.
                 
                 Submission ID: ${result.id}<br>
+                Slug: ${gameData.slug}<br>
                 Submitted: ${new Date().toLocaleDateString()}
                 
                 Thank you for contributing to the ROM community!
@@ -527,8 +528,11 @@ function initSubmitGame(rom) {
             server_details: gameData.connectionMethods.filter(m => m.serverAddress).map(m => m.serverAddress).join(', '),
             status: 'pending',
             screenshot_urls: [],  // Empty array for screenshots
+            slug: gameData.slug,  // ADDED: Save slug to submission
             created_at: new Date().toISOString()
         };
+        
+        console.log('Saving submission with slug:', gameData.slug);
         
         // Save to Supabase
         const { data, error } = await supabaseClient
@@ -553,6 +557,8 @@ function initSubmitGame(rom) {
                 const fileExt = coverImage.name.split('.').pop();
                 const fileName = `submissions/${submissionId}/cover-${Date.now()}.${fileExt}`;
                 
+                console.log('Uploading cover to:', fileName);
+                
                 // Upload to game-images bucket
                 const { data, error } = await supabaseClient.storage
                     .from('game-images')
@@ -569,17 +575,21 @@ function initSubmitGame(rom) {
                 // Get public URL from game-images bucket
                 const publicUrl = `https://lapyxhothazalssrbimb.supabase.co/storage/v1/object/public/game-images/${fileName}`;
                 
+                console.log('Cover image URL:', publicUrl);
+                
                 // FIX: Update BOTH file_url and cover_image_url fields
                 const { error: updateError } = await supabaseClient
                     .from('game_submissions')
                     .update({ 
                         file_url: publicUrl,           // Original field
-                        cover_image_url: publicUrl      // NEW: Field that admin.js expects
+                        cover_image_url: publicUrl      // Field that admin.js expects
                     })
                     .eq('id', submissionId);
                 
                 if (updateError) {
                     console.warn('Could not update submission with cover URL:', updateError);
+                } else {
+                    console.log('Successfully updated submission with cover URL');
                 }
             }
             
@@ -589,6 +599,8 @@ function initSubmitGame(rom) {
                     const screenshot = screenshots[i];
                     const fileExt = screenshot.name.split('.').pop();
                     const fileName = `submissions/${submissionId}/screenshot-${Date.now()}-${i}.${fileExt}`;
+                    
+                    console.log('Uploading screenshot to:', fileName);
                     
                     // Upload to game-images bucket
                     const { data, error } = await supabaseClient.storage
@@ -607,6 +619,7 @@ function initSubmitGame(rom) {
                     const publicUrl = `https://lapyxhothazalssrbimb.supabase.co/storage/v1/object/public/game-images/${fileName}`;
                     
                     screenshotUrls.push(publicUrl);
+                    console.log('Screenshot URL:', publicUrl);
                 }
                 
                 // Update submission with screenshot URLs array
@@ -620,6 +633,8 @@ function initSubmitGame(rom) {
                     
                     if (updateError) {
                         console.warn('Could not update submission with screenshot URLs:', updateError);
+                    } else {
+                        console.log('Successfully updated submission with screenshot URLs');
                     }
                 }
             }
