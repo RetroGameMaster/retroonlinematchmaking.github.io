@@ -140,7 +140,7 @@ function initSubmitGame(rom) {
             return;
         }
         
-        // Check cover image - FIXED: This was incorrectly placed
+        // Check cover image
         if (!selectedCoverImage) {
             showResult('error', 'Cover image is required');
             return;
@@ -526,6 +526,7 @@ function initSubmitGame(rom) {
             servers_available: gameData.connectionMethods.some(m => m.serverAddress) ? true : false,
             server_details: gameData.connectionMethods.filter(m => m.serverAddress).map(m => m.serverAddress).join(', '),
             status: 'pending',
+            screenshot_urls: [],  // Empty array for screenshots
             created_at: new Date().toISOString()
         };
         
@@ -545,63 +546,83 @@ function initSubmitGame(rom) {
     
     async function uploadSubmissionImages(submissionId, coverImage, screenshots, supabaseClient) {
         try {
+            const screenshotUrls = [];
+            
             // Upload cover image
             if (coverImage) {
                 const fileExt = coverImage.name.split('.').pop();
                 const fileName = `submissions/${submissionId}/cover-${Date.now()}.${fileExt}`;
                 
+                // Upload to game-images bucket
                 const { data, error } = await supabaseClient.storage
-    .from('game-images')  // ← CHANGE FROM 'game-media' TO 'game-images'
-    .upload(fileName, coverImage, {
-        cacheControl: '3600',
-        upsert: true
-    });
+                    .from('game-images')
+                    .upload(fileName, coverImage, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Cover upload error:', error);
+                    throw error;
+                }
                 
                 // Get public URL
                 const { data: { publicUrl } } = supabaseClient.storage
-                    .from('game-media')
+                    .from('game-images')
                     .getPublicUrl(fileName);
                 
                 // Update submission with cover URL
-                await supabaseClient
+                const { error: updateError } = await supabaseClient
                     .from('game_submissions')
-                    .update({ cover_image_url: publicUrl })
+                    .update({ file_url: publicUrl })
                     .eq('id', submissionId);
+                
+                if (updateError) {
+                    console.warn('Could not update submission with cover URL:', updateError);
+                }
             }
             
             // Upload screenshots
             if (screenshots.length > 0) {
-                const screenshotUrls = [];
-                
                 for (let i = 0; i < screenshots.length && i < 3; i++) {
                     const screenshot = screenshots[i];
                     const fileExt = screenshot.name.split('.').pop();
                     const fileName = `submissions/${submissionId}/screenshot-${Date.now()}-${i}.${fileExt}`;
                     
+                    // Upload to game-images bucket
                     const { data, error } = await supabaseClient.storage
-                        .from('game-media')
+                        .from('game-images')
                         .upload(fileName, screenshot, {
                             cacheControl: '3600',
                             upsert: true
                         });
                     
-                    if (error) throw error;
+                    if (error) {
+                        console.warn('Failed to upload screenshot:', error);
+                        continue; // Skip this screenshot but continue with others
+                    }
                     
                     // Get public URL
                     const { data: { publicUrl } } = supabaseClient.storage
-                        .from('game-media')
+                        .from('game-images')
                         .getPublicUrl(fileName);
                     
                     screenshotUrls.push(publicUrl);
                 }
                 
-                // Update submission with screenshot URLs
-                await supabaseClient
-                    .from('game_submissions')
-                    .update({ screenshot_urls: screenshotUrls })
-                    .eq('id', submissionId);
+                // Update submission with screenshot URLs array
+                if (screenshotUrls.length > 0) {
+                    const { error: updateError } = await supabaseClient
+                        .from('game_submissions')
+                        .update({ 
+                            screenshot_urls: screenshotUrls 
+                        })
+                        .eq('id', submissionId);
+                    
+                    if (updateError) {
+                        console.warn('Could not update submission with screenshot URLs:', updateError);
+                    }
+                }
             }
             
         } catch (error) {
