@@ -1,4 +1,6 @@
-// modules/submit-game/submit-game.js - COMPLETE FIXED VERSION
+// modules/submit-game/submit-game.js - COMPLETELY FIXED VERSION
+import { supabase, getCurrentUser } from '../../lib/supabase.js';
+
 function initSubmitGame(rom) {
     console.log('🎮 Initializing game submission form...');
     
@@ -138,7 +140,7 @@ function initSubmitGame(rom) {
             return;
         }
         
-        // Check cover image
+        // Check cover image - FIXED: This was incorrectly placed
         if (!selectedCoverImage) {
             showResult('error', 'Cover image is required');
             return;
@@ -184,19 +186,11 @@ function initSubmitGame(rom) {
         gameData.connectionMethods = methods;
 
         // Validate
-    const validation = validateSubmission(gameData, methods);
-    if (!validation.valid) {
-        showResult('error', validation.message);
-        return;
-    }
-    
-    // Check cover image - ADD THIS HERE!
-    if (!selectedCoverImage) {
-        // Show the error message
-        const coverError = document.getElementById('coverError');
-        if (coverError) coverError.classList.remove('hidden');
-        showResult('error', 'Cover image is required');
-        return;
+        const validation = validateSubmission(gameData, methods);
+        if (!validation.valid) {
+            showResult('error', validation.message);
+            return;
+        }
         
         // Show loading
         const submitBtn = document.getElementById('submitButton');
@@ -243,83 +237,83 @@ function initSubmitGame(rom) {
     });
     
     // IMAGE UPLOAD FUNCTIONS
-  function addImageUploadSection() {
-    // Find the basic info section
-    const basicInfoSection = document.querySelector('.form-section');
-    if (!basicInfoSection) return;
-    
-    // Create image upload HTML
-    const imageHTML = `
-        <div class="form-section fade-in">
-            <h3>🖼️ Game Images</h3>
-            <p class="text-gray-400 text-sm mb-4">Upload cover art (required) and up to 3 screenshots (optional)</p>
-            
-            <!-- Cover Art Upload -->
-            <div class="mb-6">
-                <label class="form-label required">Cover Art *</label>
-                <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-cyan-500 transition-colors"
-                     id="coverUploadArea">
-                    <div class="mb-4">
-                        <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                        </svg>
-                    </div>
-                    <p class="text-gray-300 mb-2">Drag & drop or click to upload cover art</p>
-                    <button type="button" onclick="document.getElementById('coverImage').click()" 
-                            class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded mt-2">
-                        Choose File
-                    </button>
-                    <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB</p>
-                    <!-- Hidden file input WITHOUT required attribute - we'll validate manually -->
-                    <input type="file" id="coverImage" accept="image/*" class="hidden">
-                    <input type="hidden" id="coverImageRequired" value="false">
-                </div>
+    function addImageUploadSection() {
+        // Find the basic info section
+        const basicInfoSection = document.querySelector('.form-section');
+        if (!basicInfoSection) return;
+        
+        // Create image upload HTML
+        const imageHTML = `
+            <div class="form-section fade-in">
+                <h3>🖼️ Game Images</h3>
+                <p class="text-gray-400 text-sm mb-4">Upload cover art (required) and up to 3 screenshots (optional)</p>
                 
-                <div id="coverPreview" class="hidden">
-                    <p class="text-gray-300 mb-2">Preview:</p>
-                    <div class="flex items-center gap-4">
-                        <img id="coverPreviewImg" class="w-32 h-48 object-cover rounded border border-cyan-500">
-                        <button type="button" onclick="removeCoverImage()" 
-                                class="text-red-400 hover:text-red-300">
-                            ✕ Remove
+                <!-- Cover Art Upload -->
+                <div class="mb-6">
+                    <label class="form-label required">Cover Art *</label>
+                    <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-cyan-500 transition-colors"
+                         id="coverUploadArea">
+                        <div class="mb-4">
+                            <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                        <p class="text-gray-300 mb-2">Drag & drop or click to upload cover art</p>
+                        <button type="button" onclick="document.getElementById('coverImage').click()" 
+                                class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded mt-2">
+                            Choose File
                         </button>
+                        <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB</p>
+                        <!-- Hidden file input WITHOUT required attribute - we'll validate manually -->
+                        <input type="file" id="coverImage" accept="image/*" class="hidden">
+                        <input type="hidden" id="coverImageRequired" value="false">
                     </div>
-                </div>
-                <div id="coverError" class="text-red-400 text-sm mt-2 hidden">Cover image is required</div>
-            </div>
-            
-            <!-- Screenshots Upload -->
-            <div>
-                <label class="form-label">Screenshots (Optional, max 3)</label>
-                <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-purple-500 transition-colors"
-                     id="screenshotsUploadArea">
-                    <div class="mb-4">
-                        <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
+                    
+                    <div id="coverPreview" class="hidden">
+                        <p class="text-gray-300 mb-2">Preview:</p>
+                        <div class="flex items-center gap-4">
+                            <img id="coverPreviewImg" class="w-32 h-48 object-cover rounded border border-cyan-500">
+                            <button type="button" onclick="removeCoverImage()" 
+                                    class="text-red-400 hover:text-red-300">
+                                ✕ Remove
+                            </button>
+                        </div>
                     </div>
-                    <p class="text-gray-300 mb-2">Drag & drop or click to upload screenshots</p>
-                    <button type="button" onclick="document.getElementById('screenshotImages').click()" 
-                            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded mt-2">
-                        Choose Files
-                    </button>
-                    <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB each (max 3 files)</p>
-                    <input type="file" id="screenshotImages" accept="image/*" multiple class="hidden">
+                    <div id="coverError" class="text-red-400 text-sm mt-2 hidden">Cover image is required</div>
                 </div>
                 
-                <div id="screenshotsPreview" class="grid grid-cols-3 gap-4 mt-4"></div>
+                <!-- Screenshots Upload -->
+                <div>
+                    <label class="form-label">Screenshots (Optional, max 3)</label>
+                    <div class="file-upload-area bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center mb-4 cursor-pointer hover:border-purple-500 transition-colors"
+                         id="screenshotsUploadArea">
+                        <div class="mb-4">
+                            <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-gray-300 mb-2">Drag & drop or click to upload screenshots</p>
+                        <button type="button" onclick="document.getElementById('screenshotImages').click()" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded mt-2">
+                            Choose Files
+                        </button>
+                        <p class="text-gray-400 text-xs mt-2">PNG, JPG up to 2MB each (max 3 files)</p>
+                        <input type="file" id="screenshotImages" accept="image/*" multiple class="hidden">
+                    </div>
+                    
+                    <div id="screenshotsPreview" class="grid grid-cols-3 gap-4 mt-4"></div>
+                </div>
             </div>
-        </div>
-    `;
-    
-    // Insert after basic info section
-    basicInfoSection.insertAdjacentHTML('afterend', imageHTML);
-    
-    // Setup event listeners for image upload
-    setTimeout(() => {
-        initImageUploadListeners();
-    }, 100);
-}
+        `;
+        
+        // Insert after basic info section
+        basicInfoSection.insertAdjacentHTML('afterend', imageHTML);
+        
+        // Setup event listeners for image upload
+        setTimeout(() => {
+            initImageUploadListeners();
+        }, 100);
+    }
     
     function initImageUploadListeners() {
         // Cover image upload
@@ -380,12 +374,13 @@ function initSubmitGame(rom) {
         
         // Make remove functions available globally
         window.removeCoverImage = function() {
-    selectedCoverImage = null;
-    document.getElementById('coverPreview').classList.add('hidden');
-    document.getElementById('coverImage').value = '';
-    document.getElementById('coverImageRequired').value = 'false';
-    document.getElementById('coverError').classList.remove('hidden');
-};
+            selectedCoverImage = null;
+            document.getElementById('coverPreview').classList.add('hidden');
+            document.getElementById('coverImage').value = '';
+            document.getElementById('coverImageRequired').value = 'false';
+            const coverError = document.getElementById('coverError');
+            if (coverError) coverError.classList.remove('hidden');
+        };
         
         window.removeScreenshot = function(index) {
             selectedScreenshots.splice(index, 1);
@@ -393,39 +388,67 @@ function initSubmitGame(rom) {
         };
     }
     
-   function handleCoverImageUpload(file) {
-    if (!file.type.startsWith('image/')) {
-        showResult('error', 'Please select an image file (PNG, JPG)');
-        return;
+    function handleCoverImageUpload(file) {
+        if (!file.type.startsWith('image/')) {
+            showResult('error', 'Please select an image file (PNG, JPG)');
+            return;
+        }
+        
+        if (file.size > 2 * 1024 * 1024) {
+            showResult('error', 'Image must be less than 2MB');
+            return;
+        }
+        
+        // Show preview
+        const preview = document.getElementById('coverPreview');
+        const previewImg = document.getElementById('coverPreviewImg');
+        const coverError = document.getElementById('coverError');
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            preview.classList.remove('hidden');
+            if (coverError) coverError.classList.add('hidden');
+            
+            // Store file for submission
+            selectedCoverImage = file;
+            
+            // Mark as valid
+            const coverImageRequired = document.getElementById('coverImageRequired');
+            if (coverImageRequired) coverImageRequired.value = 'true';
+        };
+        reader.readAsDataURL(file);
     }
     
-    if (file.size > 2 * 1024 * 1024) {
-        showResult('error', 'Image must be less than 2MB');
-        return;
+    function handleScreenshotsUpload(files) {
+        const validFiles = Array.from(files).filter(file => {
+            if (!file.type.startsWith('image/')) {
+                showResult('error', 'Only image files are allowed for screenshots');
+                return false;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+                showResult('error', 'Screenshot must be less than 2MB');
+                return false;
+            }
+            return true;
+        });
+        
+        // Limit to 3 screenshots
+        const remainingSlots = 3 - selectedScreenshots.length;
+        const filesToAdd = validFiles.slice(0, remainingSlots);
+        
+        if (filesToAdd.length < validFiles.length) {
+            showResult('error', `Only ${remainingSlots} more screenshot(s) allowed (max 3 total)`);
+        }
+        
+        selectedScreenshots.push(...filesToAdd);
+        updateScreenshotsPreview();
     }
-    
-    // Show preview
-    const preview = document.getElementById('coverPreview');
-    const previewImg = document.getElementById('coverPreviewImg');
-    const coverError = document.getElementById('coverError');
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-        previewImg.src = e.target.result;
-        preview.classList.remove('hidden');
-        coverError.classList.add('hidden');
-        
-        // Store file for submission
-        selectedCoverImage = file;
-        
-        // Mark as valid
-        document.getElementById('coverImageRequired').value = 'true';
-    };
-    reader.readAsDataURL(file);
-}
     
     function updateScreenshotsPreview() {
         const container = document.getElementById('screenshotsPreview');
+        if (!container) return;
+        
         container.innerHTML = '';
         
         selectedScreenshots.forEach((file, index) => {
@@ -445,6 +468,33 @@ function initSubmitGame(rom) {
             };
             reader.readAsDataURL(file);
         });
+    }
+    
+    // VALIDATION FUNCTION
+    function validateSubmission(gameData, methods) {
+        if (!gameData.title || gameData.title.length < 2) {
+            return { valid: false, message: 'Game title must be at least 2 characters' };
+        }
+        
+        if (!gameData.description || gameData.description.length < 20) {
+            return { valid: false, message: 'Description must be at least 20 characters' };
+        }
+        
+        if (!selectedCoverImage) {
+            return { valid: false, message: 'Cover image is required' };
+        }
+        
+        if (methods.length === 0) {
+            return { valid: false, message: 'At least one connection method is required' };
+        }
+        
+        for (const method of methods) {
+            if (!method.name || method.name.length < 2) {
+                return { valid: false, message: 'Connection method name is required' };
+            }
+        }
+        
+        return { valid: true, message: 'Validation passed' };
     }
     
     // HELPER FUNCTIONS
@@ -581,45 +631,48 @@ function initSubmitGame(rom) {
         document.getElementById('gameSubmissionForm').reset();
         
         // Reset connection methods to just one
-        document.getElementById('connectionMethods').innerHTML = `
-            <div class="connection-method" data-index="0">
-                <div class="method-header">
-                    <span class="method-number">Connection Method #1</span>
-                    <button type="button" class="remove-method-btn" onclick="removeConnectionMethod(this)" style="display: none;">
-                        ✕ Remove
-                    </button>
+        const connectionMethods = document.getElementById('connectionMethods');
+        if (connectionMethods) {
+            connectionMethods.innerHTML = `
+                <div class="connection-method" data-index="0">
+                    <div class="method-header">
+                        <span class="method-number">Connection Method #1</span>
+                        <button type="button" class="remove-method-btn" onclick="removeConnectionMethod(this)" style="display: none;">
+                            ✕ Remove
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">Method Name</label>
+                        <input type="text" class="form-input" name="methodName" required 
+                               placeholder="e.g., XLink Kai, PSONE, DNS Server">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Connection Type</label>
+                        <select class="form-select" name="connectionType">
+                            <option value="dns">DNS Server</option>
+                            <option value="community">Community Server</option>
+                            <option value="vpn">VPN/LAN Tunnel</option>
+                            <option value="emulator">Emulator Network</option>
+                            <option value="official">Official Servers</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Instructions/Setup Guide</label>
+                        <textarea class="form-textarea" name="instructions" rows="3"
+                                  placeholder="Brief setup instructions or link to guide..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">DNS/Server Address (if applicable)</label>
+                        <input type="text" class="form-input" name="serverAddress"
+                               placeholder="e.g., 123.456.789.012">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label required">Method Name</label>
-                    <input type="text" class="form-input" name="methodName" required 
-                           placeholder="e.g., XLink Kai, PSONE, DNS Server">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Connection Type</label>
-                    <select class="form-select" name="connectionType">
-                        <option value="dns">DNS Server</option>
-                        <option value="community">Community Server</option>
-                        <option value="vpn">VPN/LAN Tunnel</option>
-                        <option value="emulator">Emulator Network</option>
-                        <option value="official">Official Servers</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Instructions/Setup Guide</label>
-                    <textarea class="form-textarea" name="instructions" rows="3"
-                              placeholder="Brief setup instructions or link to guide..."></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">DNS/Server Address (if applicable)</label>
-                    <input type="text" class="form-input" name="serverAddress"
-                           placeholder="e.g., 123.456.789.012">
-                </div>
-            </div>
-        `;
+            `;
+        }
         
         // Reset image previews
         if (document.getElementById('coverPreview')) {
@@ -634,6 +687,11 @@ function initSubmitGame(rom) {
         
         // Hide the result message
         document.getElementById('submitResult').style.display = 'none';
+        
+        // Reset counters
+        methodCount = 1;
+        selectedCoverImage = null;
+        selectedScreenshots = [];
     }
     
     // Expose remove method function globally
