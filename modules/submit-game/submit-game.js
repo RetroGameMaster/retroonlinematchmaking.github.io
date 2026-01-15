@@ -551,11 +551,11 @@ function initSubmitGame(rom) {
                 const fileName = `submissions/${submissionId}/cover-${Date.now()}.${fileExt}`;
                 
                 const { data, error } = await supabaseClient.storage
-                    .from('game-media')
-                    .upload(fileName, coverImage, {
-                        cacheControl: '3600',
-                        upsert: true
-                    });
+    .from('game-images')  // ← CHANGE FROM 'game-media' TO 'game-images'
+    .upload(fileName, coverImage, {
+        cacheControl: '3600',
+        upsert: true
+    });
                 
                 if (error) throw error;
                 
