@@ -1,4 +1,4 @@
-// modules/submit-game/submit-game.js - COMPLETELY FIXED VERSION
+// modules/submit-game/submit-game.js - ACTUALLY FIXED VERSION
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 function initSubmitGame(rom) {
@@ -555,7 +555,7 @@ function initSubmitGame(rom) {
                 
                 // Upload to game-images bucket
                 const { data, error } = await supabaseClient.storage
-                    .from('game-images')
+                    .from('game-images')  // FIXED: game-images NOT game-media
                     .upload(fileName, coverImage, {
                         cacheControl: '3600',
                         upsert: true
@@ -566,9 +566,9 @@ function initSubmitGame(rom) {
                     throw error;
                 }
                 
-                // Get public URL
+                // Get public URL from game-images bucket
                 const { data: { publicUrl } } = supabaseClient.storage
-                    .from('game-images')
+                    .from('game-images')  // FIXED: game-images NOT game-media
                     .getPublicUrl(fileName);
                 
                 // Update submission with cover URL
@@ -591,7 +591,7 @@ function initSubmitGame(rom) {
                     
                     // Upload to game-images bucket
                     const { data, error } = await supabaseClient.storage
-                        .from('game-images')
+                        .from('game-images')  // FIXED: game-images NOT game-media
                         .upload(fileName, screenshot, {
                             cacheControl: '3600',
                             upsert: true
@@ -602,9 +602,9 @@ function initSubmitGame(rom) {
                         continue; // Skip this screenshot but continue with others
                     }
                     
-                    // Get public URL
+                    // Get public URL from game-images bucket
                     const { data: { publicUrl } } = supabaseClient.storage
-                        .from('game-images')
+                        .from('game-images')  // FIXED: game-images NOT game-media
                         .getPublicUrl(fileName);
                     
                     screenshotUrls.push(publicUrl);
