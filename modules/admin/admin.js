@@ -1620,6 +1620,7 @@ window.approveSubmission = async (submissionId) => {
             server_details: submission.server_details,
             cover_image_url: submission.cover_image_url,
             screenshot_urls: submission.screenshot_urls || []
+            slug: submission.slug 
         };
 
         const { error: insertError } = await supabase
