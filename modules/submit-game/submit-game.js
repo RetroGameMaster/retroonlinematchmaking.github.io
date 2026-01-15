@@ -1,4 +1,4 @@
-// modules/submit-game/submit-game.js - ACTUALLY FIXED VERSION
+// modules/submit-game/submit-game.js - COMPLETELY FIXED VERSION
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 function initSubmitGame(rom) {
@@ -555,7 +555,7 @@ function initSubmitGame(rom) {
                 
                 // Upload to game-images bucket
                 const { data, error } = await supabaseClient.storage
-                    .from('game-images')  // FIXED: game-images NOT game-media
+                    .from('game-images')
                     .upload(fileName, coverImage, {
                         cacheControl: '3600',
                         upsert: true
@@ -567,14 +567,15 @@ function initSubmitGame(rom) {
                 }
                 
                 // Get public URL from game-images bucket
-                const { data: { publicUrl } } = supabaseClient.storage
-                    .from('game-images')  // FIXED: game-images NOT game-media
-                    .getPublicUrl(fileName);
+                const publicUrl = `https://lapyxhothazalssrbimb.supabase.co/storage/v1/object/public/game-images/${fileName}`;
                 
-                // Update submission with cover URL
+                // FIX: Update BOTH file_url and cover_image_url fields
                 const { error: updateError } = await supabaseClient
                     .from('game_submissions')
-                    .update({ file_url: publicUrl })
+                    .update({ 
+                        file_url: publicUrl,           // Original field
+                        cover_image_url: publicUrl      // NEW: Field that admin.js expects
+                    })
                     .eq('id', submissionId);
                 
                 if (updateError) {
@@ -591,7 +592,7 @@ function initSubmitGame(rom) {
                     
                     // Upload to game-images bucket
                     const { data, error } = await supabaseClient.storage
-                        .from('game-images')  // FIXED: game-images NOT game-media
+                        .from('game-images')
                         .upload(fileName, screenshot, {
                             cacheControl: '3600',
                             upsert: true
@@ -603,9 +604,7 @@ function initSubmitGame(rom) {
                     }
                     
                     // Get public URL from game-images bucket
-                    const { data: { publicUrl } } = supabaseClient.storage
-                        .from('game-images')  // FIXED: game-images NOT game-media
-                        .getPublicUrl(fileName);
+                    const publicUrl = `https://lapyxhothazalssrbimb.supabase.co/storage/v1/object/public/game-images/${fileName}`;
                     
                     screenshotUrls.push(publicUrl);
                 }
