@@ -143,12 +143,12 @@ const CONSOLE_LIST = [
         const description = document.getElementById('description').value.trim();
         const maxPlayers = document.getElementById('maxPlayers').value;
         const genre = document.getElementById('genre').selectedOptions;
-        const platforms = document.querySelectorAll('input[name="platform"]:checked');
-        
-        if (!gameTitle) {
-            showResult('error', 'Game title is required');
-            return;
-        }
+        const consoleSelect = document.getElementById("console");
+if (!consoleSelect.value) {
+    showResult('error', 'Please select a system/console');
+    return;
+}
+
         
         if (!description) {
             showResult('error', 'Description is required');
@@ -195,7 +195,7 @@ const CONSOLE_LIST = [
             description: description,
             maxPlayers: parseInt(maxPlayers),
             genre: Array.from(genre).map(opt => opt.value),
-            platforms: Array.from(platforms).map(cb => cb.value),
+            console: consoleSelect.value,
             communityLink: document.getElementById('communityLink').value.trim() || null,
             submitterContact: document.getElementById('submitterContact').value.trim() || null,
             additionalNotes: document.getElementById('additionalNotes').value.trim() || null,
@@ -204,7 +204,7 @@ const CONSOLE_LIST = [
             submittedAt: new Date().toISOString(),
             status: 'pending'
         };
-        
+
         // Generate slug for the game
         gameData.slug = generateSlug(gameData.title);
         
