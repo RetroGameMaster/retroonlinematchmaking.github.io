@@ -188,51 +188,59 @@ if (!consoleSelect.value) {
             return;
         }
         
-        // Collect form data
-        const gameData = {
-            title: gameTitle,
-            releaseYear: document.getElementById('releaseYear').value || null,
-            description: description,
-            maxPlayers: parseInt(maxPlayers),
-            genre: Array.from(genre).map(opt => opt.value),
-            console: consoleSelect.value,
-            communityLink: document.getElementById('communityLink').value.trim() || null,
-            submitterContact: document.getElementById('submitterContact').value.trim() || null,
-            additionalNotes: document.getElementById('additionalNotes').value.trim() || null,
-            submittedBy: rom.currentUser.email,
-            submittedByUserId: rom.currentUser.id,
-            submittedAt: new Date().toISOString(),
-            status: 'pending'
-        };
+      // --- Validate console dropdown ---
+const consoleSelect = document.getElementById("console");
+if (!consoleSelect.value) {
+    showResult("error", "Please select a system/console");
+    return;
+}
 
-        // Generate slug for the game
-        gameData.slug = generateSlug(gameData.title);
-        
-        // Collect connection methods
-        const methods = [];
-        document.querySelectorAll('.connection-method').forEach((methodDiv, index) => {
-            const methodName = methodDiv.querySelector('[name="methodName"]').value.trim();
-            if (!methodName) return;
-            
-            const methodData = {
-                name: methodName,
-                type: methodDiv.querySelector('[name="connectionType"]').value,
-                instructions: methodDiv.querySelector('[name="instructions"]').value.trim() || null,
-                serverAddress: methodDiv.querySelector('[name="serverAddress"]').value.trim() || null,
-                order: index
-            };
-            
-            methods.push(methodData);
-        });
-        
-        gameData.connectionMethods = methods;
+// Collect form data
+const gameData = {
+    title: gameTitle,
+    releaseYear: document.getElementById('releaseYear').value || null,
+    description: description,
+    maxPlayers: parseInt(maxPlayers),
+    genre: Array.from(genre).map(opt => opt.value),
+    console: consoleSelect.value,        // <- REPLACES old platforms
+    communityLink: document.getElementById('communityLink').value.trim() || null,
+    submitterContact: document.getElementById('submitterContact').value.trim() || null,
+    additionalNotes: document.getElementById('additionalNotes').value.trim() || null,
+    submittedBy: rom.currentUser.email,
+    submittedByUserId: rom.currentUser.id,
+    submittedAt: new Date().toISOString(),
+    status: 'pending'
+};
 
-        // Validate
-        const validation = validateSubmission(gameData, methods);
-        if (!validation.valid) {
-            showResult('error', validation.message);
-            return;
-        }
+// Generate slug for the game
+gameData.slug = generateSlug(gameData.title);
+
+// Collect connection methods
+const methods = [];
+document.querySelectorAll('.connection-method').forEach((methodDiv, index) => {
+    const methodName = methodDiv.querySelector('[name="methodName"]').value.trim();
+    if (!methodName) return;
+    
+    const methodData = {
+        name: methodName,
+        type: methodDiv.querySelector('[name="connectionType"]').value,
+        instructions: methodDiv.querySelector('[name="instructions"]').value.trim() || null,
+        serverAddress: methodDiv.querySelector('[name="serverAddress"]').value.trim() || null,
+        order: index
+    };
+    
+    methods.push(methodData);
+});
+
+gameData.connectionMethods = methods;
+
+// Validate
+const validation = validateSubmission(gameData, methods);
+if (!validation.valid) {
+    showResult('error', validation.message);
+    return;
+}
+
         
         // Show loading
         const submitBtn = document.getElementById('submitButton');
