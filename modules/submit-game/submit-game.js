@@ -13,6 +13,48 @@ function initSubmitGame(rom) {
             return;
         }
     }
+
+    // 📌 Fixed List of Supported Systems (non-negotiable)
+const CONSOLE_LIST = [
+  "3D0 Interactive Multiplayer",
+  "Arcade",
+  "Gameboy Color",
+  "Gameboy Advance",
+  "GameCube",
+  "Nintendo Entertainment System",
+  "Nintendo Gameboy",
+  "Nintendo 64",
+  "Nintendo DS",
+  "Nintendo 3DS",
+  "Nintendo Virtual Boy",
+  "Other",
+  "PC",
+  "PlayStation 1",
+  "PlayStation 2",
+  "PlayStation 3",
+  "PlayStation 4",
+  "PlayStation 5",
+  "Playstation Portable",
+  "PlayStation Vita",
+  "Neo Geo AES",
+  "Neo Geo CD",
+  "Sega SG-1000",
+  "Sega Mark III",
+  "Sega Genesis/MD",
+  "Sega 32X",
+  "Sega CD",
+  "Sega Gamegear",
+  "Sega Saturn",
+  "Sega Dreamcast",
+  "Super Nintendo Entertainment System",
+  "Nintendo Switch",
+  "TurboGrafx16/CD",
+  "Wii",
+  "Wii U",
+  "Xbox",
+  "Xbox 360"
+];
+
     
     // Check if user is logged in
     if (!rom.currentUser) {
