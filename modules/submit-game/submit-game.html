@@ -282,37 +282,55 @@
                     <label class="form-label required">Platforms</label>
                     <div class="platform-options">
                         <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="ps1"> PlayStation 1
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="ps2"> PlayStation 2
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="ps3"> PlayStation 3
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="psp"> PSP
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="xbox"> Xbox
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="xbox360"> Xbox 360
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="gamecube"> GameCube
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="wii"> Wii
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="dreamcast"> Dreamcast
-                        </label>
-                        <label class="platform-checkbox">
-                            <input type="checkbox" name="platform" value="pc"> PC
-                        </label>
-                    </div>
-                </div>
+                            
+With this block:
+
+```html
+<label for="console" class="block font-bold mt-4">
+  Platform / Console *
+</label>
+<select id="console" name="console" required class="border rounded p-2 w-full">
+  <option value="">Select a system...</option>
+  <option value="3D0 Interactive Multiplayer">3D0 Interactive Multiplayer</option>
+  <option value="Arcade">Arcade</option>
+  <option value="Gameboy Color">Gameboy Color</option>
+  <option value="Gameboy Advance">Gameboy Advance</option>
+  <option value="GameCube">GameCube</option>
+  <option value="Nintendo Entertainment System">Nintendo Entertainment System</option>
+  <option value="Nintendo Gameboy">Nintendo Gameboy</option>
+  <option value="Nintendo 64">Nintendo 64</option>
+  <option value="Nintendo DS">Nintendo DS</option>
+  <option value="Nintendo 3DS">Nintendo 3DS</option>
+  <option value="Nintendo Virtual Boy">Nintendo Virtual Boy</option>
+  <option value="PC">PC</option>
+  <option value="PlayStation 1">PlayStation 1</option>
+  <option value="PlayStation 2">PlayStation 2</option>
+  <option value="PlayStation 3">PlayStation 3</option>
+  <option value="PlayStation 4">PlayStation 4</option>
+  <option value="PlayStation 5">PlayStation 5</option>
+  <option value="Playstation Portable">Playstation Portable</option>
+  <option value="PlayStation Vita">PlayStation Vita</option>
+  <option value="Neo Geo AES">Neo Geo AES</option>
+  <option value="Neo Geo CD">Neo Geo CD</option>
+  <option value="Sega SG-1000">Sega SG-1000</option>
+  <option value="Sega Mark III">Sega Mark III</option>
+  <option value="Sega Genesis/MD">Sega Genesis/MD</option>
+  <option value="Sega 32X">Sega 32X</option>
+  <option value="Sega CD">Sega CD</option>
+  <option value="Sega Gamegear">Sega Gamegear</option>
+  <option value="Sega Saturn">Sega Saturn</option>
+  <option value="Sega Dreamcast">Sega Dreamcast</option>
+  <option value="Super Nintendo Entertainment System">Super Nintendo Entertainment System</option>
+  <option value="Nintendo Switch">Nintendo Switch</option>
+  <option value="TurboGrafx16/CD">TurboGrafx16/CD</option>
+  <option value="Wii">Wii</option>
+  <option value="Wii U">Wii U</option>
+  <option value="Xbox">Xbox</option>
+  <option value="Xbox 360">Xbox 360</option>
+  <option value="Other">Other</option>
+</select>
+
+                    
                 
                 <div class="form-group">
                     <label class="form-label required">Maximum Players Online</label>
