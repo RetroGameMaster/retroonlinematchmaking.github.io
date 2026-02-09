@@ -340,64 +340,62 @@ async function loadGameDetail(identifier) {
 
 // Function for game edit pages - NEW FUNCTION
 async function loadGameEdit(gameId) {
-    const appContent = document.getElementById('app-content');
-    if (!appContent) return;
-    
-    // Show loading
-    appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading edit form...</p></div>`;
-    
-    try {
-        // Load admin HTML (which has the edit functionality)
-        const response = await fetch('./modules/admin/admin.html');
-        if (!response.ok) {
-            // Create basic edit form if HTML doesn't exist
-            appContent.innerHTML = createBasicEditForm();
-            setTimeout(() => {
-                initializeGameEdit(gameId);
-            }, 100);
-            return;
-        }
-        
-        const html = await response.text();
-        appContent.innerHTML = html;
-        
-        // Load admin module
-        const module = await import('./modules/admin/admin.js');
-        const rom = {
-            supabase: window.supabase,
-            currentUser: window.rom?.currentUser || null,
-            loadModule: loadModule,
-            navigateTo: function(module) {
-                window.location.hash = `#/${module}`;
-            }
-        };
-        
-        // Check if module has editGame function
-        if (module.editGame) {
-            await module.editGame(rom, gameId);
-        } else if (module.adminEditGame) {
-            // Call existing adminEditGame
-            window.adminEditGame(gameId);
-        } else if (module.initModule) {
-            await module.initModule(rom);
-            // Then try to edit game
-            setTimeout(() => {
-                if (window.adminEditGame) {
-                    window.adminEditGame(gameId);
-                } else {
-                    initializeGameEdit(gameId);
-                }
-            }, 500);
-        } else {
-            initializeGameEdit(gameId);
-        }
-        
-    } catch (error) {
-        console.error('Error loading game edit:', error);
-        showError('Error loading edit form', error.message);
-    }
-}
+  const appContent = document.getElementById('app-content');
+  if (!appContent) return;
 
+  appContent.innerHTML = `
+    <div class="text-center p-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+      <p class="mt-2 text-gray-300">Loading editor...</p>
+    </div>
+  `;
+
+  try {
+    // Load game data
+    const { data: game, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('id', gameId)
+      .single();
+    
+    if (error || !game) throw new Error('Game not found');
+
+    // Check permissions
+    const user = window.rom?.currentUser;
+    if (!user) {
+      window.location.hash = '#/auth';
+      return;
+    }
+
+    const adminEmails = ['retrogamemasterra@gmail.com', 'admin@retroonlinematchmaking.com'];
+    const canEdit = adminEmails.includes(user.email) || game.submitted_email === user.email;
+    if (!canEdit) {
+      appContent.innerHTML = `<div class="max-w-md mx-auto mt-12 text-center"><div class="text-5xl mb-4">🚫</div><h2 class="text-xl font-bold text-white">Access Denied</h2><p class="text-gray-400">You don’t have permission to edit this game.</p><button onclick="window.location.hash='#/games'" class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">Back to Games</button></div>`;
+      return;
+    }
+
+    // Load admin module and render edit form
+    const { default: adminModule } = await import('./modules/admin/admin.js');
+    
+    // Force-load admin HTML into app-content
+    const response = await fetch('./modules/admin/admin.html');
+    const html = await response.text();
+    appContent.innerHTML = html;
+
+    // Now call the global edit function (must exist in admin.js)
+    setTimeout(() => {
+      if (typeof window.adminEditGame === 'function') {
+        window.adminEditGame(gameId);
+      } else {
+        appContent.innerHTML = `<div class="text-center py-12"><p class="text-red-400">Edit interface failed to load.</p></div>`;
+      }
+    }, 300);
+
+  } catch (error) {
+    console.error('Error loading game edit:', error);
+    appContent.innerHTML = `<div class="max-w-md mx-auto mt-12 text-center"><div class="text-5xl mb-4">⚠️</div><h2 class="text-xl font-bold text-white">Error</h2><p class="text-red-400">${error.message}</p><button onclick="window.location.hash='#/games'" class="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Back to Games</button></div>`;
+  }
+}
 // Helper function to create basic edit form
 function createBasicEditForm() {
     return `
