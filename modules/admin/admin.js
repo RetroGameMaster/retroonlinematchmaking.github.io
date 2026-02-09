@@ -1820,6 +1820,6 @@ function showNotification(message, type = 'success') {
 // Make functions globally accessible
 window.loadPendingSubmissions = loadPendingSubmissions;
 window.createTestSubmission = createTestSubmission;
-
+window.adminEditGame = async function(gameId) {
 // Export for module system
 export default initModule;
