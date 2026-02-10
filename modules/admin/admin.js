@@ -1267,7 +1267,7 @@ return `
              </div>
             
              <div class="flex justify-end gap-3 pt-6">
-                 <button type="button" onclick="window.location.hash = '#/game/${game.slug || game.id}'" 
+                 <button type="button" onclick="window.location.hash='#/game/${game.slug || game.id}'" 
                         class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg">
                     Cancel
                  </button>
@@ -1409,7 +1409,7 @@ try {
             const fileName = `covers/${gameId}/${Date.now()}.${fileExt}`;
              
             const { data, error } = await supabase.storage
-                .from('game-media')
+                .from('game-images')  // ✅ FIXED: Use game-images bucket
                 .upload(fileName, coverFile, {
                     cacheControl: '3600',
                     upsert: true
@@ -1417,7 +1417,7 @@ try {
             
             if (!error) {
                 const { data: { publicUrl } } = supabase.storage
-                     .from('game-media')
+                     .from('game-images')  // ✅ FIXED: Use game-images bucket
                     .getPublicUrl(fileName);
                 coverImageUrl = publicUrl;
             }
@@ -1485,7 +1485,7 @@ const { data: game } = await supabase
             const fileName = `screenshots/${gameId}/${Date.now()}_${i}.${fileExt}`;
             
             const { data, error } = await supabase.storage
-                .from('game-media')
+                .from('game-images')  // ✅ FIXED: Use game-images bucket
                 .upload(fileName, file, {
                     cacheControl: '3600',
                     upsert: true
@@ -1493,7 +1493,7 @@ const { data: game } = await supabase
             
             if (!error) {
                 const { data: { publicUrl } } = supabase.storage
-                    .from('game-media')
+                    .from('game-images')  // ✅ FIXED: Use game-images bucket
                     .getPublicUrl(fileName);
                 newScreenshots.push(publicUrl);
             }
