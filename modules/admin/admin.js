@@ -1409,7 +1409,7 @@ try {
             const fileName = `covers/${gameId}/${Date.now()}.${fileExt}`;
              
             const { data, error } = await supabase.storage
-                .from('game-images')  // ✅ FIXED: Use game-images bucket
+                .from('game-images')
                 .upload(fileName, coverFile, {
                     cacheControl: '3600',
                     upsert: true
@@ -1417,7 +1417,7 @@ try {
             
             if (!error) {
                 const { data: { publicUrl } } = supabase.storage
-                     .from('game-images')  // ✅ FIXED: Use game-images bucket
+                     .from('game-images')
                     .getPublicUrl(fileName);
                 coverImageUrl = publicUrl;
             }
@@ -1438,7 +1438,8 @@ try {
         players_max: parseInt(document.getElementById('editPlayersMax').value) || 1,
         servers_available: document.getElementById('editServersAvailable').checked,
         cover_image_url: coverImageUrl,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        slug: generateSlug(document.getElementById('editTitle').value.trim()) // ✅ Generate slug on edit
     };
     
     console.log('Updating game with:', updates);
@@ -1455,7 +1456,7 @@ try {
     
     // Redirect to game page
     setTimeout(() => {
-        window.location.hash = `#/game/${game.slug || gameId}`;
+        window.location.hash = `#/game/${updates.slug || gameId}`;
     }, 1500);
     
 } catch (error) {
@@ -1485,7 +1486,7 @@ const { data: game } = await supabase
             const fileName = `screenshots/${gameId}/${Date.now()}_${i}.${fileExt}`;
             
             const { data, error } = await supabase.storage
-                .from('game-images')  // ✅ FIXED: Use game-images bucket
+                .from('game-images')
                 .upload(fileName, file, {
                     cacheControl: '3600',
                     upsert: true
@@ -1493,7 +1494,7 @@ const { data: game } = await supabase
             
             if (!error) {
                 const { data: { publicUrl } } = supabase.storage
-                    .from('game-images')  // ✅ FIXED: Use game-images bucket
+                    .from('game-images')
                     .getPublicUrl(fileName);
                 newScreenshots.push(publicUrl);
             }
@@ -1559,6 +1560,9 @@ try {
 
     if (fetchError) throw fetchError;
 
+    // ✅ Generate slug during approval
+    const slug = generateSlug(submission.title);
+
     const gameData = {
         title: submission.title,
         console: submission.console,
@@ -1578,7 +1582,7 @@ try {
         server_details: submission.server_details,
         cover_image_url: submission.cover_image_url,
         screenshot_urls: submission.screenshot_urls || [],
-        slug: submission.slug 
+        slug: slug // ✅ Include slug in final games table
     };
 
     const { error: insertError } = await supabase
@@ -1746,7 +1750,7 @@ console.log('Admin edit game called for:', gameId);
 // Helper functions
 function escapeString(str) {
 if (!str) return '';
-return str.replace(/'/g, "\'").replace(/"/g, '\"');
+return str.replace(/'/g, "\'").replace(/"/g, '\"");
 }
 function showNotification(message, type = 'success') {
 const notification = document.createElement('div');
