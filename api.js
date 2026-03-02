@@ -1,4 +1,4 @@
-const API_BASE = "https://YOUR-NGROK-URL.ngrok-free.app"; 
+const API_BASE =  https://visional-nondiligently-ha.ngrok-free.dev -> http://localhost:8000; 
 
 export async function getLiveGames() {
     const res = await fetch(`${API_BASE}/api/live_games`);
