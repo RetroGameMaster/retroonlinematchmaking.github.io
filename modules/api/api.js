@@ -1,4 +1,4 @@
-// modules/api/api.js - DISCORD BOT API CLIENT (WORKING VERSION)
+// modules/api/api.js - FIXED SSL ISSUE (NO TRAILING SPACES)
 const API_BASE = 'https://visional-nondiligently-ha.ngrok-free.dev';
 
 export async function getRealTimeActivity() {
@@ -22,11 +22,5 @@ export async function getActiveServers() {
 export async function getUpcomingEvents() {
   const res = await fetch(`${API_BASE}/api/upcoming_events`);
   if (!res.ok) throw new Error(`Failed to fetch events: ${res.status}`);
-  return await res.json();
-}
-
-export async function checkApiHealth() {
-  const res = await fetch(`${API_BASE}/api/health`);
-  if (!res.ok) throw new Error(`API health check failed: ${res.status}`);
   return await res.json();
 }
