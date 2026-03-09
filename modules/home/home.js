@@ -128,6 +128,3 @@ export function initModule(rom) {
   // Refresh stats every 20 seconds (Discord bot updates DB frequently)
   setInterval(loadRealTimeStats, 20000);
 }
-
-// Export for module system
-export default initModule;
