@@ -1962,8 +1962,8 @@ async function loadSiteSettings() {
       
       // Extract clean YouTube ID from any URL format
       const cleanId = rawValue
-        .replace(/.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11*/,1')
-        .trim() || 'dQw4w9WgXcQ';
+  .replace(/.*(?:youtu\.be\/|v\/|u\/\w+\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11}).*/, '$1')
+  .trim() || 'dQw4w9WgXcQ';
       
       previewFrame.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     };
