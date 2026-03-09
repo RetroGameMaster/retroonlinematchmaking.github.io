@@ -1,9 +1,6 @@
 // modules/home/home.js - HOMEPAGE WITH CLIP OF THE WEEK & SOCIAL BUTTONS
 import { supabase } from '../../lib/supabase.js';
 
-// modules/home/home.js - FIXED VERSION (NO DUPLICATE DECLARATION)
-import { supabase } from '../../lib/supabase.js';
-
 // ✅ FIXED: Single default export (NO duplicate declaration)
 export default function initModule(rom) {
   console.log('🏠 Homepage module initialized');
