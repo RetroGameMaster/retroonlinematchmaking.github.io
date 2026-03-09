@@ -13,6 +13,7 @@ const modules = {
     'profile': () => import('./modules/profile/profile.js'),
     'submit-game': () => import('./modules/submit-game/submit-game.js'),
     'search-users': () => import('./modules/search-users/search-users.js')
+    'api': () => import('./modules/api/api.js') 
 };
 
 // Fallback content
