@@ -24,11 +24,15 @@ async function loadSiteSettings() {
 
     if (error) throw error;
 
-    // Convert to object for easy access
-    const settingsMap = {};
-    settings.forEach(setting => {
-      settingsMap[setting.key] = setting.value;
-    });
+    // Convert to object for easy access (SAFE: handles missing data)
+const settingsMap = {};
+if (Array.isArray(settings)) {
+  settings.forEach(setting => {
+    settingsMap[setting.key] = setting.value;
+  });
+} else {
+  console.warn('⚠️ site_settings table empty or missing - using defaults');
+}
 
     // Update Clip of the Week
     if (settingsMap.clip_title) {
