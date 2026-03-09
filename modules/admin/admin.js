@@ -1838,7 +1838,7 @@ async function loadSiteSettings() {
 
   try {
     // Fetch current settings
-    const {  settings, error } = await supabase
+    const { data: settings, error } = await supabase
       .from('site_settings')
       .select('key, value')
       .in('key', [
@@ -1851,9 +1851,11 @@ async function loadSiteSettings() {
 
     if (error) throw error;
 
-    // Convert to object
+    // Convert to object - FIXED: Using data property
     const settingsMap = {};
-    settings.forEach(s => settingsMap[s.key] = s.value);
+    if (Array.isArray(settings)) {
+      settings.forEach(s => settingsMap[s.key] = s.value);
+    }
 
     // Render settings form
     content.innerHTML = `
@@ -1886,8 +1888,12 @@ async function loadSiteSettings() {
             
             <div class="mt-2">
               <label class="block text-gray-300 mb-2">Preview</label>
-              <div class="aspect-w-16 aspect-h-9 bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-                <iframe id="clip-preview" class="w-full h-full" frameborder="0" allowfullscreen></iframe>
+              <!-- FIXED: Using inline style for aspect ratio -->
+              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+                <iframe id="clip-preview" 
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                        frameborder="0" 
+                        allowfullscreen></iframe>
               </div>
             </div>
           </div>
@@ -1949,14 +1955,10 @@ async function loadSiteSettings() {
       
       // Extract clean YouTube ID from any URL format
       const cleanId = rawValue
-        .replace(/.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11}).*/, '$1')
-        .trim();
+        .replace(/.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11}).*/, '$1')
+        .trim() || 'dQw4w9WgXcQ';
       
-      if (cleanId.length === 11) {
-        previewFrame.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
-      } else {
-        previewFrame.src = '';
-      }
+      previewFrame.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     };
     
     youtubeInput.addEventListener('input', updatePreview);
