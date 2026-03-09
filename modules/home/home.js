@@ -70,21 +70,63 @@ function updateSocialLink(elementId, url) {
   if (el) el.href = url;
 }
 
-// Animate stats counters (existing functionality)
-function initStatsAnimation() {
-  setInterval(() => {
-    const elements = {
-      'active-players': Math.floor(100 + Math.random() * 50),
-      'active-games': Math.floor(20 + Math.random() * 10),
-      'chat-messages': Math.floor(300 + Math.random() * 100),
-      'active-lobbies': Math.floor(10 + Math.random() * 8)
-    };
+// REMOVE OLD initStatsAnimation FUNCTION COMPLETELY
+// ADD THIS NEW FUNCTION IN ITS PLACE:
+async function loadRealTimeStats() {
+  try {
+    const response = await fetch('/api/real_time_activity');
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
     
-    Object.entries(elements).forEach(([id, value]) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
-    });
-  }, 3000);
+    const data = await response.json();
+    
+    // Update Active Players (distinct users in active LFG)
+    const playersEl = document.getElementById('active-players');
+    if (playersEl) playersEl.textContent = data.active_users || 0;
+    
+    // Update Active Games (games with players online in ActiveGames table)
+    const gamesEl = document.getElementById('active-games');
+    if (gamesEl) {
+      // Sum players from top_games if available, else use active server games count
+      const totalPlayers = data.top_games?.reduce((sum, game) => sum + (game.player_count || 0), 0) || 0;
+      gamesEl.textContent = totalPlayers > 0 ? totalPlayers : (data.active_rewired_games + data.active_socom_games + data.active_openspy_games);
+    }
+    
+    // Update Active LFG Posts (was "Live Chat")
+    const lfgEl = document.getElementById('chat-messages');
+    if (lfgEl) lfgEl.textContent = data.active_lfg_games || 0;
+    
+    // Update Active Server Games (was "Matchmaking")
+    const serverGamesEl = document.getElementById('active-lobbies');
+    if (serverGamesEl) {
+      const totalServers = (data.active_rewired_games || 0) + 
+                          (data.active_socom_games || 0) + 
+                          (data.active_openspy_games || 0);
+      serverGamesEl.textContent = totalServers;
+    }
+    
+    // Optional: Log top games to console for debugging
+    if (data.top_games && data.top_games.length > 0) {
+      console.log('🎮 Top Active Games:', data.top_games);
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to load real-time stats:', error);
+    // Fallback to safe defaults on error
+    document.getElementById('active-players').textContent = '0';
+    document.getElementById('active-games').textContent = '0';
+    document.getElementById('chat-messages').textContent = '0';
+    document.getElementById('active-lobbies').textContent = '0';
+  }
+}
+
+// UPDATE initModule TO USE REAL DATA
+export function initModule(rom) {
+  console.log('🏠 Homepage module initialized');
+  loadSiteSettings(); // Clip of the Week + Social Links
+  loadRealTimeStats(); // Load REAL stats immediately
+  
+  // Refresh stats every 20 seconds (Discord bot updates DB frequently)
+  setInterval(loadRealTimeStats, 20000);
 }
 
 // Export for module system
