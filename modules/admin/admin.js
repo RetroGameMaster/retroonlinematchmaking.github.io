@@ -1837,12 +1837,12 @@ async function loadSiteSettings() {
   if (!content) return;
 
   try {
-    // Fetch current settings
-    const { data: settings, error } = await supabase
+    // ✅ CORRECT: Use 'data', not 'settings'
+    const { data, error } = await supabase
       .from('site_settings')
       .select('key, value')
       .in('key', [
-        'clip_title', 
+        'clip_title',
         'clip_youtube_id',
         'discord_url',
         'patreon_url',
@@ -1851,10 +1851,14 @@ async function loadSiteSettings() {
 
     if (error) throw error;
 
-    // Convert to object - FIXED: Using data property
+    // ✅ SAFE: Handle null/undefined data
     const settingsMap = {};
-    if (Array.isArray(settings)) {
-      settings.forEach(s => settingsMap[s.key] = s.value);
+    if (Array.isArray(data)) {
+      data.forEach(s => {
+        if (s && s.key && s.value !== undefined) {
+          settingsMap[s.key] = s.value;
+        }
+      });
     }
 
     // Render settings form
@@ -1870,30 +1874,33 @@ async function loadSiteSettings() {
               <label class="block text-gray-300 mb-2">Clip Title</label>
               <input type="text" 
                      id="clip-title-input" 
-                     value="${escapeHtml(settingsMap.clip_title || '')}" 
+                     value="${escapeHtml(settingsMap.clip_title || 'ROM Clip of the Week')}" 
                      class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
             </div>
             
             <div>
-              <label class="block text-gray-300 mb-2">YouTube Video ID or URL</label>
+              <label class="block text300 mb-2">YouTube Video ID or URL</label>
               <input type="text" 
                      id="clip-youtube-input" 
-                     value="${escapeHtml(settingsMap.clip_youtube_id || '')}" 
+                     value="${escapeHtml(settingsMap.clip_youtube_id || 'dQw4w9WgXcQ')}" 
                      placeholder="Example: dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
                      class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
               <p class="text-gray-400 text-sm mt-1">
-                Paste full YouTube URL or just the video ID (the part after v= or /shorts/)
+                Paste full YouTube URL or just the video IDthe part after v=)
               </p>
             </div>
             
             <div class="mt-2">
               <label class="block text-gray-300 mb-2">Preview</label>
-              <!-- FIXED: Using inline style for aspect ratio -->
-              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+              <!-- ✅ Fixed aspect with inline styles -->
+              <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; background-color: #1a1a1a; border-radius: 0.5rem;">
                 <iframe id="clip-preview" 
-                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                        style="position: absolute; top: 0: 0; width: 100%; height: 100%; border: 1px solid #374151;"
+                        src="" 
                         frameborder="0" 
-                        allowfullscreen></iframe>
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                </iframe>
               </div>
             </div>
           </div>
@@ -1907,7 +1914,7 @@ async function loadSiteSettings() {
               <label class="block text-gray-300 mb-2">Discord Server URL</label>
               <input type="url" 
                      id="discord-url-input" 
-                     value="${escapeHtml(settingsMap.discord_url || '')}" 
+                     value="${escapeHtml(settingsMap.discord_url || 'https://discord.gg/example')}" 
                      class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
                      placeholder="https://discord.gg/yourserver">
             </div>
@@ -1916,7 +1923,7 @@ async function loadSiteSettings() {
               <label class="block text-gray-300 mb-2">Patreon Page URL</label>
               <input type="url" 
                      id="patreon-url-input" 
-                     value="${escapeHtml(settingsMap.patreon_url || '')}" 
+                     value="${escapeHtml(settingsMap.patreon_url || 'https://patreon.com/example')}" 
                      class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
                      placeholder="https://patreon.com/yourpage">
             </div>
@@ -1925,7 +1932,7 @@ async function loadSiteSettings() {
               <label class="block text-gray-300 mb-2">YouTube Channel URL</label>
               <input type="url" 
                      id="youtube-url-input" 
-                     value="${escapeHtml(settingsMap.youtube_url || '')}" 
+                     value="${escapeHtml(settingsMap.youtube_url || 'https://youtube.com/example')}" 
                      class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
                      placeholder="https://youtube.com/yourchannel">
             </div>
@@ -1944,7 +1951,7 @@ async function loadSiteSettings() {
 
     // Setup preview for YouTube clip
     const youtubeInput = document.getElementById('clip-youtube-input');
-    const previewFrame = document.getElementById('clip-preview');
+    const previewFrame = document('-preview');
     
     const updatePreview = () => {
       const rawValue = youtubeInput.value.trim();
@@ -1955,7 +1962,7 @@ async function loadSiteSettings() {
       
       // Extract clean YouTube ID from any URL format
       const cleanId = rawValue
-        .replace(/.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11}).*/, '$1')
+        .replace(/.*(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11*/,1')
         .trim() || 'dQw4w9WgXcQ';
       
       previewFrame.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
@@ -1963,19 +1970,19 @@ async function loadSiteSettings() {
     
     youtubeInput.addEventListener('input', updatePreview);
     updatePreview(); // Initial preview
-    
+
     // Save button handler
     document.getElementById('save-settings-btn').addEventListener('click', async () => {
       const saveBtn = document.getElementById('save-settings-btn');
       const originalText = saveBtn.innerHTML;
       saveBtn.disabled = true;
-      saveBtn.innerHTML = '<span class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>Saving...';
+      saveBtn.innerHTML = '<span class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr"></span>Saving...';
       
       try {
         // Prepare settings updates
         const updates = [
           { key: 'clip_title', value: document.getElementById('clip-title-input').value.trim() || 'ROM Clip of the Week' },
-          { key: 'clip_youtube_id', value: document.getElementById('clip-youtube-input').value.trim() || 'dQw4w9WgXcQ' },
+          { key: 'clip_youtube_id', value: document.getElementById('clip-youtube-input').value.trim() || 'dQw4w9WgXQ' },
           { key: 'discord_url', value: document.getElementById('discord-url-input').value.trim() || 'https://discord.gg/example' },
           { key: 'patreon_url', value: document.getElementById('patreon-url-input').value.trim() || 'https://patreon.com/example' },
           { key: 'youtube_url', value: document.getElementById('youtube-url-input').value.trim() || 'https://youtube.com/example' }
@@ -2005,7 +2012,7 @@ async function loadSiteSettings() {
         saveBtn.innerHTML = originalText;
       }
     });
-    
+
   } catch (error) {
     console.error('Error loading site settings:', error);
     content.innerHTML = `
@@ -2013,7 +2020,7 @@ async function loadSiteSettings() {
         <div class="text-4xl mb-4">⚠️</div>
         <h3 class="text-xl font-bold text-white mb-2">Error Loading Settings</h3>
         <p class="text-gray-400">${error.message}</p>
-        <button onclick="loadSiteSettings()" class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">
+        <button onclick="loadSiteSettings()" class="mt-4 bg-c-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">
           Retry
         </button>
       </div>
