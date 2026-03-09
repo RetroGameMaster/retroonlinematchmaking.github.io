@@ -93,6 +93,9 @@ async function loadAdminPanel() {
           <button id="tab-users" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
             👥 Users
           </button>
+          <button id="tab-settings" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+  ⚙️ Site Settings
+</button>
         </nav>
       </div>
       
@@ -154,6 +157,9 @@ async function loadAdminPanel() {
         break;
       case 'tab-users':
         loadAllUsers();
+        break;
+        case 'tab-settings':
+        loadSiteSettings();
         break;
     }
   });
@@ -1824,6 +1830,205 @@ function showNotification(message, type = 'success') {
 // Make functions globally accessible
 window.loadPendingSubmissions = loadPendingSubmissions;
 window.createTestSubmission = createTestSubmission;
+
+// ===== SITE SETTINGS MANAGEMENT =====
+async function loadSiteSettings() {
+  const content = document.getElementById('admin-content');
+  if (!content) return;
+
+  try {
+    // Fetch current settings
+    const {  settings, error } = await supabase
+      .from('site_settings')
+      .select('key, value')
+      .in('key', [
+        'clip_title', 
+        'clip_youtube_id',
+        'discord_url',
+        'patreon_url',
+        'youtube_url'
+      ]);
+
+    if (error) throw error;
+
+    // Convert to object
+    const settingsMap = {};
+    settings.forEach(s => settingsMap[s.key] = s.value);
+
+    // Render settings form
+    content.innerHTML = `
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl font-bold text-white mb-6">⚙️ Site Settings</h2>
+        
+        <div class="bg-gray-800 rounded-lg p-6 border border-cyan-500">
+          <h3 class="text-xl font-bold text-cyan-300 mb-4">🎬 Clip of the Week</h3>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-gray-300 mb-2">Clip Title</label>
+              <input type="text" 
+                     id="clip-title-input" 
+                     value="${escapeHtml(settingsMap.clip_title || '')}" 
+                     class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
+            </div>
+            
+            <div>
+              <label class="block text-gray-300 mb-2">YouTube Video ID or URL</label>
+              <input type="text" 
+                     id="clip-youtube-input" 
+                     value="${escapeHtml(settingsMap.clip_youtube_id || '')}" 
+                     placeholder="Example: dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
+                     class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white">
+              <p class="text-gray-400 text-sm mt-1">
+                Paste full YouTube URL or just the video ID (the part after v= or /shorts/)
+              </p>
+            </div>
+            
+            <div class="mt-2">
+              <label class="block text-gray-300 mb-2">Preview</label>
+              <div class="aspect-w-16 aspect-h-9 bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                <iframe id="clip-preview" class="w-full h-full" frameborder="0" allowfullscreen></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-800 rounded-lg p-6 border border-purple-500 mt-6">
+          <h3 class="text-xl font-bold text-purple-300 mb-4">🔗 Social Media Links</h3>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-gray-300 mb-2">Discord Server URL</label>
+              <input type="url" 
+                     id="discord-url-input" 
+                     value="${escapeHtml(settingsMap.discord_url || '')}" 
+                     class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                     placeholder="https://discord.gg/yourserver">
+            </div>
+            
+            <div>
+              <label class="block text-gray-300 mb-2">Patreon Page URL</label>
+              <input type="url" 
+                     id="patreon-url-input" 
+                     value="${escapeHtml(settingsMap.patreon_url || '')}" 
+                     class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                     placeholder="https://patreon.com/yourpage">
+            </div>
+            
+            <div>
+              <label class="block text-gray-300 mb-2">YouTube Channel URL</label>
+              <input type="url" 
+                     id="youtube-url-input" 
+                     value="${escapeHtml(settingsMap.youtube_url || '')}" 
+                     class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white"
+                     placeholder="https://youtube.com/yourchannel">
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-8 flex justify-end">
+          <button id="save-settings-btn" 
+                  class="bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-3 rounded-lg font-bold text-lg transition flex items-center">
+            <span>💾</span>
+            <span class="ml-2">Save Settings</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Setup preview for YouTube clip
+    const youtubeInput = document.getElementById('clip-youtube-input');
+    const previewFrame = document.getElementById('clip-preview');
+    
+    const updatePreview = () => {
+      const rawValue = youtubeInput.value.trim();
+      if (!rawValue) {
+        previewFrame.src = '';
+        return;
+      }
+      
+      // Extract clean YouTube ID from any URL format
+      const cleanId = rawValue
+        .replace(/.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11}).*/, '$1')
+        .trim();
+      
+      if (cleanId.length === 11) {
+        previewFrame.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
+      } else {
+        previewFrame.src = '';
+      }
+    };
+    
+    youtubeInput.addEventListener('input', updatePreview);
+    updatePreview(); // Initial preview
+    
+    // Save button handler
+    document.getElementById('save-settings-btn').addEventListener('click', async () => {
+      const saveBtn = document.getElementById('save-settings-btn');
+      const originalText = saveBtn.innerHTML;
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>Saving...';
+      
+      try {
+        // Prepare settings updates
+        const updates = [
+          { key: 'clip_title', value: document.getElementById('clip-title-input').value.trim() || 'ROM Clip of the Week' },
+          { key: 'clip_youtube_id', value: document.getElementById('clip-youtube-input').value.trim() || 'dQw4w9WgXcQ' },
+          { key: 'discord_url', value: document.getElementById('discord-url-input').value.trim() || 'https://discord.gg/example' },
+          { key: 'patreon_url', value: document.getElementById('patreon-url-input').value.trim() || 'https://patreon.com/example' },
+          { key: 'youtube_url', value: document.getElementById('youtube-url-input').value.trim() || 'https://youtube.com/example' }
+        ];
+        
+        // Upsert each setting
+        for (const setting of updates) {
+          await supabase
+            .from('site_settings')
+            .upsert(
+              { key: setting.key, value: setting.value },
+              { onConflict: 'key' }
+            );
+        }
+        
+        // Show success
+        showNotification('✅ Site settings saved successfully!', 'success');
+        
+        // Refresh preview
+        updatePreview();
+        
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        showNotification('❌ Failed to save settings: ' + error.message, 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error loading site settings:', error);
+    content.innerHTML = `
+      <div class="text-center py-12">
+        <div class="text-4xl mb-4">⚠️</div>
+        <h3 class="text-xl font-bold text-white mb-2">Error Loading Settings</h3>
+        <p class="text-gray-400">${error.message}</p>
+        <button onclick="loadSiteSettings()" class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">
+          Retry
+        </button>
+      </div>
+    `;
+  }
+}
+
+// Helper: Escape HTML for safety
+function escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 // Export for module system
 export default initModule;
