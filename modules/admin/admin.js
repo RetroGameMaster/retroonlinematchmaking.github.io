@@ -94,8 +94,8 @@ async function loadAdminPanel() {
             👥 Users
           </button>
           <button id="tab-settings" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
-  ⚙️ Site Settings
-</button>
+            ⚙️ Site Settings
+          </button>
         </nav>
       </div>
       
