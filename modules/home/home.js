@@ -1,14 +1,13 @@
-// modules/home/home.js 
+// modules/home/home.js - STABLE VERSION (NO LIVE DATA, SAFE STATS ONLY)
 import { supabase } from '../../lib/supabase.js';
 
 export default function initModule(rom) {
   console.log('🏠 Homepage initialized');
   loadSiteSettings(); // YouTube + social links
-  loadXLinkStats();   // LIVE XLINK DATA 
-  setInterval(loadXLinkStats, 15000); // Refresh every 15s
+  loadSupabaseStats(); // Safe stats from YOUR database only
 }
 
-// Load YouTube clip + social links (UNCHANGED - WORKING)
+// Load YouTube clip + social links from site_settings
 async function loadSiteSettings() {
   try {
     const { data, error } = await supabase
@@ -19,9 +18,9 @@ async function loadSiteSettings() {
     if (error) throw error;
 
     const settings = {};
-    data.forEach(s => settings[s.key] = s.value);
+    if (Array.isArray(data)) data.forEach(s => settings[s.key] = s.value);
 
-    // YouTube ID extraction (FIXED REGEX)
+    // ✅ FIXED: YouTube ID extraction (no broken regex)
     const cleanId = (settings.clip_youtube_id || 'dQw4w9WgXcQ')
       .replace(/.*(?:youtu\.be\/|v\/|u\/\w+\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11}).*/, '$1')
       .trim() || 'dQw4w9WgXcQ';
@@ -29,68 +28,61 @@ async function loadSiteSettings() {
     document.getElementById('clip-title').textContent = settings.clip_title || 'ROM Community Highlights';
     document.getElementById('clip-iframe').src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1`;
     
-    // Update social links
+    // Update social links (SAFE: no broken URLs)
     ['discord', 'patreon', 'youtube'].forEach(key => {
       const el = document.getElementById(`${key}-link`);
       if (el) el.href = (settings[`${key}_url`] || `https://${key}.com`).trim() || '#';
     });
   } catch (error) {
     console.error('Site settings error:', error);
-    // Fallbacks
+    // Fallbacks (always safe)
     document.getElementById('clip-title').textContent = 'ROM Community Highlights';
     document.getElementById('clip-iframe').src = 'https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1';
-    document.getElementById('discord-link').href = 'https://discord.gg/example';
-    document.getElementById('patreon-link').href = 'https://patreon.com/example';
-    document.getElementById('youtube-link').href = 'https://youtube.com/example';
+    document.getElementById('discord-link').href = 'https://discord.gg/retroonlinematchmaking';
+    document.getElementById('patreon-link').href = 'https://patreon.com/retroonlinematchmaking';
+    document.getElementById('youtube-link').href = 'https://youtube.com/@retroonlinematchmaking';
   }
 }
 
-// ✅ LIVE XLINK KAI STATS 
-async function loadXLinkStats() {
+// ✅ SAFE STATS: From YOUR Supabase DB ONLY (NO EXTERNAL APIs)
+async function loadSupabaseStats() {
   try {
-    // DIRECT CALL TO XLINK'S PUBLIC ENDPOINT
-    const response = await fetch('https://xlinkkai.com/api/v1/sessions?limit=20');
-    
-    if (!response.ok) {
-      console.warn('XLink API unavailable - using fallback stats');
-      updateStatsFallback();
-      return;
-    }
+    // Total approved games
+    const { count: totalGames } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true });
 
-    const sessions = await response.json();
-    
-    // Process live data
-    const activeSessions = sessions.filter(s => s.players && s.players.length > 0);
-    const totalPlayers = activeSessions.reduce((sum, s) => sum + s.players.length, 0);
-    const activeGames = [...new Set(activeSessions.map(s => s.gameTitle))].length;
+    // Total registered users
+    const { count: totalUsers } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
 
-    // Update DOM
-    updateStat('active-players', totalPlayers);
-    updateStat('active-games', activeGames);
-    updateStat('chat-messages', activeSessions.length); // Active sessions = "LFG Posts"
-    updateStat('active-lobbies', activeSessions.length); // Sessions = lobbies
+    // Games with active servers flag
+    const { count: serverGames } = await supabase
+      .from('games')
+      .select('*', { count: 'exact', head: true })
+      .eq('servers_available', true);
 
-    console.log(`✅ XLink Live Data: ${totalPlayers} players across ${activeGames} games`);
-    
+    // Pending submissions (shows community activity)
+    const { count: pendingSubs } = await supabase
+      .from('game_submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    // Update DOM safely
+    const updateStat = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value.toLocaleString();
+    };
+
+    updateStat('active-players', totalUsers || 0);          // "Online now" = total users
+    updateStat('active-games', totalGames || 0);            // "Being played" = total games
+    updateStat('chat-messages', pendingSubs || 0);          // "Active LFG" = pending submissions
+    updateStat('active-lobbies', serverGames || 0);         // "Server Games" = games with servers
+
+    console.log('✅ Stats loaded from Supabase');
   } catch (error) {
-    console.error('⚠️ XLink fetch failed (using fallback):', error.message);
-    updateStatsFallback(); // Safe fallback on error
+    console.warn('⚠️ Stats unavailable (using existing values):', error.message);
+    // DO NOT reset to 0 - keep existing values visible
   }
-}
-
-// Fallback stats if XLink API fails
-function updateStatsFallback() {
-  // Keep existing values visible (don't reset to 0)
-  // Optional: Show "Offline" badge
-  const badge = document.getElementById('api-status-badge');
-  if (badge) {
-    badge.textContent = 'Offline';
-    badge.className = 'text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded';
-  }
-}
-
-// Helper: Update stat safely
-function updateStat(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = value.toLocaleString();
 }
