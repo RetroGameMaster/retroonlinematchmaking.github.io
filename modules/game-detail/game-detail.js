@@ -572,6 +572,11 @@ async function initGameDetail(rom, identifier) {
     
     // Load comments
     async function loadComments(gameId) {
+            // Load comments
+    loadComments(game.id);
+    // NEW: Load achievements and recent players
+    loadAchievements(game.id, container);
+    loadRecentPlayers(game.id, container);
         const commentsContainer = document.getElementById('commentsContainer');
         if (!commentsContainer) return;
         
@@ -780,7 +785,110 @@ async function generateSlug(title, gameId) {
             .substring(0, 100);
     }
 }
+// ===== NEW: Load & Display Achievements =====
+async function loadAchievements(gameId, container) {
+    try {
+        const { data: achievements, error } = await rom.supabase
+            .from('achievements')
+            .select('*')
+            .eq('game_id', gameId)
+            .order('points', { ascending: false });
+        
+        if (error) throw error;
+        
+        const achievementsSection = document.createElement('div');
+        achievementsSection.className = 'mb-8';
+        achievementsSection.innerHTML = `
+            <h2 class="text-2xl font-bold text-white mb-4">🏆 Achievements (${achievements?.length || 0})</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="achievementsGrid">
+                ${achievements?.length > 0 ? achievements.map(a => `
+                    <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700 hover:border-yellow-500 transition">
+                        <div class="flex items-start gap-3">
+                            <img src="${a.badge_url || 'https://via.placeholder.com/48/1f2937/6b7280?text=🏆'}" 
+                                 alt="${escapeHtml(a.title)}" 
+                                 class="w-12 h-12 rounded-lg object-cover flex-shrink-0">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-white text-sm">${escapeHtml(a.title)}</h3>
+                                    <span class="bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded text-xs font-bold">${a.points} pts</span>
+                                </div>
+                                <p class="text-gray-400 text-xs mt-1 line-clamp-2">${escapeHtml(a.description || '')}</p>
+                                ${a.is_multiplayer ? '<span class="inline-block mt-2 bg-purple-900 text-purple-300 px-2 py-0.5 rounded text-xs">🌐 MP</span>' : ''}
+                                ${a.memory_logic ? `
+                                    <details class="mt-2">
+                                        <summary class="cursor-pointer text-xs text-gray-500 hover:text-gray-300">Memory Logic</summary>
+                                        <code class="block mt-1 p-2 bg-black rounded text-green-400 text-xs overflow-x-auto">${escapeHtml(a.memory_logic)}</code>
+                                    </details>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-gray-500 col-span-full">No achievements yet</p>'}
+            </div>
+        `;
+        
+        // Insert after description section
+        const descriptionSection = container.querySelector('.mb-8:nth-of-type(1)');
+        if (descriptionSection?.parentElement) {
+            descriptionSection.parentElement.insertBefore(achievementsSection, descriptionSection.nextSibling);
+        }
+        
+    } catch (error) {
+        console.error('Error loading achievements:', error);
+    }
+}
 
+// ===== NEW: Load & Display Recent Players =====
+async function loadRecentPlayers(gameId, container) {
+    try {
+        const { data: activity, error } = await rom.supabase
+            .from('user_activity')
+            .select('*, profiles(username)')
+            .eq('game_id', gameId)
+            .order('last_seen', { ascending: false })
+            .limit(8);
+        
+        if (error) throw error;
+        
+        const playersSection = document.createElement('div');
+        playersSection.className = 'mb-8';
+        playersSection.innerHTML = `
+            <h2 class="text-2xl font-bold text-white mb-4">👥 Recently Active (${activity?.length || 0})</h2>
+            <div class="flex flex-wrap gap-3" id="recentPlayersList">
+                ${activity?.length > 0 ? activity.map(p => `
+                    <div class="flex items-center gap-2 bg-gray-800/50 px-3 py-2 rounded-lg border border-gray-700">
+                        <div class="w-8 h-8 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            ${(p.profiles?.username || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <span class="text-sm text-gray-200">${escapeHtml(p.profiles?.username || 'Anonymous')}</span>
+                        <span class="text-xs text-gray-500">${timeAgo(p.last_seen)}</span>
+                    </div>
+                `).join('') : '<p class="text-gray-500">No recent activity</p>'}
+            </div>
+        `;
+        
+        // Insert after stats section
+        const statsSection = container.querySelector('.mb-8:nth-of-type(3)');
+        if (statsSection?.parentElement) {
+            statsSection.parentElement.insertBefore(playersSection, statsSection.nextSibling);
+        }
+        
+    } catch (error) {
+        console.error('Error loading recent players:', error);
+    }
+}
+
+// ===== HELPER: Time ago formatter =====
+function timeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+}
 // Export for module system
 export default initGameDetail;
 
