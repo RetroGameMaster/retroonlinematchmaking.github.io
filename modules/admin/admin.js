@@ -81,22 +81,22 @@ async function loadAdminPanel() {
       <!-- Navigation Tabs -->
       <div class="mb-6 border-b border-gray-700">
         <nav class="flex flex-wrap -mb-px">
-          <button id="tab-submissions" class="admin-tab active py-3 px-4 font-medium text-sm border-b-2 border-cyan-500 text-cyan-500">
-            📥 Submissions (0)
-          </button>
-          <button id="tab-games" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
-            🎮 Games (0)
-          </button>
-          <button id="tab-admins" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
-            👑 Admins
-          </button>
-          <button id="tab-users" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
-            👥 Users
-          </button>
-          <button id="tab-settings" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
-            ⚙️ Site Settings
-          </button>
-        </nav>
+    <button id="tab-submissions" class="admin-tab active py-3 px-4 font-medium text-sm border-b-2 border-cyan-500 text-cyan-500">
+        📥 Submissions (0)
+    </button>
+    <button id="tab-games" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+        🎮 Games (0)
+    </button>
+    <button id="tab-achievements" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+        🏆 Achievements
+    </button>
+    <button id="tab-admins" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+        👑 Admins
+    </button>
+    <button id="tab-users" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+        👥 Users
+    </button>
+</nav>
       </div>
       
       <!-- Quick Actions -->
@@ -184,19 +184,22 @@ function setupTabListeners() {
       tab.classList.remove('border-transparent', 'text-gray-400');
       
       switch(tab.id) {
-        case 'tab-submissions':
-          loadPendingSubmissions();
-          break;
-        case 'tab-games':
-          loadAdminGames();
-          break;
-        case 'tab-admins':
-          loadAdminList();
-          break;
-        case 'tab-users':
-          loadAllUsers();
-          break;
-      }
+    case 'tab-submissions':
+        loadPendingSubmissions();
+        break;
+    case 'tab-games':
+        loadAdminGames();
+        break;
+    case 'tab-achievements':
+        loadAchievementsAdmin();
+        break;
+    case 'tab-admins':
+        loadAdminList();
+        break;
+    case 'tab-users':
+        loadAllUsers();
+        break;
+}
     });
   });
 }
@@ -2038,6 +2041,226 @@ function escapeHtml(unsafe) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+// ===== ACHIEVEMENTS ADMIN FUNCTIONS =====
+async function loadAchievementsAdmin() {
+    const content = document.getElementById('admin-content');
+    if (!content) return;
+    
+    content.innerHTML = `
+        <div class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+            <p class="text-gray-400 mt-2">Loading achievements...</p>
+        </div>
+    `;
 
+    try {
+        const { data: achievements, error } = await supabase
+            .from('achievements')
+            .select('*, games(title)')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        let html = `
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">🏆 Achievements (${achievements?.length || 0})</h2>
+                <button onclick="window.showAddAchievementModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center">
+                    <span class="mr-2">➕</span> Add Achievement
+                </button>
+            </div>
+            <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-800">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Game</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Points</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-gray-900 divide-y divide-gray-800">
+                        ${achievements?.length > 0 ? achievements.map(a => `
+                            <tr class="hover:bg-gray-800">
+                                <td class="px-6 py-4 text-white text-sm">${escapeString(a.games?.title || 'Unknown')}</td>
+                                <td class="px-6 py-4 text-gray-300 text-sm">${escapeString(a.title)}</td>
+                                <td class="px-6 py-4 text-yellow-300 font-bold text-sm">${a.points}</td>
+                                <td class="px-6 py-4">
+                                    ${a.is_multiplayer ? 
+                                        '<span class="bg-purple-900 text-purple-300 px-2 py-1 rounded text-xs">🌐 MP</span>' : 
+                                        '<span class="bg-gray-700 text-gray-400 px-2 py-1 rounded text-xs">Single</span>'}
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <button onclick="window.editAchievement('${a.id}')" class="text-cyan-400 hover:text-cyan-300 mr-3">Edit</button>
+                                    <button onclick="window.deleteAchievement('${a.id}', '${escapeString(a.title)}')" class="text-red-400 hover:text-red-300">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">No achievements yet. Add one to get started!</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        content.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading achievements:', error);
+        content.innerHTML = `
+            <div class="text-center py-8">
+                <div class="text-4xl mb-4">⚠️</div>
+                <h3 class="text-xl font-bold text-white mb-2">Error</h3>
+                <p class="text-red-400">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+window.showAddAchievementModal = async function(editId = null) {
+    try {
+        // Load games for dropdown
+        const { data: games, error: gamesError } = await supabase.from('games').select('id, title').order('title');
+        if (gamesError) throw gamesError;
+
+        let achievement = null;
+        if (editId) {
+            const { data } = await supabase.from('achievements').select('*').eq('id', editId).single();
+            achievement = data;
+        }
+
+        const modalHtml = `
+            <div id="achievement-modal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onclick="window.closeAchievementModal()"></div>
+                    <div class="inline-block align-bottom bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6 border border-gray-700">
+                        <h3 class="text-lg font-bold text-white mb-4">${achievement ? '✏️ Edit' : '➕ Add'} Achievement</h3>
+                        
+                        <form id="achievement-form" class="space-y-4">
+                            <input type="hidden" id="achieve-id" value="${editId || ''}">
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Game *</label>
+                                <select id="achieve-game" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" required>
+                                    <option value="">Select a game</option>
+                                    ${games?.map(g => `<option value="${g.id}" ${achievement?.game_id === g.id ? 'selected' : ''}>${escapeString(g.title)}</option>`).join('')}
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Title *</label>
+                                <input type="text" id="achieve-title" value="${escapeString(achievement?.title || '')}" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" required>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                                <textarea id="achieve-desc" rows="2" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">${escapeString(achievement?.description || '')}</textarea>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Points</label>
+                                    <input type="number" id="achieve-points" value="${achievement?.points || 5}" min="1" max="100" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Badge URL</label>
+                                    <input type="text" id="achieve-badge" value="${escapeString(achievement?.badge_url || '')}" placeholder="https://..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Memory Logic</label>
+                                <textarea id="achieve-logic" rows="3" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-green-400 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="0x1234=5 AND 0x5678!=0">${escapeString(achievement?.memory_logic || '')}</textarea>
+                            </div>
+                            
+                            <div class="flex items-center">
+                                <input type="checkbox" id="achieve-mp" ${achievement?.is_multiplayer ? 'checked' : ''} class="w-4 h-4 text-cyan-500 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500">
+                                <label class="ml-2 text-sm text-gray-300">🌐 Multiplayer Achievement</label>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 mt-6">
+                                <button type="button" onclick="window.closeAchievementModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-semibold">${achievement ? 'Save Changes' : 'Add Achievement'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('achievement-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await window.saveAchievement();
+        });
+    } catch (error) {
+        console.error('Error opening achievement modal:', error);
+        showNotification('❌ ' + error.message, 'error');
+    }
+};
+
+window.closeAchievementModal = function() {
+    const modal = document.getElementById('achievement-modal');
+    if (modal) modal.remove();
+};
+
+window.saveAchievement = async function() {
+    const id = document.getElementById('achieve-id').value;
+    const payload = {
+        game_id: document.getElementById('achieve-game').value,
+        title: document.getElementById('achieve-title').value.trim(),
+        description: document.getElementById('achieve-desc').value.trim() || null,
+        points: parseInt(document.getElementById('achieve-points').value) || 5,
+        badge_url: document.getElementById('achieve-badge').value.trim() || null,
+        memory_logic: document.getElementById('achieve-logic').value.trim() || null,
+        is_multiplayer: document.getElementById('achieve-mp').checked,
+        updated_at: new Date().toISOString()
+    };
+
+    if (!payload.game_id || !payload.title) {
+        showNotification('❌ Game and Title are required', 'error');
+        return;
+    }
+
+    const btn = document.querySelector('#achievement-form button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const query = id 
+            ? supabase.from('achievements').update(payload).eq('id', id)
+            : supabase.from('achievements').insert([payload]);
+        
+        const { error } = await query;
+        if (error) throw error;
+
+        showNotification(id ? '✅ Achievement updated!' : '✅ Achievement added!');
+        window.closeAchievementModal();
+        await loadAchievementsAdmin();
+    } catch (error) {
+        console.error('Error saving achievement:', error);
+        showNotification('❌ ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = id ? 'Save Changes' : 'Add Achievement';
+    }
+};
+
+window.editAchievement = function(id) {
+    window.showAddAchievementModal(id);
+};
+
+window.deleteAchievement = async function(id, title) {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    
+    try {
+        const { error } = await supabase.from('achievements').delete().eq('id', id);
+        if (error) throw error;
+        showNotification('✅ Achievement deleted!');
+        await loadAchievementsAdmin();
+    } catch (error) {
+        console.error('Error deleting achievement:', error);
+        showNotification('❌ ' + error.message, 'error');
+    }
+};
+// ===== END ACHIEVEMENTS FUNCTIONS =====
 // Export for module system
 export default initModule;
