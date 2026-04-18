@@ -158,6 +158,15 @@ async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     
     console.log('Hash changed to:', hash);
+
+     // Check for game memory page - NEW ROUTE
+    if (hash.startsWith('game/') && hash.includes('/memory')) {
+        const parts = hash.split('/');
+        const gameId = parts[1];
+        console.log('Loading memory page for game:', gameId);
+        await loadMemoryPage(gameId);
+        return;
+    }
     
     // Check for game detail page - accept both ID and slug
     if (hash.startsWith('game/')) {
@@ -338,6 +347,67 @@ async function loadGameDetail(identifier) {
     }
 }
 
+// Function for memory logic page
+async function loadMemoryPage(gameId) {
+    const appContent = document.getElementById('app-content');
+    if (!appContent) return;
+    
+    appContent.innerHTML = `
+        <div class="text-center p-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+            <p class="mt-2 text-gray-300">Loading game data...</p>
+        </div>
+    `;
+
+    try {
+        // Load game to get title
+        let query = supabase.from('games').select('*');
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gameId);
+        
+        if (isUuid) query = query.eq('id', gameId);
+        else query = query.eq('slug', gameId);
+        
+        const {  game, error } = await query.single();
+        
+        if (error || !game) {
+            throw new Error('Game not found');
+        }
+        
+        // Import and call memory page function
+        const module = await import('./modules/game-detail/game-detail.js');
+        
+        const rom = {
+            supabase: window.supabase,
+            currentUser: window.rom?.currentUser || null,
+            loadModule: loadModule,
+            navigateTo: function(module) {
+                window.location.hash = `#/${module}`;
+            }
+        };
+        
+        if (module.showMemoryPage) {
+            await module.showMemoryPage(rom, game.id, game.title);
+        } else {
+            throw new Error('Memory page function not found');
+        }
+        
+    } catch (error) {
+        console.error('Error loading memory page:', error);
+        appContent.innerHTML = `
+            <div class="max-w-4xl mx-auto p-4">
+                <div class="mb-6">
+                    <a href="#/games" class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
+                        ← Back to Games
+                    </a>
+                </div>
+                <div class="bg-red-900/30 border border-red-500 rounded-lg p-6">
+                    <h2 class="text-2xl font-bold text-red-400 mb-2">Error</h2>
+                    <p class="text-gray-300">${error.message}</p>
+                </div>
+            </div>
+        `;
+    }
+}
 // Function for game edit pages - NEW FUNCTION
 async function loadGameEdit(gameId) {
   const appContent = document.getElementById('app-content');
