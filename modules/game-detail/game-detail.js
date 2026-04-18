@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js
+// modules/game-detail/game-detail.js - COMPLETE FIXED VERSION
 let isInitialized = false;
 
 async function initGameDetail(rom, identifier) {
@@ -25,17 +25,22 @@ async function initGameDetail(rom, identifier) {
     }
     
     try {
+        console.log('🔍 Attempting to load game with identifier:', identifier);
         const game = await loadGameByIdentifier(rom, identifier);
         
         if (!game) {
+            console.error('❌ Game not found for identifier:', identifier);
             gameLoading.classList.add('hidden');
             gameError.classList.remove('hidden');
             return;
         }
         
+        console.log('✅ Game loaded successfully:', game.title);
         gameLoading.classList.add('hidden');
         gameContent.classList.remove('hidden');
         
+        // Fetch all data needed for the RA layout
+        console.log('📊 Fetching achievements and activity data...');
         const [achievementsRes, activityRes, topPlayersRes] = await Promise.all([
             rom.supabase.from('achievements').select('*').eq('game_id', game.id).order('points', { ascending: false }),
             rom.supabase.from('user_activity').select('*, profiles(username)').eq('game_id', game.id).order('last_seen', { ascending: false }).limit(1),
@@ -46,38 +51,85 @@ async function initGameDetail(rom, identifier) {
         const recentActivity = activityRes.data || [];
         const topPlayers = topPlayersRes.data || [];
 
+        console.log('📊 Achievements:', achievements.length, 'Recent Activity:', recentActivity.length);
+
         const totalPoints = achievements.reduce((sum, a) => sum + (a.points || 0), 0);
         const totalAchievements = achievements.length;
 
         renderRALayout(game, achievements, recentActivity, topPlayers, totalPoints, totalAchievements, gameContent, rom);
         
     } catch (error) {
-        console.error('Error loading game:', error);
+        console.error('❌ Error loading game:', error);
+        console.error('Error details:', error.message);
         gameLoading.classList.add('hidden');
         gameError.classList.remove('hidden');
     }
 }
 
 async function loadGameByIdentifier(rom, identifier) {
+    console.log('🔍 loadGameByIdentifier called with:', identifier);
+    
     try {
-        let query = rom.supabase.from('games').select('*');
+        // Check if identifier is a UUID
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+        console.log('Is UUID?', isUuid);
         
-        if (isUuid) query = query.eq('id', identifier);
-        else query = query.eq('slug', identifier);
+        let query;
+        if (isUuid) {
+            console.log('Querying by ID:', identifier);
+            query = rom.supabase.from('games').select('*').eq('id', identifier);
+        } else {
+            console.log('Querying by slug:', identifier);
+            query = rom.supabase.from('games').select('*').eq('slug', identifier);
+        }
         
+        console.log('Executing query...');
         const {  game, error } = await query.single();
-        if (error) return null;
+        
+        if (error) {
+            console.error('❌ Supabase query error:', error);
+            console.error('Error details:', error.message, error.details);
+            
+            // If not found by slug, try ID as fallback
+            if (!isUuid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
+                console.log('🔄 Trying as ID fallback...');
+                const {  gameById, error: idError } = await rom.supabase
+                    .from('games')
+                    .select('*')
+                    .eq('id', identifier)
+                    .single();
+                
+                if (idError) {
+                    console.error('❌ Also not found by ID:', idError);
+                    return null;
+                }
+                
+                console.log('✅ Found by ID fallback:', gameById.title);
+                return gameById;
+            }
+            
+            return null;
+        }
+        
+        console.log('✅ Game found:', game ? game.title : 'null');
         return game;
+        
     } catch (error) {
+        console.error('❌ Error in loadGameByIdentifier:', error);
+        console.error('Stack trace:', error.stack);
         return null;
     }
 }
 
 // ===== NEW: MEMORY LOGIC PAGE FUNCTION =====
 export async function showMemoryPage(rom, gameId, gameTitle) {
+    console.log('🧠 Loading memory page for game:', gameId, gameTitle);
+    
     const appContent = document.getElementById('app-content');
-    if (!appContent) return;
+    if (!appContent) {
+        console.error('❌ app-content element not found');
+        return;
+    }
     
     appContent.innerHTML = `
         <div class="text-center p-8">
@@ -95,12 +147,14 @@ export async function showMemoryPage(rom, gameId, gameTitle) {
         
         if (error) throw error;
         
+        console.log('📊 Found', achievements.length, 'achievements');
         const memoryAchievements = achievements.filter(a => a.memory_logic);
+        console.log('🧠 Found', memoryAchievements.length, 'achievements with memory logic');
         
         renderMemoryPage(gameId, gameTitle, memoryAchievements, achievements.length);
         
     } catch (error) {
-        console.error('Error loading memory logic:', error);
+        console.error('❌ Error loading memory logic:', error);
         appContent.innerHTML = `
             <div class="max-w-4xl mx-auto p-4">
                 <div class="mb-6">
@@ -145,7 +199,7 @@ function renderMemoryPage(gameId, gameTitle, memoryAchievements, totalAchievemen
                     <div class="text-gray-400 text-sm">Total Achievements</div>
                 </div>
                 <div class="bg-gray-800 rounded-lg p-4 border border-green-500">
-                    <div class="text-2xl font-bold text-green-400">${Math.round((memoryAchievements.length / (totalAchievements || 1)) * 100)}%</div>
+                    <div class="text-2xl font-bold text-green-400">${totalAchievements > 0 ? Math.round((memoryAchievements.length / totalAchievements) * 100) : 0}%</div>
                     <div class="text-gray-400 text-sm">With Memory Logic</div>
                 </div>
             </div>
@@ -340,7 +394,7 @@ function renderRALayout(game, achievements, recentActivity, topPlayers, totalPoi
                         <div class="bg-black rounded p-2 font-mono text-xs text-green-400 break-all">
                             ID: ${game.id}
                         </div>
-                        <div class="mt-2 flex gap-2">
+                        <div class="mt-2 flex gap-2 flex-wrap">
                              <a href="#/game/${game.id}/memory" 
                                 class="text-cyan-400 hover:text-cyan-300 text-xs underline flex items-center">
                                 🧠 Memory Logic
@@ -372,7 +426,7 @@ function renderRALayout(game, achievements, recentActivity, topPlayers, totalPoi
                     <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
                         <h3 class="text-gray-500 text-xs font-bold mb-3 uppercase">Playtime Stats</h3>
                         <div class="flex items-center gap-3 mb-2">
-                            <div class="text-cyan-400 text-2xl"></div>
+                            <div class="text-cyan-400 text-2xl">✓</div>
                             <div>
                                 <p class="text-white text-sm font-bold">Unlocked an achievement</p>
                                 <p class="text-gray-500 text-xs">${recentActivity.length} players</p>
@@ -396,5 +450,8 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Export functions
 export default initGameDetail;
+export { showMemoryPage };
 window.initGameDetail = initGameDetail;
+window.showMemoryPage = showMemoryPage;
