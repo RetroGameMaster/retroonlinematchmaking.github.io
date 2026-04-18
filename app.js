@@ -115,12 +115,12 @@ const fallbackContent = {
 // Initialize the app
 async function initializeApp() {
     console.log('🚀 Initializing ROM app...');
-    
+
     try {
         // Initialize auth listener
         const { data: { subscription } } = initAuthListener(async (event, session) => {
             console.log('Auth state changed:', event, session);
-            
+
             // Update rom.currentUser when auth state changes
             if (session?.user) {
                 window.rom.currentUser = session.user;
@@ -129,24 +129,24 @@ async function initializeApp() {
                 window.rom.currentUser = null;
                 console.log('❌ No user logged in');
             }
-            
+
             await updateAuthUI();
         });
-        
+
         // Update UI initially
         await updateAuthUI();
-        
+
         // Handle hash changes
         window.addEventListener('hashchange', handleHashChange);
-        
+
         // Load initial module
         await handleHashChange();
-        
+
         console.log('✅ App initialized successfully');
-        
+
         // Store the subscription for cleanup if needed
         window.rom.authSubscription = subscription;
-        
+
     } catch (error) {
         console.error('❌ App initialization failed:', error);
         showError('App Initialization Error', error.message);
@@ -156,18 +156,18 @@ async function initializeApp() {
 // Handle hash changes
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
-    
+
     console.log('Hash changed to:', hash);
 
-     // Check for game memory page - NEW ROUTE
-    if (hash.startsWith('game/') && hash.includes('/memory')) {
-        const parts = hash.split('/');
-        const gameId = parts[1];
-        console.log('Loading memory page for game:', gameId);
-        await loadMemoryPage(gameId);
-        return;
-    }
-    
+
+
+
+
+
+
+
+
+
     // Check for game detail page - accept both ID and slug
     if (hash.startsWith('game/')) {
         const identifier = hash.split('/')[1];
@@ -175,7 +175,7 @@ async function handleHashChange() {
         await loadGameDetail(identifier);
         return;
     }
-    
+
     // Check for game edit page
     if (hash.startsWith('edit-game/')) {
         const gameId = hash.split('/')[1];
@@ -183,14 +183,14 @@ async function handleHashChange() {
         await loadGameEdit(gameId);
         return;
     }
-    
+
     // Check for profile detail page
     if (hash.startsWith('profile/')) {
         const profileId = hash.split('/')[1];
         await loadProfileDetail(profileId);
         return;
     }
-    
+
     // For all other modules
     await loadModule(hash);
 }
@@ -199,19 +199,19 @@ async function handleHashChange() {
 async function loadModule(moduleName) {
     try {
         console.log(`📦 Loading module: ${moduleName}`);
-        
+
         // Clear current content
         const appContent = document.getElementById('app-content');
         if (appContent) {
             appContent.innerHTML = '';
         }
-        
+
         // Show loading content
         if (appContent) {
             const loadingHTML = fallbackContent[moduleName] || fallbackContent['home'];
             appContent.innerHTML = loadingHTML;
         }
-        
+
         // Try to load module HTML
         try {
             const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
@@ -224,12 +224,12 @@ async function loadModule(moduleName) {
         } catch (fetchError) {
             console.log(`Using fallback for ${moduleName}`);
         }
-        
+
         // Try to load and initialize module JS
         try {
             if (modules[moduleName]) {
                 const module = await modules[moduleName]();
-                
+
                 // Get the rom object with current state
                 const rom = {
                     supabase: window.supabase,
@@ -239,7 +239,7 @@ async function loadModule(moduleName) {
                         window.location.hash = `#/${module}`;
                     }
                 };
-                
+
                 // Initialize module with rom object
                 if (module.default && typeof module.default === 'function') {
                     await module.default(rom);
@@ -254,14 +254,14 @@ async function loadModule(moduleName) {
                 } else if (typeof module === 'function') {
                     await module(rom);
                 }
-                
+
                 currentModule = module;
                 console.log(`✅ Module ${moduleName} initialized`);
             }
         } catch (moduleError) {
             console.log(`Module JS not loaded for ${moduleName}:`, moduleError);
         }
-        
+
     } catch (error) {
         console.error(`❌ Error loading module ${moduleName}:`, error);
         showError('Error loading module', error.message);
@@ -272,10 +272,10 @@ async function loadModule(moduleName) {
 async function loadGameDetail(identifier) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
-    
+
     // Show loading
     appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading game details...</p></div>`;
-    
+
     try {
         // Load game detail HTML
         let response;
@@ -297,12 +297,12 @@ async function loadGameDetail(identifier) {
                 </div>
             `;
         }
-        
+
         if (response && response.ok) {
             const html = await response.text();
             appContent.innerHTML = html;
         }
-        
+
         // Load and initialize game detail module
         let module;
         try {
@@ -316,7 +316,7 @@ async function loadGameDetail(identifier) {
                 return;
             }
         }
-        
+
         const rom = {
             supabase: window.supabase,
             currentUser: window.rom?.currentUser || null,
@@ -325,7 +325,7 @@ async function loadGameDetail(identifier) {
                 window.location.hash = `#/${module}`;
             }
         };
-        
+
         // Call the initGameDetail function directly
         if (module.default && typeof module.default === 'function') {
             await module.default(rom, identifier);
@@ -347,67 +347,6 @@ async function loadGameDetail(identifier) {
     }
 }
 
-// Function for memory logic page
-async function loadMemoryPage(gameId) {
-    const appContent = document.getElementById('app-content');
-    if (!appContent) return;
-    
-    appContent.innerHTML = `
-        <div class="text-center p-8">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
-            <p class="mt-2 text-gray-300">Loading game data...</p>
-        </div>
-    `;
-
-    try {
-        // Load game to get title
-        let query = supabase.from('games').select('*');
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gameId);
-        
-        if (isUuid) query = query.eq('id', gameId);
-        else query = query.eq('slug', gameId);
-        
-        const {  game, error } = await query.single();
-        
-        if (error || !game) {
-            throw new Error('Game not found');
-        }
-        
-        // Import and call memory page function
-        const module = await import('./modules/game-detail/game-detail.js');
-        
-        const rom = {
-            supabase: window.supabase,
-            currentUser: window.rom?.currentUser || null,
-            loadModule: loadModule,
-            navigateTo: function(module) {
-                window.location.hash = `#/${module}`;
-            }
-        };
-        
-        if (module.showMemoryPage) {
-            await module.showMemoryPage(rom, game.id, game.title);
-        } else {
-            throw new Error('Memory page function not found');
-        }
-        
-    } catch (error) {
-        console.error('Error loading memory page:', error);
-        appContent.innerHTML = `
-            <div class="max-w-4xl mx-auto p-4">
-                <div class="mb-6">
-                    <a href="#/games" class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
-                        ← Back to Games
-                    </a>
-                </div>
-                <div class="bg-red-900/30 border border-red-500 rounded-lg p-6">
-                    <h2 class="text-2xl font-bold text-red-400 mb-2">Error</h2>
-                    <p class="text-gray-300">${error.message}</p>
-                </div>
-            </div>
-        `;
-    }
-}
 // Function for game edit pages - NEW FUNCTION
 async function loadGameEdit(gameId) {
   const appContent = document.getElementById('app-content');
@@ -427,7 +366,7 @@ async function loadGameEdit(gameId) {
       .select('*')
       .eq('id', gameId)
       .single();
-    
+
     if (error || !game) throw new Error('Game not found');
 
     // Check permissions
@@ -446,7 +385,7 @@ async function loadGameEdit(gameId) {
 
     // Load admin module and render edit form
     const { default: adminModule } = await import('./modules/admin/admin.js');
-    
+
     // Force-load admin HTML into app-content
     const response = await fetch('./modules/admin/admin.html');
     const html = await response.text();
@@ -490,7 +429,7 @@ function createBasicEditForm() {
 async function initializeGameEdit(gameId) {
     const editContent = document.getElementById('edit-game-content');
     if (!editContent) return;
-    
+
     try {
         // Load game data
         const { data: game, error } = await supabase
@@ -498,7 +437,7 @@ async function initializeGameEdit(gameId) {
             .select('*')
             .eq('id', gameId)
             .single();
-        
+
         if (error || !game) {
             editContent.innerHTML = `
                 <div class="text-center py-8">
@@ -509,7 +448,7 @@ async function initializeGameEdit(gameId) {
             `;
             return;
         }
-        
+
         // Check if user can edit
         const user = window.rom?.currentUser;
         if (!user) {
@@ -526,12 +465,12 @@ async function initializeGameEdit(gameId) {
             `;
             return;
         }
-        
+
         // Check admin status
         const adminEmails = ['retrogamemasterra@gmail.com', 'admin@retroonlinematchmaking.com'];
         const isAdmin = adminEmails.includes(user.email?.toLowerCase());
         const canEdit = isAdmin || game.submitted_email === user.email;
-        
+
         if (!canEdit) {
             editContent.innerHTML = `
                 <div class="text-center py-8">
@@ -542,13 +481,13 @@ async function initializeGameEdit(gameId) {
             `;
             return;
         }
-        
+
         // Show edit form
         editContent.innerHTML = createGameEditForm(game, isAdmin);
-        
+
         // Initialize form
         initializeEditForm(game, isAdmin);
-        
+
     } catch (error) {
         console.error('Error initializing game edit:', error);
         editContent.innerHTML = `
@@ -736,7 +675,7 @@ function createGameEditForm(game, isAdmin) {
 function initializeEditForm(game, isAdmin) {
     const form = document.getElementById('gameEditForm');
     if (!form) return;
-    
+
     // Cover image preview
     const coverInput = document.getElementById('newCoverImage');
     if (coverInput) {
@@ -754,33 +693,33 @@ function initializeEditForm(game, isAdmin) {
             }
         });
     }
-    
+
     // Form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         await saveGameEdit(game);
     });
-    
+
     // Make removeScreenshot available
     window.removeScreenshot = async function(gameId, index) {
         if (!confirm('Remove this screenshot?')) return;
-        
+
         try {
             const { data: gameData } = await supabase
                 .from('games')
                 .select('screenshot_urls')
                 .eq('id', gameId)
                 .single();
-            
+
             if (gameData && gameData.screenshot_urls) {
                 const newScreenshots = [...gameData.screenshot_urls];
                 newScreenshots.splice(index, 1);
-                
+
                 await supabase
                     .from('games')
                     .update({ screenshot_urls: newScreenshots })
                     .eq('id', gameId);
-                
+
                 showNotification('✅ Screenshot removed!');
                 // Remove from UI
                 const screenshotItem = document.querySelector(`.screenshot-item[data-index="${index}"]`);
@@ -800,17 +739,17 @@ function initializeEditForm(game, isAdmin) {
 async function saveGameEdit(game) {
     const saveBtn = document.getElementById('saveBtn');
     const originalText = saveBtn.textContent;
-    
+
     saveBtn.textContent = 'Saving...';
     saveBtn.disabled = true;
-    
+
     try {
         const gameId = document.getElementById('gameId').value;
-        
+
         // Handle cover image upload if new one selected
         const coverInput = document.getElementById('newCoverImage');
         let coverImageUrl = game.cover_image_url;
-        
+
         if (coverInput.files.length > 0) {
             const coverFile = coverInput.files[0];
             const coverResult = await uploadGameImage(coverFile, gameId, 'cover');
@@ -818,11 +757,11 @@ async function saveGameEdit(game) {
                 coverImageUrl = coverResult.url;
             }
         }
-        
+
         // Handle screenshot uploads if admin
         const screenshotsInput = document.getElementById('newScreenshots');
         let screenshotUrls = game.screenshot_urls || [];
-        
+
         if (screenshotsInput && screenshotsInput.files.length > 0) {
             const files = Array.from(screenshotsInput.files);
             for (const file of files) {
@@ -832,7 +771,7 @@ async function saveGameEdit(game) {
                 }
             }
         }
-        
+
         // Prepare updates
         const updates = {
             title: document.getElementById('editTitle').value.trim(),
@@ -850,22 +789,22 @@ async function saveGameEdit(game) {
             screenshot_urls: screenshotUrls,
             updated_at: new Date().toISOString()
         };
-        
+
         // Save to database
         const { error } = await supabase
             .from('games')
             .update(updates)
             .eq('id', gameId);
-        
+
         if (error) throw error;
-        
+
         showNotification('✅ Game updated successfully!', 'success');
-        
+
         // Redirect to game page
         setTimeout(() => {
             window.location.hash = `#/game/${game.slug || gameId}`;
         }, 1500);
-        
+
     } catch (error) {
         console.error('Error saving game edit:', error);
         showNotification('❌ Error: ' + error.message, 'error');
@@ -879,18 +818,18 @@ async function saveGameEdit(game) {
 async function loadProfileDetail(profileId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
-    
+
     // Show loading
     appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div>`;
-    
+
     try {
         // Load profile HTML
         const response = await fetch('./modules/profile/profile.html');
         if (!response.ok) throw new Error('Failed to load profile module');
-        
+
         const html = await response.text();
         appContent.innerHTML = html;
-        
+
         // Load and initialize profile module with specific profile ID
         const module = await import('./modules/profile/profile.js');
         const rom = {
@@ -901,7 +840,7 @@ async function loadProfileDetail(profileId) {
                 window.location.hash = `#/${module}`;
             }
         };
-        
+
         // Pass the profile ID to the module
         if (module.default && typeof module.default === 'function') {
             await module.default(rom, profileId);
@@ -947,30 +886,30 @@ async function uploadGameImage(file, gameId, type = 'cover') {
         if (!file.type.startsWith('image/')) {
             return { success: false, error: 'File must be an image' };
         }
-        
+
         if (file.size > 2 * 1024 * 1024) {
             return { success: false, error: 'Image must be less than 2MB' };
         }
-        
+
         const fileExt = file.name.split('.').pop();
         const fileName = `${type === 'cover' ? 'covers' : 'screenshots'}/${gameId}/${Date.now()}.${fileExt}`;
-        
+
         const { data, error } = await supabase.storage
             .from('game-media')
             .upload(fileName, file, {
                 cacheControl: '3600',
                 upsert: true
             });
-        
+
         if (error) throw error;
-        
+
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
             .from('game-media')
             .getPublicUrl(fileName);
-        
+
         return { success: true, url: publicUrl };
-        
+
     } catch (error) {
         console.error('Error uploading game image:', error);
         return { success: false, error: error.message };
@@ -993,9 +932,9 @@ function showNotification(message, type = 'success') {
         'bg-cyan-600'
     } text-white`;
     notification.textContent = message;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
         notification.style.opacity = '0';
         notification.style.transform = 'translateX(100%)';
