@@ -300,7 +300,7 @@ async function loadGameDetail(identifier) {
             module = await import('./modules/game-detail/game-detail.js');
         } catch (e) {
             try {
-                module = await import('./modules/games/game-detail.js');
+                module = await import('./modules/game-detail/game-detail.js');
             } catch (e2) {
                 console.error('Game detail module not found');
                 showError('Game Detail Error', 'Game detail module not found');
