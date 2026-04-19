@@ -159,15 +159,6 @@ async function handleHashChange() {
 
     console.log('Hash changed to:', hash);
 
-
-
-
-
-
-
-
-
-
     // Check for game detail page - accept both ID and slug
     if (hash.startsWith('game/')) {
         const identifier = hash.split('/')[1];
