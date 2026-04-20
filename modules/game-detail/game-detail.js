@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - FULL WORKING VERSION
+// modules/game-detail/game-detail.js - WITH ACHIEVEMENTS (REAL CALCULATIONS)
 let isInitialized = false;
 
 // ===== MAIN INIT FUNCTION =====
@@ -55,14 +55,11 @@ export default async function initGameDetail(rom, identifier) {
         loading.classList.add('hidden');
         content.classList.remove('hidden');
 
-        // Render Game Info + Screenshots + Achievements + Memory Containers
+        // Render Game Info + Screenshots
         renderGame(game, content);
 
         // Load Achievements with Real Calculations
         loadAchievements(rom, game.id);
-
-        // Load Memory Logic Codes
-        loadMemoryLogic(rom, game.id);
 
     } catch (err) {
         console.error('❌ Exception:', err);
@@ -71,7 +68,7 @@ export default async function initGameDetail(rom, identifier) {
     }
 }
 
-// ===== RENDER GAME FUNCTION (Info + Screenshots + Achievements + Memory) =====
+// ===== RENDER GAME FUNCTION (Info + Screenshots) =====
 function renderGame(game, container) {
     container.innerHTML = `
         <div class="max-w-7xl mx-auto p-4">
@@ -119,15 +116,6 @@ function renderGame(game, container) {
                             <p class="mt-2">Loading achievements...</p>
                         </div>
                     </div>
-
-                    <!-- 🧠 MEMORY LOGIC SECTION (Container for JS injection) -->
-                    <div id="memory-container" class="mb-8 border-t border-gray-700 pt-8">
-                        <h2 class="text-xl font-bold text-white mb-3">🧠 Memory Logic</h2>
-                        <div class="text-center py-4 text-gray-400">
-                            <div class="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-cyan-500"></div>
-                            <p class="mt-2 text-sm">Loading memory codes...</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -141,7 +129,7 @@ async function loadAchievements(rom, gameId) {
 
     try {
         // 1. Fetch all achievements for this game
-        const {  achievements, error: aError } = await rom.supabase
+        const { data: achievements, error: aError } = await rom.supabase
             .from('achievements')
             .select('*')
             .eq('game_id', gameId)
@@ -153,9 +141,10 @@ async function loadAchievements(rom, gameId) {
         }
 
         // 2. Fetch user_achievements to calculate real rates
+        // We get all unlocks for this game's achievements
         const achievementIds = achievements.map(a => a.id);
         
-        const {  unlocks } = await rom.supabase
+        const { data: unlocks } = await rom.supabase
             .from('user_achievements')
             .select('user_id, achievement_id')
             .in('achievement_id', achievementIds);
@@ -209,7 +198,8 @@ async function loadAchievements(rom, gameId) {
                                 </div>
                             </div>
                         </div>
-                    </div>`}).join('')}
+                    </div>
+                `}).join('')}
             </div>
         `;
 
@@ -218,88 +208,6 @@ async function loadAchievements(rom, gameId) {
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load achievements.</p>`;
     }
 }
-
-// ===== LOAD MEMORY LOGIC =====
-async function loadMemoryLogic(rom, gameId) {
-    const container = document.getElementById('memory-container');
-    if (!container) return;
-
-    try {
-        // Fetch achievements that have memory_logic defined
-        const {  achievements, error } = await rom.supabase
-            .from('achievements')
-            .select('id, title, description, points, badge_url, memory_logic, is_multiplayer')
-            .eq('game_id', gameId)
-            .not('memory_logic', 'is', null)
-            .order('points', { ascending: false });
-
-        if (error) throw error;
-
-        if (!achievements || achievements.length === 0) {
-            container.innerHTML = `<p class="text-gray-500 text-sm">No memory logic codes defined for this game's achievements.</p>`;
-            return;
-        }
-
-        // Render memory codes list
-        container.innerHTML = `
-            <p class="text-gray-400 text-sm mb-4">${achievements.length} achievement${achievements.length > 1 ? 's' : ''} with memory logic</p>
-            <div class="space-y-3">
-                ${achievements.map(a => `
-                    <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                        <div class="flex items-start gap-3">
-                            <img src="${a.badge_url || 'https://via.placeholder.com/32/1f2937/6b7280?text=🏆'}" 
-                                 alt="${escapeHtml(a.title)}" 
-                                 class="w-8 h-8 rounded object-cover flex-shrink-0">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-start mb-1">
-                                    <h3 class="text-sm font-bold text-cyan-300 truncate">${escapeHtml(a.title)}</h3>
-                                    <span class="text-yellow-400 text-xs font-bold bg-yellow-900/30 px-1.5 py-0.5 rounded ml-2">${a.points} pts</span>
-                                </div>
-                                ${a.description ? `<p class="text-gray-400 text-xs mb-2">${escapeHtml(a.description)}</p>` : ''}
-                                
-                                <div class="mt-2">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-bold text-gray-400 uppercase">Memory Code:</span>
-                                        <button onclick="copyMemoryCode('${escapeHtml(a.memory_logic)}')" 
-                                                class="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-2 py-0.5 rounded transition">
-                                            📋 Copy
-                                        </button>
-                                    </div>
-                                    <code class="block bg-black/50 p-2 rounded text-green-400 text-xs font-mono overflow-x-auto border border-gray-700">
-                                        ${escapeHtml(a.memory_logic)}
-                                    </code>
-                                </div>
-                                
-                                ${a.is_multiplayer ? `<span class="inline-block mt-2 bg-purple-900/50 text-purple-300 px-2 py-0.5 rounded text-xs">🌐 Multiplayer</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-
-    } catch (err) {
-        console.error('Error loading memory logic:', err);
-        container.innerHTML = `<p class="text-red-400 text-sm">Failed to load memory codes.</p>`;
-    }
-}
-
-// ===== COPY MEMORY CODE TO CLIPBOARD =====
-window.copyMemoryCode = function(code) {
-    navigator.clipboard.writeText(code).then(() => {
-        // Show brief success feedback
-        const btn = event.target;
-        const originalText = btn.textContent;
-        btn.textContent = '✅ Copied!';
-        btn.classList.add('bg-green-600');
-        setTimeout(() => {
-            btn.textContent = originalText;
-            btn.classList.remove('bg-green-600');
-        }, 1500);
-    }).catch(err => {
-        console.error('Failed to copy:', err);
-    });
-};
 
 // ===== HELPER: Escape HTML =====
 function escapeHtml(text) {
