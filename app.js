@@ -259,82 +259,56 @@ async function loadModule(moduleName) {
     }
 }
 
-// Function for game detail pages - FIXED VERSION
 async function loadGameDetail(identifier) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
 
-    // Show loading
-    appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading game details...</p></div>`;
+    // Inject base HTML structure first
+    appContent.innerHTML = `
+        <div id="game-loading" class="text-center py-16">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+            <p class="text-gray-400 mt-4">Loading game details...</p>
+        </div>
+        <div id="game-content" class="hidden"></div>
+        <div id="game-error" class="hidden text-center py-16">
+            <div class="text-5xl mb-4">❌</div>
+            <h3 class="text-2xl font-bold text-red-400 mb-2">Game Not Found</h3>
+            <p class="text-gray-300 mb-6">The game you're looking for doesn't exist or has been removed.</p>
+            <button onclick="window.location.hash = '#/games'" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">Browse Games</button>
+        </div>
+    `;
 
     try {
-        // Load game detail HTML
-        let response;
-        try {
-            response = await fetch('./modules/game-detail/game-detail.html');
-            if (!response.ok) {
-                response = await fetch('./modules/games/game-detail.html');
-            }
-        } catch (e) {
-            // If HTML doesn't exist, show basic layout
-            appContent.innerHTML = `
-                <div class="max-w-7xl mx-auto p-4">
-                    <div class="mb-6">
-                        <a href="#/games" class="inline-flex items-center text-cyan-400 hover:text-cyan-300">
-                            ← Back to Games
-                        </a>
-                    </div>
-                    <div id="game-detail-content"></div>
-                </div>
-            `;
-        }
-
-        if (response && response.ok) {
-            const html = await response.text();
-            appContent.innerHTML = html;
-        }
-
-        // Load and initialize game detail module
-        let module;
-        try {
-            module = await import('./modules/game-detail/game-detail.js');
-        } catch (e) {
-            try {
-                module = await import('./modules/game-detail/game-detail.js');
-            } catch (e2) {
-                console.error('Game detail module not found');
-                showError('Game Detail Error', 'Game detail module not found');
-                return;
-            }
-        }
-
+        // Load module directly
+        const module = await import('./modules/game-detail/game-detail.js');
+        
         const rom = {
             supabase: window.supabase,
             currentUser: window.rom?.currentUser || null,
             loadModule: loadModule,
-            navigateTo: function(module) {
-                window.location.hash = `#/${module}`;
-            }
+            navigateTo: (m) => window.location.hash = `#/${m}`
         };
 
-        // Call the initGameDetail function directly
-        if (module.default && typeof module.default === 'function') {
+        // Call default export
+        if (typeof module.default === 'function') {
             await module.default(rom, identifier);
-        } else if (module.initGameDetail) {
-            await module.initGameDetail(rom, identifier);
-        } else if (module.default && module.default.initGameDetail) {
-            await module.default.initGameDetail(rom, identifier);
-        } else if (typeof module === 'function') {
-            await module(rom, identifier);
         } else {
-            // If none of the above, try calling initGameDetail directly from window
-            if (window.initGameDetail) {
-                await window.initGameDetail(rom, identifier);
-            }
+            throw new Error('Module default export is not a function');
         }
     } catch (error) {
-        console.error('Error loading game detail:', error);
-        showError('Error loading game', error.message);
+        console.error('Failed to load game detail module:', error);
+        const loadEl = document.getElementById('game-loading');
+        const errEl = document.getElementById('game-error');
+        if (loadEl) loadEl.classList.add('hidden');
+        if (errEl) {
+            errEl.classList.remove('hidden');
+            errEl.innerHTML = `
+                <div class="text-5xl mb-4">⚠️</div>
+                <h3 class="text-2xl font-bold text-red-400 mb-2">Module Load Error</h3>
+                <p class="text-gray-300 mb-4">${error.message}</p>
+                <button onclick="window.location.hash='#/games'" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">Browse Games</button>
+            `;
+        }
     }
 }
 
