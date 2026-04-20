@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - WITH MEMORY LOGIC SECTION
+// modules/game-detail/game-detail.js - FULL WORKING VERSION
 let isInitialized = false;
 
 // ===== MAIN INIT FUNCTION =====
@@ -55,7 +55,7 @@ export default async function initGameDetail(rom, identifier) {
         loading.classList.add('hidden');
         content.classList.remove('hidden');
 
-        // Render Game Info + Screenshots + Memory UI
+        // Render Game Info + Screenshots + Achievements + Memory Containers
         renderGame(game, content);
 
         // Load Achievements with Real Calculations
@@ -209,8 +209,7 @@ async function loadAchievements(rom, gameId) {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                `}).join('')}
+                    </div>`}).join('')}
             </div>
         `;
 
