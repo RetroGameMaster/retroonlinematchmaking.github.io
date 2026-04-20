@@ -2160,9 +2160,35 @@ window.showAddAchievementModal = async function(editId = null) {
                                     <input type="number" id="achieve-points" value="${achievement?.points || 5}" min="1" max="100" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">Badge URL</label>
-                                    <input type="text" id="achieve-badge" value="${escapeString(achievement?.badge_url || '')}" placeholder="https://..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                                </div>
+                                    <div>
+    <label class="block text-sm font-medium text-gray-300 mb-1">Badge Image</label>
+    
+    <!-- Current badge preview -->
+    ${achievement?.badge_url ? `
+        <div class="mb-2">
+            <img src="${escapeString(achievement.badge_url)}" 
+                 alt="Current badge" 
+                 class="w-16 h-16 object-cover rounded border border-gray-600">
+            <p class="text-xs text-gray-400 mt-1">Current badge</p>
+        </div>
+    ` : ''}
+    
+    <!-- Upload new badge -->
+    <div class="mb-2">
+        <input type="file" id="achieve-badge-file" accept="image/*" 
+              class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cyan-600 file:text-white hover:file:bg-cyan-700">
+        <p class="text-xs text-gray-400 mt-1">Upload new badge (max 2MB)</p>
+    </div>
+    
+    <!-- Preview of new upload -->
+    <div id="badge-preview" class="hidden">
+        <img id="badge-preview-img" class="w-16 h-16 object-cover rounded border border-cyan-500">
+        <p class="text-xs text-cyan-400 mt-1">Preview</p>
+    </div>
+    
+    <!-- Hidden input to store the final URL -->
+    <input type="hidden" id="achieve-badge" value="${escapeString(achievement?.badge_url || '')}">
+</div>
                             </div>
                             
                             <div>
@@ -2184,7 +2210,33 @@ window.showAddAchievementModal = async function(editId = null) {
                 </div>
             </div>
         `;
+// Add badge preview functionality
+const badgeFileInput = document.getElementById('achieve-badge-file');
+const badgePreview = document.getElementById('badge-preview');
+const badgePreviewImg = document.getElementById('badge-preview-img');
+const badgeUrlInput = document.getElementById('achieve-badge');
 
+if (badgeFileInput) {
+    badgeFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            // Validate file size (2MB max)
+            if (file.size > 2 * 1024 * 1024) {
+                showNotification('❌ Badge image must be under 2MB', 'error');
+                badgeFileInput.value = '';
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                badgePreviewImg.src = e.target.result;
+                badgePreview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
         document.getElementById('achievement-form').addEventListener('submit', async (e) => {
@@ -2204,12 +2256,50 @@ window.closeAchievementModal = function() {
 
 window.saveAchievement = async function() {
     const id = document.getElementById('achieve-id').value;
+    
+    // Start with existing badge URL (if editing)
+    let badgeUrl = document.getElementById('achieve-badge').value;
+    
+    // Handle new badge upload if file selected
+    const badgeFileInput = document.getElementById('achieve-badge-file');
+    if (badgeFileInput && badgeFileInput.files.length > 0) {
+        const file = badgeFileInput.files[0];
+        if (file && file.type.startsWith('image/')) {
+            try {
+                // Upload to Supabase Storage
+                const fileExt = file.name.split('.').pop();
+                const fileName = `achievement-badges/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+                
+                const { data, error: uploadError } = await supabase.storage
+                    .from('game-media')  // Using existing bucket
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+                
+                if (uploadError) throw uploadError;
+                
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from('game-media')
+                    .getPublicUrl(fileName);
+                
+                badgeUrl = publicUrl;
+                
+            } catch (uploadErr) {
+                console.error('Badge upload error:', uploadErr);
+                showNotification('⚠️ Badge upload failed, using existing URL', 'info');
+                // Continue with existing badgeUrl
+            }
+        }
+    }
+    
     const payload = {
         game_id: document.getElementById('achieve-game').value,
         title: document.getElementById('achieve-title').value.trim(),
         description: document.getElementById('achieve-desc').value.trim() || null,
         points: parseInt(document.getElementById('achieve-points').value) || 5,
-        badge_url: document.getElementById('achieve-badge').value.trim() || null,
+        badge_url: badgeUrl,  // Use uploaded URL or existing one
         memory_logic: document.getElementById('achieve-logic').value.trim() || null,
         is_multiplayer: document.getElementById('achieve-mp').checked,
         updated_at: new Date().toISOString()
