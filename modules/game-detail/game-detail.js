@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - WITH COMMENTS (MINIMAL ADDITION)
+// modules/game-detail/game-detail.js - COMPLETE WORKING VERSION
 let isInitialized = false;
 
 // ===== MAIN INIT FUNCTION =====
@@ -8,7 +8,7 @@ export default async function initGameDetail(rom, identifier) {
 
     console.log('🎮 Loading game for slug:', identifier);
 
-    if (!rom.supabase) {
+    if (!rom?.supabase) {
         console.error('❌ No Supabase client');
         return;
     }
@@ -55,7 +55,7 @@ export default async function initGameDetail(rom, identifier) {
         loading.classList.add('hidden');
         content.classList.remove('hidden');
 
-        // Render Game Info + Screenshots + Comments UI
+        // Render Game Info + Screenshots + Achievements + Comments UI
         renderGame(game, content, rom);
 
         // Load Achievements with Real Calculations
@@ -74,7 +74,7 @@ export default async function initGameDetail(rom, identifier) {
     }
 }
 
-// ===== RENDER GAME FUNCTION (Info + Screenshots + Comments UI) =====
+// ===== RENDER GAME FUNCTION (Info + Screenshots + Achievements + Comments) =====
 function renderGame(game, container, rom) {
     // Safe user check for comments
     const isLoggedIn = rom?.currentUser;
@@ -159,7 +159,7 @@ function renderGame(game, container, rom) {
     `;
 }
 
-// ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS (UNCHANGED) =====
+// ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS =====
 async function loadAchievements(rom, gameId) {
     const container = document.getElementById('achievements-container');
     if (!container) return;
@@ -177,7 +177,7 @@ async function loadAchievements(rom, gameId) {
             return;
         }
 
-        // 2. Fetch user_achievements to calculate real rates
+        // 2. Fetch user_achievements to calculate REAL unlock rates
         const achievementIds = achievements.map(a => a.id);
         
         const {  unlocks } = await rom.supabase
@@ -185,7 +185,7 @@ async function loadAchievements(rom, gameId) {
             .select('user_id, achievement_id')
             .in('achievement_id', achievementIds);
 
-        // 3. Calculate Stats
+        // 3. Calculate REAL Stats
         const totalPlayers = new Set(unlocks?.map(u => u.user_id)).size;
         
         // Count unlocks per achievement
@@ -196,7 +196,7 @@ async function loadAchievements(rom, gameId) {
             });
         }
 
-        // 4. Render Grid (EXACT SAME AS YOUR WORKING CODE)
+        // 4. Render Grid with REAL percentages
         container.innerHTML = `
             <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements (${achievements.length})</h2>
             <p class="text-gray-400 text-sm mb-4">${totalPlayers > 0 ? totalPlayers + ' players have unlocked achievements' : 'Be the first to unlock!'}</p>
@@ -223,9 +223,10 @@ async function loadAchievements(rom, gameId) {
                                 </div>
                                 <p class="text-gray-400 text-xs mt-1 mb-2 line-clamp-2">${escapeHtml(a.description || '')}</p>
                                 
-                                <!-- Progress Bar -->
+                                <!-- Progress Bar with REAL percentage -->
                                 <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1 relative overflow-hidden">
-                                    <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500" style="width: ${rate}%"></div>
+                                    <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500" 
+                                         style="width: ${rate}%"></div>
                                 </div>
                                 <div class="flex justify-between items-center mt-1">
                                     <span class="text-[10px] text-gray-500">${count} unlocks</span>
