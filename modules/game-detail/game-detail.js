@@ -156,22 +156,50 @@ function renderGame(game, container, rom) {
 }
 
 // ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS =====
+// ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS (DEBUG VERSION) =====
 async function loadAchievements(rom, gameId) {
     const container = document.getElementById('achievements-container');
-    if (!container) return;
+    if (!container) {
+        console.error('❌ DOM Error: #achievements-container not found');
+        return;
+    }
+
+    console.log('🔍 loadAchievements called with gameId:', gameId);
+    console.log('🔗 Supabase client attached:', !!rom.supabase);
 
     try {
+        // 1. Fetch achievements
         const {  achievements, error: aError } = await rom.supabase
             .from('achievements')
             .select('*')
             .eq('game_id', gameId)
             .order('points', { ascending: false });
 
-        if (aError || !achievements || achievements.length === 0) {
+        console.log('📊 Supabase Query Result:', {
+            count: achievements?.length || 0,
+            error: aError?.message || 'none',
+            firstRow: achievements?.[0] || 'empty'
+        });
+
+        if (aError) {
+            console.error('❌ DB Query Failed:', aError);
+            container.innerHTML = `<p class="text-red-400 text-sm">DB Error: ${aError.message}</p>`;
+            return;
+        }
+
+        if (!achievements || achievements.length === 0) {
+            console.log('ℹ️ No achievements found in DB for this game.');
+            // Quick sanity check: are there ANY achievements in the table?
+            const {  sample } = await rom.supabase.from('achievements').select('id, game_id, title').limit(3);
+            console.log('📋 Sample achievements in your DB:', sample);
+            
             container.innerHTML = `<p class="text-gray-500 text-sm">No achievements available for this game.</p>`;
             return;
         }
 
+        console.log('✅ Successfully loaded', achievements.length, 'achievements. Calculating unlock rates...');
+
+        // 2. Fetch user_achievements to calculate real rates
         const achievementIds = achievements.map(a => a.id);
         const {  unlocks } = await rom.supabase
             .from('user_achievements')
@@ -186,6 +214,9 @@ async function loadAchievements(rom, gameId) {
             });
         }
 
+        console.log('📈 Unlock Stats:', { totalPlayers, unlockCounts });
+
+        // 3. Render Grid (EXACT SAME RENDER LOGIC AS BEFORE)
         container.innerHTML = `
             <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements (${achievements.length})</h2>
             <p class="text-gray-400 text-sm mb-4">${totalPlayers > 0 ? totalPlayers + ' players have unlocked achievements' : 'Be the first to unlock!'}</p>
@@ -222,7 +253,7 @@ async function loadAchievements(rom, gameId) {
         `;
 
     } catch (err) {
-        console.error('❌ Error loading achievements:', err);
+        console.error('❌ Uncaught Error in loadAchievements:', err);
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load achievements.</p>`;
     }
 }
