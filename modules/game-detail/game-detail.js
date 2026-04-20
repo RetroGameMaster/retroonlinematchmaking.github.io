@@ -155,12 +155,14 @@ function renderGame(game, container, rom) {
     `;
 }
 
-// ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS =====
 // ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS (DEBUG VERSION) =====
 async function loadAchievements(rom, gameId) {
     const container = document.getElementById('achievements-container');
+    
+    // Debug: Check if container exists
     if (!container) {
-        console.error('❌ DOM Error: #achievements-container not found');
+        console.error('❌ DOM Error: #achievements-container not found in renderGame output');
+        console.log('🔍 Available IDs in content:', Array.from(document.querySelectorAll('[id]')).map(el => el.id));
         return;
     }
 
@@ -168,17 +170,23 @@ async function loadAchievements(rom, gameId) {
     console.log('🔗 Supabase client attached:', !!rom.supabase);
 
     try {
-        // 1. Fetch achievements
+        // 1. Fetch achievements for this game
+        console.log('📡 Querying achievements table for game_id:', gameId);
+        
         const {  achievements, error: aError } = await rom.supabase
             .from('achievements')
             .select('*')
             .eq('game_id', gameId)
             .order('points', { ascending: false });
 
-        console.log('📊 Supabase Query Result:', {
+        console.log('📊 Achievements Query Result:', {
             count: achievements?.length || 0,
             error: aError?.message || 'none',
-            firstRow: achievements?.[0] || 'empty'
+            firstAchievement: achievements?.[0] ? {
+                id: achievements[0].id,
+                title: achievements[0].title,
+                game_id: achievements[0].game_id
+            } : 'empty'
         });
 
         if (aError) {
@@ -189,8 +197,12 @@ async function loadAchievements(rom, gameId) {
 
         if (!achievements || achievements.length === 0) {
             console.log('ℹ️ No achievements found in DB for this game.');
+            
             // Quick sanity check: are there ANY achievements in the table?
-            const {  sample } = await rom.supabase.from('achievements').select('id, game_id, title').limit(3);
+            const {  sample } = await rom.supabase
+                .from('achievements')
+                .select('id, game_id, title')
+                .limit(5);
             console.log('📋 Sample achievements in your DB:', sample);
             
             container.innerHTML = `<p class="text-gray-500 text-sm">No achievements available for this game.</p>`;
@@ -201,11 +213,18 @@ async function loadAchievements(rom, gameId) {
 
         // 2. Fetch user_achievements to calculate real rates
         const achievementIds = achievements.map(a => a.id);
-        const {  unlocks } = await rom.supabase
+        console.log('🔍 Fetching unlocks for achievement IDs:', achievementIds);
+        
+        const {  unlocks, error: uError } = await rom.supabase
             .from('user_achievements')
             .select('user_id, achievement_id')
             .in('achievement_id', achievementIds);
 
+        if (uError) {
+            console.warn('⚠️ Could not fetch user_achievements (unlock rates will show 0%):', uError.message);
+        }
+
+        // 3. Calculate Stats
         const totalPlayers = new Set(unlocks?.map(u => u.user_id)).size;
         const unlockCounts = {};
         if (unlocks) {
@@ -216,7 +235,7 @@ async function loadAchievements(rom, gameId) {
 
         console.log('📈 Unlock Stats:', { totalPlayers, unlockCounts });
 
-        // 3. Render Grid (EXACT SAME RENDER LOGIC AS BEFORE)
+        // 4. Render Grid (EXACT SAME RENDER LOGIC AS BEFORE)
         container.innerHTML = `
             <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements (${achievements.length})</h2>
             <p class="text-gray-400 text-sm mb-4">${totalPlayers > 0 ? totalPlayers + ' players have unlocked achievements' : 'Be the first to unlock!'}</p>
@@ -257,7 +276,6 @@ async function loadAchievements(rom, gameId) {
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load achievements.</p>`;
     }
 }
-
 // ===== LOAD COMMENTS =====
 async function loadComments(rom, gameId) {
     const container = document.getElementById('comments-list');
