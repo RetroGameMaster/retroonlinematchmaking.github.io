@@ -1,11 +1,11 @@
-// modules/game-detail/game-detail.js - DEBUG VERSION
+// modules/game-detail/game-detail.js - BULLETPROOF VERSION
 let isInitialized = false;
 
 export default async function initGameDetail(rom, identifier) {
     if (isInitialized) return;
     isInitialized = true;
 
-    console.log('🎮 Loading game detail for:', identifier);
+    console.log('🎮 Loading game for:', identifier);
 
     if (!rom.supabase) {
         console.error('❌ No Supabase client');
@@ -22,51 +22,47 @@ export default async function initGameDetail(rom, identifier) {
     }
 
     try {
-        // DEBUG: Log what we're querying
-        console.log('🔍 Query type check - identifier:', identifier);
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
-        console.log('Is UUID?', isUuid);
+        // DEBUG: Log all games to see what slugs actually exist
+        const { data: allGames, error: listError } = await rom.supabase
+            .from('games')
+            .select('id, title, slug')
+            .limit(20);
+        
+        console.log('📋 Available games in DB:', allGames?.map(g => ({slug: g.slug, title: g.title})));
 
-        // Try query by slug first (since your URL uses slugs)
-        console.log('🔍 Attempting slug query...');
-        const slugResult = await rom.supabase
+        // Try query by slug first
+        const {  game: slugGame, error: slugError } = await rom.supabase
             .from('games')
             .select('*')
             .eq('slug', identifier)
             .single();
         
-        console.log('📊 Slug query result:', {
-            data: slugResult.data ? { id: slugResult.data.id, title: slugResult.data.title, slug: slugResult.data.slug } : null,
-            error: slugResult.error
+        console.log('🔍 Slug query result:', { 
+            identifier, 
+            found: !!slugGame, 
+            error: slugError?.message 
         });
 
-        let game = slugResult.data;
+        let game = slugGame;
         
-        // If slug didn't work and identifier looks like UUID, try ID
-        if (!game && isUuid) {
-            console.log('🔄 Slug failed, trying ID query...');
-            const idResult = await rom.supabase
+        // If slug didn't work, try query by ID
+        if (!game) {
+            const {  game: idGame, error: idError } = await rom.supabase
                 .from('games')
                 .select('*')
                 .eq('id', identifier)
                 .single();
             
-            console.log('📊 ID query result:', {
-                data: idResult.data ? { id: idResult.data.id, title: idResult.data.title } : null,
-                error: idResult.error
+            console.log('🔍 ID query result:', { 
+                identifier, 
+                found: !!idGame, 
+                error: idError?.message 
             });
-            game = idResult.data;
+            game = idGame;
         }
 
         if (!game) {
-            console.error('❌ No game found after all queries');
-            console.error('Identifier:', identifier);
-            console.error('Is UUID:', isUuid);
-            
-            // DEBUG: Show all games to help diagnose
-            const allGames = await rom.supabase.from('games').select('id, title, slug');
-            console.log('📋 All games in DB:', allGames.data?.map(g => ({id: g.id, title: g.title, slug: g.slug})));
-            
+            console.error('❌ Game not found. Available slugs:', allGames?.map(g => g.slug));
             loading.classList.add('hidden');
             error.classList.remove('hidden');
             return;
@@ -97,13 +93,6 @@ export default async function initGameDetail(rom, identifier) {
                         </div>
                         
                         <p class="text-gray-300 mb-6 whitespace-pre-line">${escapeHtml(game.description || 'No description available.')}</p>
-                        
-                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                            <h3 class="text-lg font-bold text-white mb-2">📊 Game Info</h3>
-                            <p class="text-gray-400 text-sm">Players: ${game.players_min || 1}-${game.players_max || '?'}</p>
-                            <p class="text-gray-400 text-sm">Type: ${escapeHtml(game.multiplayer_type || 'Online')}</p>
-                            <p class="text-gray-400 text-sm">Method: ${escapeHtml(game.connection_method || 'N/A')}</p>
-                        </div>
                     </div>
                 </div>
             </div>
