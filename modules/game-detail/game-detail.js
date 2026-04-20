@@ -57,7 +57,58 @@ export default async function initGameDetail(rom, identifier) {
 
         // Render Game Info + Screenshots
         renderGame(game, content);
+        // Render Game Info
+        renderGame(game, content, rom);
 
+        // ===== INITIALIZE COMMENTS =====
+        // Wait for DOM to update
+        setTimeout(() => {
+            const commentsList = document.getElementById('comments-list');
+            if (commentsList) {
+                loadComments(rom, game.id, 'comments-list');
+            }
+
+            // Comment Form Submit Handler
+            const commentForm = document.getElementById('comment-form');
+            if (commentForm) {
+                commentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('comment-input');
+                    const btn = document.getElementById('submit-comment-btn');
+                    const content = input.value.trim();
+
+                    if (!content) return;
+
+                    // UI Loading State
+                    btn.disabled = true;
+                    btn.textContent = 'Posting...';
+
+                    try {
+                        const { error } = await rom.supabase.from('game_comments').insert({
+                            game_id: game.id,
+                            user_id: rom.currentUser.id,
+                            user_email: rom.currentUser.email,
+                            username: rom.currentUser.email.split('@')[0],
+                            comment: content
+                        });
+
+                        if (error) throw error;
+
+                        // Success
+                        input.value = '';
+                        loadComments(rom, game.id, 'comments-list'); // Reload comments
+                        showNotification('✅ Comment posted!', 'success');
+
+                    } catch (err) {
+                        console.error('Error posting comment:', err);
+                        showNotification('❌ Failed to post comment.', 'error');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Post Comment';
+                    }
+                });
+            }
+        }, 100);
         // Load Achievements with Real Calculations
         loadAchievements(rom, game.id);
 
@@ -69,7 +120,7 @@ export default async function initGameDetail(rom, identifier) {
 }
 
 // ===== RENDER GAME FUNCTION (Info + Screenshots) =====
-function renderGame(game, container) {
+function renderGame(game, container, rom) {
     container.innerHTML = `
         <div class="max-w-7xl mx-auto p-4">
             <a href="#/games" class="text-cyan-400 hover:underline mb-4 inline-block">← Back to Games</a>
@@ -117,6 +168,33 @@ function renderGame(game, container) {
                         </div>
                     </div>
                 </div>
+                            <!-- 💬 COMMENTS SECTION -->
+            <div class="mt-12 border-t border-gray-700 pt-8">
+                <h2 class="text-2xl font-bold text-white mb-6">💬 Comments</h2>
+                
+                <!-- Login prompt (shown if not logged in) -->
+                <div id="login-to-comment" class="${rom.currentUser ? 'hidden' : ''} mb-6">
+                    <p class="text-gray-400">Please <a href="#/auth" class="text-cyan-400 hover:underline">log in</a> to join the discussion.</p>
+                </div>
+                
+                <!-- Comment Form (shown if logged in) -->
+                <form id="comment-form" class="${rom.currentUser ? '' : 'hidden'} mb-8">
+                    <textarea id="comment-input" rows="3" 
+                              class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none transition" 
+                              placeholder="Share your thoughts about this game..."></textarea>
+                    <div class="flex justify-end mt-3">
+                        <button type="submit" id="submit-comment-btn" 
+                                class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                            Post Comment
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Comments List -->
+                <div id="comments-list" class="space-y-4">
+                    <div class="text-center py-4 text-gray-400">Loading comments...</div>
+                </div>
+            </div>
             </div>
         </div>
     `;
@@ -215,4 +293,58 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+// ===== LOAD COMMENTS =====
+async function loadComments(rom, gameId, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    try {
+        const { data, error } = await rom.supabase
+            .from('game_comments')
+            .select('*')
+            .eq('game_id', gameId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Render comments
+        if (data && data.length > 0) {
+            container.innerHTML = data.map(comment => createCommentHTML(comment)).join('');
+        } else {
+            container.innerHTML = `<p class="text-gray-500 text-sm">No comments yet. Be the first!</p>`;
+        }
+
+    } catch (err) {
+        console.error('Error loading comments:', err);
+        container.innerHTML = `<p class="text-red-400 text-sm">Failed to load comments.</p>`;
+    }
+}
+
+// ===== RENDER SINGLE COMMENT =====
+function createCommentHTML(comment) {
+    const date = new Date(comment.created_at).toLocaleDateString('en-US', { 
+        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
+    
+    // Get username from email or username field
+    const username = comment.username || comment.user_email?.split('@')[0] || 'Anonymous';
+    const initials = username.substring(0, 2).toUpperCase();
+
+    return `
+        <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
+                    ${initials}
+                </div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-cyan-300 text-sm">${escapeHtml(username)}</span>
+                        <span class="text-xs text-gray-500">${date}</span>
+                    </div>
+                    <p class="text-gray-300 text-sm whitespace-pre-line">${escapeHtml(comment.comment)}</p>
+                </div>
+            </div>
+        </div>
+    `;
 }
