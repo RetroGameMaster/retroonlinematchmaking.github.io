@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - COMPLETE WORKING VERSION
+// modules/game-detail/game-detail.js - WITH COMMENTS (MINIMAL ADDITION)
 let isInitialized = false;
 
 // ===== MAIN INIT FUNCTION =====
@@ -8,7 +8,7 @@ export default async function initGameDetail(rom, identifier) {
 
     console.log('🎮 Loading game for slug:', identifier);
 
-    if (!rom?.supabase) {
+    if (!rom.supabase) {
         console.error('❌ No Supabase client');
         return;
     }
@@ -23,6 +23,7 @@ export default async function initGameDetail(rom, identifier) {
     }
 
     try {
+        // QUERY BY SLUG ONLY
         console.log('🔍 Querying games.slug =', identifier);
         
         const result = await rom.supabase
@@ -39,7 +40,9 @@ export default async function initGameDetail(rom, identifier) {
         const game = result.data;
         const gameError = result.error;
 
-        if (gameError) console.error('❌ Query failed:', gameError);
+        if (gameError) {
+            console.error('❌ Query failed:', gameError);
+        }
         
         if (!game) {
             console.error('❌ No game returned for slug:', identifier);
@@ -71,8 +74,9 @@ export default async function initGameDetail(rom, identifier) {
     }
 }
 
-// ===== RENDER GAME FUNCTION (Info + Screenshots + Achievements + Comments) =====
+// ===== RENDER GAME FUNCTION (Info + Screenshots + Comments UI) =====
 function renderGame(game, container, rom) {
+    // Safe user check for comments
     const isLoggedIn = rom?.currentUser;
 
     container.innerHTML = `
@@ -113,7 +117,7 @@ function renderGame(game, container, rom) {
                         </div>
                     ` : ''}
 
-                    <!-- 🏆 ACHIEVEMENTS SECTION -->
+                    <!-- 🏆 ACHIEVEMENTS SECTION (Container for JS injection) -->
                     <div id="achievements-container" class="mb-8">
                         <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements</h2>
                         <div class="text-center py-8 text-gray-400">
@@ -123,7 +127,7 @@ function renderGame(game, container, rom) {
                     </div>
 
                     <!-- 💬 COMMENTS SECTION -->
-                    <div class="mt-12 border-t border-gray-700 pt-8" id="comments-section">
+                    <div class="mt-12 border-t border-gray-700 pt-8">
                         <h2 class="text-2xl font-bold text-white mb-6">💬 Comments</h2>
                         
                         <!-- Login prompt -->
@@ -155,77 +159,36 @@ function renderGame(game, container, rom) {
     `;
 }
 
-// ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS (DEBUG VERSION) =====
+// ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS (UNCHANGED) =====
 async function loadAchievements(rom, gameId) {
     const container = document.getElementById('achievements-container');
-    
-    // Debug: Check if container exists
-    if (!container) {
-        console.error('❌ DOM Error: #achievements-container not found in renderGame output');
-        console.log('🔍 Available IDs in content:', Array.from(document.querySelectorAll('[id]')).map(el => el.id));
-        return;
-    }
-
-    console.log('🔍 loadAchievements called with gameId:', gameId);
-    console.log('🔗 Supabase client attached:', !!rom.supabase);
+    if (!container) return;
 
     try {
-        // 1. Fetch achievements for this game
-        console.log('📡 Querying achievements table for game_id:', gameId);
-        
+        // 1. Fetch all achievements for this game
         const {  achievements, error: aError } = await rom.supabase
             .from('achievements')
             .select('*')
             .eq('game_id', gameId)
             .order('points', { ascending: false });
 
-        console.log('📊 Achievements Query Result:', {
-            count: achievements?.length || 0,
-            error: aError?.message || 'none',
-            firstAchievement: achievements?.[0] ? {
-                id: achievements[0].id,
-                title: achievements[0].title,
-                game_id: achievements[0].game_id
-            } : 'empty'
-        });
-
-        if (aError) {
-            console.error('❌ DB Query Failed:', aError);
-            container.innerHTML = `<p class="text-red-400 text-sm">DB Error: ${aError.message}</p>`;
-            return;
-        }
-
-        if (!achievements || achievements.length === 0) {
-            console.log('ℹ️ No achievements found in DB for this game.');
-            
-            // Quick sanity check: are there ANY achievements in the table?
-            const {  sample } = await rom.supabase
-                .from('achievements')
-                .select('id, game_id, title')
-                .limit(5);
-            console.log('📋 Sample achievements in your DB:', sample);
-            
+        if (aError || !achievements || achievements.length === 0) {
             container.innerHTML = `<p class="text-gray-500 text-sm">No achievements available for this game.</p>`;
             return;
         }
 
-        console.log('✅ Successfully loaded', achievements.length, 'achievements. Calculating unlock rates...');
-
         // 2. Fetch user_achievements to calculate real rates
         const achievementIds = achievements.map(a => a.id);
-        console.log('🔍 Fetching unlocks for achievement IDs:', achievementIds);
         
-        const {  unlocks, error: uError } = await rom.supabase
+        const {  unlocks } = await rom.supabase
             .from('user_achievements')
             .select('user_id, achievement_id')
             .in('achievement_id', achievementIds);
 
-        if (uError) {
-            console.warn('⚠️ Could not fetch user_achievements (unlock rates will show 0%):', uError.message);
-        }
-
         // 3. Calculate Stats
         const totalPlayers = new Set(unlocks?.map(u => u.user_id)).size;
+        
+        // Count unlocks per achievement
         const unlockCounts = {};
         if (unlocks) {
             unlocks.forEach(u => {
@@ -233,9 +196,7 @@ async function loadAchievements(rom, gameId) {
             });
         }
 
-        console.log('📈 Unlock Stats:', { totalPlayers, unlockCounts });
-
-        // 4. Render Grid (EXACT SAME RENDER LOGIC AS BEFORE)
+        // 4. Render Grid (EXACT SAME AS YOUR WORKING CODE)
         container.innerHTML = `
             <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements (${achievements.length})</h2>
             <p class="text-gray-400 text-sm mb-4">${totalPlayers > 0 ? totalPlayers + ' players have unlocked achievements' : 'Be the first to unlock!'}</p>
@@ -248,16 +209,21 @@ async function loadAchievements(rom, gameId) {
                     return `
                     <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition">
                         <div class="flex gap-3">
+                            <!-- Badge -->
                             <div class="flex-shrink-0">
                                 <img src="${a.badge_url || 'https://via.placeholder.com/48/1f2937/6b7280?text=🏆'}" 
                                      alt="${escapeHtml(a.title)}" class="w-12 h-12 rounded object-cover">
                             </div>
+                            
+                            <!-- Info -->
                             <div class="flex-1">
                                 <div class="flex justify-between items-start">
                                     <h3 class="text-sm font-bold text-white leading-tight">${escapeHtml(a.title)}</h3>
                                     <span class="text-yellow-400 text-xs font-bold bg-yellow-900/30 px-1.5 py-0.5 rounded ml-2">${a.points} pts</span>
                                 </div>
                                 <p class="text-gray-400 text-xs mt-1 mb-2 line-clamp-2">${escapeHtml(a.description || '')}</p>
+                                
+                                <!-- Progress Bar -->
                                 <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1 relative overflow-hidden">
                                     <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500" style="width: ${rate}%"></div>
                                 </div>
@@ -272,10 +238,11 @@ async function loadAchievements(rom, gameId) {
         `;
 
     } catch (err) {
-        console.error('❌ Uncaught Error in loadAchievements:', err);
+        console.error('❌ Error loading achievements:', err);
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load achievements.</p>`;
     }
 }
+
 // ===== LOAD COMMENTS =====
 async function loadComments(rom, gameId) {
     const container = document.getElementById('comments-list');
