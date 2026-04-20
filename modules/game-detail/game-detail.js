@@ -23,7 +23,6 @@ export default async function initGameDetail(rom, identifier) {
     }
 
     try {
-        // QUERY BY SLUG ONLY
         console.log('🔍 Querying games.slug =', identifier);
         
         const result = await rom.supabase
@@ -40,9 +39,7 @@ export default async function initGameDetail(rom, identifier) {
         const game = result.data;
         const gameError = result.error;
 
-        if (gameError) {
-            console.error('❌ Query failed:', gameError);
-        }
+        if (gameError) console.error('❌ Query failed:', gameError);
         
         if (!game) {
             console.error('❌ No game returned for slug:', identifier);
@@ -63,7 +60,7 @@ export default async function initGameDetail(rom, identifier) {
 
         // Load Comments after DOM is ready
         setTimeout(() => {
-            loadComments(rom, game.id, 'comments-list');
+            loadComments(rom, game.id);
             setupCommentForm(rom, game.id);
         }, 100);
 
@@ -74,9 +71,8 @@ export default async function initGameDetail(rom, identifier) {
     }
 }
 
-// ===== RENDER GAME FUNCTION (Info + Screenshots + Comments UI) =====
+// ===== RENDER GAME FUNCTION (Info + Screenshots + Achievements + Comments) =====
 function renderGame(game, container, rom) {
-    // Safe user check
     const isLoggedIn = rom?.currentUser;
 
     container.innerHTML = `
@@ -117,7 +113,7 @@ function renderGame(game, container, rom) {
                         </div>
                     ` : ''}
 
-                    <!-- 🏆 ACHIEVEMENTS SECTION (Container for JS injection) -->
+                    <!-- 🏆 ACHIEVEMENTS SECTION -->
                     <div id="achievements-container" class="mb-8">
                         <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements</h2>
                         <div class="text-center py-8 text-gray-400">
@@ -127,15 +123,15 @@ function renderGame(game, container, rom) {
                     </div>
 
                     <!-- 💬 COMMENTS SECTION -->
-                    <div class="mt-12 border-t border-gray-700 pt-8">
+                    <div class="mt-12 border-t border-gray-700 pt-8" id="comments-section">
                         <h2 class="text-2xl font-bold text-white mb-6">💬 Comments</h2>
                         
-                        <!-- Login prompt (shown if not logged in) -->
+                        <!-- Login prompt -->
                         <div id="login-to-comment" class="${isLoggedIn ? 'hidden' : ''} mb-6">
                             <p class="text-gray-400">Please <a href="#/auth" class="text-cyan-400 hover:underline">log in</a> to join the discussion.</p>
                         </div>
                         
-                        <!-- Comment Form (shown if logged in) -->
+                        <!-- Comment Form -->
                         <form id="comment-form" class="${isLoggedIn ? '' : 'hidden'} mb-8">
                             <textarea id="comment-input" rows="3" 
                                       class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none transition" 
@@ -165,8 +161,7 @@ async function loadAchievements(rom, gameId) {
     if (!container) return;
 
     try {
-        // 1. Fetch all achievements for this game
-        const { data: achievements, error: aError } = await rom.supabase
+        const {  achievements, error: aError } = await rom.supabase
             .from('achievements')
             .select('*')
             .eq('game_id', gameId)
@@ -177,18 +172,13 @@ async function loadAchievements(rom, gameId) {
             return;
         }
 
-        // 2. Fetch user_achievements to calculate real rates
         const achievementIds = achievements.map(a => a.id);
-        
-        const { data: unlocks } = await rom.supabase
+        const {  unlocks } = await rom.supabase
             .from('user_achievements')
             .select('user_id, achievement_id')
             .in('achievement_id', achievementIds);
 
-        // 3. Calculate Stats
         const totalPlayers = new Set(unlocks?.map(u => u.user_id)).size;
-        
-        // Count unlocks per achievement
         const unlockCounts = {};
         if (unlocks) {
             unlocks.forEach(u => {
@@ -196,7 +186,6 @@ async function loadAchievements(rom, gameId) {
             });
         }
 
-        // 4. Render Grid
         container.innerHTML = `
             <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements (${achievements.length})</h2>
             <p class="text-gray-400 text-sm mb-4">${totalPlayers > 0 ? totalPlayers + ' players have unlocked achievements' : 'Be the first to unlock!'}</p>
@@ -209,24 +198,18 @@ async function loadAchievements(rom, gameId) {
                     return `
                     <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition">
                         <div class="flex gap-3">
-                            <!-- Badge -->
                             <div class="flex-shrink-0">
                                 <img src="${a.badge_url || 'https://via.placeholder.com/48/1f2937/6b7280?text=🏆'}" 
                                      alt="${escapeHtml(a.title)}" class="w-12 h-12 rounded object-cover">
                             </div>
-                            
-                            <!-- Info -->
                             <div class="flex-1">
                                 <div class="flex justify-between items-start">
                                     <h3 class="text-sm font-bold text-white leading-tight">${escapeHtml(a.title)}</h3>
                                     <span class="text-yellow-400 text-xs font-bold bg-yellow-900/30 px-1.5 py-0.5 rounded ml-2">${a.points} pts</span>
                                 </div>
                                 <p class="text-gray-400 text-xs mt-1 mb-2 line-clamp-2">${escapeHtml(a.description || '')}</p>
-                                
-                                <!-- Progress Bar -->
                                 <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1 relative overflow-hidden">
-                                    <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500" 
-                                         style="width: ${rate}%"></div>
+                                    <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500" style="width: ${rate}%"></div>
                                 </div>
                                 <div class="flex justify-between items-center mt-1">
                                     <span class="text-[10px] text-gray-500">${count} unlocks</span>
@@ -234,8 +217,7 @@ async function loadAchievements(rom, gameId) {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                `}).join('')}
+                    </div>`}).join('')}
             </div>
         `;
 
@@ -246,12 +228,12 @@ async function loadAchievements(rom, gameId) {
 }
 
 // ===== LOAD COMMENTS =====
-async function loadComments(rom, gameId, containerId) {
-    const container = document.getElementById(containerId);
+async function loadComments(rom, gameId) {
+    const container = document.getElementById('comments-list');
     if (!container) return;
 
     try {
-        const { data, error } = await rom.supabase
+        const {  data, error } = await rom.supabase
             .from('game_comments')
             .select('*')
             .eq('game_id', gameId)
@@ -259,13 +241,11 @@ async function loadComments(rom, gameId, containerId) {
 
         if (error) throw error;
 
-        // Render comments
         if (data && data.length > 0) {
-            container.innerHTML = data.map(comment => createCommentHTML(comment)).join('');
+            container.innerHTML = data.map(c => createCommentHTML(c)).join('');
         } else {
             container.innerHTML = `<p class="text-gray-500 text-sm">No comments yet. Be the first!</p>`;
         }
-
     } catch (err) {
         console.error('Error loading comments:', err);
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load comments.</p>`;
@@ -277,8 +257,6 @@ function createCommentHTML(comment) {
     const date = new Date(comment.created_at).toLocaleDateString('en-US', { 
         month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' 
     });
-    
-    // Get username from email or username field
     const username = comment.username || comment.user_email?.split('@')[0] || 'Anonymous';
     const initials = username.substring(0, 2).toUpperCase();
 
@@ -311,13 +289,8 @@ function setupCommentForm(rom, gameId) {
         const btn = document.getElementById('submit-comment-btn');
         const content = input.value.trim();
 
-        if (!content) return;
-        if (!rom?.currentUser) {
-            showNotification('Please log in to comment', 'error');
-            return;
-        }
+        if (!content || !rom?.currentUser) return;
 
-        // UI Loading State
         btn.disabled = true;
         btn.textContent = 'Posting...';
 
@@ -332,9 +305,8 @@ function setupCommentForm(rom, gameId) {
 
             if (error) throw error;
 
-            // Success
             input.value = '';
-            loadComments(rom, gameId, 'comments-list'); // Reload comments
+            loadComments(rom, gameId);
             showNotification('✅ Comment posted!', 'success');
 
         } catch (err) {
@@ -347,7 +319,7 @@ function setupCommentForm(rom, gameId) {
     });
 }
 
-// ===== HELPER: Escape HTML =====
+// ===== HELPERS =====
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -355,7 +327,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ===== HELPER: Show Notification =====
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 ${
