@@ -1,60 +1,15 @@
-// modules/game-detail/game-detail.js - FINAL MINIMAL VERSION
+// modules/game-detail/game-detail.js - WITH SCREENSHOTS (FIXED)
 let isInitialized = false;
 
-export default async function initGameDetail(rom, identifier) {
-    if (isInitialized) return;
-    isInitialized = true;
+// ===== HELPER: Escape HTML =====
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
-    console.log('🎮 Loading game for slug:', identifier);
-
-    if (!rom.supabase) {
-        console.error('❌ No Supabase client');
-        return;
-    }
-
-    const loading = document.getElementById('game-loading');
-    const content = document.getElementById('game-content');
-    const error = document.getElementById('game-error');
-
-    if (!loading || !content || !error) {
-        console.error('❌ Missing DOM elements');
-        return;
-    }
-
-    try {
-        // QUERY BY SLUG ONLY - NO FALLBACKS, NO COMPLEXITY
-        console.log('🔍 Querying games.slug =', identifier);
-        
-        const result = await rom.supabase
-            .from('games')
-            .select('*')
-            .eq('slug', identifier)
-            .single();
-        
-        console.log('✅ Supabase response:', {
-            hasData: !!result.data,
-            hasError: !!result.error,
-            error: result.error?.message
-        });
-
-        const game = result.data;
-        const gameError = result.error;
-
-        if (gameError) {
-            console.error('❌ Query failed:', gameError);
-        }
-        
-        if (!game) {
-            console.error('❌ No game returned for slug:', identifier);
-            loading.classList.add('hidden');
-            error.classList.remove('hidden');
-            return;
-        }
-
-        console.log('✅ SUCCESS: Game loaded:', game.title);
-        loading.classList.add('hidden');
-        content.classList.remove('hidden');
-
+// ===== RENDER GAME FUNCTION (with screenshots) =====
 function renderGame(game, container) {
     container.innerHTML = `
         <div class="max-w-7xl mx-auto p-4">
@@ -97,17 +52,69 @@ function renderGame(game, container) {
             </div>
         </div>
     `;
+}
+
+// ===== MAIN INIT FUNCTION =====
+export default async function initGameDetail(rom, identifier) {
+    if (isInitialized) return;
+    isInitialized = true;
+
+    console.log('🎮 Loading game for slug:', identifier);
+
+    if (!rom.supabase) {
+        console.error('❌ No Supabase client');
+        return;
+    }
+
+    const loading = document.getElementById('game-loading');
+    const content = document.getElementById('game-content');
+    const error = document.getElementById('game-error');
+
+    if (!loading || !content || !error) {
+        console.error('❌ Missing DOM elements');
+        return;
+    }
+
+    try {
+        // QUERY BY SLUG ONLY
+        console.log('🔍 Querying games.slug =', identifier);
+        
+        const result = await rom.supabase
+            .from('games')
+            .select('*')
+            .eq('slug', identifier)
+            .single();
+        
+        console.log('✅ Supabase response:', {
+            hasData: !!result.data,
+            hasError: !!result.error,
+            error: result.error?.message
+        });
+
+        const game = result.data;
+        const gameError = result.error;
+
+        if (gameError) {
+            console.error('❌ Query failed:', gameError);
+        }
+        
+        if (!game) {
+            console.error('❌ No game returned for slug:', identifier);
+            loading.classList.add('hidden');
+            error.classList.remove('hidden');
+            return;
+        }
+
+        console.log('✅ SUCCESS: Game loaded:', game.title);
+        loading.classList.add('hidden');
+        content.classList.remove('hidden');
+
+        // ✅ CALL THE RENDER FUNCTION (this was missing!)
+        renderGame(game, content);
 
     } catch (err) {
         console.error('❌ Exception:', err);
         loading.classList.add('hidden');
         error.classList.remove('hidden');
     }
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
