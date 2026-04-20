@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - BULLETPROOF VERSION
+// modules/game-detail/game-detail.js - FINAL CORRECT VERSION
 let isInitialized = false;
 
 export default async function initGameDetail(rom, identifier) {
@@ -22,47 +22,34 @@ export default async function initGameDetail(rom, identifier) {
     }
 
     try {
-        // DEBUG: Log all games to see what slugs actually exist
-        const { data: allGames, error: listError } = await rom.supabase
-            .from('games')
-            .select('id, title, slug')
-            .limit(20);
+        // QUERY BY SLUG ONLY (your URLs use slugs)
+        console.log('🔍 Querying games table by slug:', identifier);
         
-        console.log('📋 Available games in DB:', allGames?.map(g => ({slug: g.slug, title: g.title})));
-
-        // Try query by slug first
-        const {  game: slugGame, error: slugError } = await rom.supabase
+        const {  game, error: gameError } = await rom.supabase
             .from('games')
             .select('*')
-            .eq('slug', identifier)
+            .eq('slug', identifier)  // ← CORRECT: query by 'slug' column
             .single();
         
-        console.log('🔍 Slug query result:', { 
-            identifier, 
-            found: !!slugGame, 
-            error: slugError?.message 
+        console.log('📊 Query result:', { 
+            found: !!game, 
+            error: gameError?.message || gameError?.details || 'none' 
         });
 
-        let game = slugGame;
-        
-        // If slug didn't work, try query by ID
-        if (!game) {
-            const {  game: idGame, error: idError } = await rom.supabase
-                .from('games')
-                .select('*')
-                .eq('id', identifier)
-                .single();
-            
-            console.log('🔍 ID query result:', { 
-                identifier, 
-                found: !!idGame, 
-                error: idError?.message 
-            });
-            game = idGame;
+        if (gameError) {
+            console.error('❌ Supabase error:', gameError);
         }
-
+        
         if (!game) {
-            console.error('❌ Game not found. Available slugs:', allGames?.map(g => g.slug));
+            // DEBUG: Show what slugs actually exist
+            const {  allGames } = await rom.supabase
+                .from('games')
+                .select('slug, title')
+                .limit(20);
+            
+            console.log('📋 Available slugs in DB:', allGames?.map(g => g.slug));
+            console.log('❌ Game not found. URL slug:', identifier);
+            
             loading.classList.add('hidden');
             error.classList.remove('hidden');
             return;
