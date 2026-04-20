@@ -1,11 +1,11 @@
-// modules/game-detail/game-detail.js - FINAL CORRECT VERSION
+// modules/game-detail/game-detail.js - FINAL MINIMAL VERSION
 let isInitialized = false;
 
 export default async function initGameDetail(rom, identifier) {
     if (isInitialized) return;
     isInitialized = true;
 
-    console.log('🎮 Loading game for:', identifier);
+    console.log('🎮 Loading game for slug:', identifier);
 
     if (!rom.supabase) {
         console.error('❌ No Supabase client');
@@ -22,40 +22,36 @@ export default async function initGameDetail(rom, identifier) {
     }
 
     try {
-        // QUERY BY SLUG ONLY (your URLs use slugs)
-        console.log('🔍 Querying games table by slug:', identifier);
+        // QUERY BY SLUG ONLY - NO FALLBACKS, NO COMPLEXITY
+        console.log('🔍 Querying games.slug =', identifier);
         
-        const {  game, error: gameError } = await rom.supabase
+        const result = await rom.supabase
             .from('games')
             .select('*')
-            .eq('slug', identifier)  // ← CORRECT: query by 'slug' column
+            .eq('slug', identifier)
             .single();
         
-        console.log('📊 Query result:', { 
-            found: !!game, 
-            error: gameError?.message || gameError?.details || 'none' 
+        console.log('✅ Supabase response:', {
+            hasData: !!result.data,
+            hasError: !!result.error,
+            error: result.error?.message
         });
 
+        const game = result.data;
+        const gameError = result.error;
+
         if (gameError) {
-            console.error('❌ Supabase error:', gameError);
+            console.error('❌ Query failed:', gameError);
         }
         
         if (!game) {
-            // DEBUG: Show what slugs actually exist
-            const {  allGames } = await rom.supabase
-                .from('games')
-                .select('slug, title')
-                .limit(20);
-            
-            console.log('📋 Available slugs in DB:', allGames?.map(g => g.slug));
-            console.log('❌ Game not found. URL slug:', identifier);
-            
+            console.error('❌ No game returned for slug:', identifier);
             loading.classList.add('hidden');
             error.classList.remove('hidden');
             return;
         }
 
-        console.log('✅ Game found:', game.title, '(slug:', game.slug, ')');
+        console.log('✅ SUCCESS: Game loaded:', game.title);
         loading.classList.add('hidden');
         content.classList.remove('hidden');
 
