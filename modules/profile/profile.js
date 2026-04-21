@@ -1,56 +1,105 @@
 import { supabase, isAdmin } from '../../lib/supabase.js';
 
 export async function initModule(container, params) {
-  // FIX: Handle case where params is undefined (when navigating to #/profile)
-  const slugOrId = params?.id || params?.slug; 
-  
-  let targetUser = null;
-
-  // 1. Identify User
-  if (!slugOrId) {
-    // Default to current user if no param provided
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      container.innerHTML = '<div class="text-center p-10 text-cyan-400">Please log in to view your profile.</div>';
-      return;
-    }
-    targetUser = await fetchProfileByUserId(user.id);
-  } else {
-    // Try fetching by Slug (username) first, then fallback to ID
-    targetUser = await fetchProfileBySlug(slugOrId);
-    if (!targetUser) {
-      targetUser = await fetchProfileByUserId(slugOrId);
-    }
+  // --- SELF-HEALING CONTAINER CHECK ---
+  // If container isn't passed or is invalid, grab #app-content directly
+  let targetContainer = container;
+  if (!targetContainer || !(targetContainer instanceof Element)) {
+    console.warn('⚠️ Profile Module: Container not provided. Grabbing #app-content directly.');
+    targetContainer = document.getElementById('app-content');
   }
-
-  if (!targetUser) {
-    container.innerHTML = '<div class="text-center p-10 text-red-400">Profile not found.</div>';
+  
+  if (!targetContainer) {
+    console.error('❌ CRITICAL: Could not find #app-content to render profile.');
     return;
   }
 
-  // 2. Check Permissions & Status
-  const { data: { user: currentUser } } = await supabase.auth.getUser();
-  const isOwnProfile = currentUser && currentUser.id === targetUser.id;
-  
-  // FIX: Rename variable to avoid shadowing the imported function
-  const isUserAdmin = await isAdmin();
+  // Show loading state immediately
+  targetContainer.innerHTML = `
+    <div class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+      <p class="text-cyan-400 mt-4">Loading Profile...</p>
+    </div>
+  `;
 
-  // 3. Render the Layout
-  renderProfileLayout(container, targetUser, isOwnProfile, isUserAdmin);
+  try {
+    // 1. Identify User
+    let targetUser = null;
+    const slugOrId = params?.id || params?.slug; 
+    
+    // Get Current User Context
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    
+    if (!slugOrId) {
+      // No param? Default to current logged-in user
+      if (!currentUser) {
+        targetContainer.innerHTML = `
+          <div class="text-center p-10 bg-gray-800 rounded-lg border border-red-500">
+            <h2 class="text-2xl font-bold text-red-400 mb-2">Access Denied</h2>
+            <p class="text-gray-300">Please log in to view your profile.</p>
+            <button onclick="window.location.hash='#/auth'" class="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">Log In</button>
+          </div>
+        `;
+        return;
+      }
+      targetUser = await fetchProfileByUserId(currentUser.id);
+    } else {
+      // Param exists? Try fetching by Slug (username) first, then ID
+      targetUser = await fetchProfileBySlug(slugOrId);
+      if (!targetUser) {
+        targetUser = await fetchProfileByUserId(slugOrId);
+      }
+    }
 
-  // 4. Attach Event Listeners
-  attachEventListeners(container, targetUser, isOwnProfile);
+    if (!targetUser) {
+      targetContainer.innerHTML = `
+        <div class="text-center p-10 bg-gray-800 rounded-lg border border-yellow-500">
+          <h2 class="text-2xl font-bold text-yellow-400 mb-2">Profile Not Found</h2>
+          <p class="text-gray-300">We couldn't find a user with that name or ID.</p>
+          <button onclick="window.location.hash='#/games'" class="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded">Back to Games</button>
+        </div>
+      `;
+      return;
+    }
+
+    const isOwnProfile = currentUser && currentUser.id === targetUser.id;
+    
+    // Safe Admin Check (renamed variable to avoid conflict)
+    let isUserAdmin = false;
+    try {
+      isUserAdmin = await isAdmin();
+    } catch (e) {
+      console.warn('Admin check failed, assuming non-admin', e);
+    }
+
+    // 2. Render the Layout
+    renderProfileLayout(targetContainer, targetUser, isOwnProfile, isUserAdmin);
+
+    // 3. Attach Event Listeners
+    attachEventListeners(targetContainer, targetUser, isOwnProfile);
+
+  } catch (error) {
+    console.error('❌ Profile Module Critical Error:', error);
+    targetContainer.innerHTML = `
+      <div class="text-center p-10 bg-gray-800 rounded-lg border border-red-500">
+        <h2 class="text-2xl font-bold text-red-400 mb-2">Error Loading Profile</h2>
+        <p class="text-gray-300">${error.message}</p>
+        <pre class="text-xs text-left bg-black p-2 mt-4 overflow-auto max-h-40">${error.stack}</pre>
+      </div>
+    `;
+  }
 }
 
 // --- Data Fetching Helpers ---
 
 async function fetchProfileBySlug(slug) {
+  // Try matching 'username' OR 'slug' column if it exists
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('username', slug) 
     .single();
-  return error || !data ? null : data;
+  return error ? null : data;
 }
 
 async function fetchProfileByUserId(id) {
@@ -59,17 +108,18 @@ async function fetchProfileByUserId(id) {
     .select('*')
     .eq('id', id)
     .single();
-  return error || !data ? null : data;
+  return error ? null : data;
 }
 
 // --- Rendering Logic ---
 
-function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin) {
+function renderProfileLayout(container, profile, isOwnProfile, isAdmin) {
   const bgStyle = getBackgroundCSS(profile.custom_background);
   const avatarClass = profile.avatar_overlay && profile.avatar_overlay !== 'none' 
     ? `ra-avatar overlay-${profile.avatar_overlay}` 
     : 'ra-avatar';
 
+  // NOTE: We are writing directly to container.innerHTML
   container.innerHTML = `
     <!-- RetroAchievements Style Header -->
     <div class="ra-header" style="${bgStyle}">
@@ -78,9 +128,10 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin) {
         
         <!-- Avatar -->
         <div class="ra-avatar-container">
-          <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
+          <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(profile.username)}" 
                alt="${profile.username}" 
-               class="${avatarClass}">
+               class="${avatarClass}"
+               onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(profile.username)}&background=06b6d4&color=fff'">
           <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'}"></div>
         </div>
 
@@ -135,7 +186,9 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin) {
         
         <div class="ra-card">
           <h3>Recent Activity</h3>
-          <div id="activity-feed">Loading activity...</div>
+          <div id="activity-feed">
+            <p class="text-gray-500 italic">No recent activity recorded.</p>
+          </div>
         </div>
       </div>
 
@@ -145,7 +198,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin) {
           <ul class="ra-details-list">
             <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
             <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-            ${isUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400">Admin</span></li>' : ''}
+            ${isAdmin ? '<li><strong>Role:</strong> <span class="text-red-400 font-bold">👑 Admin</span></li>' : ''}
           </ul>
         </div>
       </div>
@@ -221,6 +274,7 @@ function getBackgroundCSS(bg) {
 // --- Event Listeners ---
 
 function attachEventListeners(container, profile, isOwnProfile) {
+  // Edit Modal Logic
   const editBtn = document.getElementById('btn-edit-profile');
   const modal = document.getElementById('edit-modal');
   const cancelBtn = document.getElementById('btn-cancel-edit');
@@ -257,6 +311,11 @@ function attachEventListeners(container, profile, isOwnProfile) {
         }
       };
 
+      const saveBtn = form.querySelector('button[type="submit"]');
+      const originalText = saveBtn.textContent;
+      saveBtn.textContent = 'Saving...';
+      saveBtn.disabled = true;
+
       const { error } = await supabase
         .from('profiles')
         .update(updates)
@@ -264,8 +323,10 @@ function attachEventListeners(container, profile, isOwnProfile) {
 
       if (error) {
         alert('Error saving: ' + error.message);
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
       } else {
-        alert('Profile updated!');
+        alert('Profile updated! Refreshing...');
         location.reload();
       }
     });
