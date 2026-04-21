@@ -820,6 +820,8 @@ async function loadProfileDetail(profileId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
 
+    console.log('👤 Loading profile for ID/Slug:', profileId); // Debug log
+
     // Show loading
     appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div>`;
 
@@ -831,8 +833,9 @@ async function loadProfileDetail(profileId) {
         const html = await response.text();
         appContent.innerHTML = html;
 
-        // Load and initialize profile module with specific profile ID
+        // Load and initialize profile module
         const module = await import('./modules/profile/profile.js');
+        
         const rom = {
             supabase: window.supabase,
             currentUser: window.rom?.currentUser || null,
@@ -842,45 +845,21 @@ async function loadProfileDetail(profileId) {
             }
         };
 
-        // Pass the profile ID to the module
+        // CRITICAL: Pass 'profileId' (the slug) as the second parameter
         if (module.default && typeof module.default === 'function') {
             await module.default(rom, profileId);
         } else if (module.initModule) {
             await module.initModule(rom, profileId);
         } else if (module.default && module.default.initModule) {
             await module.default.initModule(rom, profileId);
+        } else {
+            throw new Error('Profile module export structure not recognized');
         }
     } catch (error) {
         console.error('Error loading profile detail:', error);
         showError('Error loading profile', error.message);
     }
 }
-
-// Show error
-function showError(title, message) {
-    const appContent = document.getElementById('app-content');
-    if (appContent) {
-        appContent.innerHTML = `
-            <div class="max-w-md mx-auto p-8">
-                <div class="bg-red-900/30 border border-red-500 rounded-lg p-6">
-                    <h2 class="text-2xl font-bold text-red-400 mb-4">${title}</h2>
-                    <p class="text-gray-300 mb-4">${message}</p>
-                    <div class="flex gap-4">
-                        <button onclick="window.location.hash = '#/home'" 
-                                class="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
-                            Go Home
-                        </button>
-                        <button onclick="window.location.reload()" 
-                                class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">
-                            Refresh Page
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-}
-
 // Image upload helper
 async function uploadGameImage(file, gameId, type = 'cover') {
     try {
