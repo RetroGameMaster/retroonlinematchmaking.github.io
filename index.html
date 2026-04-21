@@ -48,6 +48,220 @@
         .glow {
             text-shadow: 0 0 10px currentColor;
         }
+  /* --- STYLE PROFILE UPDATE --- */
+
+/* 1. Profile Header (The Banner Area) */
+.ra-profile-header {
+  position: relative;
+  width: 100%;
+  height: 320px; /* Tall enough for background + overlap */
+  background-color: #1f2937;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px 8px 0 0;
+  overflow: visible; /* Allow avatar to overlap */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.ra-bg-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); /* Darken bg slightly */
+  z-index: 1;
+}
+
+/* 2. Avatar (Overlapping) */
+.ra-avatar-container {
+  position: absolute;
+  bottom: -50px; /* Overlap effect */
+  left: 30px;
+  width: 110px;
+  height: 110px;
+  z-index: 10;
+  border: 4px solid #1f2937; /* Match page bg to create cutout */
+  border-radius: 12px;
+  background: #000;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.ra-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* CRT Overlay Effect on Avatar */
+.ra-avatar-crt::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.2),
+    rgba(0, 0, 0, 0.2) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* 3. Info Bar (Below Header) */
+.ra-info-bar {
+  margin-top: 60px; /* Clear the overlapping avatar */
+  padding: 15px 20px 15px 160px; /* Left padding clears avatar */
+  background: #1f2937;
+  border-bottom: 2px solid #374151;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ra-username-block h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ra-username-block .display-name {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.ra-stats-mini {
+  display: flex;
+  gap: 15px;
+}
+
+.ra-stat-pill {
+  background: #374151;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #06b6d4;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* 4. Signature Box (RetroGameTalk Style) */
+.ra-signature-box {
+  background: #111827;
+  border: 1px solid #374151;
+  margin: 20px;
+  padding: 15px;
+  border-radius: 6px;
+  min-height: 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ra-signature-label {
+  position: absolute;
+  top: 5px;
+  left: 10px;
+  font-size: 0.7rem;
+  color: #4b5563;
+  text-transform: uppercase;
+}
+
+.ra-signature-content {
+  margin-top: 15px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  color: #e5e7eb;
+}
+
+/* Signature Effects */
+.sig-glow {
+  text-shadow: 0 0 8px #06b6d4, 0 0 15px #06b6d4;
+  animation: ra-glow-pulse 2s infinite alternate;
+}
+.sig-pulse { opacity: 0.8; animation: ra-pulse 1.5s infinite; }
+.sig-rainbow {
+  background: linear-gradient(45deg, #ff0000, #ffff00, #00ff00, #0000ff, #ff00ff);
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: ra-rainbow 4s linear infinite;
+}
+.sig-retro {
+  color: #0f0;
+  text-shadow: 0 0 2px #0f0;
+  border: 1px dashed #0f0;
+  padding: 5px;
+  background: #000;
+}
+
+@keyframes ra-glow-pulse { from { text-shadow: 0 0 5px #06b6d4; } to { text-shadow: 0 0 20px #06b6d4, 0 0 30px #fff; } }
+@keyframes ra-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes ra-rainbow { 0% { background-position: 0% 50%; } 100% { background-position: 400% 50%; } }
+
+/* 5. Content Tabs & Body */
+.ra-content-area {
+  padding: 20px;
+  background: #1f2937;
+  min-height: 400px;
+}
+
+.ra-tabs {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid #374151;
+  margin-bottom: 20px;
+}
+
+.ra-tab-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+}
+
+.ra-tab-btn.active {
+  color: #06b6d4;
+  border-bottom: 2px solid #06b6d4;
+}
+
+/* Edit Form Styling */
+.ra-edit-panel {
+  background: #111827;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #374151;
+}
+.ra-edit-panel label { display: block; color: #06b6d4; margin-top: 10px; font-weight: bold; }
+.ra-edit-panel input, .ra-edit-panel textarea, .ra-edit-panel select {
+  width: 100%;
+  background: #000;
+  border: 1px solid #374151;
+  color: #fff;
+  padding: 8px;
+  margin-top: 5px;
+  border-radius: 4px;
+}
+.ra-save-btn {
+  margin-top: 15px;
+  background: #06b6d4;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ra-save-btn:hover { background: #0891b2; }
     </style>
 
     <!-- Custom CSS for admin edit functionality, image upload, and animations -->
