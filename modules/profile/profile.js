@@ -1,4 +1,4 @@
-import { supabase, checkIsAdmin } from '../../lib/supabase.js';
+import { supabase, isAdmin } from '../../lib/supabase.js';
 
 export async function initModule(container, params) {
   // 1. Identify User (by Slug or ID)
@@ -28,7 +28,7 @@ export async function initModule(container, params) {
 
   const { data: { user: currentUser } } = await supabase.auth.getUser();
   const isOwnProfile = currentUser && currentUser.id === targetUser.id;
-  const isAdmin = await checkIsAdmin();
+  const isAdmin = await isAdmin();
 
   // 2. Render the RA-Style Layout
   renderProfileLayout(container, targetUser, isOwnProfile, isAdmin);
