@@ -1,69 +1,56 @@
 import { supabase, isAdmin } from '../../lib/supabase.js';
 
 export async function initModule(container, params) {
-  // 1. Identify User (by Slug or ID)
-  let targetUser = null;
-  const slugOrId = params.id || params.slug; 
+  // FIX: Handle case where params is undefined (when navigating to #/profile)
+  const slugOrId = params?.id || params?.slug; 
   
-  try {
-    if (!slugOrId) {
-      // Default to current user if no param
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        container.innerHTML = '<div class="text-center p-10 text-red-400">Please log in to view your profile.</div>';
-        return;
-      }
-      targetUser = await fetchProfileByUserId(user.id);
-    } else {
-      // Try fetching by Slug (username) first
-      targetUser = await fetchProfileBySlug(slugOrId);
-      
-      // Fallback to ID if slug fails
-      if (!targetUser) {
-        targetUser = await fetchProfileByUserId(slugOrId);
-      }
-    }
+  let targetUser = null;
 
-    if (!targetUser) {
-      container.innerHTML = '<div class="text-center p-10 text-red-400">Profile not found.</div>';
+  // 1. Identify User
+  if (!slugOrId) {
+    // Default to current user if no param provided
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      container.innerHTML = '<div class="text-center p-10 text-cyan-400">Please log in to view your profile.</div>';
       return;
     }
-
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    const isOwnProfile = currentUser && currentUser.id === targetUser.id;
-    
-    // Check admin status safely
-    let isUserAdmin = false;
-    try {
-      isUserAdmin = await isAdmin();
-    } catch (e) {
-      console.warn("Admin check failed, assuming non-admin", e);
+    targetUser = await fetchProfileByUserId(user.id);
+  } else {
+    // Try fetching by Slug (username) first, then fallback to ID
+    targetUser = await fetchProfileBySlug(slugOrId);
+    if (!targetUser) {
+      targetUser = await fetchProfileByUserId(slugOrId);
     }
-
-    // 2. Render the RA-Style Layout
-    renderProfileLayout(container, targetUser, isOwnProfile, isUserAdmin);
-
-    // 3. Attach Event Listeners
-    attachEventListeners(container, targetUser, isOwnProfile);
-    
-  } catch (error) {
-    console.error("Error loading profile:", error);
-    container.innerHTML = `<div class="text-center p-10 text-red-400">Error loading profile: ${error.message}</div>`;
   }
+
+  if (!targetUser) {
+    container.innerHTML = '<div class="text-center p-10 text-red-400">Profile not found.</div>';
+    return;
+  }
+
+  // 2. Check Permissions & Status
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+  const isOwnProfile = currentUser && currentUser.id === targetUser.id;
+  
+  // FIX: Rename variable to avoid shadowing the imported function
+  const isUserAdmin = await isAdmin();
+
+  // 3. Render the Layout
+  renderProfileLayout(container, targetUser, isOwnProfile, isUserAdmin);
+
+  // 4. Attach Event Listeners
+  attachEventListeners(container, targetUser, isOwnProfile);
 }
 
 // --- Data Fetching Helpers ---
 
 async function fetchProfileBySlug(slug) {
-  // Query by username acting as slug
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('username', slug)
+    .eq('username', slug) 
     .single();
-  
-  if (error || !data) return null;
-  return data;
+  return error || !data ? null : data;
 }
 
 async function fetchProfileByUserId(id) {
@@ -72,9 +59,7 @@ async function fetchProfileByUserId(id) {
     .select('*')
     .eq('id', id)
     .single();
-  
-  if (error || !data) return null;
-  return data;
+  return error || !data ? null : data;
 }
 
 // --- Rendering Logic ---
@@ -85,12 +70,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin) {
     ? `ra-avatar overlay-${profile.avatar_overlay}` 
     : 'ra-avatar';
 
-  // Safe access to stats
-  const stats = profile.stats || {};
-  const gamesCount = stats.games_approved || stats.games_submitted || 0;
-  const commentsCount = stats.comments_made || 0;
-  const pointsCount = stats.total_points || 0;
-
   container.innerHTML = `
     <!-- RetroAchievements Style Header -->
     <div class="ra-header" style="${bgStyle}">
@@ -99,31 +78,31 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin) {
         
         <!-- Avatar -->
         <div class="ra-avatar-container">
-          <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(profile.username || 'User')}" 
-               alt="${profile.username || 'User'}" 
+          <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
+               alt="${profile.username}" 
                class="${avatarClass}">
           <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'}"></div>
         </div>
 
         <!-- Info -->
         <div class="ra-info">
-          <h1 class="ra-username">${profile.username || 'Unknown User'}</h1>
+          <h1 class="ra-username">${profile.username}</h1>
           ${profile.display_name ? `<div class="ra-display-name">${profile.display_name}</div>` : ''}
           
           <div class="ra-stats-row">
             <div class="ra-stat">
               <span class="ra-stat-icon">🎮</span>
-              <span class="ra-stat-val">${gamesCount}</span>
+              <span class="ra-stat-val">${profile.stats?.games_approved || 0}</span>
               <span class="ra-stat-label">Games</span>
             </div>
             <div class="ra-stat">
               <span class="ra-stat-icon">💬</span>
-              <span class="ra-stat-val">${commentsCount}</span>
+              <span class="ra-stat-val">${profile.stats?.comments_made || 0}</span>
               <span class="ra-stat-label">Comments</span>
             </div>
             <div class="ra-stat">
               <span class="ra-stat-icon">⭐</span>
-              <span class="ra-stat-val">${pointsCount}</span>
+              <span class="ra-stat-val">${profile.stats?.total_points || 0}</span>
               <span class="ra-stat-label">Points</span>
             </div>
           </div>
@@ -163,10 +142,10 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin) {
       <div class="ra-col-side">
         <div class="ra-card">
           <h3>Details</h3>
-          <ul class="ra-details-list" style="list-style:none; padding:0;">
-            <li style="margin-bottom:8px;"><strong>Member Since:</strong> ${profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</li>
-            <li style="margin-bottom:8px;"><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-            ${isUserAdmin ? '<li style="margin-bottom:8px;"><strong>Role:</strong> <span style="color:#ef4444;">Admin</span></li>' : ''}
+          <ul class="ra-details-list">
+            <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
+            <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
+            ${isUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400">Admin</span></li>' : ''}
           </ul>
         </div>
       </div>
