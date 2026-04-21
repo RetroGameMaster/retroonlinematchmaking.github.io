@@ -28,10 +28,12 @@ export async function initModule(container, params) {
 
   const { data: { user: currentUser } } = await supabase.auth.getUser();
   const isOwnProfile = currentUser && currentUser.id === targetUser.id;
-  const isAdmin = await isAdmin();
+  
+  // FIX: Renamed variable to 'isUserAdmin' to avoid conflict with imported function 'isAdmin'
+  const isUserAdmin = await isAdmin();
 
   // 2. Render the RA-Style Layout
-  renderProfileLayout(container, targetUser, isOwnProfile, isAdmin);
+  renderProfileLayout(container, targetUser, isOwnProfile, isUserAdmin);
 
   // 3. Attach Event Listeners
   attachEventListeners(container, targetUser, isOwnProfile);
@@ -59,7 +61,7 @@ async function fetchProfileByUserId(id) {
 
 // --- Rendering Logic ---
 
-function renderProfileLayout(container, profile, isOwnProfile, isAdmin) {
+function renderProfileLayout(container, profile, isOwnProfile, isAdminUser) {
   const bgStyle = getBackgroundCSS(profile.custom_background);
   const avatarClass = profile.avatar_overlay && profile.avatar_overlay !== 'none' 
     ? `ra-avatar overlay-${profile.avatar_overlay}` 
@@ -140,7 +142,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isAdmin) {
           <ul class="ra-details-list">
             <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
             <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-            ${isAdmin ? '<li><strong>Role:</strong> <span class="text-red-400">Admin</span></li>' : ''}
+            ${isAdminUser ? '<li><strong>Role:</strong> <span class="text-red-400">Admin</span></li>' : ''}
           </ul>
         </div>
       </div>
@@ -210,7 +212,6 @@ function getBackgroundCSS(bg) {
     css = `background-color: ${value};`;
   }
   
-  // Note: Opacity is handled by an overlay div in CSS to keep text readable
   return css;
 }
 
