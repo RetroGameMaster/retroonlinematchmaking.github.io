@@ -175,10 +175,46 @@ async function handleHashChange() {
         return;
     }
 
-    // Check for profile detail page
-    if (hash.startsWith('profile/')) {
-        const profileId = hash.split('/')[1];
-        await loadProfileDetail(profileId);
+       // Check for profile detail page
+    if (hash === 'profile' || hash.startsWith('profile/')) {
+        const parts = hash.split('/');
+        const providedSlug = parts[1]; // The part after 'profile/'
+
+        // If no slug provided (user visited #/profile), redirect to their own username
+        if (!providedSlug) {
+            const user = window.rom?.currentUser;
+            if (!user) {
+                // Not logged in? Send to auth
+                window.location.hash = '#/auth';
+                return;
+            }
+            
+            // Fetch the username to use as the slug
+            try {
+                const { data: profileData } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', user.id)
+                    .single();
+                
+                if (profileData && profileData.username) {
+                    // Redirect to the proper slug URL
+                    window.location.hash = `#/profile/${profileData.username}`;
+                    return;
+                } else {
+                    console.error('Profile found but no username.');
+                    window.location.hash = '#/home';
+                    return;
+                }
+            } catch (err) {
+                console.error('Error fetching profile for redirect:', err);
+                window.location.hash = '#/home';
+                return;
+            }
+        }
+
+        // Slug exists, load the profile
+        await loadProfileDetail(providedSlug);
         return;
     }
 
