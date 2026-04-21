@@ -48,238 +48,114 @@
         .glow {
             text-shadow: 0 0 10px currentColor;
         }
- /* --- RETROACHIEVEMENTS PROFILE STYLE --- */
+/* --- Profile Style --- */
+.ra-profile-wrapper { max-width: 1000px; margin: 0 auto; color: #fff; font-family: 'Orbitron', sans-serif; }
 
-/* Header & Background */
-.ra-profile-header {
+/* Header */
+.ra-header {
   position: relative;
-  height: 280px;
-  border-radius: 8px;
+  height: 250px;
+  border-radius: 12px;
   overflow: hidden;
   margin-bottom: 80px; /* Space for overlapping avatar */
-  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-  background-color: #1f2937;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  background-color: #111827;
   background-size: cover;
   background-position: center;
 }
-
 .ra-header-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
 }
-
 .ra-header-content {
-  position: relative;
-  z-index: 2;
+  position: relative; z-index: 2;
   height: 100%;
-  display: flex;
-  align-items: flex-end;
-  padding: 20px 30px;
+  display: flex; align-items: flex-end; padding: 30px;
   gap: 25px;
 }
 
 /* Avatar */
-.ra-avatar-wrapper {
+.ra-avatar-container {
   position: relative;
-  margin-bottom: -60px; /* Pulls avatar down over the bottom edge */
+  margin-bottom: -60px; /* Overlap effect */
   z-index: 10;
 }
-
 .ra-avatar {
-  width: 140px;
-  height: 140px;
-  border-radius: 12px;
-  border: 4px solid #1f2937;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  border: 4px solid #06b6d4;
   object-fit: cover;
   background: #000;
 }
-
-.ra-status-dot {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  width: 16px;
-  height: 16px;
-  background: #22c55e;
-  border: 3px solid #1f2937;
+/* CRT Overlay Effect */
+.overlay-crt {
+  position: relative;
+}
+.overlay-crt::after {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 2px);
   border-radius: 50%;
+  pointer-events: none;
+}
+.overlay-neon {
+  box-shadow: 0 0 15px #06b6d4, inset 0 0 10px #06b6d4;
 }
 
-/* Header Info */
-.ra-header-info {
-  flex: 1;
-  color: white;
-  margin-bottom: 10px;
-}
-
-.ra-username {
-  font-size: 2.2rem;
-  font-weight: 800;
-  margin: 0;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-  font-family: 'Orbitron', sans-serif;
-}
-
-.ra-display-name {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin-top: 4px;
-}
-
-/* Stats Bar */
-.ra-stats-bar {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-top: 15px;
-  background: rgba(0,0,0,0.6);
-  padding: 8px 15px;
-  border-radius: 8px;
-  backdrop-filter: blur(4px);
-  width: fit-content;
-}
-
-.ra-stat {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ra-stat-icon { font-size: 1.2rem; }
-
-.ra-stat-details {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-
-.ra-stat-val { font-weight: bold; color: #06b6d4; font-size: 1.1rem; }
-.ra-stat-label { font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; }
-.ra-stat-divider { width: 1px; height: 25px; background: rgba(255,255,255,0.3); margin: 0 5px; }
+/* Info */
+.ra-info { flex: 1; padding-bottom: 10px; }
+.ra-username { font-size: 2.5rem; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+.ra-display-name { color: #9ca3af; font-size: 1.1rem; margin-top: 5px; }
+.ra-stats-row { display: flex; gap: 20px; margin-top: 15px; }
+.ra-stat { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; backdrop-filter: blur(4px); }
+.ra-stat-val { font-weight: bold; color: #06b6d4; }
+.ra-stat-label { font-size: 0.8rem; opacity: 0.8; }
 
 /* Edit Button */
 .ra-edit-btn {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  align-self: flex-start;
-  margin-top: 10px;
+  background: #374151; border: 1px solid #4b5563; color: #fff;
+  padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;
 }
-.ra-edit-btn:hover { background: rgba(255,255,255,0.2); }
+.ra-edit-btn:hover { background: #4b5563; }
 
-/* Signature Box */
+/* Signature */
 .ra-signature-box {
-  max-width: 900px;
-  margin: -40px auto 30px; /* Overlaps header slightly */
-  position: relative;
-  z-index: 5;
-  background: rgba(31, 41, 55, 0.95);
-  border: 1px solid #374151;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-  text-align: center;
+  background: rgba(0,0,0,0.4); border: 1px solid #374151;
+  padding: 20px; border-radius: 8px; margin-bottom: 30px;
+  min-height: 60px; font-style: italic;
 }
+.sig-effect-glow { text-shadow: 0 0 10px #06b6d4, 0 0 20px #06b6d4; animation: pulseGlow 2s infinite alternate; }
+.sig-effect-pulse { animation: opacityPulse 1.5s infinite; }
+.sig-effect-retro { font-family: 'Courier New', monospace; color: #0f0; border: 1px solid #0f0; background: #000; padding: 10px; }
 
-.ra-signature-inner {
-  font-size: 1.1rem;
-  line-height: 1.5;
-}
+@keyframes pulseGlow { from { text-shadow: 0 0 5px #06b6d4; } to { text-shadow: 0 0 20px #06b6d4, 0 0 30px #fff; } }
+@keyframes opacityPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-/* Signature Effects */
-.sig-glow { text-shadow: 0 0 5px #fff, 0 0 10px #06b6d4, 0 0 15px #06b6d4; animation: glow-pulse 2s infinite alternate; }
-.sig-pulse { animation: pulse-opacity 1.5s infinite; }
-.sig-rainbow { 
-  background: linear-gradient(45deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
-  background-size: 300%;
-  -webkit-background-clip: text;
-  color: transparent;
-  animation: rainbow 4s linear infinite;
-}
-.sig-retro { font-family: 'Courier New', monospace; color: #0f0; text-shadow: 0 0 2px #0f0; background: #000; padding: 5px; border: 1px solid #0f0; }
-
-@keyframes glow-pulse { from { text-shadow: 0 0 5px #06b6d4; } to { text-shadow: 0 0 20px #06b6d4, 0 0 30px #06b6d4; } }
-@keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-@keyframes rainbow { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
-
-/* Avatar Overlays */
-.overlay-crt { position: relative; }
-.overlay-crt::after {
-  content: ''; position: absolute; inset: 0; border-radius: 12px;
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
-  pointer-events: none;
-}
-.overlay-neon { box-shadow: 0 0 15px #06b6d4, inset 0 0 10px #06b6d4; border-color: #06b6d4; }
-
-/* Content Grid */
-.ra-content-grid {
-  max-width: 1000px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  padding: 0 20px;
-}
-
-.ra-card {
-  background: #1f2937;
-  border: 1px solid #374151;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  overflow: hidden;
-}
-
-.ra-card-title {
-  background: #111827;
-  padding: 10px 15px;
-  margin: 0;
-  font-size: 1.1rem;
-  color: #06b6d4;
-  border-bottom: 1px solid #374151;
-  font-family: 'Orbitron', sans-serif;
-}
-
-.ra-card-body { padding: 15px; color: #d1d5db; }
-.text-muted { color: #6b7280; font-style: italic; }
-
-/* Friends List */
-.friend-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #374151; }
-.friend-item:last-child { border-bottom: none; }
-.friend-avatar { width: 32px; height: 32px; border-radius: 50%; }
+/* Grid */
+.ra-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+.ra-card { background: #1f2937; padding: 20px; border-radius: 8px; border: 1px solid #374151; margin-bottom: 20px; }
+.ra-card h3 { margin-top: 0; color: #06b6d4; border-bottom: 1px solid #374151; padding-bottom: 10px; }
 
 /* Modal */
 .ra-modal {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000;
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100;
   justify-content: center; align-items: center;
 }
 .ra-modal-content {
-  background: #1f2937; border: 1px solid #374151; width: 90%; max-width: 600px;
-  border-radius: 8px; max-height: 90vh; overflow-y: auto;
+  background: #1f2937; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px;
+  border: 1px solid #06b6d4;
 }
-.ra-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #374151; }
-.ra-modal-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
-#profile-edit-form { padding: 20px; }
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; color: #06b6d4; font-size: 0.9rem; }
-.form-group input, .form-group textarea, .form-group select {
-  width: 100%; padding: 8px; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px;
+.ra-modal-content label { display: block; margin-top: 15px; color: #9ca3af; }
+.ra-modal-content textarea, .ra-modal-content select, .ra-modal-content input {
+  width: 100%; padding: 10px; margin-top: 5px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px;
 }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-.ra-btn-primary { background: #06b6d4; color: black; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-.ra-btn-secondary { background: transparent; color: white; border: 1px solid #6b7280; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+.modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+.btn-primary { background: #06b6d4; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
 
 @media (max-width: 768px) {
-  .ra-content-grid { grid-template-columns: 1fr; }
+  .ra-grid { grid-template-columns: 1fr; }
   .ra-header-content { flex-direction: column; align-items: center; text-align: center; }
-  .ra-avatar-wrapper { margin-bottom: 10px; }
-  .ra-stats-bar { margin: 15px auto; }
-  .form-row { grid-template-columns: 1fr; }
+  .ra-avatar-container { margin-bottom: 20px; }
+  .ra-stats-row { justify-content: center; }
 }
     </style>
 
