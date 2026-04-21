@@ -49,7 +49,7 @@
             text-shadow: 0 0 10px currentColor;
         }
 
-/* --- Profile Style --- */
+/* --- NEW PROFILE STYLES (Wall, Friends, Custom CSS) --- */
 .ra-profile-wrapper { max-width: 1000px; margin: 0 auto; color: #fff; font-family: 'Orbitron', sans-serif; }
 
 /* Header */
@@ -57,14 +57,12 @@
   position: relative;
   height: 250px;
   border-radius: 12px;
-  /* CHANGED: overflow visible to prevent avatar cutoff */
-  overflow: visible; 
-  margin-bottom: 80px; /* Space for overlapping avatar */
+  overflow: visible; /* Fixed avatar cutoff */
+  margin-bottom: 80px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   background-color: #111827;
   background-size: cover;
   background-position: center;
-  /* Ensure background corners stay rounded despite visible overflow */
   clip-path: inset(0 0 round 12px);
 }
 .ra-header-overlay {
@@ -82,7 +80,7 @@
 /* Avatar */
 .ra-avatar-container {
   position: relative;
-  margin-bottom: -60px; /* Overlap effect */
+  margin-bottom: -60px;
   z-index: 10;
 }
 .ra-avatar {
@@ -92,19 +90,7 @@
   object-fit: cover;
   background: #000;
 }
-/* CRT Overlay Effect */
-.overlay-crt {
-  position: relative;
-}
-.overlay-crt::after {
-  content: ''; position: absolute; inset: 0;
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1px, transparent 1px, transparent 2px);
-  border-radius: 50%;
-  pointer-events: none;
-}
-.overlay-neon {
-  box-shadow: 0 0 15px #06b6d4, inset 0 0 10px #06b6d4;
-}
+/* Note: Generic overlays removed. Users now apply custom CSS via profile settings */
 
 /* Info */
 .ra-info { flex: 1; padding-bottom: 10px; }
@@ -122,30 +108,24 @@
 }
 .ra-edit-btn:hover { background: #4b5563; }
 
-/* Signature */
+/* Signature (Now supports inline custom CSS) */
 .ra-signature-box {
   background: rgba(0,0,0,0.4); border: 1px solid #374151;
   padding: 20px; border-radius: 8px; margin-bottom: 30px;
   min-height: 60px; font-style: italic;
+  /* Generic effects removed. Custom CSS applied via style attribute in JS */
 }
-.sig-effect-glow { text-shadow: 0 0 10px #06b6d4, 0 0 20px #06b6d4; animation: pulseGlow 2s infinite alternate; }
-.sig-effect-pulse { animation: opacityPulse 1.5s infinite; }
-.sig-effect-retro { font-family: 'Courier New', monospace; color: #0f0; border: 1px solid #0f0; background: #000; padding: 10px; }
 
-@keyframes pulseGlow { from { text-shadow: 0 0 5px #06b6d4; } to { text-shadow: 0 0 20px #06b6d4, 0 0 30px #fff; } }
-@keyframes opacityPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-
-/* Grid */
+/* Grid & Cards */
 .ra-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
 .ra-card { background: #1f2937; padding: 20px; border-radius: 8px; border: 1px solid #374151; margin-bottom: 20px; }
 .ra-card h3 { margin-top: 0; color: #06b6d4; border-bottom: 1px solid #374151; padding-bottom: 10px; }
 
-/* Modal */
+/* Modal (Scrollable) */
 .ra-modal {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100;
   justify-content: center; align-items: center;
 }
-/* CHANGED: Added max-height and scroll for modal content */
 .ra-modal-content {
   background: #1f2937; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px;
   border: 1px solid #06b6d4;
@@ -158,20 +138,26 @@
 .ra-modal-content textarea, .ra-modal-content select, .ra-modal-content input {
   width: 100%; padding: 10px; margin-top: 5px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px;
 }
+/* New Input Class for Wall/Forms */
+.ra-input {
+  width: 100%; padding: 10px; margin-top: 5px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px;
+}
 .modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
 .btn-primary { background: #06b6d4; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
 
+/* Wall Post Styles */
+.wall-post-form { margin-bottom: 15px; }
+.wall-list { max-height: 400px; overflow-y: auto; }
+
+/* Responsive */
 @media (max-width: 768px) {
   .ra-grid { grid-template-columns: 1fr; }
   .ra-header-content { flex-direction: column; align-items: center; text-align: center; }
   .ra-avatar-container { margin-bottom: 20px; }
   .ra-stats-row { justify-content: center; }
 }
-    </style>
 
-    <!-- Custom CSS for admin edit functionality, image upload, and animations -->
-    <style>
-        /* Admin Edit Functionality Styles */
+        /* --- ORIGINAL ADMIN & GAME STYLES (Restored) --- */
         
         /* Admin edit buttons animation */
         .admin-edit-buttons button {
@@ -189,12 +175,8 @@
         }
         
         @keyframes fadeIn {
-            from { 
-                opacity: 0; 
-            }
-            to { 
-                opacity: 1; 
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         /* Notification animations */
@@ -203,25 +185,13 @@
         }
         
         @keyframes slideIn {
-            from { 
-                transform: translateX(100%); 
-                opacity: 0; 
-            }
-            to { 
-                transform: translateX(0); 
-                opacity: 1; 
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
         
         @keyframes slideOut {
-            from { 
-                transform: translateX(0); 
-                opacity: 1; 
-            }
-            to { 
-                transform: translateX(100%); 
-                opacity: 0; 
-            }
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
         }
         
         /* Image Upload Styles */
@@ -296,17 +266,9 @@
             margin-top: 0.25rem;
         }
         
-        .upload-status.success {
-            color: #10b981;
-        }
-        
-        .upload-status.error {
-            color: #ef4444;
-        }
-        
-        .upload-status.info {
-            color: #06b6d4;
-        }
+        .upload-status.success { color: #10b981; }
+        .upload-status.error { color: #ef4444; }
+        .upload-status.info { color: #06b6d4; }
         
         /* Additional styles for game detail page */
         .game-screenshot img {
@@ -603,126 +565,126 @@
             color: #fff;
         }
         /* Lightbox styles */
-.lightbox {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.9);
-}
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
 
-.lightbox-content {
-    margin: auto;
-    display: block;
-    width: 80%;
-    max-width: 1200px;
-    max-height: 80vh;
-    object-fit: contain;
-}
+        .lightbox-content {
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 1200px;
+            max-height: 80vh;
+            object-fit: contain;
+        }
 
-.close-lightbox {
-    position: absolute;
-    top: 20px;
-    right: 30px;
-    color: #f1f1f1;
-    font-size: 40px;
-    font-weight: bold;
-    cursor: pointer;
-}
+        .close-lightbox {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-.close-lightbox:hover {
-    color: #bbb;
-}
+        .close-lightbox:hover {
+            color: #bbb;
+        }
 
-/* Image Upload Styles */
-.file-upload-area {
-    border: 2px dashed #4b5563;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    text-align: center;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
+        /* Image Upload Styles */
+        .file-upload-area {
+            border: 2px dashed #4b5563;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
 
-.file-upload-area:hover {
-    border-color: #06b6d4;
-    background-color: rgba(6, 182, 212, 0.05);
-}
+        .file-upload-area:hover {
+            border-color: #06b6d4;
+            background-color: rgba(6, 182, 212, 0.05);
+        }
 
-.file-upload-area.dragover {
-    border-color: #06b6d4;
-    background-color: rgba(6, 182, 212, 0.1);
-}
+        .file-upload-area.dragover {
+            border-color: #06b6d4;
+            background-color: rgba(6, 182, 212, 0.1);
+        }
 
-.screenshot-preview {
-    position: relative;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
+        .screenshot-preview {
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
 
-.screenshot-preview:hover {
-    transform: scale(1.02);
-}
+        .screenshot-preview:hover {
+            transform: scale(1.02);
+        }
 
-.remove-screenshot-btn {
-    position: absolute;
-    top: -0.5rem;
-    right: -0.5rem;
-    width: 1.5rem;
-    height: 1.5rem;
-    background-color: #dc2626;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
+        .remove-screenshot-btn {
+            position: absolute;
+            top: -0.5rem;
+            right: -0.5rem;
+            width: 1.5rem;
+            height: 1.5rem;
+            background-color: #dc2626;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
 
-.screenshot-preview:hover .remove-screenshot-btn {
-    opacity: 1;
-}
+        .screenshot-preview:hover .remove-screenshot-btn {
+            opacity: 1;
+        }
 
-/* Animation for messages */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+        /* Animation for messages */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-.animate-fade-in {
-    animation: fadeIn 0.3s ease;
-}
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease;
+        }
 
-/* Form styling */
-.form-label.required::after {
-    content: " *";
-    color: #ff3333;
-}
+        /* Form styling */
+        .form-label.required::after {
+            content: " *";
+            color: #ff3333;
+        }
 
-/* Game detail specific */
-.game-screenshot {
-    transition: transform 0.3s;
-}
+        /* Game detail specific */
+        .game-screenshot {
+            transition: transform 0.3s;
+        }
 
-.game-screenshot:hover {
-    transform: scale(1.02);
-}
+        .game-screenshot:hover {
+            transform: scale(1.02);
+        }
 
-.comment-avatar {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #06b6d4, #8b5cf6);
-}
+        .comment-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+        }
     </style>
 </head>
 <body class="bg-gray-900">
-    <!-- Navigation - UPDATED WITH SEARCH LINK -->
+    <!-- Navigation -->
     <nav class="bg-gray-800 p-4 border-b-2 border-cyan-500">
         <div class="container mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-6">
@@ -731,12 +693,10 @@
                 <a href="#/games" class="hover:text-cyan-300">Games</a>
                 <a href="#/chat" class="hover:text-cyan-300">Chat</a>
                 <a href="#/profile" class="hover:text-cyan-300">Profile</a>
-                <!-- ADDED SEARCH USERS LINK -->
                 <a href="#/search-users" class="hover:text-cyan-300">🔍 Find Users</a>
                 <a href="#/admin" id="admin-link" class="hover:text-cyan-300 hidden">Admin</a>
             </div>
             <div id="auth-buttons">
-                <!-- Auth buttons will be loaded here -->
                 Loading auth...
             </div>
         </div>
@@ -744,7 +704,6 @@
 
     <!-- Main App Content -->
     <main id="app-content" class="container mx-auto p-4">
-        <!-- Content will be loaded here -->
         <div class="text-center p-8">
             <h1 class="text-3xl font-bold mb-4 text-cyan-400">🚀 Loading ROM...</h1>
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
@@ -754,13 +713,10 @@
     <!-- Load main app -->
     <script type="module" src="app.js"></script>
     
-    <!-- Simple debug helper (no nuclear login) -->
+    <!-- Debug helper -->
     <script>
-    // Only add debug info in development
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         console.log('🔧 Development mode: Debug helpers enabled');
-        
-        // Add a small debug indicator
         const debugIndicator = document.createElement('div');
         debugIndicator.style.cssText = `
             position: fixed;
