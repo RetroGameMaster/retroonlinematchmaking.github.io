@@ -48,6 +48,7 @@
         .glow {
             text-shadow: 0 0 10px currentColor;
         }
+
 /* --- Profile Style --- */
 .ra-profile-wrapper { max-width: 1000px; margin: 0 auto; color: #fff; font-family: 'Orbitron', sans-serif; }
 
@@ -56,16 +57,20 @@
   position: relative;
   height: 250px;
   border-radius: 12px;
-  overflow: hidden;
+  /* CHANGED: overflow visible to prevent avatar cutoff */
+  overflow: visible; 
   margin-bottom: 80px; /* Space for overlapping avatar */
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   background-color: #111827;
   background-size: cover;
   background-position: center;
+  /* Ensure background corners stay rounded despite visible overflow */
+  clip-path: inset(0 0 round 12px);
 }
 .ra-header-overlay {
   position: absolute; inset: 0;
   background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  border-radius: 12px;
 }
 .ra-header-content {
   position: relative; z-index: 2;
@@ -140,9 +145,14 @@
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100;
   justify-content: center; align-items: center;
 }
+/* CHANGED: Added max-height and scroll for modal content */
 .ra-modal-content {
   background: #1f2937; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px;
   border: 1px solid #06b6d4;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 .ra-modal-content label { display: block; margin-top: 15px; color: #9ca3af; }
 .ra-modal-content textarea, .ra-modal-content select, .ra-modal-content input {
