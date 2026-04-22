@@ -49,7 +49,9 @@
             text-shadow: 0 0 10px currentColor;
         }
 
-/* --- NEW PROFILE STYLES (Wall, Friends, Custom CSS) --- */
+/* ============================================================================
+   PROFILE STYLES (RetroAchievements Layout + Custom CSS Support)
+   ============================================================================ */
 .ra-profile-wrapper { max-width: 1000px; margin: 0 auto; color: #fff; font-family: 'Orbitron', sans-serif; }
 
 /* Header */
@@ -157,7 +159,9 @@
   .ra-stats-row { justify-content: center; }
 }
 
-        /* --- ORIGINAL ADMIN & GAME STYLES (Restored) --- */
+/* ============================================================================
+   ORIGINAL ADMIN & GAME STYLES (Restored Exactly)
+   ============================================================================ */
         
         /* Admin edit buttons animation */
         .admin-edit-buttons button {
@@ -564,7 +568,7 @@
             background-color: #ef4444;
             color: #fff;
         }
-        /* Lightbox styles */
+        /* Lightbox styles (Duplicate safe guard) */
         .lightbox {
             display: none;
             position: fixed;
@@ -599,7 +603,7 @@
             color: #bbb;
         }
 
-        /* Image Upload Styles */
+        /* Image Upload Styles (Duplicate safe guard) */
         .file-upload-area {
             border: 2px dashed #4b5563;
             border-radius: 0.5rem;
@@ -651,7 +655,7 @@
             opacity: 1;
         }
 
-        /* Animation for messages */
+        /* Animation for messages (Duplicate safe guard) */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
