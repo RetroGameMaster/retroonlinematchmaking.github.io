@@ -163,10 +163,13 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
   const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
   // Inject the full HTML structure
+  // CHANGE: Background style applied to wrapper instead of header for full-page effect
   container.innerHTML = `
-    <div class="ra-profile-wrapper">
-      <!-- RetroAchievements Style Header -->
-      <div class="ra-header" style="${bgStyle}">
+    <!-- Main Wrapper: Holds the full-page background -->
+    <div class="ra-profile-wrapper" style="${bgStyle}">
+      
+      <!-- Header: Now transparent to show wrapper background -->
+      <div class="ra-header">
         <div class="ra-header-overlay"></div>
         <div class="ra-header-content">
           
@@ -554,7 +557,7 @@ async function loadWallComments(profileId) {
 
   list.innerHTML = comments.map(c => `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
-      <img src="${c.author?.avatar_url || 'https://ui-avatars.com/api/?name=' + c.author?.username}" 
+      <img src="${c.author?.avatar_url || ' https://ui-avatars.com/api/?name=' + c.author?.username}" 
            class="w-8 h-8 rounded-full bg-gray-600 object-cover" 
            alt="${c.author?.username}">
       <div class="flex-1">
@@ -585,7 +588,7 @@ async function loadFriends(userId) {
     <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" 
          onclick="window.location.hash='#/profile/${f.username}'">
       <div class="relative">
-        <img src="${f.avatar_url || 'https://ui-avatars.com/api/?name=' + f.username}" 
+        <img src="${f.avatar_url || ' https://ui-avatars.com/api/?name=' + f.username}" 
              class="w-6 h-6 rounded-full object-cover">
         <div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-gray-900 ${f.is_online ? 'bg-green-500' : 'bg-gray-500'}"></div>
       </div>
