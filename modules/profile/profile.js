@@ -101,6 +101,7 @@ async function fetchProfileByUserId(id) {
 }
 
 // --- fetchWallComments ---
+// Fixed to avoid Foreign Key constraint name errors by fetching authors separately
 async function fetchWallComments(profileId) {
   // Step 1: Get all comments for this profile
   const { data: comments, error } = await supabase
@@ -214,7 +215,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
         </div>
       </div>
 
-      <!-- Custom Signature Section (User Defined CSS) -->
+      <!-- Custom Signature Section (User Defined CSS & HTML) -->
       ${profile.signature_text ? `
         <div class="ra-signature-box" style="${profile.signature_custom_css || ''}">
           ${profile.signature_text}
@@ -304,12 +305,19 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
               <label>Background Type</label>
               <select name="bg_type" id="bg_type" class="ra-input">
                 <option value="color" ${profile.custom_background?.type === 'color' ? 'selected' : ''}>Solid Color</option>
-                <option value="image" ${profile.custom_background?.type === 'image' ? 'selected' : ''}>Image URL</option>
+                <option value="image" ${profile.custom_background?.type === 'image' ? 'selected' : ''}>Uploaded Image / GIF (Animated)</option>
                 <option value="gradient" ${profile.custom_background?.type === 'gradient' ? 'selected' : ''}>Gradient</option>
               </select>
 
-              <label>Background Value</label>
-              <input type="text" name="bg_value" class="ra-input" value="${profile.custom_background?.value || '#1f2937'}" placeholder="#hex, url(...), or linear-gradient(...)">
+              <!-- NEW: File Upload Section (Visible only if 'image' is selected) -->
+              <div id="bg-upload-container" style="display: ${profile.custom_background?.type === 'image' ? 'block' : 'none'}; margin-top: 15px;">
+                <label class="block text-sm font-bold text-cyan-400 mb-1">Upload New Background</label>
+                <input type="file" id="bg_file_input" accept="image/*" class="ra-input">
+                <p class="text-xs text-gray-500 mt-1">Supports JPG, PNG, and <strong>GIF/WebP for animation</strong>. Uploading will replace the URL below.</p>
+              </div>
+
+              <label class="block mt-4">Background Value (URL or Color Code)</label>
+              <input type="text" name="bg_value" id="bg_value_input" class="ra-input" value="${profile.custom_background?.value || '#1f2937'}" placeholder="#hex or https://...">
 
               <div class="modal-actions">
                 <button type="button" id="btn-cancel-edit" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded transition-colors">Cancel</button>
@@ -334,6 +342,7 @@ function getBackgroundCSS(bg) {
   let css = '';
 
   if (type === 'image') {
+    // Supports animated GIFs/WebP naturally via standard CSS
     css = `background-image: url('${value}'); background-size: cover; background-position: center;`;
   } else if (type === 'gradient') {
     css = `background-image: ${value};`;
@@ -354,6 +363,10 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   const modal = document.getElementById('edit-modal');
   const cancelBtn = document.getElementById('btn-cancel-edit');
   const form = document.getElementById('profile-form');
+  
+  // Elements for Background Upload Toggle
+  const bgTypeSelect = document.getElementById('bg_type');
+  const bgUploadContainer = document.getElementById('bg-upload-container');
 
   if (editBtn && modal) {
     editBtn.addEventListener('click', () => {
@@ -367,19 +380,79 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     });
   }
 
+  // Toggle File Input based on Dropdown Selection
+  if (bgTypeSelect && bgUploadContainer) {
+    bgTypeSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'image') {
+        bgUploadContainer.style.display = 'block';
+      } else {
+        bgUploadContainer.style.display = 'none';
+      }
+    });
+  }
+
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(form);
       
+      let finalBgValue = formData.get('bg_value');
+      const bgType = formData.get('bg_type');
+
+      // --- HANDLE FILE UPLOAD IF IMAGE TYPE SELECTED ---
+      const fileInput = document.getElementById('bg_file_input');
+      if (bgType === 'image' && fileInput && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert('Please select a valid image file.');
+          return;
+        }
+
+        const fileName = `${profile.id}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = 'Uploading...';
+        submitBtn.disabled = true;
+
+        try {
+          // Upload to Supabase Storage 'user-backgrounds' bucket
+          const { data, error } = await supabase.storage
+            .from('user-backgrounds')
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: true // Overwrite if same name (though name is unique here)
+            });
+
+          if (error) throw error;
+
+          // Get Public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('user-backgrounds')
+            .getPublicUrl(fileName);
+
+          finalBgValue = publicUrl;
+
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
+          submitBtn.textContent = originalBtnText;
+          submitBtn.disabled = false;
+          return;
+        }
+      }
+      // --------------------------------------------------
+
       const updates = {
         bio: formData.get('bio'),
         signature_text: formData.get('signature_text'),
         signature_custom_css: formData.get('signature_custom_css'),
         avatar_custom_css: formData.get('avatar_custom_css'),
         custom_background: {
-          type: formData.get('bg_type'),
-          value: formData.get('bg_value'),
+          type: bgType,
+          value: finalBgValue,
           opacity: 1,
           position: 'center',
           size: 'cover'
@@ -400,34 +473,9 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     });
   }
 
- // --- loadWallComments ---
-async function loadWallComments(profileId) {
-  const list = document.getElementById('wall-list');
-  if (!list) return;
+  // --- 2. Load Wall Comments ---
+  loadWallComments(profile.id);
 
-  list.innerHTML = '<div class="text-center text-gray-500">Loading wall...</div>';
-  
-  const comments = await fetchWallComments(profileId);
-  
-  if (comments.length === 0) {
-    list.innerHTML = '<div class="text-sm text-gray-500 italic">No shouts yet. Be the first!</div>';
-    return;
-  }
-
-  list.innerHTML = comments.map(c => `
-    <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3">
-      <img src="${c.author?.avatar_url || 'https://ui-avatars.com/api/?name=' + (c.author?.username || 'U')}" 
-           class="w-8 h-8 rounded-full bg-gray-600 object-cover">
-      <div class="flex-1">
-        <div class="flex items-baseline gap-2">
-          <span class="font-bold text-cyan-400 text-sm">${c.author?.username || 'Unknown'}</span>
-          <span class="text-xs text-gray-500">${new Date(c.created_at).toLocaleDateString()}</span>
-        </div>
-        <p class="text-gray-300 text-sm mt-1 break-words">${c.content}</p>
-      </div>
-    </div>
-  `).join('');
-}
   // --- 3. Post Wall Comment ---
   const postBtn = document.getElementById('btn-post-wall');
   if (postBtn) {
