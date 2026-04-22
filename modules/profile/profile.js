@@ -100,22 +100,34 @@ async function fetchProfileByUserId(id) {
   return error ? null : data;
 }
 
+// --- fetchWallComments ---
 async function fetchWallComments(profileId) {
-  // Fetch comments targeting this user, joining author details
-  const { data, error } = await supabase
+  // Step 1: Get all comments for this profile
+  const { data: comments, error } = await supabase
     .from('profile_comments')
-    .select(`
-      *,
-      author:profiles!profile_comments_author_id_fkey (
-        id,
-        username,
-        avatar_url
-      )
-    `)
+    .select('*')
     .eq('target_user_id', profileId)
     .order('created_at', { ascending: false });
+
+  if (error || !comments) return [];
+
+  // Step 2: Fetch author details separately to avoid FK constraint name issues
+  const authorIds = [...new Set(comments.map(c => c.author_id))];
   
-  return error ? [] : data;
+  if (authorIds.length === 0) return comments;
+
+  const { data: authors } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', authorIds);
+
+  // Step 3: Merge author data into comments
+  const authorMap = new Map(authors?.map(a => [a.id, a]) || []);
+  
+  return comments.map(c => ({
+    ...c,
+    author: authorMap.get(c.author_id) || { username: 'Unknown', avatar_url: '' }
+  }));
 }
 
 async function fetchFriends(userId) {
@@ -388,9 +400,34 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     });
   }
 
-  // --- 2. Load Wall Comments ---
-  loadWallComments(profile.id);
+ // --- loadWallComments ---
+async function loadWallComments(profileId) {
+  const list = document.getElementById('wall-list');
+  if (!list) return;
 
+  list.innerHTML = '<div class="text-center text-gray-500">Loading wall...</div>';
+  
+  const comments = await fetchWallComments(profileId);
+  
+  if (comments.length === 0) {
+    list.innerHTML = '<div class="text-sm text-gray-500 italic">No shouts yet. Be the first!</div>';
+    return;
+  }
+
+  list.innerHTML = comments.map(c => `
+    <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3">
+      <img src="${c.author?.avatar_url || 'https://ui-avatars.com/api/?name=' + (c.author?.username || 'U')}" 
+           class="w-8 h-8 rounded-full bg-gray-600 object-cover">
+      <div class="flex-1">
+        <div class="flex items-baseline gap-2">
+          <span class="font-bold text-cyan-400 text-sm">${c.author?.username || 'Unknown'}</span>
+          <span class="text-xs text-gray-500">${new Date(c.created_at).toLocaleDateString()}</span>
+        </div>
+        <p class="text-gray-300 text-sm mt-1 break-words">${c.content}</p>
+      </div>
+    </div>
+  `).join('');
+}
   // --- 3. Post Wall Comment ---
   const postBtn = document.getElementById('btn-post-wall');
   if (postBtn) {
