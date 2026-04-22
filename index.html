@@ -50,28 +50,46 @@
         }
 
 /* ============================================================================
-   PROFILE STYLES (RetroAchievements Layout + Custom CSS Support)
+   PROFILE STYLES (Full Page Background Support)
    ============================================================================ */
-.ra-profile-wrapper { max-width: 1000px; margin: 0 auto; color: #fff; font-family: 'Orbitron', sans-serif; }
 
-/* Header */
+/* Wrapper now holds the background for the whole profile area */
+.ra-profile-wrapper { 
+    max-width: 1000px; 
+    margin: 0 auto; 
+    color: #fff; 
+    font-family: 'Orbitron', sans-serif; 
+    /* Background properties moved here */
+    background-size: cover !important; 
+    background-position: center !important; 
+    background-attachment: fixed; /* Optional: creates a parallax-like fixed effect */
+    background-repeat: no-repeat;
+    border-radius: 12px;
+    padding-bottom: 20px;
+    min-height: 100vh; /* Ensure it covers at least the full screen */
+}
+
+/* Header is now transparent to show the wrapper's background */
 .ra-header {
   position: relative;
   height: 250px;
   border-radius: 12px;
-  overflow: visible; /* Fixed avatar cutoff */
+  overflow: visible; 
   margin-bottom: 80px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  background-color: #111827;
-  background-size: cover;
-  background-position: center;
+  /* Force transparency */
+  background-color: transparent !important; 
+  background-image: none !important; 
   clip-path: inset(0 0 round 12px);
 }
+
 .ra-header-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  /* Slightly darker gradient to ensure header text readability */
+  background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.6));
   border-radius: 12px;
 }
+
 .ra-header-content {
   position: relative; z-index: 2;
   height: 100%;
@@ -92,7 +110,6 @@
   object-fit: cover;
   background: #000;
 }
-/* Note: Generic overlays removed. Users now apply custom CSS via profile settings */
 
 /* Info */
 .ra-info { flex: 1; padding-bottom: 10px; }
@@ -110,18 +127,32 @@
 }
 .ra-edit-btn:hover { background: #4b5563; }
 
-/* Signature (Now supports inline custom CSS) */
+/* Signature */
 .ra-signature-box {
-  background: rgba(0,0,0,0.4); border: 1px solid #374151;
-  padding: 20px; border-radius: 8px; margin-bottom: 30px;
-  min-height: 60px; font-style: italic;
-  /* Generic effects removed. Custom CSS applied via style attribute in JS */
+  background: rgba(0,0,0,0.6); 
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 20px; 
+  border-radius: 8px; 
+  margin-bottom: 30px;
+  min-height: 60px; 
+  font-style: italic;
 }
 
 /* Grid & Cards */
 .ra-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-.ra-card { background: #1f2937; padding: 20px; border-radius: 8px; border: 1px solid #374151; margin-bottom: 20px; }
-.ra-card h3 { margin-top: 0; color: #06b6d4; border-bottom: 1px solid #374151; padding-bottom: 10px; }
+
+/* Cards now have semi-transparent backgrounds for readability over custom images */
+.ra-card { 
+    background: rgba(31, 41, 55, 0.85); 
+    backdrop-filter: blur(10px); 
+    padding: 20px; 
+    border-radius: 8px; 
+    border: 1px solid rgba(255,255,255,0.1); 
+    margin-bottom: 20px; 
+}
+
+.ra-card h3 { margin-top: 0; color: #06b6d4; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
 
 /* Modal (Scrollable) */
 .ra-modal {
@@ -157,6 +188,9 @@
   .ra-header-content { flex-direction: column; align-items: center; text-align: center; }
   .ra-avatar-container { margin-bottom: 20px; }
   .ra-stats-row { justify-content: center; }
+  .ra-profile-wrapper {
+      background-attachment: scroll; /* Better performance on mobile */
+  }
 }
 
 /* ============================================================================
