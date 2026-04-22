@@ -63,7 +63,7 @@ export async function initModule(container, params) {
     // 3. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isUserAdmin, currentUser);
 
-    // 4. Attach Event Listeners (Edit, Wall, Friends)
+    // 4. Attach Event Listeners (Edit, Wall, Friends, Currently Playing)
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
 
   } catch (error) {
@@ -133,7 +133,6 @@ async function fetchWallComments(profileId) {
 
 async function fetchFriends(userId) {
   // Fetch accepted friends where this user is the owner
-  // Note: Adjust table/column names if your friends schema differs slightly
   const { data, error } = await supabase
     .from('friends')
     .select(`
@@ -162,13 +161,23 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
   const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
+  // Parse Currently Playing Games (Stored as JSON string or Array)
+  let currentlyPlayingGames = [];
+  if (profile.currently_playing) {
+    try {
+      currentlyPlayingGames = typeof profile.currently_playing === 'string' 
+        ? JSON.parse(profile.currently_playing) 
+        : profile.currently_playing;
+    } catch (e) {
+      console.error("Error parsing currently_playing", e);
+    }
+  }
+
   // Inject the full HTML structure
-  // CHANGE: Background style applied to wrapper instead of header for full-page effect
+  // NOTE: Background style is applied to the Wrapper for full-page effect
   container.innerHTML = `
-    <!-- Main Wrapper: Holds the full-page background -->
     <div class="ra-profile-wrapper" style="${bgStyle}">
-      
-      <!-- Header: Now transparent to show wrapper background -->
+      <!-- RetroAchievements Style Header (Now Transparent to show wrapper bg) -->
       <div class="ra-header">
         <div class="ra-header-overlay"></div>
         <div class="ra-header-content">
@@ -234,6 +243,36 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
             <p class="ra-bio">${profile.bio || 'No bio added yet.'}</p>
           </div>
           
+          <!-- Currently Playing Section (NEW) -->
+          <div class="ra-card">
+            <h3>🎮 What I'm Playing Currently</h3>
+            <div id="currently-playing-container">
+              ${isOwnProfile ? `
+                <div class="flex gap-2 mb-4">
+                  <input type="text" id="new-game-input" placeholder="Enter game title..." class="ra-input flex-1">
+                  <button id="btn-add-game" class="btn-primary whitespace-nowrap">Add Game</button>
+                </div>
+              ` : ''}
+              
+              <div id="currently-playing-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                ${currentlyPlayingGames.length > 0 
+                  ? currentlyPlayingGames.map((game, index) => `
+                      <div class="relative group bg-gray-800/80 backdrop-blur-sm border border-gray-600 p-3 rounded-lg flex items-center gap-3">
+                        <span class="text-cyan-400 text-xl">🎮</span>
+                        <span class="text-sm font-bold text-gray-200 truncate flex-1">${game}</span>
+                        ${isOwnProfile ? `
+                          <button class="remove-game-btn opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300" data-index="${index}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                          </button>
+                        ` : ''}
+                      </div>
+                    `).join('')
+                  : '<div class="col-span-full text-gray-500 italic text-center py-4">No games listed yet.</div>'
+                }
+              </div>
+            </div>
+          </div>
+
           <!-- Comment Wall / Shout Box -->
           <div class="ra-card">
             <h3>Shout Box / Wall</h3>
@@ -346,9 +385,9 @@ function getBackgroundCSS(bg) {
 
   if (type === 'image') {
     // Supports animated GIFs/WebP naturally via standard CSS
-    css = `background-image: url('${value}'); background-size: cover; background-position: center;`;
+    css = `background-image: url('${value}'); background-size: cover; background-position: center; background-attachment: fixed;`;
   } else if (type === 'gradient') {
-    css = `background-image: ${value};`;
+    css = `background-image: ${value}; background-attachment: fixed;`;
   } else {
     css = `background-color: ${value};`;
   }
@@ -427,7 +466,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
             .from('user-backgrounds')
             .upload(fileName, file, {
               cacheControl: '3600',
-              upsert: true // Overwrite if same name (though name is unique here)
+              upsert: true
             });
 
           if (error) throw error;
@@ -538,6 +577,85 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       }
     });
   }
+
+  // --- 6. Currently Playing: Add Game ---
+  const addGameBtn = document.getElementById('btn-add-game');
+  if (addGameBtn) {
+    addGameBtn.addEventListener('click', async () => {
+      const input = document.getElementById('new-game-input');
+      const gameTitle = input.value.trim();
+      
+      if (!gameTitle) {
+        alert('Please enter a game title.');
+        return;
+      }
+
+      // Get current list
+      let currentGames = [];
+      if (profile.currently_playing) {
+        try {
+          currentGames = typeof profile.currently_playing === 'string' 
+            ? JSON.parse(profile.currently_playing) 
+            : profile.currently_playing;
+        } catch (e) { currentGames = []; }
+      }
+
+      // Add new game
+      currentGames.push(gameTitle);
+
+      // Update DB
+      const { error } = await supabase
+        .from('profiles')
+        .update({ currently_playing: currentGames })
+        .eq('id', profile.id);
+
+      if (error) {
+        alert('Error adding game: ' + error.message);
+      } else {
+        input.value = '';
+        // Reload profile to reflect changes
+        location.reload(); 
+      }
+    });
+  }
+
+  // --- 7. Currently Playing: Remove Game ---
+  const removeGameBtns = document.querySelectorAll('.remove-game-btn');
+  removeGameBtns.forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation(); // Prevent triggering parent clicks
+      const index = parseInt(btn.getAttribute('data-index'));
+      
+      if (!confirm('Remove this game from your list?')) return;
+
+      // Get current list
+      let currentGames = [];
+      if (profile.currently_playing) {
+        try {
+          currentGames = typeof profile.currently_playing === 'string' 
+            ? JSON.parse(profile.currently_playing) 
+            : profile.currently_playing;
+        } catch (e) { currentGames = []; }
+      }
+
+      // Remove game at index
+      if (index >= 0 && index < currentGames.length) {
+        currentGames.splice(index, 1);
+      }
+
+      // Update DB
+      const { error } = await supabase
+        .from('profiles')
+        .update({ currently_playing: currentGames })
+        .eq('id', profile.id);
+
+      if (error) {
+        alert('Error removing game: ' + error.message);
+      } else {
+        location.reload();
+      }
+    });
+  });
 }
 
 // ============================================================================
