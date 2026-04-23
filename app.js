@@ -116,46 +116,52 @@ const fallbackContent = {
 // GLOBAL QUOTE RENDERER (FIXED)
 // ============================================================================
 const renderRandomQuote = () => {
-    // FIX 1: Match the ID in your HTML ('retro-quote-bar')
+    // 1. Match the ID in your HTML exactly
     const quoteBar = document.getElementById('retro-quote-bar');
     
+    // Safety check
     if (!quoteBar) {
-        console.warn('Quote bar element not found!');
+        console.warn('Quote bar element not found in DOM');
         return;
     }
 
     const quote = getRandomQuote();
     
-    // Handle Sprite (Emoji vs Image)
+    // Determine if sprite is an emoji or an image URL
     const isEmoji = quote.sprite.length <= 4; 
+    
+    // Get the specific child elements from your HTML structure
     const spriteContainer = document.getElementById('quote-sprite-container');
     const spriteImg = document.getElementById('quote-sprite');
-    
-    if (spriteContainer && spriteImg) {
-        if (isEmoji) {
-            spriteImg.style.display = 'none';
-            spriteContainer.innerHTML = `<span class="text-2xl">${quote.sprite}</span>`;
-        } else {
-            spriteImg.style.display = 'block';
-            spriteImg.src = quote.sprite;
-            spriteContainer.innerHTML = ''; // Clear emoji if any
-            spriteContainer.appendChild(spriteImg);
-        }
-    }
-
-    // Update Text Content
     const textEl = document.getElementById('quote-text');
     const charEl = document.getElementById('quote-character');
     const gameEl = document.getElementById('quote-game');
 
-    if (textEl) textEl.textContent = `"${quote.text}"`;
-    if (charEl) charEl.textContent = quote.character;
-    if (gameEl) gameEl.textContent = quote.game;
+    if (!spriteContainer || !spriteImg || !textEl || !charEl || !gameEl) {
+        console.error('Quote child elements missing');
+        return;
+    }
 
-    // FIX 2: Make it visible (Remove 'hidden' class and reset opacity/transform)
+    // 2. Set Content
+    if (isEmoji) {
+        // If emoji, hide image, show text in container
+        spriteImg.style.display = 'none';
+        spriteContainer.innerHTML = `<span class="text-2xl">${quote.sprite}</span>`;
+    } else {
+        // If image, show image
+        spriteImg.style.display = 'block';
+        spriteImg.src = quote.sprite;
+        spriteImg.alt = quote.character;
+    }
+
+    textEl.textContent = `"${quote.text}"`;
+    charEl.textContent = quote.character;
+    gameEl.textContent = quote.game;
+
+    // 3. Make Visible (Remove 'hidden' class and reset opacity/transform)
     quoteBar.classList.remove('hidden');
     
-    // Force a reflow to ensure the transition works if you want it to slide in
+    // Force reflow to ensure transition works if you want it to slide in
     void quoteBar.offsetWidth; 
     
     quoteBar.style.opacity = '1';
