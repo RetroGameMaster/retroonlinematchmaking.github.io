@@ -130,22 +130,45 @@ async function fetchWallComments(profileId) {
 }
 
 async function fetchFriends(userId) {
-  // Fetch accepted friends where this user is the owner
+  // FIX: Fetch friends where the user is EITHER the requester OR the receiver
   const { data, error } = await supabase
     .from('friends')
     .select(`
+      status,
+      user_id,
+      friend_id,
       friend_profile:profiles!friends_friend_id_fkey (
+        id,
+        username,
+        avatar_url,
+        is_online
+      ),
+      user_profile:profiles!friends_user_id_fkey (
         id,
         username,
         avatar_url,
         is_online
       )
     `)
-    .eq('user_id', userId)
+    .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
     .eq('status', 'accepted');
   
-  if (error) return [];
-  return data.map(item => item.friend_profile);
+  if (error) {
+    console.error("Error fetching friends:", error);
+    return [];
+  }
+
+  // Map the results to always return the "other" person's profile
+  return data.map(item => {
+    // If the current userId matches the user_id column, the friend is in friend_profile
+    if (item.user_id === userId) {
+      return item.friend_profile;
+    } 
+    // If the current userId matches the friend_id column, the friend is in user_profile
+    else {
+      return item.user_profile;
+    }
+  }).filter(p => p !== null); // Filter out any nulls just in case
 }
 
 // FIX 2: Helper to check friendship status between current user and target user
