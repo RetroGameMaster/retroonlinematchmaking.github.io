@@ -17,6 +17,10 @@
                             500: '#06b6d4',
                             600: '#0891b2',
                             700: '#0e7490',
+                        },
+                        retro: {
+                            pink: '#ff00ff',
+                            purple: '#bd00ff'
                         }
                     }
                 }
@@ -34,6 +38,8 @@
             background: #0a0a0a;
             color: #00ffff;
             min-height: 100vh;
+            /* Add padding to bottom so content isn't hidden behind radio */
+            padding-bottom: 100px; 
         }
         
         .retro-border {
@@ -49,6 +55,199 @@
             text-shadow: 0 0 10px currentColor;
         }
 
+        /* ============================================================================
+           ROM RADIO STYLES (Futuristic 90s Vibe)
+           ============================================================================ */
+        #rom-radio-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .radio-player {
+            width: 320px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 2px solid #06b6d4;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4), inset 0 0 30px rgba(6, 182, 212, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        /* Scanline Effect */
+        .radio-player::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .radio-header {
+            background: linear-gradient(90deg, #06b6d4, #bd00ff);
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #fff;
+        }
+
+        .radio-title {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: none;
+        }
+
+        .radio-controls {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .radio-btn {
+            background: transparent;
+            border: 1px solid #06b6d4;
+            color: #06b6d4;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+        }
+
+        .radio-btn:hover {
+            background: #06b6d4;
+            color: #000;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.8);
+            transform: scale(1.1);
+        }
+
+        .radio-btn.active {
+            background: #bd00ff;
+            border-color: #bd00ff;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(189, 0, 255, 0.6);
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #374151;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #06b6d4;
+            cursor: pointer;
+            box-shadow: 0 0 10px #06b6d4;
+        }
+
+        .visualizer {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 3px;
+            height: 30px;
+            margin-top: 5px;
+        }
+
+        .vis-bar {
+            width: 4px;
+            background: #06b6d4;
+            animation: bounce 1s infinite ease-in-out;
+            box-shadow: 0 0 5px #06b6d4;
+        }
+
+        @keyframes bounce {
+            0%, 100% { height: 5px; opacity: 0.5; }
+            50% { height: 25px; opacity: 1; }
+        }
+
+        .vis-bar:nth-child(2) { animation-delay: 0.1s; background: #bd00ff; }
+        .vis-bar:nth-child(3) { animation-delay: 0.2s; }
+        .vis-bar:nth-child(4) { animation-delay: 0.3s; background: #bd00ff; }
+        .vis-bar:nth-child(5) { animation-delay: 0.4s; }
+
+        .minimize-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+        .minimize-btn:hover { color: #06b6d4; }
+
+        /* Minimized State */
+        #rom-radio-container.minimized .radio-player {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+        #rom-radio-container.minimized .radio-header,
+        #rom-radio-container.minimized .radio-controls,
+        #rom-radio-container.minimized .visualizer {
+            display: none;
+        }
+        #rom-radio-container.minimized .mini-play-btn {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #06b6d4;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(6, 182, 212, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+        }
+
+        /* Hidden YouTube iframe */
+        #youtube-player {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+            visibility: hidden;
+        }
+
 /* ============================================================================
    PROFILE STYLES (MySpace Style Full Background + Custom CSS Support)
    ============================================================================ */
@@ -57,7 +256,6 @@
     margin: 0 auto; 
     color: #fff; 
     font-family: 'Orbitron', sans-serif; 
-    /* Background properties moved here for full-page effect */
     background-size: cover !important; 
     background-position: center !important; 
     background-attachment: fixed;
@@ -67,13 +265,12 @@
     min-height: 100vh;
 }
 
-/* Header - Increased height to accommodate the lifted avatar */
 .ra-header {
   position: relative;
-  height: 300px; /* Increased height to give more vertical space */
+  height: 300px;
   border-radius: 12px;
-  overflow: visible; /* Critical: Allows avatar to overlap outside the header box */
-  margin-bottom: 100px; /* Increased margin to prevent covering content below */
+  overflow: visible;
+  margin-bottom: 100px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   background-color: transparent !important; 
   background-image: none !important;
@@ -82,7 +279,6 @@
 
 .ra-header-overlay {
   position: absolute; inset: 0;
-  /* Slightly darker gradient to ensure text readability over any background */
   background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.6));
   border-radius: 12px;
 }
@@ -94,15 +290,13 @@
   gap: 25px;
 }
 
-/* Avatar - MOVED UP SIGNIFICANTLY */
 .ra-avatar-container {
   position: relative;
-  margin-bottom: -20px; /* CHANGED: More negative value pulls it UP higher */
+  margin-bottom: -20px;
   z-index: 10;
-  pointer-events: none; /* Let clicks pass through the container wrapper */
+  pointer-events: none;
 }
 
-/* Re-enable clicks on the image itself */
 .ra-avatar-container img {
   pointer-events: auto; 
 }
@@ -115,9 +309,7 @@
   background: #000;
   box-shadow: 0 0 20px rgba(0,0,0,0.8);
 }
-/* Note: Generic overlays removed. Users now apply custom CSS via profile settings */
 
-/* Info */
 .ra-info { flex: 1; padding-bottom: 10px; }
 .ra-username { font-size: 2.5rem; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
 .ra-display-name { color: #9ca3af; font-size: 1.1rem; margin-top: 5px; }
@@ -126,14 +318,12 @@
 .ra-stat-val { font-weight: bold; color: #06b6d4; }
 .ra-stat-label { font-size: 0.8rem; opacity: 0.8; }
 
-/* Edit Button */
 .ra-edit-btn {
   background: #374151; border: 1px solid #4b5563; color: #fff;
   padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;
 }
 .ra-edit-btn:hover { background: #4b5563; }
 
-/* Signature (Now supports inline custom CSS) */
 .ra-signature-box {
   background: rgba(0,0,0,0.4); border: 1px solid #374151;
   padding: 20px; border-radius: 8px; margin-bottom: 30px;
@@ -141,10 +331,8 @@
   backdrop-filter: blur(5px);
 }
 
-/* Grid & Cards */
 .ra-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
 
-/* Cards now have semi-transparent backgrounds for readability over custom images */
 .ra-card { 
     background: rgba(31, 41, 55, 0.85); 
     backdrop-filter: blur(10px);
@@ -155,7 +343,6 @@
 }
 .ra-card h3 { margin-top: 0; color: #06b6d4; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
 
-/* Modal (Scrollable) */
 .ra-modal {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100;
   justify-content: center; align-items: center;
@@ -172,37 +359,42 @@
 .ra-modal-content textarea, .ra-modal-content select, .ra-modal-content input {
   width: 100%; padding: 10px; margin-top: 5px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px;
 }
-/* New Input Class for Wall/Forms */
+
 .ra-input {
   width: 100%; padding: 10px; margin-top: 5px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px;
 }
 .modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
 .btn-primary { background: #06b6d4; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
 
-/* Wall Post Styles */
 .wall-post-form { margin-bottom: 15px; }
 .wall-list { max-height: 400px; overflow-y: auto; }
 
-/* Currently Playing Grid */
 #currently-playing-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 10px;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .ra-grid { grid-template-columns: 1fr; }
   .ra-header-content { flex-direction: column; align-items: center; text-align: center; }
-  .ra-avatar-container { margin-bottom: 20px; } /* Reset overlap on mobile */
+  .ra-avatar-container { margin-bottom: 20px; }
   .ra-stats-row { justify-content: center; }
+  
+  /* Adjust radio for mobile */
+  #rom-radio-container {
+      bottom: 10px;
+      right: 10px;
+  }
+  .radio-player {
+      width: 280px;
+  }
 }
 
 /* ============================================================================
    ORIGINAL ADMIN & GAME STYLES (Restored Exactly)
    ============================================================================ */
         
-        /* Admin edit buttons animation */
         .admin-edit-buttons button {
             transition: all 0.2s ease;
         }
@@ -212,7 +404,6 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
         
-        /* Modal animations */
         #edit-game-modal, #delete-game-modal {
             animation: fadeIn 0.3s ease;
         }
@@ -222,7 +413,6 @@
             to { opacity: 1; }
         }
         
-        /* Notification animations */
         .notification {
             animation: slideIn 0.3s ease, slideOut 0.3s ease 2.7s;
         }
@@ -237,7 +427,6 @@
             to { transform: translateX(100%); opacity: 0; }
         }
         
-        /* Image Upload Styles */
         .file-upload-area {
             border: 2px dashed #4b5563;
             border-radius: 0.5rem;
@@ -256,7 +445,6 @@
             background-color: rgba(6, 182, 212, 0.1);
         }
         
-        /* Image Preview Styles */
         .screenshot-preview {
             position: relative;
             transition: all 0.3s ease;
@@ -288,7 +476,6 @@
             opacity: 1;
         }
         
-        /* Progress Bar Styles */
         .upload-progress {
             width: 100%;
             height: 0.5rem;
@@ -303,7 +490,6 @@
             transition: width 0.3s ease;
         }
         
-        /* Upload Status Messages */
         .upload-status {
             font-size: 0.75rem;
             margin-top: 0.25rem;
@@ -313,7 +499,6 @@
         .upload-status.error { color: #ef4444; }
         .upload-status.info { color: #06b6d4; }
         
-        /* Additional styles for game detail page */
         .game-screenshot img {
             transition: transform 0.3s ease;
         }
@@ -322,7 +507,6 @@
             transform: scale(1.05);
         }
         
-        /* Comment box styling */
         .comment-box {
             transition: background-color 0.2s ease;
         }
@@ -337,7 +521,6 @@
             background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
         }
         
-        /* Lightbox styles */
         .lightbox {
             display: none;
             position: fixed;
@@ -356,13 +539,11 @@
             max-height: 90%;
         }
         
-        /* Form input focus styles */
         input:focus, textarea:focus, select:focus {
             outline: none;
             ring: 2px;
         }
         
-        /* Loading spinner */
         .spinner {
             border-top-color: #06b6d4;
             animation: spin 1s linear infinite;
@@ -373,7 +554,6 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* Responsive adjustments */
         @media (max-width: 768px) {
             #edit-game-modal .bg-gray-800 {
                 margin: 1rem;
@@ -390,7 +570,6 @@
             }
         }
         
-        /* Game card hover effects for library */
         .game-card {
             transition: all 0.3s ease;
         }
@@ -400,13 +579,11 @@
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
         }
         
-        /* Connection details highlight */
         .connection-details {
             background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
             border-left: 4px solid #8b5cf6;
         }
         
-        /* File input styling improvements */
         input[type="file"]::-webkit-file-upload-button {
             background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
             color: white;
@@ -422,7 +599,6 @@
             transform: translateY(-1px);
         }
         
-        /* Image preview container */
         .image-preview-container {
             display: flex;
             flex-wrap: wrap;
@@ -438,7 +614,6 @@
             border: 2px solid #374151;
         }
         
-        /* Upload section headers */
         .upload-section {
             background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
             border-radius: 0.5rem;
@@ -446,7 +621,6 @@
             margin-bottom: 1rem;
         }
         
-        /* Success/Error message animations */
         .message-fade {
             animation: messageFade 3s ease forwards;
         }
@@ -458,7 +632,6 @@
             100% { opacity: 0; transform: translateY(-10px); }
         }
         
-        /* Chat specific styles */
         #chat-messages-container {
             scrollbar-width: thin;
             scrollbar-color: #4b5563 #1f2937;
@@ -502,7 +675,6 @@
             margin-bottom: 0;
         }
         
-        /* Animation for new messages */
         .new-message {
             animation: highlightMessage 1s ease;
         }
@@ -512,7 +684,6 @@
             100% { background-color: transparent; }
         }
         
-        /* Game detail improvements */
         .game-meta-tag {
             transition: all 0.2s ease;
         }
@@ -521,12 +692,10 @@
             transform: scale(1.05);
         }
         
-        /* Improved modal backdrop */
         .modal-backdrop {
             backdrop-filter: blur(4px);
         }
         
-        /* Better button transitions */
         .btn-transition {
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -535,14 +704,12 @@
             transform: translateY(-1px);
         }
         
-        /* Improved focus states */
         .focus-ring:focus {
             outline: 2px solid #06b6d4;
             outline-offset: 2px;
             box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3);
         }
         
-        /* Better image loading states */
         .image-loading {
             background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
             background-size: 200% 100%;
@@ -554,7 +721,6 @@
             100% { background-position: -200% 0; }
         }
         
-        /* Custom scrollbar for modals */
         .modal-scroll {
             scrollbar-width: thin;
             scrollbar-color: #4b5563 #1f2937;
@@ -573,7 +739,6 @@
             border-radius: 3px;
         }
         
-        /* Search specific styles */
         .search-result-card {
             transition: all 0.3s ease;
         }
@@ -607,7 +772,7 @@
             background-color: #ef4444;
             color: #fff;
         }
-        /* Lightbox styles (Duplicate safe guard) */
+
         .lightbox {
             display: none;
             position: fixed;
@@ -642,7 +807,6 @@
             color: #bbb;
         }
 
-        /* Image Upload Styles (Duplicate safe guard) */
         .file-upload-area {
             border: 2px dashed #4b5563;
             border-radius: 0.5rem;
@@ -694,7 +858,6 @@
             opacity: 1;
         }
 
-        /* Animation for messages (Duplicate safe guard) */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -704,13 +867,11 @@
             animation: fadeIn 0.3s ease;
         }
 
-        /* Form styling */
         .form-label.required::after {
             content: " *";
             color: #ff3333;
         }
 
-        /* Game detail specific */
         .game-screenshot {
             transition: transform 0.3s;
         }
@@ -753,9 +914,162 @@
         </div>
     </main>
 
+    <!-- ========================================================================
+         ROM RADIO PLAYER (Persistent)
+         ======================================================================== -->
+    <div id="rom-radio-container">
+        <div class="radio-player">
+            <div class="radio-header">
+                <span class="radio-title">📻 RetroGameMusic Radio</span>
+                <button class="minimize-btn" onclick="toggleRadioMinimize()" title="Minimize">−</button>
+            </div>
+            
+            <div class="radio-controls">
+                <!-- Visualizer -->
+                <div class="visualizer" id="radio-visualizer">
+                    <div class="vis-bar"></div>
+                    <div class="vis-bar"></div>
+                    <div class="vis-bar"></div>
+                    <div class="vis-bar"></div>
+                    <div class="vis-bar"></div>
+                </div>
+
+                <!-- Main Controls -->
+                <div class="control-row">
+                    <button class="radio-btn" id="radio-play-pause" onclick="toggleRadioPlay()" title="Play/Pause">
+                        <!-- Play Icon -->
+                        <svg id="icon-play" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        <!-- Pause Icon (Hidden by default) -->
+                        <svg id="icon-pause" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    
+                    <button class="radio-btn" id="radio-mute" onclick="toggleRadioMute()" title="Mute/Unmute">
+                        <!-- Volume On Icon -->
+                        <svg id="icon-vol-on" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                        <!-- Volume Off Icon (Hidden) -->
+                        <svg id="icon-vol-off" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                    </button>
+
+                    <!-- Volume Slider -->
+                    <input type="range" class="volume-slider" id="radio-volume" min="0" max="100" value="50" oninput="setRadioVolume(this.value)">
+                </div>
+                
+                <div style="text-align:center; font-size:0.65rem; color:#06b6d4; margin-top:5px; letter-spacing:1px;">
+                    LIVE STREAM
+                </div>
+            </div>
+            
+            <!-- Mini Play Button (Shown when minimized) -->
+            <div class="mini-play-btn" style="display:none;" onclick="toggleRadioPlay()">
+                <svg id="mini-icon-play" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden YouTube Iframe -->
+    <div id="youtube-player"></div>
+
     <!-- Load main app -->
     <script type="module" src="app.js"></script>
     
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <!-- Radio Logic -->
+    <script>
+        let player;
+        let isPlaying = false;
+        let isMuted = false;
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                height: '0',
+                width: '0',
+                videoId: 'ZyAavTqsU6k', // Your Livestream ID
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 0,
+                    'loop': 1,
+                    'playlist': 'ZyAavTqsU6k'
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log('📻 ROM Radio Ready');
+            // Set initial volume
+            player.setVolume(50);
+        }
+
+        function onPlayerStateChange(event) {
+            const playBtn = document.getElementById('radio-play-pause');
+            const iconPlay = document.getElementById('icon-play');
+            const iconPause = document.getElementById('icon-pause');
+            const visualizer = document.getElementById('radio-visualizer');
+
+            if (event.data === YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                iconPlay.style.display = 'none';
+                iconPause.style.display = 'block';
+                visualizer.style.opacity = '1';
+            } else {
+                isPlaying = false;
+                iconPlay.style.display = 'block';
+                iconPause.style.display = 'none';
+                visualizer.style.opacity = '0.3';
+            }
+        }
+
+        function toggleRadioPlay() {
+            if (!player) return;
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function toggleRadioMute() {
+            if (!player) return;
+            const iconOn = document.getElementById('icon-vol-on');
+            const iconOff = document.getElementById('icon-vol-off');
+            
+            isMuted = !isMuted;
+            if (isMuted) {
+                player.mute();
+                iconOn.style.display = 'none';
+                iconOff.style.display = 'block';
+            } else {
+                player.unMute();
+                iconOn.style.display = 'block';
+                iconOff.style.display = 'none';
+            }
+        }
+
+        function setRadioVolume(val) {
+            if (!player) return;
+            player.setVolume(val);
+            if (val == 0) {
+                isMuted = true;
+                document.getElementById('icon-vol-on').style.display = 'none';
+                document.getElementById('icon-vol-off').style.display = 'block';
+            } else {
+                isMuted = false;
+                document.getElementById('icon-vol-on').style.display = 'block';
+                document.getElementById('icon-vol-off').style.display = 'none';
+            }
+        }
+
+        function toggleRadioMinimize() {
+            const container = document.getElementById('rom-radio-container');
+            container.classList.toggle('minimized');
+        }
+    </script>
+
     <!-- Debug helper -->
     <script>
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
