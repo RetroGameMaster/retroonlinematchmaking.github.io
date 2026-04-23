@@ -67,13 +67,13 @@
     min-height: 100vh;
 }
 
-/* Header is now transparent to show the wrapper's background */
+/* Header - Increased height and margin to accommodate lifted avatar */
 .ra-header {
   position: relative;
-  height: 250px;
+  height: 280px; /* Increased from 250px */
   border-radius: 12px;
-  overflow: visible; /* Fixed avatar cutoff */
-  margin-bottom: 80px;
+  overflow: visible; /* Critical: Allows avatar to overlap outside the header box */
+  margin-bottom: 90px; /* Increased from 80px to make room for larger overlap */
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   background-color: transparent !important; 
   background-image: none !important;
@@ -94,12 +94,19 @@
   gap: 25px;
 }
 
-/* Avatar */
+/* Avatar - Lifted higher to prevent cutoff */
 .ra-avatar-container {
   position: relative;
-  margin-bottom: -60px; /* Overlap effect */
+  margin-bottom: -70px; /* Changed from -60px to lift it higher */
   z-index: 10;
+  pointer-events: none; /* Let clicks pass through the container wrapper */
 }
+
+/* Re-enable clicks on the image itself */
+.ra-avatar-container img {
+  pointer-events: auto; 
+}
+
 .ra-avatar {
   width: 140px; height: 140px;
   border-radius: 50%;
@@ -187,7 +194,7 @@
 @media (max-width: 768px) {
   .ra-grid { grid-template-columns: 1fr; }
   .ra-header-content { flex-direction: column; align-items: center; text-align: center; }
-  .ra-avatar-container { margin-bottom: 20px; }
+  .ra-avatar-container { margin-bottom: 20px; } /* Reset overlap on mobile */
   .ra-stats-row { justify-content: center; }
 }
 
