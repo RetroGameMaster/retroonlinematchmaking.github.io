@@ -595,8 +595,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
   // --- 4. Load Friends List ---
   if (isOwnProfile) {
-    loadFriends(currentUser.id);
-  } else {
+    loadFriends(targetUser.id)
     const friendsListEl = document.getElementById('friends-list');
     if (friendsListEl) {
       friendsListEl.innerHTML = '<div class="text-sm text-gray-400 italic py-2">Friends list is private.</div>';
