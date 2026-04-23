@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - WITH "I'M PLAYING" FEATURE
+// modules/game-detail/game-detail.js
 let isInitialized = false;
 
 // ===== MAIN INIT FUNCTION =====
@@ -76,7 +76,6 @@ function renderGame(game, container, rom) {
     // Check if current user is already playing this game
     let isPlaying = false;
     if (currentUser && currentUser.user_metadata?.currently_playing) {
-        // Handle both stringified JSON and array formats
         let currentGames = [];
         try {
             currentGames = typeof currentUser.user_metadata.currently_playing === 'string' 
@@ -84,8 +83,14 @@ function renderGame(game, container, rom) {
                 : currentUser.user_metadata.currently_playing;
         } catch (e) { currentGames = []; }
         
-        // Check if this game title exists in the list
-        isPlaying = currentGames.some(g => g.toLowerCase() === game.title.toLowerCase());
+        // CHECK FOR ID MATCH (New System) OR TITLE MATCH (Legacy System)
+        isPlaying = currentGames.some(g => {
+            // If g is an object with id, check id. If string, check title.
+            if (typeof g === 'object' && g !== null) {
+                return g.id === game.id;
+            }
+            return String(g).toLowerCase() === game.title.toLowerCase();
+        });
     }
 
     container.innerHTML = `
@@ -168,12 +173,12 @@ function renderGame(game, container, rom) {
     // Attach Event Listener for the Toggle Button
     const toggleBtn = document.getElementById('btn-toggle-playing');
     if (toggleBtn && currentUser) {
-        toggleBtn.addEventListener('click', () => handleTogglePlaying(game.title, currentUser.id, rom, isPlaying));
+        toggleBtn.addEventListener('click', () => handleTogglePlaying(game, currentUser.id, rom, isPlaying));
     }
 }
 
-// ===== HANDLE TOGGLE PLAYING LOGIC =====
-async function handleTogglePlaying(gameTitle, userId, rom, isCurrentlyPlaying) {
+// ===== HANDLE TOGGLE PLAYING LOGIC (SAVES GAME ID) =====
+async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
     const btn = document.getElementById('btn-toggle-playing');
     const container = document.getElementById('playing-action-container');
     
@@ -201,18 +206,25 @@ async function handleTogglePlaying(gameTitle, userId, rom, isCurrentlyPlaying) {
             } catch (e) { currentGames = []; }
         }
 
+        // Filter out any legacy string entries for this game just in case
+        currentGames = currentGames.filter(g => {
+            if (typeof g === 'object' && g !== null) return g.id !== game.id;
+            return String(g).toLowerCase() !== game.title.toLowerCase();
+        });
+
         let newGamesList;
         if (isCurrentlyPlaying) {
-            // Remove the game (case-insensitive)
-            newGamesList = currentGames.filter(g => g.toLowerCase() !== gameTitle.toLowerCase());
+            // Remove the game (already filtered above, so just use the filtered list)
+            newGamesList = currentGames;
         } else {
-            // Add the game if not already present
-            const exists = currentGames.some(g => g.toLowerCase() === gameTitle.toLowerCase());
-            if (!exists) {
-                newGamesList = [...currentGames, gameTitle];
-            } else {
-                newGamesList = currentGames; // Should not happen given button state, but safe fallback
-            }
+            // Add the game OBJECT (ID + Title + Slug)
+            const gameObj = {
+                id: game.id,
+                title: game.title,
+                slug: game.slug,
+                cover_image_url: game.cover_image_url
+            };
+            newGamesList = [...currentGames, gameObj];
         }
 
         // Update Database
@@ -224,7 +236,6 @@ async function handleTogglePlaying(gameTitle, userId, rom, isCurrentlyPlaying) {
         if (error) throw error;
 
         // Refresh UI locally without full page reload
-        // We re-render just the button container
         if (container) {
             if (isCurrentlyPlaying) {
                 // Was playing, now removed -> Show Add Button
@@ -235,8 +246,7 @@ async function handleTogglePlaying(gameTitle, userId, rom, isCurrentlyPlaying) {
                     </button>
                     <p class="text-gray-500 text-xs mt-2">Show this game on your profile</p>
                 `;
-                // Re-attach listener for "Add" action
-                document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(gameTitle, userId, rom, false));
+                document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(game, userId, rom, false));
             } else {
                 // Was not playing, now added -> Show Remove Button
                 container.innerHTML = `
@@ -246,8 +256,7 @@ async function handleTogglePlaying(gameTitle, userId, rom, isCurrentlyPlaying) {
                     </button>
                     <p class="text-green-400 text-xs mt-2">✓ Added to your profile</p>
                 `;
-                // Re-attach listener for "Remove" action
-                document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(gameTitle, userId, rom, true));
+                document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(game, userId, rom, true));
             }
         }
 
@@ -281,7 +290,6 @@ async function loadAchievements(rom, gameId) {
         }
 
         // 2. Fetch user_achievements to calculate real rates
-        // We get all unlocks for this game's achievements
         const achievementIds = achievements.map(a => a.id);
         
         const { data: unlocks } = await rom.supabase
@@ -292,7 +300,6 @@ async function loadAchievements(rom, gameId) {
         // 3. Calculate Stats
         const totalPlayers = new Set(unlocks?.map(u => u.user_id)).size;
         
-        // Count unlocks per achievement
         const unlockCounts = {};
         if (unlocks) {
             unlocks.forEach(u => {
