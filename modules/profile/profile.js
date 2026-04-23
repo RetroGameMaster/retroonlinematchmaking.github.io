@@ -213,6 +213,17 @@ function getProfileLink(profile) {
   return `#/profile/${profile.id}`;
 }
 
+// Helper to generate a link for a game title
+// Since we only store the title string, we try to link to the slug version of the title
+function getGameLink(gameTitle) {
+  if (!gameTitle) return '#/games';
+  // Create a slug-like string from the title (lowercase, replace spaces with hyphens)
+  // Note: This assumes your game slugs are generated from titles. 
+  // If you store game IDs in the array later, this can be updated to use IDs directly.
+  const slug = gameTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return `#/game/${slug}`;
+}
+
 // ============================================================================
 // RENDERING LOGIC
 // ============================================================================
@@ -307,31 +318,29 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             <p class="ra-bio">${profile.bio || 'No bio added yet.'}</p>
           </div>
           
-          <!-- Currently Playing Section (NEW) -->
+          <!-- Currently Playing Section (UPDATED) -->
           <div class="ra-card">
             <h3>🎮 What I'm Playing Currently</h3>
             <div id="currently-playing-container">
-              ${isOwnProfile ? `
-                <div class="flex gap-2 mb-4">
-                  <input type="text" id="new-game-input" placeholder="Enter game title..." class="ra-input flex-1">
-                  <button id="btn-add-game" class="btn-primary whitespace-nowrap">Add Game</button>
-                </div>
-              ` : ''}
+              <!-- REMOVED: Manual input field. Games must be added from the Game Detail page. -->
               
               <div id="currently-playing-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
                 ${currentlyPlayingGames.length > 0 
                   ? currentlyPlayingGames.map((game, index) => `
                       <div class="relative group bg-gray-800/80 backdrop-blur-sm border border-gray-600 p-3 rounded-lg flex items-center gap-3">
                         <span class="text-cyan-400 text-xl">🎮</span>
-                        <span class="text-sm font-bold text-gray-200 truncate flex-1">${game}</span>
+                        <!-- Game Title is now a clickable link -->
+                        <a href="${getGameLink(game)}" class="text-sm font-bold text-cyan-300 hover:text-cyan-100 truncate flex-1 hover:underline" title="View ${game}">
+                          ${game}
+                        </a>
                         ${isOwnProfile ? `
-                          <button class="remove-game-btn opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300" data-index="${index}">
+                          <button class="remove-game-btn opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 ml-2" data-index="${index}" title="Remove from list">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                           </button>
                         ` : ''}
                       </div>
                     `).join('')
-                  : '<div class="col-span-full text-gray-500 italic text-center py-4">No games listed yet.</div>'
+                  : '<div class="col-span-full text-gray-500 italic text-center py-4">No games listed yet. Visit a game page to add one!</div>'
                 }
               </div>
             </div>
@@ -658,52 +667,12 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     loadFriendButtonState(profile.id, currentUser.id);
   }
 
-  // --- 6. Currently Playing: Add Game ---
-  const addGameBtn = document.getElementById('btn-add-game');
-  if (addGameBtn) {
-    addGameBtn.addEventListener('click', async () => {
-      const input = document.getElementById('new-game-input');
-      const gameTitle = input.value.trim();
-      
-      if (!gameTitle) {
-        alert('Please enter a game title.');
-        return;
-      }
-
-      // Get current list
-      let currentGames = [];
-      if (profile.currently_playing) {
-        try {
-          currentGames = typeof profile.currently_playing === 'string' 
-            ? JSON.parse(profile.currently_playing) 
-            : profile.currently_playing;
-        } catch (e) { currentGames = []; }
-      }
-
-      // Add new game
-      currentGames.push(gameTitle);
-
-      // Update DB
-      const { error } = await supabase
-        .from('profiles')
-        .update({ currently_playing: currentGames })
-        .eq('id', profile.id);
-
-      if (error) {
-        alert('Error adding game: ' + error.message);
-      } else {
-        input.value = '';
-        // Reload profile to reflect changes
-        location.reload(); 
-      }
-    });
-  }
-
-  // --- 7. Currently Playing: Remove Game ---
+  // --- 6. Currently Playing: Remove Game (ADD functionality moved to Game Detail page) ---
   const removeGameBtns = document.querySelectorAll('.remove-game-btn');
   removeGameBtns.forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation(); // Prevent triggering parent clicks
+      e.preventDefault(); // Prevent link navigation
       const index = parseInt(btn.getAttribute('data-index'));
       
       if (!confirm('Remove this game from your list?')) return;
