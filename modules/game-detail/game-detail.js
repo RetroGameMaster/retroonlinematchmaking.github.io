@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - WITH ACHIEVEMENTS (REAL CALCULATIONS)
+// modules/game-detail/game-detail.js - WITH "I'M PLAYING" FEATURE
 let isInitialized = false;
 
 // ===== MAIN INIT FUNCTION =====
@@ -55,8 +55,9 @@ export default async function initGameDetail(rom, identifier) {
         loading.classList.add('hidden');
         content.classList.remove('hidden');
 
-        // Render Game Info + Screenshots
-        renderGame(game, content);
+        // Render Game Info + Screenshots + Playing Button
+        // We pass the 'rom' object to access current user info
+        renderGame(game, content, rom);
 
         // Load Achievements with Real Calculations
         loadAchievements(rom, game.id);
@@ -68,8 +69,25 @@ export default async function initGameDetail(rom, identifier) {
     }
 }
 
-// ===== RENDER GAME FUNCTION (Info + Screenshots) =====
-function renderGame(game, container) {
+// ===== RENDER GAME FUNCTION (Info + Screenshots + Playing Button) =====
+function renderGame(game, container, rom) {
+    const currentUser = rom.currentUser;
+    
+    // Check if current user is already playing this game
+    let isPlaying = false;
+    if (currentUser && currentUser.user_metadata?.currently_playing) {
+        // Handle both stringified JSON and array formats
+        let currentGames = [];
+        try {
+            currentGames = typeof currentUser.user_metadata.currently_playing === 'string' 
+                ? JSON.parse(currentUser.user_metadata.currently_playing) 
+                : currentUser.user_metadata.currently_playing;
+        } catch (e) { currentGames = []; }
+        
+        // Check if this game title exists in the list
+        isPlaying = currentGames.some(g => g.toLowerCase() === game.title.toLowerCase());
+    }
+
     container.innerHTML = `
         <div class="max-w-7xl mx-auto p-4">
             <a href="#/games" class="text-cyan-400 hover:underline mb-4 inline-block">← Back to Games</a>
@@ -92,6 +110,32 @@ function renderGame(game, container) {
                     </div>
                     
                     <p class="text-gray-300 mb-6 whitespace-pre-line">${escapeHtml(game.description || 'No description available.')}</p>
+
+                    <!-- 🎮 I'M PLAYING THIS BUTTON -->
+                    <div class="mb-8 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                        ${!currentUser ? `
+                            <p class="text-gray-400 text-sm mb-2">Want to track this game?</p>
+                            <button onclick="window.location.hash='#/auth'" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors text-sm">
+                                🔒 Log In to Add to List
+                            </button>
+                        ` : `
+                            <div id="playing-action-container">
+                                ${isPlaying ? `
+                                    <button id="btn-toggle-playing" class="w-full md:w-auto bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 px-4 py-2 rounded transition-colors text-sm flex items-center justify-center gap-2">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        Remove from My List
+                                    </button>
+                                    <p class="text-green-400 text-xs mt-2">✓ Added to your profile</p>
+                                ` : `
+                                    <button id="btn-toggle-playing" class="w-full md:w-auto bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded transition-colors text-sm flex items-center justify-center gap-2">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                                        Add to My List
+                                    </button>
+                                    <p class="text-gray-500 text-xs mt-2">Show this game on your profile</p>
+                                `}
+                            </div>
+                        `}
+                    </div>
                     
                     <!-- 🖼️ SCREENSHOTS SECTION -->
                     ${game.screenshot_urls && game.screenshot_urls.length > 0 ? `
@@ -120,6 +164,102 @@ function renderGame(game, container) {
             </div>
         </div>
     `;
+
+    // Attach Event Listener for the Toggle Button
+    const toggleBtn = document.getElementById('btn-toggle-playing');
+    if (toggleBtn && currentUser) {
+        toggleBtn.addEventListener('click', () => handleTogglePlaying(game.title, currentUser.id, rom, isPlaying));
+    }
+}
+
+// ===== HANDLE TOGGLE PLAYING LOGIC =====
+async function handleTogglePlaying(gameTitle, userId, rom, isCurrentlyPlaying) {
+    const btn = document.getElementById('btn-toggle-playing');
+    const container = document.getElementById('playing-action-container');
+    
+    if (!btn) return;
+
+    // Optimistic UI Update (Show loading state)
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="animate-spin mr-2">⟳</span> Updating...`;
+
+    try {
+        // Fetch current profile data to ensure we have the latest list
+        const { data: profile } = await rom.supabase
+            .from('profiles')
+            .select('currently_playing')
+            .eq('id', userId)
+            .single();
+
+        let currentGames = [];
+        if (profile?.currently_playing) {
+            try {
+                currentGames = typeof profile.currently_playing === 'string' 
+                    ? JSON.parse(profile.currently_playing) 
+                    : profile.currently_playing;
+            } catch (e) { currentGames = []; }
+        }
+
+        let newGamesList;
+        if (isCurrentlyPlaying) {
+            // Remove the game (case-insensitive)
+            newGamesList = currentGames.filter(g => g.toLowerCase() !== gameTitle.toLowerCase());
+        } else {
+            // Add the game if not already present
+            const exists = currentGames.some(g => g.toLowerCase() === gameTitle.toLowerCase());
+            if (!exists) {
+                newGamesList = [...currentGames, gameTitle];
+            } else {
+                newGamesList = currentGames; // Should not happen given button state, but safe fallback
+            }
+        }
+
+        // Update Database
+        const { error } = await rom.supabase
+            .from('profiles')
+            .update({ currently_playing: newGamesList })
+            .eq('id', userId);
+
+        if (error) throw error;
+
+        // Refresh UI locally without full page reload
+        // We re-render just the button container
+        if (container) {
+            if (isCurrentlyPlaying) {
+                // Was playing, now removed -> Show Add Button
+                container.innerHTML = `
+                    <button id="btn-toggle-playing" class="w-full md:w-auto bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded transition-colors text-sm flex items-center justify-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                        Add to My List
+                    </button>
+                    <p class="text-gray-500 text-xs mt-2">Show this game on your profile</p>
+                `;
+                // Re-attach listener for "Add" action
+                document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(gameTitle, userId, rom, false));
+            } else {
+                // Was not playing, now added -> Show Remove Button
+                container.innerHTML = `
+                    <button id="btn-toggle-playing" class="w-full md:w-auto bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 px-4 py-2 rounded transition-colors text-sm flex items-center justify-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        Remove from My List
+                    </button>
+                    <p class="text-green-400 text-xs mt-2">✓ Added to your profile</p>
+                `;
+                // Re-attach listener for "Remove" action
+                document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(gameTitle, userId, rom, true));
+            }
+        }
+
+    } catch (err) {
+        console.error('Error updating playing list:', err);
+        alert('Failed to update list: ' + err.message);
+        // Revert button on error
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
 }
 
 // ===== LOAD ACHIEVEMENTS WITH REAL CALCULATIONS =====
