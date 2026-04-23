@@ -267,7 +267,8 @@ async function fetchSiteAwards(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  return data || [];
+  // Safety filter: ensure achievement data exists
+  return (data || []).filter(item => item.achievements);
 }
 
 // Fetch "Most Proud" Achievements (is_proud = true)
@@ -292,7 +293,8 @@ async function fetchProudAchievements(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  return data || [];
+  // Safety filter: ensure achievement data exists
+  return (data || []).filter(item => item.achievements);
 }
 
 // Fetch Mastered Games (User has ALL achievements for a game)
@@ -551,7 +553,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <label>Update Profile Picture</label>
               <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
               <div class="mt-2">
-                <img src="${profile.avatar_url || '  https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
               </div>
 
               <hr class="border-gray-700 my-4">
@@ -708,7 +710,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
   // --- NEW: Load Achievement Walls ---
   loadSiteAwardsWall(profile.id);
-  loadProudAchievementsWall(profile.id);
+  loadProudAchievementsWall(profile.id, isOwnProfile); // Pass isOwnProfile for toggle buttons
   loadMasteredGamesWall(profile.id);
 
   // --- 7. Remove Game Listener ---
@@ -764,10 +766,13 @@ async function loadSiteAwardsWall(userId) {
 
   listEl.innerHTML = awards.map(item => {
     const a = item.achievements;
+    // Safety check for badge_url
+    const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Award';
+    
     return `
       <div class="group relative flex flex-col items-center text-center w-24">
         <div class="relative">
-          <img src="${a.badge_url || 'https://via.placeholder.com/64?text=Award'}" 
+          <img src="${badgeSrc}" 
                alt="${a.title}" 
                class="w-16 h-16 object-contain drop-shadow-lg group-hover:scale-110 transition-transform">
           <div class="absolute -bottom-2 -right-2 bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-gray-900">
@@ -783,7 +788,7 @@ async function loadSiteAwardsWall(userId) {
   }).join('');
 }
 
-async function loadProudAchievementsWall(userId) {
+async function loadProudAchievementsWall(userId, isOwnProfile) {
   const listEl = document.getElementById('proud-achievements-list');
   if (!listEl) return;
 
@@ -798,10 +803,12 @@ async function loadProudAchievementsWall(userId) {
     const a = item.achievements;
     const game = a.games;
     const gameLink = game ? getGameLink(game) : '#/games';
+    // Safety check for badge_url
+    const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Trophy';
     
     return `
       <div class="group relative bg-gray-800/50 border border-yellow-500/30 rounded-lg p-2 hover:border-yellow-400 transition-colors flex flex-col items-center text-center">
-        <img src="${a.badge_url || 'https://via.placeholder.com/64?text=Trophy'}" 
+        <img src="${badgeSrc}" 
              alt="${a.title}" 
              class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform">
         
@@ -817,9 +824,35 @@ async function loadProudAchievementsWall(userId) {
           <span class="text-[10px] text-yellow-500 font-bold">⭐</span>
           <span class="text-[10px] text-gray-400">${a.points} pts</span>
         </div>
+
+        ${isOwnProfile ? `
+          <button class="mt-2 text-[10px] text-red-400 hover:text-red-300 underline remove-proud-btn" data-achieve-id="${a.id}">
+            Remove from Proud
+          </button>
+        ` : ''}
       </div>
     `;
   }).join('');
+
+  // Attach listeners for "Remove Proud" if own profile
+  if (isOwnProfile) {
+    listEl.querySelectorAll('.remove-proud-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const achieveId = btn.getAttribute('data-achieve-id');
+        if (!confirm('Remove this from your Most Proud list?')) return;
+
+        const { error } = await supabase
+          .from('user_achievements')
+          .update({ is_proud: false })
+          .eq('user_id', userId)
+          .eq('achievement_id', achieveId);
+
+        if (error) alert('Error: ' + error.message);
+        else loadProudAchievementsWall(userId, true); // Reload
+      });
+    });
+  }
 }
 
 async function loadMasteredGamesWall(userId) {
@@ -888,7 +921,7 @@ async function loadCurrentlyPlayingList(profile) {
 
   listEl.innerHTML = games.map(game => {
     const link = getGameLink(game);
-    const cover = game.cover_image_url || ' https://via.placeholder.com/150x200/1f2937/6b7280?text=No+Cover';
+    const cover = game.cover_image_url || 'https://via.placeholder.com/150x200/1f2937/6b7280?text=No+Cover';
     const title = game.title || 'Unknown Game';
     const consoleName = game.console || '';
     const removeRef = game.id || title;
@@ -973,7 +1006,7 @@ async function loadWallComments(profileId) {
   list.innerHTML = comments.map(c => {
     const link = c.author ? getProfileLink(c.author) : '#/home';
     const displayName = c.author?.username || 'Unknown';
-    const avatarSrc = c.author?.avatar_url || `  https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = c.author?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
       <img src="${avatarSrc}" class="w-8 h-8 rounded-full bg-gray-600 object-cover">
@@ -999,7 +1032,7 @@ async function loadFriends(userId) {
   list.innerHTML = friends.map(f => {
     const link = getProfileLink(f);
     const displayName = f.username || 'Unknown';
-    const avatarSrc = f.avatar_url || `  https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = f.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" onclick="window.location.hash='${link}'">
       <div class="relative">
