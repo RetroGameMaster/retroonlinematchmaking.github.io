@@ -63,7 +63,7 @@ export async function initModule(container, params) {
     // 3. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isUserAdmin, currentUser);
 
-    // 4. Attach Event Listeners (Edit, Wall, Friends, Currently Playing)
+    // 4. Attach Event Listeners (Edit, Wall, Friends, Currently Playing, Avatar Upload)
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
 
   } catch (error) {
@@ -151,6 +151,16 @@ async function fetchFriends(userId) {
 }
 
 // ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+// Ensures we always link to username if available, preventing ID redirect issues
+function getProfileLink(profile) {
+  if (profile.username) return `#/profile/${profile.username}`;
+  return `#/profile/${profile.id}`;
+}
+
+// ============================================================================
 // RENDERING LOGIC
 // ============================================================================
 
@@ -183,6 +193,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
         <div class="ra-header-content">
           
           <!-- Avatar with Custom CSS Overlay -->
+          <!-- Increased z-index and adjusted margin to prevent cutoff -->
           <div class="ra-avatar-container" style="${avatarStyle}">
             <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
                  alt="${profile.username}" 
@@ -344,6 +355,16 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
 
               <hr class="border-gray-700 my-4">
 
+              <!-- NEW: Avatar Upload Section -->
+              <label>Update Profile Picture</label>
+              <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
+              <p class="text-xs text-gray-500 mt-1">Upload a new avatar. Supports JPG, PNG, GIF.</p>
+              <div class="mt-2">
+                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+              </div>
+
+              <hr class="border-gray-700 my-4">
+
               <label>Background Type</label>
               <select name="bg_type" id="bg_type" class="ra-input">
                 <option value="color" ${profile.custom_background?.type === 'color' ? 'selected' : ''}>Solid Color</option>
@@ -440,28 +461,55 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       
       let finalBgValue = formData.get('bg_value');
       const bgType = formData.get('bg_type');
+      let finalAvatarUrl = profile.avatar_url;
 
-      // --- HANDLE FILE UPLOAD IF IMAGE TYPE SELECTED ---
+      // --- HANDLE AVATAR UPLOAD ---
+      const avatarInput = document.getElementById('avatar_file_input');
+      if (avatarInput && avatarInput.files.length > 0) {
+        const file = avatarInput.files[0];
+        if (!file.type.startsWith('image/')) {
+          alert('Please select a valid image file for avatar.');
+          return;
+        }
+        const fileName = `${profile.id}/avatar_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = 'Uploading Avatar...';
+        submitBtn.disabled = true;
+
+        try {
+          const { data, error } = await supabase.storage
+            .from('user-backgrounds') // Reusing bucket or create 'avatars'
+            .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+          if (error) throw error;
+          const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
+          finalAvatarUrl = publicUrl;
+        } catch (err) {
+          alert('Avatar upload failed: ' + err.message);
+          submitBtn.textContent = originalBtnText;
+          submitBtn.disabled = false;
+          return;
+        }
+      }
+
+      // --- HANDLE BACKGROUND UPLOAD IF IMAGE TYPE SELECTED ---
       const fileInput = document.getElementById('bg_file_input');
       if (bgType === 'image' && fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         
-        // Validate file type
         if (!file.type.startsWith('image/')) {
           alert('Please select a valid image file.');
           return;
         }
 
         const fileName = `${profile.id}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-        
-        // Show loading state
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalBtnText = submitBtn.textContent;
-        submitBtn.textContent = 'Uploading...';
+        submitBtn.textContent = 'Uploading Background...';
         submitBtn.disabled = true;
 
         try {
-          // Upload to Supabase Storage 'user-backgrounds' bucket
           const { data, error } = await supabase.storage
             .from('user-backgrounds')
             .upload(fileName, file, {
@@ -471,7 +519,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
           if (error) throw error;
 
-          // Get Public URL
           const { data: { publicUrl } } = supabase.storage
             .from('user-backgrounds')
             .getPublicUrl(fileName);
@@ -492,6 +539,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         signature_text: formData.get('signature_text'),
         signature_custom_css: formData.get('signature_custom_css'),
         avatar_custom_css: formData.get('avatar_custom_css'),
+        avatar_url: finalAvatarUrl, // Update avatar URL
         custom_background: {
           type: bgType,
           value: finalBgValue,
@@ -673,22 +721,28 @@ async function loadWallComments(profileId) {
     return;
   }
 
-  list.innerHTML = comments.map(c => `
+  list.innerHTML = comments.map(c => {
+    // Use helper to generate safe link
+    const link = c.author ? getProfileLink(c.author) : '#/home';
+    const displayName = c.author?.username || 'Unknown';
+    const avatarSrc = c.author?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
+
+    return `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
-      <img src="${c.author?.avatar_url || ' https://ui-avatars.com/api/?name=' + c.author?.username}" 
+      <img src="${avatarSrc}" 
            class="w-8 h-8 rounded-full bg-gray-600 object-cover" 
-           alt="${c.author?.username}">
+           alt="${displayName}">
       <div class="flex-1">
         <div class="flex items-baseline gap-2">
-          <span class="font-bold text-cyan-400 text-sm hover:underline cursor-pointer" onclick="window.location.hash='#/profile/${c.author?.username}'">
-            ${c.author?.username || 'Unknown'}
+          <span class="font-bold text-cyan-400 text-sm hover:underline cursor-pointer" onclick="window.location.hash='${link}'">
+            ${displayName}
           </span>
           <span class="text-xs text-gray-500">${new Date(c.created_at).toLocaleDateString()}</span>
         </div>
         <p class="text-gray-300 text-sm mt-1 break-words">${c.content}</p>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 async function loadFriends(userId) {
@@ -702,15 +756,21 @@ async function loadFriends(userId) {
     return;
   }
 
-  list.innerHTML = friends.map(f => `
+  list.innerHTML = friends.map(f => {
+    // Use helper to generate safe link
+    const link = getProfileLink(f);
+    const displayName = f.username || 'Unknown';
+    const avatarSrc = f.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
+
+    return `
     <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" 
-         onclick="window.location.hash='#/profile/${f.username}'">
+         onclick="window.location.hash='${link}'">
       <div class="relative">
-        <img src="${f.avatar_url || ' https://ui-avatars.com/api/?name=' + f.username}" 
+        <img src="${avatarSrc}" 
              class="w-6 h-6 rounded-full object-cover">
         <div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-gray-900 ${f.is_online ? 'bg-green-500' : 'bg-gray-500'}"></div>
       </div>
-      <span class="text-sm text-gray-300 truncate flex-1">${f.username}</span>
+      <span class="text-sm text-gray-300 truncate flex-1">${displayName}</span>
     </div>
-  `).join('');
+  `}).join('');
 }
