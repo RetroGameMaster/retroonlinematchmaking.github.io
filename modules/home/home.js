@@ -125,7 +125,7 @@ async function loadSiteSettings() {
     const iframeEl = document.getElementById('clip-iframe');
     
     if (titleEl) titleEl.innerHTML = `<span class="text-2xl">🎬</span> ${settings.clip_title || 'ROM Community Highlights'}`;
-    // Fixed: Removed extra space in URL construction
+    // Fixed: Removed space after embed/
     if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     
     // Update social links
@@ -152,27 +152,21 @@ async function loadFeaturedGame() {
   if (!container) return;
 
   try {
-    // FIX: Try approved_at first, fallback to updated_at if column missing
-    // We fetch 1 item to check which column works best if you aren't sure
-    let query = supabase
+    // FIX: Changed order column from 'approved_at' (doesn't exist) to 'updated_at'
+    const { data: games, error } = await supabase
       .from('games')
       .select('*')
-      .eq('status', 'approved');
-
-    // Order by approved_at if it exists, otherwise updated_at
-    // Note: If you get an error in console about "column approved_at does not exist", 
-    // change the line below to .order('updated_at', { ascending: false })
-    query = query.order('updated_at', { ascending: false }); 
-
-    const { data: games, error } = await query.limit(1);
+      .eq('status', 'approved') 
+      .order('updated_at', { ascending: false }) // Use updated_at instead
+      .limit(1);
 
     if (error) {
-      console.error("Database error:", error);
+      console.error('Supabase error fetching featured game:', error);
       throw error;
     }
 
+    // Check if we got any results
     if (!games || games.length === 0) {
-      // Fallback if no games found
       container.innerHTML = `
         <div class="flex-1 flex flex-col items-center justify-center p-8 text-center">
           <div class="text-6xl mb-4 opacity-50">🕹️</div>
@@ -184,7 +178,7 @@ async function loadFeaturedGame() {
       return;
     }
 
-    const game = games[0];
+    const game = games[0]; // Get the first item from the array
 
     // Render Featured Game Card
     const coverUrl = game.cover_image_url || 'https://via.placeholder.com/400x220/1f2937/06b6d4?text=No+Cover';
@@ -221,8 +215,7 @@ async function loadFeaturedGame() {
     container.innerHTML = `
       <div class="p-8 text-center text-red-400">
         <p>Failed to load featured game.</p>
-        <p class="text-xs mt-2 opacity-70">${error.message}</p>
-        <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-700 rounded text-white text-sm hover:bg-gray-600">Retry</button>
+        <button onclick="location.reload()" class="mt-2 text-sm underline">Retry</button>
       </div>
     `;
   }
