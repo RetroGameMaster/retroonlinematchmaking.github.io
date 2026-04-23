@@ -113,27 +113,53 @@ const fallbackContent = {
     `
 };
 // ============================================================================
-// GLOBAL QUOTE RENDERER
+// GLOBAL QUOTE RENDERER (FIXED)
 // ============================================================================
 const renderRandomQuote = () => {
-    const quoteBar = document.getElementById('nav-quote-bar');
-    if (!quoteBar) return;
+    // FIX 1: Match the ID in your HTML ('retro-quote-bar')
+    const quoteBar = document.getElementById('retro-quote-bar');
+    
+    if (!quoteBar) {
+        console.warn('Quote bar element not found!');
+        return;
+    }
 
     const quote = getRandomQuote();
+    
+    // Handle Sprite (Emoji vs Image)
     const isEmoji = quote.sprite.length <= 4; 
-    const spriteContent = isEmoji 
-        ? `<span class="text-2xl leading-none">${quote.sprite}</span>` 
-        : `<img src="${quote.sprite}" alt="${quote.character}" class="w-8 h-8 object-contain pixelated" style="image-rendering: pixelated;">`;
+    const spriteContainer = document.getElementById('quote-sprite-container');
+    const spriteImg = document.getElementById('quote-sprite');
+    
+    if (spriteContainer && spriteImg) {
+        if (isEmoji) {
+            spriteImg.style.display = 'none';
+            spriteContainer.innerHTML = `<span class="text-2xl">${quote.sprite}</span>`;
+        } else {
+            spriteImg.style.display = 'block';
+            spriteImg.src = quote.sprite;
+            spriteContainer.innerHTML = ''; // Clear emoji if any
+            spriteContainer.appendChild(spriteImg);
+        }
+    }
 
-    quoteBar.innerHTML = `
-        <div class="flex items-center gap-3 animate-fade-in w-full justify-center">
-            <div class="shrink-0 transition-transform hover:scale-110">${spriteContent}</div>
-            <div class="flex flex-col leading-tight text-center">
-                <span class="text-xs font-bold text-cyan-300 italic drop-shadow-md">"${quote.text}"</span>
-                <span class="text-[10px] text-gray-400 uppercase tracking-wider">— ${quote.character}, ${quote.game}</span>
-            </div>
-        </div>
-    `;
+    // Update Text Content
+    const textEl = document.getElementById('quote-text');
+    const charEl = document.getElementById('quote-character');
+    const gameEl = document.getElementById('quote-game');
+
+    if (textEl) textEl.textContent = `"${quote.text}"`;
+    if (charEl) charEl.textContent = quote.character;
+    if (gameEl) gameEl.textContent = quote.game;
+
+    // FIX 2: Make it visible (Remove 'hidden' class and reset opacity/transform)
+    quoteBar.classList.remove('hidden');
+    
+    // Force a reflow to ensure the transition works if you want it to slide in
+    void quoteBar.offsetWidth; 
+    
+    quoteBar.style.opacity = '1';
+    quoteBar.style.transform = 'translateY(0)';
 };
 // Initialize the app
 async function initializeApp() {
