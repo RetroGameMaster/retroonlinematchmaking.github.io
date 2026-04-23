@@ -8,8 +8,13 @@ export default function initModule(rom) {
   // Load all dynamic content
   loadSiteSettings();
   loadFeaturedGame();
-  loadOnlineUsers();       // REAL Who's Online
+  loadOnlineUsers();       // REAL Who's Online (Heartbeat based)
   loadRecentActivity();    // REAL Latest Game & New Member
+
+  // Refresh the online list every 30 seconds to catch heartbeat updates
+  setInterval(() => {
+    loadOnlineUsers();
+  }, 30000);
 }
 
 // 1. Render the Base Layout (Now with a 3-column grid for Sidebar)
@@ -79,7 +84,7 @@ function renderHomeLayout() {
         <!-- RIGHT COLUMN (1/3 width): Live Sidebar -->
         <div class="space-y-6">
           
-          <!-- Who's Online (REAL DATA) -->
+          <!-- Who's Online (REAL DATA - Heartbeat) -->
           <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden">
             <div class="bg-gray-900/50 p-4 border-b border-gray-700 flex justify-between items-center">
               <h3 class="font-bold text-white flex items-center gap-2">
@@ -161,6 +166,7 @@ async function loadSiteSettings() {
     const iframeEl = document.getElementById('clip-iframe');
     
     if (titleEl) titleEl.innerHTML = `<span class="text-2xl">🎬</span> ${settings.clip_title || 'ROM Community Highlights'}`;
+    // Fixed: Removed space in embed URL
     if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     
     ['discord', 'patreon', 'youtube'].forEach(key => {
@@ -236,19 +242,23 @@ async function loadFeaturedGame() {
   }
 }
 
-// 4. Load REAL Online Users
+// 4. Load REAL Online Users (Using Heartbeat Logic)
 async function loadOnlineUsers() {
   const listEl = document.getElementById('online-users-list');
   const countEl = document.getElementById('online-count');
   if (!listEl) return;
 
   try {
-    // Fetch users who are marked as online
+    // Calculate time threshold (2 minutes ago)
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+
+    // Fetch users who have seen activity in the last 2 minutes
     const { data: users, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url')
-      .eq('is_online', true)
-      .limit(10); // Show top 10
+      .select('id, username, avatar_url, last_seen')
+      .gte('last_seen', twoMinutesAgo)
+      .order('last_seen', { ascending: false })
+      .limit(10);
 
     if (error) throw error;
 
