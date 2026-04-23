@@ -1,5 +1,6 @@
 // app.js - COMPLETE FIXED VERSION
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
+import { getRandomQuote } from './lib/game-quotes.js';
 
 let currentModule = null;
 
