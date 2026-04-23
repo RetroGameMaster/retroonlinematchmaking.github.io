@@ -6,15 +6,15 @@ import { formatMessageTime, linkifyText, sanitizeInput } from './utils.js';
  * Renders a single chat message
  * @param {Object} msg - Message object from Supabase
  * @param {string} currentUserId - ID of the logged-in user
+ * @param {string} displayName - The resolved username
+ * @param {string} avatarUrl - The resolved avatar URL
  * @returns {string} HTML string
  */
-// Change the function signature to accept avatarUrl
 export function renderMessage(msg, currentUserId, displayName, avatarUrl = '') {
   const isSystem = msg.message_type !== 'text';
   const isOwn = msg.user_id === currentUserId;
   
   if (isSystem) {
-    // ... (system message logic remains same)
     let icon = '💬';
     if (msg.message_type === 'join') icon = '🔌';
     if (msg.message_type === 'leave') icon = '🔌';
@@ -69,10 +69,6 @@ export function renderMessage(msg, currentUserId, displayName, avatarUrl = '') {
 
 /**
  * Renders a room item in the sidebar
- * @param {Object} room 
- * @param {number} unreadCount 
- * @param {boolean} isActive 
- * @returns {string}
  */
 export function renderRoomItem(room, unreadCount = 0, isActive = false) {
   const activeClass = isActive ? 'bg-cyan-900/20 border-l-4 border-cyan-400' : 'border-l-4 border-transparent hover:bg-gray-700/50';
@@ -82,8 +78,7 @@ export function renderRoomItem(room, unreadCount = 0, isActive = false) {
 
   return `
     <div class="room-item p-3 mb-1 rounded cursor-pointer transition-all duration-200 ${activeClass}" 
-         data-room-id="${room.id}"
-         onclick="window.chatModule.joinRoom('${room.id}')">
+         data-room-id="${room.id}">
       <div class="flex justify-between items-center">
         <div class="flex items-center gap-2 overflow-hidden">
           <span class="text-lg">${room.console ? '🎮' : '#'}</span>
@@ -100,9 +95,6 @@ export function renderRoomItem(room, unreadCount = 0, isActive = false) {
 
 /**
  * Renders a user item in the online list or DM list
- * @param {Object} user 
- * @param {boolean} showStatus 
- * @returns {string}
  */
 export function renderUserItem(user, showStatus = true) {
   const displayName = user.username || user.user_email?.split('@')[0] || 'Unknown';
@@ -113,7 +105,7 @@ export function renderUserItem(user, showStatus = true) {
     <div class="user-item p-2 hover:bg-gray-700/50 rounded-lg transition cursor-pointer flex items-center gap-3 group"
          onclick="window.chatModule.openDM('${user.user_id}')">
       <div class="relative">
-        ${createUserAvatarLink(user.user_id, displayName)}
+        ${createUserAvatarLink(user.user_id, displayName, user.avatar_url || '')}
         ${showStatus ? `
           <span class="absolute bottom-0 right-0 w-2.5 h-2.5 ${statusColor} ${statusGlow} border-2 border-gray-800 rounded-full"></span>
         ` : ''}
@@ -128,8 +120,6 @@ export function renderUserItem(user, showStatus = true) {
 
 /**
  * Renders the "Typing..." indicator
- * @param {Array} usernames - List of usernames currently typing
- * @returns {string}
  */
 export function renderTypingIndicator(usernames) {
   if (!usernames || usernames.length === 0) return '';
@@ -151,11 +141,7 @@ export function renderTypingIndicator(usernames) {
 }
 
 /**
- * Creates a modal container (reusable)
- * @param {string} id 
- * @param {string} title 
- * @param {string} content 
- * @returns {string}
+ * Creates a modal container
  */
 export function createModal(id, title, content) {
   return `
@@ -174,8 +160,9 @@ export function createModal(id, title, content) {
     </div>
   `;
 }
+
 /**
- * Clears all typing indicators from a specific room or DM
+ * Clears all typing indicators
  */
 export function clearTypingIndicators(containerId) {
   const container = document.getElementById(containerId);
