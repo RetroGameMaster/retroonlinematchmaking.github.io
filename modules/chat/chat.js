@@ -359,6 +359,16 @@ async function joinRoom(roomId) {
 
   loadMessages();
   subscribeToMessages(roomId, 'room', handleRealtimeMessage);
+  
+  // Send a system join message using the CORRECT username from userProfile
+  const { error } = await supabase.from('chat_messages').insert({
+    room_id: roomId,
+    user_id: currentUser.id,
+    username: userProfile?.username || 'Anonymous', // Force correct name
+    message: `${userProfile?.username || 'User'} joined the room`,
+    message_type: 'join'
+  });
+
   loadRoomsList();
 }
 
@@ -387,9 +397,28 @@ async function loadMessages() {
 
   let query;
   if (chatType === 'room') {
-    query = supabase.from('chat_messages').select('*').eq('room_id', currentRoom).order('created_at', { ascending: true }).limit(50);
+    // Join with profiles to get accurate username and avatar
+    query = supabase
+      .from('chat_messages')
+      .select(`
+        *,
+        profiles:user_id (username, avatar_url)
+      `)
+      .eq('room_id', currentRoom)
+      .order('created_at', { ascending: true })
+      .limit(50);
   } else {
-    query = supabase.from('private_messages').select('*').or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${currentDM}),and(sender_id.eq.${currentDM},recipient_id.eq.${currentUser.id})`).order('created_at', { ascending: true }).limit(50);
+    // For DMs, join profiles for both sender and recipient context if needed, 
+    // but primarily we need the sender's profile info
+    query = supabase
+      .from('private_messages')
+      .select(`
+        *,
+        profiles:sender_id (username, avatar_url)
+      `)
+      .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${currentDM}),and(sender_id.eq.${currentDM},recipient_id.eq.${currentUser.id})`)
+      .order('created_at', { ascending: true })
+      .limit(50);
   }
 
   const { data, error } = await query;
@@ -401,7 +430,13 @@ async function loadMessages() {
 
   container.innerHTML = '';
   data.forEach(msg => {
-    const msgHtml = renderMessage(msg, currentUser.id, userProfile?.username);
+    // Extract profile data from the joined result
+    const profile = msg.profiles || {}; 
+    const displayName = profile.username || msg.username || 'Anonymous';
+    const avatarUrl = profile.avatar_url || '';
+    
+    // Pass the extra avatarUrl argument to renderMessage
+    const msgHtml = renderMessage(msg, currentUser.id, displayName, avatarUrl);
     const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
   });
