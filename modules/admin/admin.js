@@ -2362,7 +2362,7 @@ window.deleteAchievement = async function(id, title) {
 };
 // ===== END ACHIEVEMENTS FUNCTIONS =====
 // ============================================================================
-// NEW: AWARD MANAGER (Achievements, Site Awards & Creation)
+// NEW: AWARD MANAGER (Achievements & Site Awards)
 // ============================================================================
 
 async function loadAwardManager() {
@@ -2379,125 +2379,167 @@ async function loadAwardManager() {
     try {
         const { data: users } = await supabase.from('profiles').select('id, username, email').order('username');
         const { data: games } = await supabase.from('games').select('id, title').order('title');
+        
+        // Fetch existing Site Awards for the dropdown
         const { data: siteAwards } = await supabase.from('achievements').select('id, title, badge_url').eq('type', 'site');
 
         content.innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                <!-- Column 1: Award Game Achievement -->
-                <div class="bg-gray-800 p-6 rounded-lg border border-cyan-500">
-                    <h3 class="text-xl font-bold text-white mb-4">🏆 Award Game Achievement</h3>
-                    <form id="award-game-form" class="space-y-4">
+                <!-- Column 1: Create New Award (Game OR Site) -->
+                <div class="bg-gray-800 p-6 rounded-lg border border-green-500 lg:col-span-1">
+                    <h3 class="text-xl font-bold text-white mb-4">➕ Create New Award</h3>
+                    <form id="create-award-form" class="space-y-4">
+                        
+                        <!-- TYPE SELECTOR (The Missing Piece) -->
                         <div>
-                            <label class="block text-sm text-gray-300 mb-1">Select User</label>
-                            <select id="award-user" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
-                                <option value="">-- Choose User --</option>
-                                ${users?.map(u => `<option value="${u.id}">${u.username || u.email}</option>`).join('')}
+                            <label class="block text-sm font-bold text-green-400 mb-1">Award Type *</label>
+                            <select id="new-award-type" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white" onchange="toggleAwardTypeFields()">
+                                <option value="game">🎮 Game Achievement</option>
+                                <option value="site">🎖️ Site Award (Special)</option>
                             </select>
                         </div>
-                        <div>
+
+                        <!-- Game Selector (Only visible if Type = Game) -->
+                        <div id="field-game-select">
                             <label class="block text-sm text-gray-300 mb-1">Select Game</label>
-                            <select id="award-game" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white" onchange="window.loadGameAchievementsForDropdown()">
+                            <select id="new-award-game" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
                                 <option value="">-- Choose Game --</option>
                                 ${games?.map(g => `<option value="${g.id}">${g.title}</option>`).join('')}
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-sm text-gray-300 mb-1">Select Achievement</label>
-                            <select id="award-achievement" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
-                                <option value="">-- Select Game First --</option>
-                            </select>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="award-is-proud" class="w-4 h-4 text-cyan-500 bg-gray-700 rounded">
-                            <label class="text-sm text-gray-300">Mark as "Most Proud"</label>
-                        </div>
-                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 rounded">
-                            Award Achievement
-                        </button>
-                    </form>
-                </div>
 
-                <!-- Column 2: Award Site Award -->
-                <div class="bg-gray-800 p-6 rounded-lg border border-purple-500">
-                    <h3 class="text-xl font-bold text-white mb-4">🎖️ Award Existing Site Badge</h3>
-                    <form id="award-site-form" class="space-y-4">
                         <div>
-                            <label class="block text-sm text-gray-300 mb-1">Select User</label>
-                            <select id="site-award-user" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
-                                <option value="">-- Choose User --</option>
-                                ${users?.map(u => `<option value="${u.id}">${u.username || u.email}</option>`).join('')}
-                            </select>
+                            <label class="block text-sm text-gray-300 mb-1">Title *</label>
+                            <input type="text" id="new-award-title" required class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white" placeholder="e.g. First Win or Master Chef">
                         </div>
-                        <div>
-                            <label class="block text-sm text-gray-300 mb-1">Select Site Award</label>
-                            <select id="site-award-select" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
-                                <option value="">-- Choose Award --</option>
-                                ${siteAwards?.map(a => `<option value="${a.id}">${a.title}</option>`).join('')}
-                            </select>
-                        </div>
-                        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded">
-                            Award Site Badge
-                        </button>
-                    </form>
-                </div>
 
-                <!-- Column 3: CREATE NEW SITE AWARD -->
-                <div class="bg-gray-800 p-6 rounded-lg border border-green-500">
-                    <h3 class="text-xl font-bold text-white mb-4">✨ Create New Site Award</h3>
-                    <form id="create-site-award-form" class="space-y-4">
                         <div>
-                            <label class="block text-sm text-gray-300 mb-1">Award Title</label>
-                            <input type="text" id="new-site-title" required placeholder="e.g. Founding Member" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-300 mb-1">Badge Image</label>
-                            <input type="file" id="new-site-badge" accept="image/*" required class="w-full text-sm text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-green-600 file:text-white">
-                            <div id="new-site-preview" class="mt-2 hidden">
-                                <img id="new-site-preview-img" class="w-12 h-12 rounded border border-green-400">
+                            <label class="block text-sm text-gray-300 mb-1">Badge Image *</label>
+                            <input type="file" id="new-award-badge" accept="image/*" required class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-cyan-600 file:text-white hover:file:bg-cyan-700">
+                            <div id="new-badge-preview" class="mt-2 hidden">
+                                <img id="new-badge-img" class="w-16 h-16 object-cover rounded border border-cyan-500">
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-sm text-gray-300 mb-1">Points (Optional)</label>
-                            <input type="number" id="new-site-points" value="0" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-1">Points</label>
+                                <input type="number" id="new-award-points" value="5" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
+                            </div>
+                            <div class="flex items-end pb-2">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="new-award-mp" class="w-4 h-4 text-cyan-500 bg-gray-700 rounded">
+                                    <span class="text-sm text-gray-300">Multiplayer?</span>
+                                </label>
+                            </div>
                         </div>
-                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded">
-                            Create & Save Award
+
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded mt-2">
+                            Create Award
                         </button>
                     </form>
+                </div>
+
+                <!-- Column 2: Award to User -->
+                <div class="bg-gray-800 p-6 rounded-lg border border-cyan-500 lg:col-span-2">
+                    <h3 class="text-xl font-bold text-white mb-4">🎁 Award to User</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Award Game Achievement -->
+                        <div class="bg-gray-900 p-4 rounded border border-gray-700">
+                            <h4 class="font-bold text-cyan-400 mb-3">🎮 Give Game Achievement</h4>
+                            <form id="award-game-form" class="space-y-3">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">User</label>
+                                    <select id="award-user" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white">
+                                        <option value="">-- Choose User --</option>
+                                        ${users?.map(u => `<option value="${u.id}">${u.username || u.email}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Game</label>
+                                    <select id="award-game" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white" onchange="loadGameAchievementsForDropdown()">
+                                        <option value="">-- Choose Game --</option>
+                                        ${games?.map(g => `<option value="${g.id}">${g.title}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Achievement</label>
+                                    <select id="award-achievement" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white">
+                                        <option value="">-- Select Game First --</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-2 pt-2">
+                                    <input type="checkbox" id="award-is-proud" class="w-4 h-4 text-yellow-500 bg-gray-800 border-gray-600 rounded">
+                                    <label class="text-xs text-yellow-400 cursor-pointer">⭐ Mark as "Most Proud"</label>
+                                </div>
+                                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold py-2 rounded">
+                                    Award Achievement
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Award Site Award -->
+                        <div class="bg-gray-900 p-4 rounded border border-gray-700">
+                            <h4 class="font-bold text-purple-400 mb-3">🎖️ Give Site Award</h4>
+                            <form id="award-site-form" class="space-y-3">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">User</label>
+                                    <select id="site-award-user" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white">
+                                        <option value="">-- Choose User --</option>
+                                        ${users?.map(u => `<option value="${u.id}">${u.username || u.email}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Site Award</label>
+                                    <select id="site-award-select" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white">
+                                        <option value="">-- Choose Award --</option>
+                                        ${siteAwards?.map(a => `<option value="${a.id}">${a.title}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="pt-6 text-xs text-gray-500 italic">
+                                    <p>Site awards do not have a "Most Proud" option as they are always displayed in the Site Awards section.</p>
+                                </div>
+                                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2 rounded">
+                                    Award Site Badge
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
                 </div>
             </div>
             
-            <!-- Recent Awards Log -->
+            <!-- Recent Log -->
             <div class="mt-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
-                <h3 class="text-lg font-bold text-white mb-4">Recent Awards Given</h3>
-                <div id="recent-awards-log" class="text-gray-400 text-sm">Loading history...</div>
+                <h3 class="text-lg font-bold text-white mb-4">Recent Activity</h3>
+                <div id="recent-awards-log" class="text-gray-400 text-sm">Loading...</div>
             </div>
         `;
 
         // Attach Listeners
+        document.getElementById('create-award-form').addEventListener('submit', handleCreateAward);
         document.getElementById('award-game-form').addEventListener('submit', handleGameAward);
         document.getElementById('award-site-form').addEventListener('submit', handleSiteAward);
-        document.getElementById('create-site-award-form').addEventListener('submit', handleCreateSiteAward);
         
-        // Preview Logic for New Badge
-        const badgeInput = document.getElementById('new-site-badge');
-        const previewDiv = document.getElementById('new-site-preview');
-        const previewImg = document.getElementById('new-site-preview-img');
-        
-        badgeInput.addEventListener('change', (e) => {
+        // Badge Preview Logic
+        const badgeInput = document.getElementById('new-award-badge');
+        badgeInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
+            if (file) {
                 const reader = new FileReader();
-                reader.onload = (evt) => {
-                    previewImg.src = evt.target.result;
-                    previewDiv.classList.remove('hidden');
+                reader.onload = function(evt) {
+                    document.getElementById('new-badge-img').src = evt.target.result;
+                    document.getElementById('new-badge-preview').classList.remove('hidden');
                 };
                 reader.readAsDataURL(file);
             }
         });
 
         loadRecentAwardsLog();
+        // Initialize visibility
+        toggleAwardTypeFields();
 
     } catch (error) {
         console.error('Error loading award manager:', error);
@@ -2505,7 +2547,20 @@ async function loadAwardManager() {
     }
 }
 
-// Helper: Load achievements for dropdown
+// Helper: Toggle Game Field based on Type
+window.toggleAwardTypeFields = function() {
+    const type = document.getElementById('new-award-type').value;
+    const gameField = document.getElementById('field-game-select');
+    
+    if (type === 'site') {
+        gameField.classList.add('hidden');
+        document.getElementById('new-award-game').value = ''; // Clear selection
+    } else {
+        gameField.classList.remove('hidden');
+    }
+};
+
+// Helper: Load Achievements for Dropdown
 window.loadGameAchievementsForDropdown = async function() {
     const gameId = document.getElementById('award-game').value;
     const achieveSelect = document.getElementById('award-achievement');
@@ -2527,6 +2582,69 @@ window.loadGameAchievementsForDropdown = async function() {
     }
 };
 
+// Handler: Create New Award (Game or Site)
+async function handleCreateAward(e) {
+    e.preventDefault();
+    const type = document.getElementById('new-award-type').value;
+    const title = document.getElementById('new-award-title').value;
+    const points = parseInt(document.getElementById('new-award-points').value) || 0;
+    const isMp = document.getElementById('new-award-mp').checked;
+    const badgeFile = document.getElementById('new-award-badge').files[0];
+    
+    let gameId = null;
+    if (type === 'game') {
+        gameId = document.getElementById('new-award-game').value;
+        if (!gameId) return showNotification('Please select a game', 'error');
+    }
+
+    if (!badgeFile) return showNotification('Please upload a badge image', 'error');
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+
+    try {
+        // 1. Upload Badge
+        const fileExt = badgeFile.name.split('.').pop();
+        const fileName = `badges/${type}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('game-media') // Using existing bucket
+            .upload(fileName, badgeFile, { cacheControl: '3600', upsert: false });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('game-media').getPublicUrl(fileName);
+
+        // 2. Create Record
+        const payload = {
+            type: type, // 'game' or 'site'
+            game_id: gameId,
+            title: title,
+            points: points,
+            badge_url: publicUrl,
+            is_multiplayer: isMp,
+            created_at: new Date().toISOString()
+        };
+
+        const { error: dbError } = await supabase.from('achievements').insert([payload]);
+        if (dbError) throw dbError;
+
+        showNotification(`✅ ${type === 'site' ? 'Site Award' : 'Achievement'} created successfully!`);
+        e.target.reset();
+        document.getElementById('new-badge-preview').classList.add('hidden');
+        loadAwardManager(); // Refresh lists
+
+    } catch (err) {
+        console.error(err);
+        showNotification('❌ Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
 // Handler: Award Game Achievement
 async function handleGameAward(e) {
     e.preventDefault();
@@ -2537,24 +2655,14 @@ async function handleGameAward(e) {
     if (!userId || !achieveId) return showNotification('Please select user and achievement', 'error');
 
     try {
-        // Check if already awarded to prevent duplicates
-        const { data: existing } = await supabase.from('user_achievements')
-            .select('id').eq('user_id', userId).eq('achievement_id', achieveId).single();
-
-        if (existing) {
-            // If exists, just update the "is_proud" status if changed
-            await supabase.from('user_achievements').update({ is_proud: isProud }).eq('id', existing.id);
-            showNotification('✅ Achievement status updated!');
-        } else {
-            const { error } = await supabase.from('user_achievements').insert({
-                user_id: userId,
-                achievement_id: achieveId,
-                unlocked_at: new Date().toISOString(),
-                is_proud: isProud
-            });
-            if (error) throw error;
-            showNotification('✅ Achievement awarded successfully!');
-        }
+        const { error } = await supabase.from('user_achievements').insert({
+            user_id: userId,
+            achievement_id: achieveId,
+            unlocked_at: new Date().toISOString(),
+            is_proud: isProud
+        });
+        if (error) throw error;
+        showNotification('✅ Achievement awarded!');
         e.target.reset();
         loadRecentAwardsLog();
     } catch (err) {
@@ -2575,69 +2683,14 @@ async function handleSiteAward(e) {
             user_id: userId,
             achievement_id: achieveId,
             unlocked_at: new Date().toISOString(),
-            is_proud: false
+            is_proud: false // Site awards aren't "proud" in the game sense
         });
         if (error) throw error;
-        showNotification('✅ Site Award awarded successfully!');
+        showNotification('✅ Site Award awarded!');
         e.target.reset();
         loadRecentAwardsLog();
     } catch (err) {
         showNotification('❌ Error: ' + err.message, 'error');
-    }
-}
-
-// Handler: CREATE NEW SITE AWARD
-async function handleCreateSiteAward(e) {
-    e.preventDefault();
-    const title = document.getElementById('new-site-title').value.trim();
-    const points = parseInt(document.getElementById('new-site-points').value) || 0;
-    const fileInput = document.getElementById('new-site-badge');
-    const file = fileInput.files[0];
-
-    if (!title || !file) return showNotification('Title and Badge Image are required', 'error');
-
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading...';
-
-    try {
-        // 1. Upload Image
-        const fileExt = file.name.split('.').pop();
-        const fileName = `site-awards/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('game-media') // Reusing existing bucket
-            .upload(fileName, file, { cacheControl: '3600', upsert: false });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('game-media').getPublicUrl(fileName);
-
-        // 2. Create Achievement Record (Type: 'site')
-        const { error: dbError } = await supabase.from('achievements').insert({
-            title: title,
-            description: 'Official Site Award',
-            points: points,
-            badge_url: publicUrl,
-            type: 'site', // Crucial distinction
-            is_multiplayer: false,
-            created_at: new Date().toISOString()
-        });
-
-        if (dbError) throw dbError;
-
-        showNotification('✅ Site Award created successfully!');
-        e.target.reset();
-        document.getElementById('new-site-preview').classList.add('hidden');
-        loadAwardManager(); // Refresh lists
-
-    } catch (err) {
-        console.error('Error creating site award:', err);
-        showNotification('❌ Error: ' + err.message, 'error');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
     }
 }
 
@@ -2647,23 +2700,22 @@ async function loadRecentAwardsLog() {
 
     const { data } = await supabase
         .from('user_achievements')
-        .select(`
-            unlocked_at,
-            is_proud,
-            profiles(username),
-            achievements(title, type)
-        `)
+        .select(`unlocked_at, is_proud, profiles(username), achievements(title, type)`)
         .order('unlocked_at', { ascending: false })
         .limit(10);
 
     if (data && data.length > 0) {
         logContainer.innerHTML = `<ul class="space-y-2">${data.map(item => `
-            <li class="flex justify-between items-center bg-gray-900 p-2 rounded">
-                <span class="text-cyan-300">${item.profiles?.username || 'Unknown'}</span>
-                <span class="text-white">received</span>
-                <span class="text-purple-300 font-bold">${item.achievements?.title}</span>
-                <span class="text-xs text-gray-500">${new Date(item.unlocked_at).toLocaleDateString()}</span>
-                ${item.is_proud ? '<span class="text-yellow-500 text-xs">★ Proud</span>' : ''}
+            <li class="flex justify-between items-center bg-gray-900 p-2 rounded border border-gray-800">
+                <div class="flex items-center gap-2">
+                    <span class="text-cyan-300 font-bold">${item.profiles?.username || 'Unknown'}</span>
+                    <span class="text-gray-500">received</span>
+                    <span class="${item.achievements?.type === 'site' ? 'text-purple-400' : 'text-white'} font-medium">${item.achievements?.title}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    ${item.is_proud ? '<span class="text-yellow-500 text-xs">★ Proud</span>' : ''}
+                    <span class="text-xs text-gray-600">${new Date(item.unlocked_at).toLocaleDateString()}</span>
+                </div>
             </li>
         `).join('')}</ul>`;
     } else {
