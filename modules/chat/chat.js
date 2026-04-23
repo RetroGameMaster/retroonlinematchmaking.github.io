@@ -12,19 +12,25 @@ import {
 } from './realtime.js';
 
 let currentRoom = null;
-let currentDM = null; // If chatting with a specific user
-let chatType = 'room'; // 'room' or 'dm'
+let currentDM = null;
+let chatType = 'room';
 let typingTimeout = null;
 let currentUser = null;
 let userProfile = null;
+
+// Helper to convert HTML string to DOM Node
+function htmlToElement(html) {
+  const template = document.createElement('template');
+  html = html.trim();
+  template.innerHTML = html;
+  return template.content.firstChild;
+}
 
 export function initModule(rom) {
   console.log('💬 Chat module initialized (v2.0)');
   window.rom = rom;
   
-  // Cleanup old subscriptions
   cleanupAllSubscriptions();
-  
   initializeChat();
 }
 
@@ -36,19 +42,16 @@ async function initializeChat() {
     return;
   }
   
-  // Fetch profile once
   userProfile = await getUserProfile(currentUser.id);
   
   loadChatInterface();
   loadSidebarData();
   
-  // Setup Presence
   subscribeToPresence(() => {
-    loadOnlineUsersList(); // Refresh sidebar list
+    loadOnlineUsersList();
     updateRoomUserCounts();
   });
 
-  // Global typing listener
   window.addEventListener('chat:typing', handleTypingEvent);
   
   console.log('✅ Chat ready for:', userProfile?.username || currentUser.email);
@@ -101,7 +104,6 @@ function loadChatInterface() {
           
           <!-- Content Area -->
           <div class="flex-1 overflow-y-auto p-2 space-y-2" id="sidebar-list">
-            <!-- Loaded dynamically -->
             <div class="text-center text-gray-500 mt-4">Loading...</div>
           </div>
           
@@ -182,7 +184,6 @@ function setupTabs() {
     loadDMsList();
   });
 
-  // Initial Load
   loadRoomsList();
 }
 
@@ -205,10 +206,24 @@ async function loadRoomsList() {
     
     if (error) throw error;
 
+    // Filter duplicates: Keep only the first "General" room
+    const seenNames = new Set();
+    const uniqueRooms = rooms.filter(room => {
+      if (room.name.toLowerCase() === 'general') {
+        if (seenNames.has('general')) return false;
+        seenNames.add('general');
+      }
+      return true;
+    });
+
     listEl.innerHTML = '';
-    rooms.forEach(room => {
+    uniqueRooms.forEach(room => {
       const isActive = currentRoom === room.id && chatType === 'room';
-      listEl.innerHTML += renderRoomItem(room, isActive, () => joinRoom(room.id));
+      // Use onclick handler directly in the generated HTML for simplicity with closures
+      const roomHtml = renderRoomItem(room, isActive);
+      const el = htmlToElement(roomHtml);
+      el.onclick = () => joinRoom(room.id);
+      listEl.appendChild(el);
     });
 
   } catch (err) {
@@ -224,7 +239,6 @@ async function loadDMsList() {
   listEl.innerHTML = '<div class="text-center text-gray-500 mt-4">Loading messages...</div>';
 
   try {
-    // Get unique users we've exchanged messages with
     const { data: messages, error } = await supabase
       .from('private_messages')
       .select('sender_id, recipient_id')
@@ -233,7 +247,6 @@ async function loadDMsList() {
 
     if (error) throw error;
 
-    // Extract unique user IDs (excluding self)
     const uniqueIds = new Set();
     const partners = [];
     
@@ -252,7 +265,6 @@ async function loadDMsList() {
       return;
     }
 
-    // Fetch profiles for these users
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, username, avatar_url')
@@ -261,8 +273,10 @@ async function loadDMsList() {
     listEl.innerHTML = '';
     profiles.forEach(profile => {
       const isActive = currentDM === profile.id && chatType === 'dm';
-      const dmObj = { id: profile.id, username: profile.username, avatar_url: profile.avatar_url };
-      listEl.innerHTML += renderUserItem(dmObj, isActive, () => joinDM(profile.id, profile.username));
+      const dmHtml = renderUserItem(profile, isActive);
+      const el = htmlToElement(dmHtml);
+      el.onclick = () => joinDM(profile.id, profile.username);
+      listEl.appendChild(el);
     });
 
   } catch (err) {
@@ -315,7 +329,6 @@ function setupInputListeners() {
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleSend();
     
-    // Typing indicator logic
     if (typingTimeout) clearTimeout(typingTimeout);
     const targetId = chatType === 'room' ? currentRoom : currentDM;
     if (targetId) {
@@ -335,24 +348,17 @@ async function joinRoom(roomId) {
   currentDM = null;
   chatType = 'room';
   
-  // Update UI Header
   const { data: room } = await supabase.from('chat_rooms').select().eq('id', roomId).single();
   document.getElementById('chat-header-title').textContent = room?.name || 'Room';
   document.getElementById('chat-header-subtitle').textContent = room?.description || '';
   
-  // Enable Input
   const input = document.getElementById('message-input');
   const btn = document.getElementById('send-btn');
   if(input) input.disabled = false;
   if(btn) btn.disabled = false;
 
-  // Load Messages
   loadMessages();
-  
-  // Subscribe
   subscribeToMessages(roomId, 'room', handleRealtimeMessage);
-  
-  // Refresh Sidebar Highlight
   loadRoomsList();
 }
 
@@ -371,7 +377,6 @@ async function joinDM(userId, username) {
 
   loadMessages();
   subscribeToMessages(userId, 'dm', handleRealtimeMessage);
-  
   loadDMsList();
 }
 
@@ -396,7 +401,9 @@ async function loadMessages() {
 
   container.innerHTML = '';
   data.forEach(msg => {
-    container.appendChild(renderMessage(msg, currentUser.id, userProfile?.username));
+    const msgHtml = renderMessage(msg, currentUser.id, userProfile?.username);
+    const msgEl = htmlToElement(msgHtml);
+    container.appendChild(msgEl);
   });
 
   container.scrollTop = container.scrollHeight;
@@ -407,19 +414,17 @@ function handleRealtimeMessage(payload) {
   const container = document.getElementById('messages-container');
   
   if (eventType === 'INSERT') {
-    // Check if we already have this message (prevent dupes)
     if (document.querySelector(`[data-msg-id="${newRow.id}"]`)) return;
 
-    const msgEl = renderMessage(newRow, currentUser.id, userProfile?.username);
+    const msgHtml = renderMessage(newRow, currentUser.id, userProfile?.username);
+    const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
     container.scrollTop = container.scrollHeight;
-    
-    // Play subtle sound? (Optional)
   } else if (eventType === 'UPDATE') {
     const el = document.querySelector(`[data-msg-id="${newRow.id}"]`);
     if (el) {
-      // Re-render updated content
-      const newEl = renderMessage(newRow, currentUser.id, userProfile?.username);
+      const newHtml = renderMessage(newRow, currentUser.id, userProfile?.username);
+      const newEl = htmlToElement(newHtml);
       el.replaceWith(newEl);
     }
   } else if (eventType === 'DELETE') {
@@ -435,7 +440,7 @@ async function sendMessage(text) {
     user_id: currentUser.id,
     user_email: currentUser.email,
     username: userProfile?.username || 'Anonymous',
-    message: sanitizeInput(text),
+    message: sanitizeInput(text), // Explicitly sanitize
     created_at: new Date().toISOString()
   };
 
@@ -460,7 +465,6 @@ async function sendMessage(text) {
 function handleTypingEvent(e) {
   const { target_id, type, username, user_id } = e.detail;
   
-  // Only show if relevant to current view
   const currentTarget = chatType === 'room' ? currentRoom : currentDM;
   if (target_id !== currentTarget || user_id === currentUser.id) return;
 
@@ -469,7 +473,6 @@ function handleTypingEvent(e) {
 
   indicatorEl.textContent = `${username} is typing...`;
   
-  // Clear after 2s
   setTimeout(() => {
     if (indicatorEl.textContent.includes(username)) {
       indicatorEl.textContent = '';
@@ -478,7 +481,6 @@ function handleTypingEvent(e) {
 }
 
 function updateRoomUserCounts() {
-  // Optional: Refresh room list to update online counts
   if (chatType === 'room') loadRoomsList();
 }
 
@@ -486,13 +488,13 @@ async function getUserProfile(uid) {
   const { data } = await supabase.from('profiles').select('username, avatar_url').eq('id', uid).single();
   return data;
 }
-// Expose public functions to window for onclick handlers
+
 window.chatModule = {
   joinRoom,
   joinDM,
-  openMenu: (msgId) => console.log('Menu for', msgId) // Placeholder for now
+  openMenu: (msgId) => console.log('Menu for', msgId)
 };
-// Cleanup on leave
+
 window.addEventListener('beforeunload', () => {
   cleanupAllSubscriptions();
 });
