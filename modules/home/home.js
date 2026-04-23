@@ -313,7 +313,7 @@ async function loadRecentActivity() {
       .limit(1)
       .single();
 
-    // Fetch 1 latest user (excluding current user if possible, or just general)
+    // Fetch 1 latest user
     const { data: latestUser } = await supabase
       .from('profiles')
       .select('username, created_at')
@@ -324,24 +324,26 @@ async function loadRecentActivity() {
     const activities = [];
 
     if (latestGame) {
+      const gameLink = latestGame.slug ? `#/game/${latestGame.slug}` : '#/games';
       activities.push({
         type: 'game',
-        text: `New game added: <strong>${latestGame.title}</strong>`,
+        // Now includes the <a> tag directly in the text
+        html: `New game added: <a href="${gameLink}" class="text-cyan-400 hover:text-cyan-300 hover:underline font-bold transition">${latestGame.title}</a>`,
         time: latestGame.approved_at,
         icon: '🎮',
-        color: 'text-cyan-400',
-        link: latestGame.slug ? `#/game/${latestGame.slug}` : '#'
+        color: 'text-cyan-400'
       });
     }
 
     if (latestUser) {
+      const userLink = latestUser.username ? `#/profile/${latestUser.username}` : '#/search-users';
       activities.push({
         type: 'user',
-        text: `<strong>${latestUser.username}</strong> joined the community`,
+        // Now includes the <a> tag directly in the text
+        html: `<a href="${userLink}" class="text-purple-400 hover:text-purple-300 hover:underline font-bold transition">${latestUser.username}</a> joined the community`,
         time: latestUser.created_at,
         icon: '👤',
-        color: 'text-purple-400',
-        link: latestUser.username ? `#/profile/${latestUser.username}` : '#'
+        color: 'text-purple-400'
       });
     }
 
@@ -353,11 +355,12 @@ async function loadRecentActivity() {
     // Sort by time (newest first)
     activities.sort((a, b) => new Date(b.time) - new Date(a.time));
 
+    // Render using the new 'html' property
     feedEl.innerHTML = activities.map(act => `
-      <div class="flex gap-3 items-start">
-        <div class="mt-1 ${act.color} text-lg">${act.icon}</div>
+      <div class="flex gap-3 items-start group cursor-pointer" onclick="window.location.hash='${act.type === 'game' ? (latestGame?.slug ? '#/game/'+latestGame.slug : '#/games') : (latestUser?.username ? '#/profile/'+latestUser.username : '#/search-users')}'">
+        <div class="mt-1 ${act.color} text-lg shrink-0">${act.icon}</div>
         <div class="flex-1">
-          <div class="text-gray-300 text-sm leading-tight">${act.text}</div>
+          <div class="text-gray-300 text-sm leading-tight">${act.html}</div>
           <div class="text-xs text-gray-500 mt-1">${new Date(act.time).toLocaleDateString()}</div>
         </div>
       </div>
