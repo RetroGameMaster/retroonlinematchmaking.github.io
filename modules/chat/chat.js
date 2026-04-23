@@ -1,7 +1,7 @@
 // modules/chat/chat.js
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 import { createUserProfileLink, createUserAvatarLink } from '../../lib/userLinks.js';
-import { formatTime, sanitizeText } from './utils.js';
+import { formatTime, sanitizeInput } from './utils.js';
 import { 
   renderMessage, renderRoomItem, renderUserItem, 
   renderTypingIndicator, clearTypingIndicators 
@@ -435,7 +435,7 @@ async function sendMessage(text) {
     user_id: currentUser.id,
     user_email: currentUser.email,
     username: userProfile?.username || 'Anonymous',
-    message: sanitizeText(text),
+    message: sanitizeInput(text),
     created_at: new Date().toISOString()
   };
 
