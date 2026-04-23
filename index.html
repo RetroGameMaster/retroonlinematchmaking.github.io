@@ -50,23 +50,21 @@
         }
 
 /* ============================================================================
-   PROFILE STYLES (Full Page Background Support)
+   PROFILE STYLES (MySpace Style Full Background + Custom CSS Support)
    ============================================================================ */
-
-/* Wrapper now holds the background for the whole profile area */
 .ra-profile-wrapper { 
     max-width: 1000px; 
     margin: 0 auto; 
     color: #fff; 
     font-family: 'Orbitron', sans-serif; 
-    /* Background properties moved here */
+    /* Background properties moved here for full-page effect */
     background-size: cover !important; 
     background-position: center !important; 
-    background-attachment: fixed; /* Optional: creates a parallax-like fixed effect */
+    background-attachment: fixed;
     background-repeat: no-repeat;
     border-radius: 12px;
     padding-bottom: 20px;
-    min-height: 100vh; /* Ensure it covers at least the full screen */
+    min-height: 100vh;
 }
 
 /* Header is now transparent to show the wrapper's background */
@@ -74,18 +72,17 @@
   position: relative;
   height: 250px;
   border-radius: 12px;
-  overflow: visible; 
+  overflow: visible; /* Fixed avatar cutoff */
   margin-bottom: 80px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  /* Force transparency */
   background-color: transparent !important; 
-  background-image: none !important; 
+  background-image: none !important;
   clip-path: inset(0 0 round 12px);
 }
 
 .ra-header-overlay {
   position: absolute; inset: 0;
-  /* Slightly darker gradient to ensure header text readability */
+  /* Slightly darker gradient to ensure text readability over any background */
   background: linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.6));
   border-radius: 12px;
 }
@@ -100,7 +97,7 @@
 /* Avatar */
 .ra-avatar-container {
   position: relative;
-  margin-bottom: -60px;
+  margin-bottom: -60px; /* Overlap effect */
   z-index: 10;
 }
 .ra-avatar {
@@ -109,7 +106,9 @@
   border: 4px solid #06b6d4;
   object-fit: cover;
   background: #000;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
 }
+/* Note: Generic overlays removed. Users now apply custom CSS via profile settings */
 
 /* Info */
 .ra-info { flex: 1; padding-bottom: 10px; }
@@ -127,16 +126,12 @@
 }
 .ra-edit-btn:hover { background: #4b5563; }
 
-/* Signature */
+/* Signature (Now supports inline custom CSS) */
 .ra-signature-box {
-  background: rgba(0,0,0,0.6); 
+  background: rgba(0,0,0,0.4); border: 1px solid #374151;
+  padding: 20px; border-radius: 8px; margin-bottom: 30px;
+  min-height: 60px; font-style: italic;
   backdrop-filter: blur(5px);
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 20px; 
-  border-radius: 8px; 
-  margin-bottom: 30px;
-  min-height: 60px; 
-  font-style: italic;
 }
 
 /* Grid & Cards */
@@ -145,13 +140,12 @@
 /* Cards now have semi-transparent backgrounds for readability over custom images */
 .ra-card { 
     background: rgba(31, 41, 55, 0.85); 
-    backdrop-filter: blur(10px); 
+    backdrop-filter: blur(10px);
     padding: 20px; 
     border-radius: 8px; 
     border: 1px solid rgba(255,255,255,0.1); 
     margin-bottom: 20px; 
 }
-
 .ra-card h3 { margin-top: 0; color: #06b6d4; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
 
 /* Modal (Scrollable) */
@@ -182,15 +176,19 @@
 .wall-post-form { margin-bottom: 15px; }
 .wall-list { max-height: 400px; overflow-y: auto; }
 
+/* Currently Playing Grid */
+#currently-playing-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .ra-grid { grid-template-columns: 1fr; }
   .ra-header-content { flex-direction: column; align-items: center; text-align: center; }
   .ra-avatar-container { margin-bottom: 20px; }
   .ra-stats-row { justify-content: center; }
-  .ra-profile-wrapper {
-      background-attachment: scroll; /* Better performance on mobile */
-  }
 }
 
 /* ============================================================================
