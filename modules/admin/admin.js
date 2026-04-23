@@ -2362,7 +2362,7 @@ window.deleteAchievement = async function(id, title) {
 };
 // ===== END ACHIEVEMENTS FUNCTIONS =====
 // ============================================================================
-// NEW: AWARD MANAGER (Achievements & Site Awards)
+// NEW: AWARD MANAGER (Achievements, Site Awards & Creation)
 // ============================================================================
 
 async function loadAwardManager() {
@@ -2377,13 +2377,13 @@ async function loadAwardManager() {
     `;
 
     try {
-        // Fetch Users and Games for dropdowns
         const { data: users } = await supabase.from('profiles').select('id, username, email').order('username');
         const { data: games } = await supabase.from('games').select('id, title').order('title');
         const { data: siteAwards } = await supabase.from('achievements').select('id, title, badge_url').eq('type', 'site');
 
         content.innerHTML = `
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
                 <!-- Column 1: Award Game Achievement -->
                 <div class="bg-gray-800 p-6 rounded-lg border border-cyan-500">
                     <h3 class="text-xl font-bold text-white mb-4">🏆 Award Game Achievement</h3>
@@ -2397,7 +2397,7 @@ async function loadAwardManager() {
                         </div>
                         <div>
                             <label class="block text-sm text-gray-300 mb-1">Select Game</label>
-                            <select id="award-game" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white" onchange="loadGameAchievementsForDropdown()">
+                            <select id="award-game" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white" onchange="window.loadGameAchievementsForDropdown()">
                                 <option value="">-- Choose Game --</option>
                                 ${games?.map(g => `<option value="${g.id}">${g.title}</option>`).join('')}
                             </select>
@@ -2410,7 +2410,7 @@ async function loadAwardManager() {
                         </div>
                         <div class="flex items-center gap-2">
                             <input type="checkbox" id="award-is-proud" class="w-4 h-4 text-cyan-500 bg-gray-700 rounded">
-                            <label class="text-sm text-gray-300">Mark as "Most Proud" (Displays on Profile)</label>
+                            <label class="text-sm text-gray-300">Mark as "Most Proud"</label>
                         </div>
                         <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 rounded">
                             Award Achievement
@@ -2420,7 +2420,7 @@ async function loadAwardManager() {
 
                 <!-- Column 2: Award Site Award -->
                 <div class="bg-gray-800 p-6 rounded-lg border border-purple-500">
-                    <h3 class="text-xl font-bold text-white mb-4">🎖️ Award Site Badge</h3>
+                    <h3 class="text-xl font-bold text-white mb-4">🎖️ Award Existing Site Badge</h3>
                     <form id="award-site-form" class="space-y-4">
                         <div>
                             <label class="block text-sm text-gray-300 mb-1">Select User</label>
@@ -2436,11 +2436,33 @@ async function loadAwardManager() {
                                 ${siteAwards?.map(a => `<option value="${a.id}">${a.title}</option>`).join('')}
                             </select>
                         </div>
-                         <div class="text-xs text-gray-400">
-                            <p>Note: To create new Site Awards, use the "Game Achievements" tab and set Type to "Site", or upload via SQL.</p>
-                        </div>
                         <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded">
                             Award Site Badge
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Column 3: CREATE NEW SITE AWARD -->
+                <div class="bg-gray-800 p-6 rounded-lg border border-green-500">
+                    <h3 class="text-xl font-bold text-white mb-4">✨ Create New Site Award</h3>
+                    <form id="create-site-award-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Award Title</label>
+                            <input type="text" id="new-site-title" required placeholder="e.g. Founding Member" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Badge Image</label>
+                            <input type="file" id="new-site-badge" accept="image/*" required class="w-full text-sm text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-green-600 file:text-white">
+                            <div id="new-site-preview" class="mt-2 hidden">
+                                <img id="new-site-preview-img" class="w-12 h-12 rounded border border-green-400">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Points (Optional)</label>
+                            <input type="number" id="new-site-points" value="0" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
+                        </div>
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded">
+                            Create & Save Award
                         </button>
                     </form>
                 </div>
@@ -2453,11 +2475,28 @@ async function loadAwardManager() {
             </div>
         `;
 
-        // Setup Form Listeners
+        // Attach Listeners
         document.getElementById('award-game-form').addEventListener('submit', handleGameAward);
         document.getElementById('award-site-form').addEventListener('submit', handleSiteAward);
+        document.getElementById('create-site-award-form').addEventListener('submit', handleCreateSiteAward);
         
-        // Load recent history
+        // Preview Logic for New Badge
+        const badgeInput = document.getElementById('new-site-badge');
+        const previewDiv = document.getElementById('new-site-preview');
+        const previewImg = document.getElementById('new-site-preview-img');
+        
+        badgeInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    previewImg.src = evt.target.result;
+                    previewDiv.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
         loadRecentAwardsLog();
 
     } catch (error) {
@@ -2466,7 +2505,7 @@ async function loadAwardManager() {
     }
 }
 
-// Helper: Load achievements for the selected game
+// Helper: Load achievements for dropdown
 window.loadGameAchievementsForDropdown = async function() {
     const gameId = document.getElementById('award-game').value;
     const achieveSelect = document.getElementById('award-achievement');
@@ -2488,6 +2527,7 @@ window.loadGameAchievementsForDropdown = async function() {
     }
 };
 
+// Handler: Award Game Achievement
 async function handleGameAward(e) {
     e.preventDefault();
     const userId = document.getElementById('award-user').value;
@@ -2497,16 +2537,24 @@ async function handleGameAward(e) {
     if (!userId || !achieveId) return showNotification('Please select user and achievement', 'error');
 
     try {
-        // Insert into user_achievements
-        const { error } = await supabase.from('user_achievements').insert({
-            user_id: userId,
-            achievement_id: achieveId,
-            unlocked_at: new Date().toISOString(),
-            is_proud: isProud
-        });
+        // Check if already awarded to prevent duplicates
+        const { data: existing } = await supabase.from('user_achievements')
+            .select('id').eq('user_id', userId).eq('achievement_id', achieveId).single();
 
-        if (error) throw error;
-        showNotification('✅ Achievement awarded successfully!');
+        if (existing) {
+            // If exists, just update the "is_proud" status if changed
+            await supabase.from('user_achievements').update({ is_proud: isProud }).eq('id', existing.id);
+            showNotification('✅ Achievement status updated!');
+        } else {
+            const { error } = await supabase.from('user_achievements').insert({
+                user_id: userId,
+                achievement_id: achieveId,
+                unlocked_at: new Date().toISOString(),
+                is_proud: isProud
+            });
+            if (error) throw error;
+            showNotification('✅ Achievement awarded successfully!');
+        }
         e.target.reset();
         loadRecentAwardsLog();
     } catch (err) {
@@ -2514,6 +2562,7 @@ async function handleGameAward(e) {
     }
 }
 
+// Handler: Award Site Award
 async function handleSiteAward(e) {
     e.preventDefault();
     const userId = document.getElementById('site-award-user').value;
@@ -2526,15 +2575,69 @@ async function handleSiteAward(e) {
             user_id: userId,
             achievement_id: achieveId,
             unlocked_at: new Date().toISOString(),
-            is_proud: false // Site awards usually not "proud" unless specified
+            is_proud: false
         });
-
         if (error) throw error;
         showNotification('✅ Site Award awarded successfully!');
         e.target.reset();
         loadRecentAwardsLog();
     } catch (err) {
         showNotification('❌ Error: ' + err.message, 'error');
+    }
+}
+
+// Handler: CREATE NEW SITE AWARD
+async function handleCreateSiteAward(e) {
+    e.preventDefault();
+    const title = document.getElementById('new-site-title').value.trim();
+    const points = parseInt(document.getElementById('new-site-points').value) || 0;
+    const fileInput = document.getElementById('new-site-badge');
+    const file = fileInput.files[0];
+
+    if (!title || !file) return showNotification('Title and Badge Image are required', 'error');
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+
+    try {
+        // 1. Upload Image
+        const fileExt = file.name.split('.').pop();
+        const fileName = `site-awards/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('game-media') // Reusing existing bucket
+            .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('game-media').getPublicUrl(fileName);
+
+        // 2. Create Achievement Record (Type: 'site')
+        const { error: dbError } = await supabase.from('achievements').insert({
+            title: title,
+            description: 'Official Site Award',
+            points: points,
+            badge_url: publicUrl,
+            type: 'site', // Crucial distinction
+            is_multiplayer: false,
+            created_at: new Date().toISOString()
+        });
+
+        if (dbError) throw dbError;
+
+        showNotification('✅ Site Award created successfully!');
+        e.target.reset();
+        document.getElementById('new-site-preview').classList.add('hidden');
+        loadAwardManager(); // Refresh lists
+
+    } catch (err) {
+        console.error('Error creating site award:', err);
+        showNotification('❌ Error: ' + err.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
     }
 }
 
