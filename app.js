@@ -111,7 +111,29 @@ const fallbackContent = {
         </div>
     `
 };
+// ============================================================================
+// GLOBAL QUOTE RENDERER
+// ============================================================================
+const renderRandomQuote = () => {
+    const quoteBar = document.getElementById('nav-quote-bar');
+    if (!quoteBar) return;
 
+    const quote = getRandomQuote();
+    const isEmoji = quote.sprite.length <= 4; 
+    const spriteContent = isEmoji 
+        ? `<span class="text-2xl leading-none">${quote.sprite}</span>` 
+        : `<img src="${quote.sprite}" alt="${quote.character}" class="w-8 h-8 object-contain pixelated" style="image-rendering: pixelated;">`;
+
+    quoteBar.innerHTML = `
+        <div class="flex items-center gap-3 animate-fade-in w-full justify-center">
+            <div class="shrink-0 transition-transform hover:scale-110">${spriteContent}</div>
+            <div class="flex flex-col leading-tight text-center">
+                <span class="text-xs font-bold text-cyan-300 italic drop-shadow-md">"${quote.text}"</span>
+                <span class="text-[10px] text-gray-400 uppercase tracking-wider">— ${quote.character}, ${quote.game}</span>
+            </div>
+        </div>
+    `;
+};
 // Initialize the app
 async function initializeApp() {
     console.log('🚀 Initializing ROM app...');
@@ -131,8 +153,9 @@ async function initializeApp() {
             }
 
             await updateAuthUI();
+            renderRandomQuote();
         });
-
+        
         // Update UI initially
         await updateAuthUI();
 
@@ -275,6 +298,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     
     // For all other modules
     await loadModule(hash);
+    renderRandomQuote(); 
 }
 
 // Load module function
