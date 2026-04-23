@@ -486,7 +486,12 @@ async function getUserProfile(uid) {
   const { data } = await supabase.from('profiles').select('username, avatar_url').eq('id', uid).single();
   return data;
 }
-
+// Expose public functions to window for onclick handlers
+window.chatModule = {
+  joinRoom,
+  joinDM,
+  openMenu: (msgId) => console.log('Menu for', msgId) // Placeholder for now
+};
 // Cleanup on leave
 window.addEventListener('beforeunload', () => {
   cleanupAllSubscriptions();
