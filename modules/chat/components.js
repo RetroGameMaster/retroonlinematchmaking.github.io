@@ -176,3 +176,13 @@ export function createModal(id, title, content) {
     </div>
   `;
 }
+/**
+ * Clears all typing indicators from a specific room or DM
+ */
+export function clearTypingIndicators(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  
+  const indicators = container.querySelectorAll('.typing-indicator');
+  indicators.forEach(el => el.remove());
+}
