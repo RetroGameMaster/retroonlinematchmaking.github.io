@@ -81,11 +81,20 @@ export async function initModule(container, params) {
 // ============================================================================
 
 async function fetchProfileBySlug(slug) {
+  // FIX: Decode URI component to handle special characters like apostrophes (')
+  let cleanSlug;
+  try {
+    cleanSlug = decodeURIComponent(slug);
+  } catch (e) {
+    cleanSlug = slug;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .ilike('username', slug) // Case insensitive match
+    .ilike('username', cleanSlug) // Case insensitive match
     .single();
+    
   return error ? null : data;
 }
 
@@ -172,20 +181,26 @@ async function fetchFriends(userId) {
 }
 
 // FIX 2: Helper to check friendship status between current user and target user
-// This prevents "duplicate key" errors by checking if a relationship already exists
+// Rewritten to avoid complex nested 'and()' queries that cause 406 errors
 async function checkFriendStatus(currentUserId, targetUserId) {
   if (!currentUserId) return null;
 
-  // Check both directions: Current->Target AND Target->Current
+  // Fetch all potential relationships between these two users
   const { data, error } = await supabase
     .from('friends')
     .select('*')
-    .or(`and(user_id.eq.${currentUserId},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${currentUserId})`)
-    .single();
+    .in('user_id', [currentUserId, targetUserId])
+    .in('friend_id', [currentUserId, targetUserId]);
 
-  if (error || !data) return null;
+  if (error || !data || data.length === 0) return null;
 
-  return data;
+  // Filter client-side to find the exact match (safer and avoids SQL syntax issues)
+  const relationship = data.find(row => 
+    (row.user_id === currentUserId && row.friend_id === targetUserId) ||
+    (row.user_id === targetUserId && row.friend_id === currentUserId)
+  );
+
+  return relationship || null;
 }
 
 // ============================================================================
@@ -400,7 +415,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
               <p class="text-xs text-gray-500 mt-1">Upload a new avatar. Supports JPG, PNG, GIF.</p>
               <div class="mt-2">
-                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+                <img src="${profile.avatar_url || ' https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
               </div>
 
               <hr class="border-gray-700 my-4">
@@ -802,7 +817,7 @@ async function loadWallComments(profileId) {
     // Use helper to generate safe link
     const link = c.author ? getProfileLink(c.author) : '#/home';
     const displayName = c.author?.username || 'Unknown';
-    const avatarSrc = c.author?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = c.author?.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
 
     return `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
@@ -837,7 +852,7 @@ async function loadFriends(userId) {
     // Use helper to generate safe link
     const link = getProfileLink(f);
     const displayName = f.username || 'Unknown';
-    const avatarSrc = f.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = f.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
 
     return `
     <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" 
