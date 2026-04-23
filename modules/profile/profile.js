@@ -53,15 +53,12 @@ export async function initModule(container, params) {
     const isOwnProfile = currentUser && currentUser.id === targetUser.id;
     
     // FIX 1: DYNAMIC ADMIN CHECK
-    // Instead of checking the current user's admin status, we check the TARGET user's 'is_admin' column.
-    // This ensures the badge appears correctly on ANY profile if they are an admin.
     const isTargetUserAdmin = !!targetUser.is_admin;
 
     // 3. Render the Layout
-    // We pass isTargetUserAdmin instead of isUserAdmin
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
-    // 4. Attach Event Listeners (Edit, Wall, Friends, Currently Playing, Avatar Upload)
+    // 4. Attach Event Listeners
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
 
   } catch (error) {
@@ -81,7 +78,6 @@ export async function initModule(container, params) {
 // ============================================================================
 
 async function fetchProfileBySlug(slug) {
-  // FIX: Decode URI component to handle special characters like apostrophes (')
   let cleanSlug;
   try {
     cleanSlug = decodeURIComponent(slug);
@@ -92,7 +88,7 @@ async function fetchProfileBySlug(slug) {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .ilike('username', cleanSlug) // Case insensitive match
+    .ilike('username', cleanSlug)
     .single();
     
   return error ? null : data;
@@ -108,9 +104,7 @@ async function fetchProfileByUserId(id) {
 }
 
 // --- fetchWallComments ---
-// Fixed to avoid Foreign Key constraint name errors by fetching authors separately
 async function fetchWallComments(profileId) {
-  // Step 1: Get all comments for this profile
   const { data: comments, error } = await supabase
     .from('profile_comments')
     .select('*')
@@ -119,9 +113,7 @@ async function fetchWallComments(profileId) {
 
   if (error || !comments) return [];
 
-  // Step 2: Fetch author details separately to avoid FK constraint name issues
   const authorIds = [...new Set(comments.map(c => c.author_id))];
-  
   if (authorIds.length === 0) return comments;
 
   const { data: authors } = await supabase
@@ -129,7 +121,6 @@ async function fetchWallComments(profileId) {
     .select('id, username, avatar_url')
     .in('id', authorIds);
 
-  // Step 3: Merge author data into comments
   const authorMap = new Map(authors?.map(a => [a.id, a]) || []);
   
   return comments.map(c => ({
@@ -139,7 +130,6 @@ async function fetchWallComments(profileId) {
 }
 
 async function fetchFriends(userId) {
-  // FIX: Fetch friends where the user is EITHER the requester OR the receiver
   const { data, error } = await supabase
     .from('friends')
     .select(`
@@ -167,25 +157,19 @@ async function fetchFriends(userId) {
     return [];
   }
 
-  // Map the results to always return the "other" person's profile
   return data.map(item => {
-    // If the current userId matches the user_id column, the friend is in friend_profile
     if (item.user_id === userId) {
       return item.friend_profile;
-    } 
-    // If the current userId matches the friend_id column, the friend is in user_profile
-    else {
+    } else {
       return item.user_profile;
     }
-  }).filter(p => p !== null); // Filter out any nulls just in case
+  }).filter(p => p !== null);
 }
 
-// FIX 2: Helper to check friendship status between current user and target user
-// Rewritten to avoid complex nested 'and()' queries that cause 406 errors
+// FIX 2: Helper to check friendship status
 async function checkFriendStatus(currentUserId, targetUserId) {
   if (!currentUserId) return null;
 
-  // Fetch all potential relationships between these two users
   const { data, error } = await supabase
     .from('friends')
     .select('*')
@@ -194,7 +178,6 @@ async function checkFriendStatus(currentUserId, targetUserId) {
 
   if (error || !data || data.length === 0) return null;
 
-  // Filter client-side to find the exact match (safer and avoids SQL syntax issues)
   const relationship = data.find(row => 
     (row.user_id === currentUserId && row.friend_id === targetUserId) ||
     (row.user_id === targetUserId && row.friend_id === currentUserId)
@@ -203,24 +186,67 @@ async function checkFriendStatus(currentUserId, targetUserId) {
   return relationship || null;
 }
 
+// NEW: Fetch full game details for the "Currently Playing" list
+async function fetchCurrentlyPlayingGames(gameIdentifiers) {
+  if (!gameIdentifiers || gameIdentifiers.length === 0) return [];
+
+  const games = [];
+  
+  // We assume identifiers are now IDs (numbers/uuids). 
+  // If they are strings (old data), we try to match by title as fallback.
+  const ids = gameIdentifiers.filter(id => !isNaN(id) || (typeof id === 'string' && id.length > 20)); // rough guess for UUID
+  const titles = gameIdentifiers.filter(id => isNaN(id) && (typeof id === 'string' && id.length <= 20));
+
+  // 1. Fetch by ID
+  if (ids.length > 0) {
+    const { data: gamesById } = await supabase
+      .from('games')
+      .select('id, title, slug, cover_image_url, console')
+      .in('id', ids);
+    
+    if (gamesById) games.push(...gamesById);
+  }
+
+  // 2. Fetch by Title (Fallback for old data or if ID failed)
+  if (titles.length > 0) {
+    for (const title of titles) {
+      const { data: gameByTitle } = await supabase
+        .from('games')
+        .select('id, title, slug, cover_image_url, console')
+        .ilike('title', title)
+        .single();
+      
+      if (gameByTitle) games.push(gameByTitle);
+      else {
+        // If no game found, create a placeholder object so we still display something
+        games.push({
+          id: null,
+          title: title,
+          slug: null,
+          cover_image_url: null,
+          console: 'Unknown'
+        });
+      }
+    }
+  }
+
+  return games;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-// Ensures we always link to username if available, preventing ID redirect issues
 function getProfileLink(profile) {
   if (profile.username) return `#/profile/${profile.username}`;
   return `#/profile/${profile.id}`;
 }
 
-// Helper to generate a link for a game title
-// Since we only store the title string, we try to link to the slug version of the title
-function getGameLink(gameTitle) {
-  if (!gameTitle) return '#/games';
-  // Create a slug-like string from the title (lowercase, replace spaces with hyphens)
-  // Note: This assumes your game slugs are generated from titles. 
-  // If you store game IDs in the array later, this can be updated to use IDs directly.
-  const slug = gameTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+function getGameLink(game) {
+  if (!game) return '#/games';
+  if (game.slug) return `#/game/${game.slug}`;
+  // Fallback for old data without slug
+  const slug = game.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   return `#/game/${slug}`;
 }
 
@@ -230,34 +256,14 @@ function getGameLink(gameTitle) {
 
 function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin, currentUser) {
   const bgStyle = getBackgroundCSS(profile.custom_background);
-  
-  // Apply Custom CSS for Avatar if exists
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
   const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
-  // Parse Currently Playing Games (Stored as JSON string or Array)
-  let currentlyPlayingGames = [];
-  if (profile.currently_playing) {
-    try {
-      currentlyPlayingGames = typeof profile.currently_playing === 'string' 
-        ? JSON.parse(profile.currently_playing) 
-        : profile.currently_playing;
-    } catch (e) {
-      console.error("Error parsing currently_playing", e);
-    }
-  }
-
-  // Inject the full HTML structure
-  // NOTE: Background style is applied to the Wrapper for full-page effect
   container.innerHTML = `
     <div class="ra-profile-wrapper" style="${bgStyle}">
-      <!-- RetroAchievements Style Header (Now Transparent to show wrapper bg) -->
       <div class="ra-header">
         <div class="ra-header-overlay"></div>
         <div class="ra-header-content">
-          
-          <!-- Avatar with Custom CSS Overlay -->
-          <!-- Increased z-index and adjusted margin to prevent cutoff -->
           <div class="ra-avatar-container" style="${avatarStyle}">
             <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
                  alt="${profile.username}" 
@@ -265,7 +271,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'}"></div>
           </div>
 
-          <!-- Info -->
           <div class="ra-info">
             <h1 class="ra-username">${profile.username}</h1>
             ${profile.display_name ? `<div class="ra-display-name">${profile.display_name}</div>` : ''}
@@ -289,7 +294,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- Edit Button (Only for Owner) -->
           ${isOwnProfile ? `
             <button id="btn-edit-profile" class="ra-edit-btn">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -302,51 +306,32 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
       </div>
 
-      <!-- Custom Signature Section (User Defined CSS & HTML) -->
       ${profile.signature_text ? `
         <div class="ra-signature-box" style="${profile.signature_custom_css || ''}">
           ${profile.signature_text}
         </div>
       ` : ''}
 
-      <!-- Main Grid -->
       <div class="ra-grid">
         <div class="ra-col-main">
-          <!-- About Card -->
           <div class="ra-card">
             <h3>About</h3>
             <p class="ra-bio">${profile.bio || 'No bio added yet.'}</p>
           </div>
           
-          <!-- Currently Playing Section (UPDATED) -->
+          <!-- Currently Playing Section -->
           <div class="ra-card">
             <h3>🎮 What I'm Playing Currently</h3>
             <div id="currently-playing-container">
-              <!-- REMOVED: Manual input field. Games must be added from the Game Detail page. -->
-              
               <div id="currently-playing-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                ${currentlyPlayingGames.length > 0 
-                  ? currentlyPlayingGames.map((game, index) => `
-                      <div class="relative group bg-gray-800/80 backdrop-blur-sm border border-gray-600 p-3 rounded-lg flex items-center gap-3">
-                        <span class="text-cyan-400 text-xl">🎮</span>
-                        <!-- Game Title is now a clickable link -->
-                        <a href="${getGameLink(game)}" class="text-sm font-bold text-cyan-300 hover:text-cyan-100 truncate flex-1 hover:underline" title="View ${game}">
-                          ${game}
-                        </a>
-                        ${isOwnProfile ? `
-                          <button class="remove-game-btn opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 ml-2" data-index="${index}" title="Remove from list">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                          </button>
-                        ` : ''}
-                      </div>
-                    `).join('')
-                  : '<div class="col-span-full text-gray-500 italic text-center py-4">No games listed yet. Visit a game page to add one!</div>'
-                }
+                <div class="col-span-full text-center text-gray-500 py-4">
+                  <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
+                  <span class="ml-2 text-sm">Loading games...</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Comment Wall / Shout Box -->
           <div class="ra-card">
             <h3>Shout Box / Wall</h3>
             <div id="wall-container">
@@ -364,15 +349,12 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
 
         <div class="ra-col-side">
-          <!-- Friends List Card -->
           <div class="ra-card">
             <h3>Friends</h3>
-            <!-- FIX 3: Friends list is now loaded for everyone (public) -->
             <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
               <div class="text-sm text-gray-500 py-2">Loading friends...</div>
             </div>
             
-            <!-- FIX 4: Smart Friend Action Container -->
             ${!isOwnProfile ? `
               <div id="friend-action-container" class="mt-3">
                 <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
@@ -380,7 +362,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             ` : ''}
           </div>
 
-          <!-- Details Card -->
           <div class="ra-card">
             <h3>Profile Details</h3>
             <ul class="ra-details-list text-sm space-y-2">
@@ -392,62 +373,50 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
       </div>
 
-      <!-- Edit Modal (Hidden by default, Only for Owner) -->
       ${isOwnProfile ? `
         <div id="edit-modal" class="ra-modal">
           <div class="ra-modal-content">
             <h2>Edit Profile Settings</h2>
             <form id="profile-form">
-              
               <label>Bio</label>
               <textarea name="bio" class="ra-input" rows="3">${profile.bio || ''}</textarea>
 
               <hr class="border-gray-700 my-4">
-
               <label>Signature Content (HTML Allowed)</label>
-              <textarea name="signature_text" class="ra-input" rows="3" placeholder="<b>Bold</b> text, images, etc.">${profile.signature_text || ''}</textarea>
+              <textarea name="signature_text" class="ra-input" rows="3">${profile.signature_text || ''}</textarea>
               
               <label>Signature Custom CSS</label>
-              <textarea name="signature_custom_css" class="ra-input font-mono text-xs" rows="4" placeholder="e.g. color: #0f0; text-shadow: 0 0 5px #0f0; border: 1px solid #333; padding: 10px;">${profile.signature_custom_css || ''}</textarea>
-              <p class="text-xs text-gray-500 mt-1">Enter valid CSS properties to style your signature box.</p>
+              <textarea name="signature_custom_css" class="ra-input font-mono text-xs" rows="4">${profile.signature_custom_css || ''}</textarea>
 
               <hr class="border-gray-700 my-4">
-
               <label>Avatar Overlay Custom CSS</label>
-              <textarea name="avatar_custom_css" class="ra-input font-mono text-xs" rows="4" placeholder="e.g. box-shadow: 0 0 10px cyan; border: 2px solid white; filter: sepia(1);">${profile.avatar_custom_css || ''}</textarea>
-              <p class="text-xs text-gray-500 mt-1">Enter valid CSS properties to style your avatar image.</p>
+              <textarea name="avatar_custom_css" class="ra-input font-mono text-xs" rows="4">${profile.avatar_custom_css || ''}</textarea>
 
               <hr class="border-gray-700 my-4">
-
-              <!-- NEW: Avatar Upload Section -->
               <label>Update Profile Picture</label>
               <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
-              <p class="text-xs text-gray-500 mt-1">Upload a new avatar. Supports JPG, PNG, GIF.</p>
               <div class="mt-2">
-                <img src="${profile.avatar_url || ' https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
               </div>
 
               <hr class="border-gray-700 my-4">
-
               <label>Background Type</label>
               <select name="bg_type" id="bg_type" class="ra-input">
                 <option value="color" ${profile.custom_background?.type === 'color' ? 'selected' : ''}>Solid Color</option>
-                <option value="image" ${profile.custom_background?.type === 'image' ? 'selected' : ''}>Uploaded Image / GIF (Animated)</option>
+                <option value="image" ${profile.custom_background?.type === 'image' ? 'selected' : ''}>Uploaded Image / GIF</option>
                 <option value="gradient" ${profile.custom_background?.type === 'gradient' ? 'selected' : ''}>Gradient</option>
               </select>
 
-              <!-- NEW: File Upload Section (Visible only if 'image' is selected) -->
               <div id="bg-upload-container" style="display: ${profile.custom_background?.type === 'image' ? 'block' : 'none'}; margin-top: 15px;">
                 <label class="block text-sm font-bold text-cyan-400 mb-1">Upload New Background</label>
                 <input type="file" id="bg_file_input" accept="image/*" class="ra-input">
-                <p class="text-xs text-gray-500 mt-1">Supports JPG, PNG, and <strong>GIF/WebP for animation</strong>. Uploading will replace the URL below.</p>
               </div>
 
-              <label class="block mt-4">Background Value (URL or Color Code)</label>
-              <input type="text" name="bg_value" id="bg_value_input" class="ra-input" value="${profile.custom_background?.value || '#1f2937'}" placeholder="#hex or https://...">
+              <label class="block mt-4">Background Value</label>
+              <input type="text" name="bg_value" id="bg_value_input" class="ra-input" value="${profile.custom_background?.value || '#1f2937'}">
 
               <div class="modal-actions">
-                <button type="button" id="btn-cancel-edit" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded transition-colors">Cancel</button>
+                <button type="button" id="btn-cancel-edit" class="bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
                 <button type="submit" class="btn-primary">Save Changes</button>
               </div>
             </form>
@@ -458,26 +427,12 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   `;
 }
 
-// ============================================================================
-// CSS GENERATORS
-// ============================================================================
-
 function getBackgroundCSS(bg) {
   if (!bg || !bg.type) return 'background-color: #111827;';
-  
-  const { type, value, opacity = 1 } = bg;
-  let css = '';
-
-  if (type === 'image') {
-    // Supports animated GIFs/WebP naturally via standard CSS
-    css = `background-image: url('${value}'); background-size: cover; background-position: center; background-attachment: fixed;`;
-  } else if (type === 'gradient') {
-    css = `background-image: ${value}; background-attachment: fixed;`;
-  } else {
-    css = `background-color: ${value};`;
-  }
-  
-  return css;
+  const { type, value } = bg;
+  if (type === 'image') return `background-image: url('${value}'); background-size: cover; background-position: center; background-attachment: fixed;`;
+  if (type === 'gradient') return `background-image: ${value}; background-attachment: fixed;`;
+  return `background-color: ${value};`;
 }
 
 // ============================================================================
@@ -490,31 +445,15 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   const modal = document.getElementById('edit-modal');
   const cancelBtn = document.getElementById('btn-cancel-edit');
   const form = document.getElementById('profile-form');
-  
-  // Elements for Background Upload Toggle
   const bgTypeSelect = document.getElementById('bg_type');
   const bgUploadContainer = document.getElementById('bg-upload-container');
 
-  if (editBtn && modal) {
-    editBtn.addEventListener('click', () => {
-      modal.style.display = 'flex';
-    });
-  }
+  if (editBtn && modal) editBtn.addEventListener('click', () => modal.style.display = 'flex');
+  if (cancelBtn && modal) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
 
-  if (cancelBtn && modal) {
-    cancelBtn.addEventListener('click', () => {
-      modal.style.display = 'none';
-    });
-  }
-
-  // Toggle File Input based on Dropdown Selection
   if (bgTypeSelect && bgUploadContainer) {
     bgTypeSelect.addEventListener('change', (e) => {
-      if (e.target.value === 'image') {
-        bgUploadContainer.style.display = 'block';
-      } else {
-        bgUploadContainer.style.display = 'none';
-      }
+      bgUploadContainer.style.display = e.target.value === 'image' ? 'block' : 'none';
     });
   }
 
@@ -522,108 +461,64 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(form);
-      
       let finalBgValue = formData.get('bg_value');
       const bgType = formData.get('bg_type');
       let finalAvatarUrl = profile.avatar_url;
 
-      // --- HANDLE AVATAR UPLOAD ---
       const avatarInput = document.getElementById('avatar_file_input');
       if (avatarInput && avatarInput.files.length > 0) {
         const file = avatarInput.files[0];
-        if (!file.type.startsWith('image/')) {
-          alert('Please select a valid image file for avatar.');
-          return;
-        }
         const fileName = `${profile.id}/avatar_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
         const submitBtn = form.querySelector('button[type="submit"]');
-        const originalBtnText = submitBtn.textContent;
-        submitBtn.textContent = 'Uploading Avatar...';
+        submitBtn.textContent = 'Uploading...';
         submitBtn.disabled = true;
 
         try {
-          const { data, error } = await supabase.storage
-            .from('user-backgrounds') 
-            .upload(fileName, file, { cacheControl: '3600', upsert: true });
-
+          const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
           if (error) throw error;
           const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
           finalAvatarUrl = publicUrl;
         } catch (err) {
           alert('Avatar upload failed: ' + err.message);
-          submitBtn.textContent = originalBtnText;
+          submitBtn.textContent = 'Save Changes';
           submitBtn.disabled = false;
           return;
         }
       }
 
-      // --- HANDLE BACKGROUND UPLOAD IF IMAGE TYPE SELECTED ---
       const fileInput = document.getElementById('bg_file_input');
       if (bgType === 'image' && fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
-        
-        if (!file.type.startsWith('image/')) {
-          alert('Please select a valid image file.');
-          return;
-        }
-
         const fileName = `${profile.id}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
         const submitBtn = form.querySelector('button[type="submit"]');
-        const originalBtnText = submitBtn.textContent;
-        submitBtn.textContent = 'Uploading Background...';
+        submitBtn.textContent = 'Uploading...';
         submitBtn.disabled = true;
 
         try {
-          const { data, error } = await supabase.storage
-            .from('user-backgrounds')
-            .upload(fileName, file, {
-              cacheControl: '3600',
-              upsert: true
-            });
-
+          const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
           if (error) throw error;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('user-backgrounds')
-            .getPublicUrl(fileName);
-
+          const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
           finalBgValue = publicUrl;
-
         } catch (err) {
           alert('Upload failed: ' + err.message);
-          submitBtn.textContent = originalBtnText;
+          submitBtn.textContent = 'Save Changes';
           submitBtn.disabled = false;
           return;
         }
       }
-      // --------------------------------------------------
 
       const updates = {
         bio: formData.get('bio'),
         signature_text: formData.get('signature_text'),
         signature_custom_css: formData.get('signature_custom_css'),
         avatar_custom_css: formData.get('avatar_custom_css'),
-        avatar_url: finalAvatarUrl, // Update avatar URL
-        custom_background: {
-          type: bgType,
-          value: finalBgValue,
-          opacity: 1,
-          position: 'center',
-          size: 'cover'
-        }
+        avatar_url: finalAvatarUrl,
+        custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
       };
 
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', profile.id);
-
-      if (error) {
-        alert('Error saving: ' + error.message);
-      } else {
-        alert('Profile updated successfully!');
-        location.reload();
-      }
+      const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
+      if (error) alert('Error: ' + error.message);
+      else { alert('Saved!'); location.reload(); }
     });
   }
 
@@ -636,48 +531,39 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     postBtn.addEventListener('click', async () => {
       const input = document.getElementById('new-wall-comment');
       const content = input.value.trim();
-      
-      if (!content) {
-        alert('Please enter a message.');
-        return;
-      }
-
+      if (!content) return;
       const { error } = await supabase.from('profile_comments').insert({
-        target_user_id: profile.id,
-        author_id: currentUser.id,
-        content: content
+        target_user_id: profile.id, author_id: currentUser.id, content: content
       });
-
-      if (error) {
-        alert('Error posting: ' + error.message);
-      } else {
-        input.value = ''; // Clear input
-        loadWallComments(profile.id); // Reload list
-      }
+      if (error) alert('Error: ' + error.message);
+      else { input.value = ''; loadWallComments(profile.id); }
     });
   }
 
   // --- 4. Load Friends List ---
-  // FIX: Load friends for EVERYONE (Public), not just own profile
   loadFriends(profile.id);
 
   // --- 5. Smart Friend Button Logic ---
-  // Only show if viewing another user's profile and logged in
   if (!isOwnProfile && currentUser) {
     loadFriendButtonState(profile.id, currentUser.id);
   }
 
-  // --- 6. Currently Playing: Remove Game (ADD functionality moved to Game Detail page) ---
-  const removeGameBtns = document.querySelectorAll('.remove-game-btn');
-  removeGameBtns.forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation(); // Prevent triggering parent clicks
-      e.preventDefault(); // Prevent link navigation
-      const index = parseInt(btn.getAttribute('data-index'));
+  // --- 6. Load Currently Playing Games (With Cover Art) ---
+  loadCurrentlyPlayingList(profile);
+
+  // --- 7. Remove Game Listener (Delegated to handle dynamic content) ---
+  const listContainer = document.getElementById('currently-playing-list');
+  if (listContainer && isOwnProfile) {
+    listContainer.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.remove-game-btn');
+      if (!btn) return;
       
+      e.stopPropagation();
+      e.preventDefault();
+      
+      const gameId = btn.getAttribute('data-id');
       if (!confirm('Remove this game from your list?')) return;
 
-      // Get current list
       let currentGames = [];
       if (profile.currently_playing) {
         try {
@@ -687,24 +573,69 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         } catch (e) { currentGames = []; }
       }
 
-      // Remove game at index
-      if (index >= 0 && index < currentGames.length) {
-        currentGames.splice(index, 1);
-      }
+      // Filter out the game being removed
+      const updatedGames = currentGames.filter(id => id != gameId);
 
-      // Update DB
-      const { error } = await supabase
-        .from('profiles')
-        .update({ currently_playing: currentGames })
-        .eq('id', profile.id);
-
-      if (error) {
-        alert('Error removing game: ' + error.message);
-      } else {
-        location.reload();
-      }
+      const { error } = await supabase.from('profiles').update({ currently_playing: updatedGames }).eq('id', profile.id);
+      if (error) alert('Error: ' + error.message);
+      else location.reload();
     });
-  });
+  }
+}
+
+// NEW: Load and Render the "Currently Playing" list with game details
+async function loadCurrentlyPlayingList(profile) {
+  const listEl = document.getElementById('currently-playing-list');
+  if (!listEl) return;
+
+  let rawGames = [];
+  if (profile.currently_playing) {
+    try {
+      rawGames = typeof profile.currently_playing === 'string' 
+        ? JSON.parse(profile.currently_playing) 
+        : profile.currently_playing;
+    } catch (e) { rawGames = []; }
+  }
+
+  if (rawGames.length === 0) {
+    listEl.innerHTML = '<div class="col-span-full text-gray-500 italic text-center py-4">No games listed yet. Visit a game page to add one!</div>';
+    return;
+  }
+
+  const games = await fetchCurrentlyPlayingGames(rawGames);
+  const isOwnProfile = document.getElementById('btn-edit-profile') !== null;
+
+  if (games.length === 0) {
+    listEl.innerHTML = '<div class="col-span-full text-gray-500 italic text-center py-4">No games found.</div>';
+    return;
+  }
+
+  listEl.innerHTML = games.map(game => {
+    const link = getGameLink(game);
+    const cover = game.cover_image_url || 'https://via.placeholder.com/150x200/1f2937/6b7280?text=No+Cover';
+    const title = game.title || 'Unknown Game';
+    const consoleName = game.console || '';
+    
+    return `
+      <div class="group relative bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-lg overflow-hidden hover:border-cyan-500 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20 flex flex-col h-full">
+        <a href="${link}" class="block flex-1">
+          <div class="aspect-[3/4] w-full overflow-hidden bg-gray-900">
+            <img src="${cover}" alt="${title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+          </div>
+          <div class="p-3">
+            <h4 class="text-sm font-bold text-gray-100 line-clamp-2 leading-tight mb-1" title="${title}">${title}</h4>
+            ${consoleName ? `<p class="text-xs text-cyan-400 truncate">${consoleName}</p>` : ''}
+          </div>
+        </a>
+        ${isOwnProfile ? `
+          <button class="remove-game-btn absolute top-2 right-2 bg-red-600/90 hover:bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg" 
+                  data-id="${game.id || title}" title="Remove from list">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
 }
 
 // ============================================================================
@@ -718,11 +649,8 @@ async function loadFriendButtonState(targetUserId, currentUserId) {
   const relationship = await checkFriendStatus(currentUserId, targetUserId);
   
   if (!relationship) {
-    // No relationship exists -> Show "Add Friend"
     container.innerHTML = `
-      <button id="btn-add-friend" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm transition-colors">
-        Add Friend
-      </button>
+      <button id="btn-add-friend" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm transition-colors">Add Friend</button>
     `;
     document.getElementById('btn-add-friend').addEventListener('click', async () => {
       if(!confirm('Send friend request?')) return;
@@ -732,17 +660,13 @@ async function loadFriendButtonState(targetUserId, currentUserId) {
       if (error) alert('Error: ' + error.message);
       else {
         alert('Request sent!');
-        loadFriendButtonState(targetUserId, currentUserId); // Refresh button
+        loadFriendButtonState(targetUserId, currentUserId);
       }
     });
-
   } else if (relationship.status === 'pending') {
-    // Request is pending
     if (relationship.user_id === currentUserId) {
-      // We sent the request -> Show "Request Sent"
       container.innerHTML = `<button disabled class="w-full bg-gray-800 text-gray-400 py-2 rounded text-sm cursor-not-allowed">Request Sent</button>`;
     } else {
-      // They sent us a request -> Show "Accept/Decline"
       container.innerHTML = `
         <div class="flex gap-2">
           <button id="btn-accept-friend" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded text-sm">Accept</button>
@@ -760,9 +684,7 @@ async function loadFriendButtonState(targetUserId, currentUserId) {
         loadFriendButtonState(targetUserId, currentUserId);
       });
     }
-
   } else if (relationship.status === 'accepted') {
-    // Already friends -> Show "Friends"
     container.innerHTML = `<button disabled class="w-full bg-green-900/50 border border-green-700 text-green-400 py-2 rounded text-sm cursor-default">✓ Friends</button>`;
   }
 }
@@ -774,64 +696,48 @@ async function loadFriendButtonState(targetUserId, currentUserId) {
 async function loadWallComments(profileId) {
   const list = document.getElementById('wall-list');
   if (!list) return;
-
   const comments = await fetchWallComments(profileId);
-  
   if (comments.length === 0) {
-    list.innerHTML = '<div class="text-sm text-gray-500 italic py-4 text-center">No shouts yet. Be the first to say hello!</div>';
+    list.innerHTML = '<div class="text-sm text-gray-500 italic py-4 text-center">No shouts yet.</div>';
     return;
   }
-
   list.innerHTML = comments.map(c => {
-    // Use helper to generate safe link
     const link = c.author ? getProfileLink(c.author) : '#/home';
     const displayName = c.author?.username || 'Unknown';
-    const avatarSrc = c.author?.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
-
+    const avatarSrc = c.author?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
-      <img src="${avatarSrc}" 
-           class="w-8 h-8 rounded-full bg-gray-600 object-cover" 
-           alt="${displayName}">
+      <img src="${avatarSrc}" class="w-8 h-8 rounded-full bg-gray-600 object-cover">
       <div class="flex-1">
         <div class="flex items-baseline gap-2">
-          <span class="font-bold text-cyan-400 text-sm hover:underline cursor-pointer" onclick="window.location.hash='${link}'">
-            ${displayName}
-          </span>
+          <span class="font-bold text-cyan-400 text-sm hover:underline cursor-pointer" onclick="window.location.hash='${link}'">${displayName}</span>
           <span class="text-xs text-gray-500">${new Date(c.created_at).toLocaleDateString()}</span>
         </div>
         <p class="text-gray-300 text-sm mt-1 break-words">${c.content}</p>
       </div>
-    </div>
-  `}).join('');
+    </div>`;
+  }).join('');
 }
 
 async function loadFriends(userId) {
   const list = document.getElementById('friends-list');
   if (!list) return;
-
   const friends = await fetchFriends(userId);
-  
   if (friends.length === 0) {
     list.innerHTML = '<div class="text-sm text-gray-500 italic py-2 text-center">No friends yet.</div>';
     return;
   }
-
   list.innerHTML = friends.map(f => {
-    // Use helper to generate safe link
     const link = getProfileLink(f);
     const displayName = f.username || 'Unknown';
-    const avatarSrc = f.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
-
+    const avatarSrc = f.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
     return `
-    <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" 
-         onclick="window.location.hash='${link}'">
+    <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" onclick="window.location.hash='${link}'">
       <div class="relative">
-        <img src="${avatarSrc}" 
-             class="w-6 h-6 rounded-full object-cover">
+        <img src="${avatarSrc}" class="w-6 h-6 rounded-full object-cover">
         <div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-gray-900 ${f.is_online ? 'bg-green-500' : 'bg-gray-500'}"></div>
       </div>
       <span class="text-sm text-gray-300 truncate flex-1">${displayName}</span>
-    </div>
-  `}).join('');
+    </div>`;
+  }).join('');
 }
