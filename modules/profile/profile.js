@@ -58,7 +58,7 @@ export async function initModule(container, params) {
     // 3. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
-    // 4. Attach Event Listeners
+    // 4. Attach Event Listeners (Now includes loaders for new walls)
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
 
   } catch (error) {
@@ -187,7 +187,6 @@ async function checkFriendStatus(currentUserId, targetUserId) {
 }
 
 // NEW: Fetch full game details for the "Currently Playing" list
-// Handles both old string data and new object data
 async function fetchCurrentlyPlayingGames(gameIdentifiers) {
   if (!gameIdentifiers || gameIdentifiers.length === 0) return [];
 
@@ -195,24 +194,18 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
   const ids = [];
   const titles = [];
 
-  // Separate IDs from Titles
   gameIdentifiers.forEach(item => {
     if (typeof item === 'object' && item.id) {
-      // Already an object with ID
       games.push(item); 
     } else if (typeof item === 'number' || (typeof item === 'string' && item.length > 20)) {
-      // Looks like an ID (UUID or Number)
       ids.push(item);
     } else if (typeof item === 'string') {
-      // Looks like a Title
       titles.push(item);
     } else if (typeof item === 'object' && item.title) {
-      // Object without ID, treat as title lookup
       titles.push(item.title);
     }
   });
 
-  // 1. Fetch by ID
   if (ids.length > 0) {
     const { data: gamesById } = await supabase
       .from('games')
@@ -222,10 +215,8 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
     if (gamesById) games.push(...gamesById);
   }
 
-  // 2. Fetch by Title (Fallback for old data)
   if (titles.length > 0) {
     for (const title of titles) {
-      // Skip if we already have this game from the ID fetch
       if (games.some(g => g.title.toLowerCase() === title.toLowerCase())) continue;
 
       const { data: gameByTitle } = await supabase
@@ -237,7 +228,6 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
       if (gameByTitle) {
         games.push(gameByTitle);
       } else {
-        // Placeholder for missing games
         games.push({
           id: null,
           title: title,
@@ -253,6 +243,117 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
 }
 
 // ============================================================================
+// NEW ACHIEVEMENT DATA FETCHERS
+// ============================================================================
+
+// Fetch Site Awards (Type = 'site')
+async function fetchSiteAwards(userId) {
+  const { data, error } = await supabase
+    .from('user_achievements')
+    .select(`
+      unlocked_at,
+      is_proud,
+      achievements (
+        id,
+        title,
+        description,
+        badge_url,
+        points,
+        type
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('achievements.type', 'site')
+    .order('unlocked_at', { ascending: false });
+
+  if (error) return [];
+  return data || [];
+}
+
+// Fetch "Most Proud" Achievements (is_proud = true)
+async function fetchProudAchievements(userId) {
+  const { data, error } = await supabase
+    .from('user_achievements')
+    .select(`
+      unlocked_at,
+      is_proud,
+      achievements (
+        id,
+        title,
+        description,
+        badge_url,
+        points,
+        game_id,
+        games (title, slug)
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('is_proud', true)
+    .order('unlocked_at', { ascending: false });
+
+  if (error) return [];
+  return data || [];
+}
+
+// Fetch Mastered Games (User has ALL achievements for a game)
+async function fetchMasteredGames(userId) {
+  // 1. Get all games that have achievements
+  const { data: allGamesWithAchievements } = await supabase
+    .from('achievements')
+    .select('game_id, games(title, slug, cover_image_url, console)', { count: 'exact' })
+    .not('game_id', 'is', null);
+
+  if (!allGamesWithAchievements) return [];
+
+  // Group by game_id to count total achievements per game
+  const gameTotals = {};
+  allGamesWithAchievements.forEach(a => {
+    if (!gameTotals[a.game_id]) {
+      gameTotals[a.game_id] = { 
+        total: 0, 
+        info: a.games 
+      };
+    }
+    gameTotals[a.game_id].total++;
+  });
+
+  // 2. Get user's unlocked achievements
+  const { data: userUnlocks } = await supabase
+    .from('user_achievements')
+    .select('achievement_id, achievements(game_id)')
+    .eq('user_id', userId);
+
+  if (!userUnlocks) return [];
+
+  // Count unlocks per game for this user
+  const userCounts = {};
+  userUnlocks.forEach(u => {
+    const gid = u.achievements?.game_id;
+    if (gid) {
+      userCounts[gid] = (userCounts[gid] || 0) + 1;
+    }
+  });
+
+  // 3. Filter for mastered games (userCount == totalCount)
+  const masteredIds = [];
+  Object.keys(gameTotals).forEach(gid => {
+    if (userCounts[gid] === gameTotals[gid].total) {
+      masteredIds.push(gid);
+    }
+  });
+
+  if (masteredIds.length === 0) return [];
+
+  // 4. Fetch game details for mastered IDs
+  const { data: masteredGames } = await supabase
+    .from('games')
+    .select('id, title, slug, cover_image_url, console')
+    .in('id', masteredIds);
+
+  return masteredGames || [];
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -264,7 +365,6 @@ function getProfileLink(profile) {
 function getGameLink(game) {
   if (!game) return '#/games';
   if (game.slug) return `#/game/${game.slug}`;
-  // Fallback for old data without slug
   const slug = game.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   return `#/game/${slug}`;
 }
@@ -331,6 +431,16 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
       ` : ''}
 
+      <!-- NEW: SITE AWARDS WALL (Top Priority) -->
+      <div class="ra-card mb-6 border-purple-500/50 bg-purple-900/10">
+        <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
+          🎖️ Site Awards & Badges
+        </h3>
+        <div id="site-awards-list" class="flex flex-wrap gap-4 min-h-[60px]">
+          <div class="text-gray-500 text-sm italic">Loading awards...</div>
+        </div>
+      </div>
+
       <div class="ra-grid">
         <div class="ra-col-main">
           <div class="ra-card">
@@ -351,7 +461,20 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <div class="ra-card">
+          <!-- NEW: MOST PROUD ACHIEVEMENTS WALL -->
+          <div class="ra-card mt-6">
+            <h3 class="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
+              ⭐ Most Proud Achievements
+            </h3>
+            <div id="proud-achievements-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-500"></div>
+                <span class="ml-2 text-sm">Loading proud moments...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ra-card mt-6">
             <h3>Shout Box / Wall</h3>
             <div id="wall-container">
               ${isOwnProfile || currentUser ? `
@@ -381,7 +504,20 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             ` : ''}
           </div>
 
-          <div class="ra-card">
+          <!-- NEW: MASTERED GAMES WALL -->
+          <div class="ra-card mt-6">
+            <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+              🏆 Mastered Games
+            </h3>
+            <div id="mastered-games-list" class="grid grid-cols-2 gap-3">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
+                <span class="ml-2 text-sm">Checking completion...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ra-card mt-6">
             <h3>Profile Details</h3>
             <ul class="ra-details-list text-sm space-y-2">
               <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
@@ -415,7 +551,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <label>Update Profile Picture</label>
               <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
               <div class="mt-2">
-                <img src="${profile.avatar_url || ' https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+                <img src="${profile.avatar_url || '  https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
               </div>
 
               <hr class="border-gray-700 my-4">
@@ -567,10 +703,15 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     loadFriendButtonState(profile.id, currentUser.id);
   }
 
-  // --- 6. Load Currently Playing Games (With Cover Art) ---
+  // --- 6. Load Currently Playing Games ---
   loadCurrentlyPlayingList(profile);
 
-  // --- 7. Remove Game Listener (Delegated to handle dynamic content) ---
+  // --- NEW: Load Achievement Walls ---
+  loadSiteAwardsWall(profile.id);
+  loadProudAchievementsWall(profile.id);
+  loadMasteredGamesWall(profile.id);
+
+  // --- 7. Remove Game Listener ---
   const listContainer = document.getElementById('currently-playing-list');
   if (listContainer && isOwnProfile) {
     listContainer.addEventListener('click', async (e) => {
@@ -592,12 +733,10 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         } catch (e) { currentGames = []; }
       }
 
-      // Filter out the game being removed (handle both ID and Title matches)
       const updatedGames = currentGames.filter(item => {
         if (typeof item === 'object' && item.id) {
           return item.id != gameId;
         }
-        // If item is a string, and gameId matches the string
         return item != gameId;
       });
 
@@ -608,7 +747,119 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   }
 }
 
-// NEW: Load and Render the "Currently Playing" list with game details
+// ============================================================================
+// NEW RENDERING FUNCTIONS FOR ACHIEVEMENT WALLS
+// ============================================================================
+
+async function loadSiteAwardsWall(userId) {
+  const listEl = document.getElementById('site-awards-list');
+  if (!listEl) return;
+
+  const awards = await fetchSiteAwards(userId);
+
+  if (!awards || awards.length === 0) {
+    listEl.innerHTML = '<div class="text-gray-500 text-sm italic">No site awards yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = awards.map(item => {
+    const a = item.achievements;
+    return `
+      <div class="group relative flex flex-col items-center text-center w-24">
+        <div class="relative">
+          <img src="${a.badge_url || 'https://via.placeholder.com/64?text=Award'}" 
+               alt="${a.title}" 
+               class="w-16 h-16 object-contain drop-shadow-lg group-hover:scale-110 transition-transform">
+          <div class="absolute -bottom-2 -right-2 bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-gray-900">
+            ${a.points}
+          </div>
+        </div>
+        <div class="mt-2">
+          <h4 class="text-xs font-bold text-purple-300 line-clamp-2 leading-tight" title="${a.title}">${a.title}</h4>
+          <p class="text-[10px] text-gray-500 mt-0.5">${new Date(item.unlocked_at).toLocaleDateString()}</p>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadProudAchievementsWall(userId) {
+  const listEl = document.getElementById('proud-achievements-list');
+  if (!listEl) return;
+
+  const items = await fetchProudAchievements(userId);
+
+  if (!items || items.length === 0) {
+    listEl.innerHTML = '<div class="col-span-full text-center text-gray-500 italic py-4">No proud achievements selected yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = items.map(item => {
+    const a = item.achievements;
+    const game = a.games;
+    const gameLink = game ? getGameLink(game) : '#/games';
+    
+    return `
+      <div class="group relative bg-gray-800/50 border border-yellow-500/30 rounded-lg p-2 hover:border-yellow-400 transition-colors flex flex-col items-center text-center">
+        <img src="${a.badge_url || 'https://via.placeholder.com/64?text=Trophy'}" 
+             alt="${a.title}" 
+             class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform">
+        
+        <h4 class="text-xs font-bold text-yellow-100 line-clamp-2 leading-tight mb-1" title="${a.title}">${a.title}</h4>
+        
+        ${game ? `
+          <a href="${gameLink}" class="text-[10px] text-cyan-400 hover:underline truncate w-full block">
+            ${game.title}
+          </a>
+        ` : ''}
+        
+        <div class="mt-1 flex items-center gap-1">
+          <span class="text-[10px] text-yellow-500 font-bold">⭐</span>
+          <span class="text-[10px] text-gray-400">${a.points} pts</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadMasteredGamesWall(userId) {
+  const listEl = document.getElementById('mastered-games-list');
+  if (!listEl) return;
+
+  const games = await fetchMasteredGames(userId);
+
+  if (!games || games.length === 0) {
+    listEl.innerHTML = '<div class="col-span-full text-center text-gray-500 italic py-4">No mastered games yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = games.map(game => {
+    const link = getGameLink(game);
+    const cover = game.cover_image_url || 'https://via.placeholder.com/150x200?text=No+Cover';
+    
+    return `
+      <a href="${link}" class="group relative block aspect-[3/4] rounded-lg overflow-hidden border border-green-500/50 hover:border-green-400 transition-all">
+        <img src="${cover}" alt="${game.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-2">
+          <h4 class="text-xs font-bold text-white line-clamp-2 leading-tight mb-1">${game.title}</h4>
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-green-400 font-bold">100%</span>
+            <span class="text-[10px] text-gray-300">${game.console || 'Unknown'}</span>
+          </div>
+        </div>
+        <!-- Mastered Icon Overlay -->
+        <div class="absolute top-1 right-1 bg-green-600 text-white p-1 rounded-full shadow-lg">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+      </a>
+    `;
+  }).join('');
+}
+
+// ============================================================================
+// EXISTING HELPER FUNCTIONS (Unchanged)
+// ============================================================================
+
 async function loadCurrentlyPlayingList(profile) {
   const listEl = document.getElementById('currently-playing-list');
   if (!listEl) return;
@@ -637,11 +888,9 @@ async function loadCurrentlyPlayingList(profile) {
 
   listEl.innerHTML = games.map(game => {
     const link = getGameLink(game);
-    const cover = game.cover_image_url || 'https://via.placeholder.com/150x200/1f2937/6b7280?text=No+Cover';
+    const cover = game.cover_image_url || ' https://via.placeholder.com/150x200/1f2937/6b7280?text=No+Cover';
     const title = game.title || 'Unknown Game';
     const consoleName = game.console || '';
-    
-    // Use ID if available, otherwise title for removal reference
     const removeRef = game.id || title;
 
     return `
@@ -665,10 +914,6 @@ async function loadCurrentlyPlayingList(profile) {
     `;
   }).join('');
 }
-
-// ============================================================================
-// HELPER: SMART FRIEND BUTTON STATE
-// ============================================================================
 
 async function loadFriendButtonState(targetUserId, currentUserId) {
   const container = document.getElementById('friend-action-container');
@@ -717,10 +962,6 @@ async function loadFriendButtonState(targetUserId, currentUserId) {
   }
 }
 
-// ============================================================================
-// SUB-FUNCTIONS FOR WALL & FRIENDS
-// ============================================================================
-
 async function loadWallComments(profileId) {
   const list = document.getElementById('wall-list');
   if (!list) return;
@@ -732,7 +973,7 @@ async function loadWallComments(profileId) {
   list.innerHTML = comments.map(c => {
     const link = c.author ? getProfileLink(c.author) : '#/home';
     const displayName = c.author?.username || 'Unknown';
-    const avatarSrc = c.author?.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = c.author?.avatar_url || `  https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
       <img src="${avatarSrc}" class="w-8 h-8 rounded-full bg-gray-600 object-cover">
@@ -758,7 +999,7 @@ async function loadFriends(userId) {
   list.innerHTML = friends.map(f => {
     const link = getProfileLink(f);
     const displayName = f.username || 'Unknown';
-    const avatarSrc = f.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = f.avatar_url || `  https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" onclick="window.location.hash='${link}'">
       <div class="relative">
