@@ -8,11 +8,13 @@ import { formatMessageTime, linkifyText, sanitizeInput } from './utils.js';
  * @param {string} currentUserId - ID of the logged-in user
  * @returns {string} HTML string
  */
-export function renderMessage(msg, currentUserId) {
+// Change the function signature to accept avatarUrl
+export function renderMessage(msg, currentUserId, displayName, avatarUrl = '') {
   const isSystem = msg.message_type !== 'text';
   const isOwn = msg.user_id === currentUserId;
   
   if (isSystem) {
+    // ... (system message logic remains same)
     let icon = '💬';
     if (msg.message_type === 'join') icon = '🔌';
     if (msg.message_type === 'leave') icon = '🔌';
@@ -28,10 +30,7 @@ export function renderMessage(msg, currentUserId) {
     `;
   }
 
-  const displayName = msg.username || msg.user_email?.split('@')[0] || 'Anonymous';
   const timeString = formatMessageTime(msg.created_at);
-  
-  // Process message content (sanitize then linkify)
   const safeMessage = linkifyText(sanitizeInput(msg.message));
 
   return `
@@ -40,7 +39,7 @@ export function renderMessage(msg, currentUserId) {
         
         <!-- Avatar -->
         <div class="flex-shrink-0 mt-1">
-          ${createUserAvatarLink(msg.user_id, displayName)}
+          ${createUserAvatarLink(msg.user_id, displayName, avatarUrl)} 
         </div>
 
         <!-- Content -->
@@ -61,7 +60,6 @@ export function renderMessage(msg, currentUserId) {
             ${safeMessage}
           </div>
           
-          <!-- Edit Indicator -->
           ${msg.is_edited ? '<span class="text-[10px] text-gray-500 italic">(edited)</span>' : ''}
         </div>
       </div>
