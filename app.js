@@ -820,7 +820,7 @@ async function loadProfileDetail(profileId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
 
-    console.log('👤 Loading profile for ID/Slug:', profileId); // Debug log
+    console.log('👤 Loading profile for ID/Slug:', profileId); 
 
     // Show loading
     appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div>`;
@@ -845,13 +845,15 @@ async function loadProfileDetail(profileId) {
             }
         };
 
-        // CRITICAL: Pass 'profileId' (the slug) as the second parameter
+        // FIX: Wrap the profileId in an object so profile.js can read params.slug
+        const params = { slug: profileId };
+
         if (module.default && typeof module.default === 'function') {
-            await module.default(rom, profileId);
+            await module.default(rom, params);
         } else if (module.initModule) {
-            await module.initModule(rom, profileId);
+            await module.initModule(rom, params);
         } else if (module.default && module.default.initModule) {
-            await module.default.initModule(rom, profileId);
+            await module.default.initModule(rom, params);
         } else {
             throw new Error('Profile module export structure not recognized');
         }
