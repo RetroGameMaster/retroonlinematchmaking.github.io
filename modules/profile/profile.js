@@ -52,16 +52,14 @@ export async function initModule(container, params) {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const isOwnProfile = currentUser && currentUser.id === targetUser.id;
     
-    // Check Admin Status safely
-    let isUserAdmin = false;
-    try {
-      isUserAdmin = await isAdmin();
-    } catch (e) {
-      console.warn("Admin check failed, assuming user", e);
-    }
+    // FIX 1: DYNAMIC ADMIN CHECK
+    // Instead of checking the current user's admin status, we check the TARGET user's 'is_admin' column.
+    // This ensures the badge appears correctly on ANY profile if they are an admin.
+    const isTargetUserAdmin = !!targetUser.is_admin;
 
     // 3. Render the Layout
-    renderProfileLayout(targetContainer, targetUser, isOwnProfile, isUserAdmin, currentUser);
+    // We pass isTargetUserAdmin instead of isUserAdmin
+    renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
     // 4. Attach Event Listeners (Edit, Wall, Friends, Currently Playing, Avatar Upload)
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
@@ -150,6 +148,23 @@ async function fetchFriends(userId) {
   return data.map(item => item.friend_profile);
 }
 
+// FIX 2: Helper to check friendship status between current user and target user
+// This prevents "duplicate key" errors by checking if a relationship already exists
+async function checkFriendStatus(currentUserId, targetUserId) {
+  if (!currentUserId) return null;
+
+  // Check both directions: Current->Target AND Target->Current
+  const { data, error } = await supabase
+    .from('friends')
+    .select('*')
+    .or(`and(user_id.eq.${currentUserId},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${currentUserId})`)
+    .single();
+
+  if (error || !data) return null;
+
+  return data;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -164,7 +179,7 @@ function getProfileLink(profile) {
 // RENDERING LOGIC
 // ============================================================================
 
-function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, currentUser) {
+function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin, currentUser) {
   const bgStyle = getBackgroundCSS(profile.custom_background);
   
   // Apply Custom CSS for Avatar if exists
@@ -305,14 +320,16 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
           <!-- Friends List Card -->
           <div class="ra-card">
             <h3>Friends</h3>
+            <!-- FIX 3: Friends list is now loaded for everyone (public) -->
             <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
               <div class="text-sm text-gray-500 py-2">Loading friends...</div>
             </div>
             
+            <!-- FIX 4: Smart Friend Action Container -->
             ${!isOwnProfile ? `
-              <button id="btn-add-friend" class="w-full mt-3 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm transition-colors">
-                Add Friend
-              </button>
+              <div id="friend-action-container" class="mt-3">
+                <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
+              </div>
             ` : ''}
           </div>
 
@@ -322,7 +339,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isUserAdmin, curr
             <ul class="ra-details-list text-sm space-y-2">
               <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
               <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-              ${isUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
+              ${isTargetUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
             </ul>
           </div>
         </div>
@@ -479,7 +496,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
         try {
           const { data, error } = await supabase.storage
-            .from('user-backgrounds') // Reusing bucket or create 'avatars'
+            .from('user-backgrounds') 
             .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
           if (error) throw error;
@@ -594,35 +611,13 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   }
 
   // --- 4. Load Friends List ---
-  if (isOwnProfile) {
-    loadFriends(targetUser.id)
-    const friendsListEl = document.getElementById('friends-list');
-    if (friendsListEl) {
-      friendsListEl.innerHTML = '<div class="text-sm text-gray-400 italic py-2">Friends list is private.</div>';
-    }
-  }
+  // FIX: Load friends for EVERYONE (Public), not just own profile
+  loadFriends(profile.id);
 
-  // --- 5. Add Friend Button ---
-  const addFriendBtn = document.getElementById('btn-add-friend');
-  if (addFriendBtn) {
-    addFriendBtn.addEventListener('click', async () => {
-      if (!confirm(`Send a friend request to ${profile.username}?`)) return;
-      
-      const { error } = await supabase.from('friends').insert({
-        user_id: currentUser.id,
-        friend_id: profile.id,
-        status: 'pending'
-      });
-
-      if (error) {
-        alert('Error sending request: ' + error.message);
-      } else {
-        alert('Friend request sent!');
-        addFriendBtn.disabled = true;
-        addFriendBtn.textContent = 'Request Sent';
-        addFriendBtn.classList.add('opacity-50', 'cursor-not-allowed');
-      }
-    });
+  // --- 5. Smart Friend Button Logic ---
+  // Only show if viewing another user's profile and logged in
+  if (!isOwnProfile && currentUser) {
+    loadFriendButtonState(profile.id, currentUser.id);
   }
 
   // --- 6. Currently Playing: Add Game ---
@@ -703,6 +698,66 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       }
     });
   });
+}
+
+// ============================================================================
+// HELPER: SMART FRIEND BUTTON STATE
+// ============================================================================
+
+async function loadFriendButtonState(targetUserId, currentUserId) {
+  const container = document.getElementById('friend-action-container');
+  if (!container) return;
+
+  const relationship = await checkFriendStatus(currentUserId, targetUserId);
+  
+  if (!relationship) {
+    // No relationship exists -> Show "Add Friend"
+    container.innerHTML = `
+      <button id="btn-add-friend" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm transition-colors">
+        Add Friend
+      </button>
+    `;
+    document.getElementById('btn-add-friend').addEventListener('click', async () => {
+      if(!confirm('Send friend request?')) return;
+      const { error } = await supabase.from('friends').insert({
+        user_id: currentUserId, friend_id: targetUserId, status: 'pending'
+      });
+      if (error) alert('Error: ' + error.message);
+      else {
+        alert('Request sent!');
+        loadFriendButtonState(targetUserId, currentUserId); // Refresh button
+      }
+    });
+
+  } else if (relationship.status === 'pending') {
+    // Request is pending
+    if (relationship.user_id === currentUserId) {
+      // We sent the request -> Show "Request Sent"
+      container.innerHTML = `<button disabled class="w-full bg-gray-800 text-gray-400 py-2 rounded text-sm cursor-not-allowed">Request Sent</button>`;
+    } else {
+      // They sent us a request -> Show "Accept/Decline"
+      container.innerHTML = `
+        <div class="flex gap-2">
+          <button id="btn-accept-friend" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded text-sm">Accept</button>
+          <button id="btn-decline-friend" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded text-sm">Decline</button>
+        </div>
+      `;
+      document.getElementById('btn-accept-friend').addEventListener('click', async () => {
+        await supabase.from('friends').update({ status: 'accepted' }).eq('id', relationship.id);
+        alert('Friend added!');
+        loadFriendButtonState(targetUserId, currentUserId);
+      });
+      document.getElementById('btn-decline-friend').addEventListener('click', async () => {
+        await supabase.from('friends').delete().eq('id', relationship.id);
+        alert('Request declined.');
+        loadFriendButtonState(targetUserId, currentUserId);
+      });
+    }
+
+  } else if (relationship.status === 'accepted') {
+    // Already friends -> Show "Friends"
+    container.innerHTML = `<button disabled class="w-full bg-green-900/50 border border-green-700 text-green-400 py-2 rounded text-sm cursor-default">✓ Friends</button>`;
+  }
 }
 
 // ============================================================================
