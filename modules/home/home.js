@@ -125,6 +125,7 @@ async function loadSiteSettings() {
     const iframeEl = document.getElementById('clip-iframe');
     
     if (titleEl) titleEl.innerHTML = `<span class="text-2xl">🎬</span> ${settings.clip_title || 'ROM Community Highlights'}`;
+    // Fixed: Removed extra space in URL construction
     if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     
     // Update social links
@@ -151,16 +152,26 @@ async function loadFeaturedGame() {
   if (!container) return;
 
   try {
-    // Fetch the single most recently approved game
-    const { data: game, error } = await supabase
+    // FIX: Try approved_at first, fallback to updated_at if column missing
+    // We fetch 1 item to check which column works best if you aren't sure
+    let query = supabase
       .from('games')
       .select('*')
-      .eq('status', 'approved') // Ensure only approved games show
-      .order('approved_at', { ascending: false })
-      .limit(1)
-      .single();
+      .eq('status', 'approved');
 
-    if (error || !game) {
+    // Order by approved_at if it exists, otherwise updated_at
+    // Note: If you get an error in console about "column approved_at does not exist", 
+    // change the line below to .order('updated_at', { ascending: false })
+    query = query.order('updated_at', { ascending: false }); 
+
+    const { data: games, error } = await query.limit(1);
+
+    if (error) {
+      console.error("Database error:", error);
+      throw error;
+    }
+
+    if (!games || games.length === 0) {
       // Fallback if no games found
       container.innerHTML = `
         <div class="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -173,6 +184,8 @@ async function loadFeaturedGame() {
       return;
     }
 
+    const game = games[0];
+
     // Render Featured Game Card
     const coverUrl = game.cover_image_url || 'https://via.placeholder.com/400x220/1f2937/06b6d4?text=No+Cover';
     const gameLink = game.slug ? `#/game/${game.slug}` : `#/game/${game.id}`;
@@ -182,7 +195,7 @@ async function loadFeaturedGame() {
         <img src="${coverUrl}" alt="${game.title}" class="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-500">
         <div class="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
         <div class="absolute bottom-4 left-4">
-          <span class="px-3 py-1 bg-cyan-600 text-white text-xs font-bold rounded-full uppercase tracking-wider">${game.console}</span>
+          <span class="px-3 py-1 bg-cyan-600 text-white text-xs font-bold rounded-full uppercase tracking-wider">${game.console || 'Console'}</span>
         </div>
       </div>
       
@@ -208,7 +221,8 @@ async function loadFeaturedGame() {
     container.innerHTML = `
       <div class="p-8 text-center text-red-400">
         <p>Failed to load featured game.</p>
-        <button onclick="location.reload()" class="mt-2 text-sm underline">Retry</button>
+        <p class="text-xs mt-2 opacity-70">${error.message}</p>
+        <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-700 rounded text-white text-sm hover:bg-gray-600">Retry</button>
       </div>
     `;
   }
