@@ -297,6 +297,32 @@ async function fetchProudAchievements(userId) {
   return (data || []).filter(item => item.achievements);
 }
 
+// Fetch ALL Game Achievements (Type = 'game', regardless of proud status)
+async function fetchGameAchievements(userId) {
+  const { data, error } = await supabase
+    .from('user_achievements')
+    .select(`
+      unlocked_at,
+      is_proud,
+      achievements (
+        id,
+        title,
+        description,
+        badge_url,
+        points,
+        game_id,
+        games (title, slug)
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('achievements.type', 'game')
+    .order('unlocked_at', { ascending: false });
+
+  if (error) return [];
+  // Safety filter: ensure achievement data exists
+  return (data || []).filter(item => item.achievements);
+}
+
 // Fetch Mastered Games (User has ALL achievements for a game)
 async function fetchMasteredGames(userId) {
   // 1. Get all games that have achievements
@@ -472,6 +498,20 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <div class="col-span-full text-center text-gray-500 py-4">
                 <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-500"></div>
                 <span class="ml-2 text-sm">Loading proud moments...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NEW: ALL GAME ACHIEVEMENTS WALL -->
+          <div class="ra-card mt-6">
+            <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
+              🎮 Game Achievements
+              <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
+            </h3>
+            <div id="game-achievements-list" class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-3">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
+                <span class="ml-2 text-sm">Loading achievements...</span>
               </div>
             </div>
           </div>
@@ -710,7 +750,8 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
   // --- NEW: Load Achievement Walls ---
   loadSiteAwardsWall(profile.id);
-  loadProudAchievementsWall(profile.id, isOwnProfile); // Pass isOwnProfile for toggle buttons
+  loadProudAchievementsWall(profile.id, isOwnProfile); 
+  loadGameAchievementsWall(profile.id, isOwnProfile); // NEW: Load All Game Achievements
   loadMasteredGamesWall(profile.id);
 
   // --- 7. Remove Game Listener ---
@@ -849,11 +890,101 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
           .eq('achievement_id', achieveId);
 
         if (error) alert('Error: ' + error.message);
-        else loadProudAchievementsWall(userId, true); // Reload
+        else {
+          loadProudAchievementsWall(userId, true); // Reload Proud Wall
+          loadGameAchievementsWall(userId, true);  // Reload Main Wall to update star
+        }
       });
     });
   }
 }
+
+// NEW: Load All Game Achievements Wall
+async function loadGameAchievementsWall(userId, isOwnProfile) {
+  const listEl = document.getElementById('game-achievements-list');
+  const countEl = document.getElementById('game-achieve-count');
+  if (!listEl) return;
+
+  const items = await fetchGameAchievements(userId);
+
+  if (!items || items.length === 0) {
+    listEl.innerHTML = '<div class="col-span-full text-center text-gray-500 italic py-4">No game achievements unlocked yet.</div>';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  if (countEl) countEl.textContent = `${items.length}`;
+
+  listEl.innerHTML = items.map((item) => {
+    const a = item.achievements;
+    const game = a.games;
+    const gameLink = game ? getGameLink(game) : '#/games';
+    
+    // Safety check for badge_url
+    const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Trophy';
+    
+    // Only show toggle if own profile
+    const toggleBtn = isOwnProfile ? `
+      <button class="absolute top-1 right-1 p-1 rounded-full bg-gray-900/80 hover:bg-yellow-600 transition-colors z-10" 
+              onclick="window.toggleProudStatus(event, '${a.id}', ${item.is_proud})" 
+              title="${item.is_proud ? 'Remove from Most Proud' : 'Mark as Most Proud'}">
+        <span class="text-xs ${item.is_proud ? 'text-yellow-400' : 'text-gray-400'}">
+          ${item.is_proud ? '⭐' : '☆'}
+        </span>
+      </button>
+    ` : '';
+
+    return `
+      <div class="group relative bg-gray-800/50 border border-gray-700 rounded-lg p-2 hover:border-cyan-500/50 transition-colors flex flex-col items-center text-center">
+        ${toggleBtn}
+        
+        <img src="${badgeSrc}" 
+             alt="${a.title}" 
+             class="w-10 h-10 object-contain mb-1 group-hover:scale-110 transition-transform">
+        
+        <h4 class="text-[10px] font-bold text-gray-300 line-clamp-2 leading-tight mb-1" title="${a.title}">${a.title}</h4>
+        
+        ${game ? `
+          <a href="${gameLink}" class="text-[9px] text-cyan-500 hover:underline truncate w-full block">
+            ${game.title}
+          </a>
+        ` : ''}
+        
+        <div class="mt-0.5 flex items-center gap-1">
+          <span class="text-[9px] text-yellow-500 font-bold">${a.points}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Global Helper to Toggle "Most Proud" Status
+window.toggleProudStatus = async function(e, achievementId, currentStatus) {
+  e.stopPropagation();
+  e.preventDefault();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return alert('Please log in.');
+
+  const newStatus = !currentStatus;
+  
+  try {
+    const { error } = await supabase
+      .from('user_achievements')
+      .update({ is_proud: newStatus })
+      .eq('achievement_id', achievementId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    // Refresh the walls immediately
+    loadProudAchievementsWall(user.id, true);
+    loadGameAchievementsWall(user.id, true);
+    
+  } catch (err) {
+    alert('Error updating status: ' + err.message);
+  }
+};
 
 async function loadMasteredGamesWall(userId) {
   const listEl = document.getElementById('mastered-games-list');
