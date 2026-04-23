@@ -187,15 +187,30 @@ async function checkFriendStatus(currentUserId, targetUserId) {
 }
 
 // NEW: Fetch full game details for the "Currently Playing" list
+// Handles both old string data and new object data
 async function fetchCurrentlyPlayingGames(gameIdentifiers) {
   if (!gameIdentifiers || gameIdentifiers.length === 0) return [];
 
   const games = [];
-  
-  // We assume identifiers are now IDs (numbers/uuids). 
-  // If they are strings (old data), we try to match by title as fallback.
-  const ids = gameIdentifiers.filter(id => !isNaN(id) || (typeof id === 'string' && id.length > 20)); // rough guess for UUID
-  const titles = gameIdentifiers.filter(id => isNaN(id) && (typeof id === 'string' && id.length <= 20));
+  const ids = [];
+  const titles = [];
+
+  // Separate IDs from Titles
+  gameIdentifiers.forEach(item => {
+    if (typeof item === 'object' && item.id) {
+      // Already an object with ID
+      games.push(item); 
+    } else if (typeof item === 'number' || (typeof item === 'string' && item.length > 20)) {
+      // Looks like an ID (UUID or Number)
+      ids.push(item);
+    } else if (typeof item === 'string') {
+      // Looks like a Title
+      titles.push(item);
+    } else if (typeof item === 'object' && item.title) {
+      // Object without ID, treat as title lookup
+      titles.push(item.title);
+    }
+  });
 
   // 1. Fetch by ID
   if (ids.length > 0) {
@@ -207,22 +222,26 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
     if (gamesById) games.push(...gamesById);
   }
 
-  // 2. Fetch by Title (Fallback for old data or if ID failed)
+  // 2. Fetch by Title (Fallback for old data)
   if (titles.length > 0) {
     for (const title of titles) {
+      // Skip if we already have this game from the ID fetch
+      if (games.some(g => g.title.toLowerCase() === title.toLowerCase())) continue;
+
       const { data: gameByTitle } = await supabase
         .from('games')
         .select('id, title, slug, cover_image_url, console')
         .ilike('title', title)
         .single();
       
-      if (gameByTitle) games.push(gameByTitle);
-      else {
-        // If no game found, create a placeholder object so we still display something
+      if (gameByTitle) {
+        games.push(gameByTitle);
+      } else {
+        // Placeholder for missing games
         games.push({
           id: null,
           title: title,
-          slug: null,
+          slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
           cover_image_url: null,
           console: 'Unknown'
         });
@@ -396,7 +415,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <label>Update Profile Picture</label>
               <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
               <div class="mt-2">
-                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+                <img src="${profile.avatar_url || ' https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
               </div>
 
               <hr class="border-gray-700 my-4">
@@ -573,8 +592,14 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         } catch (e) { currentGames = []; }
       }
 
-      // Filter out the game being removed
-      const updatedGames = currentGames.filter(id => id != gameId);
+      // Filter out the game being removed (handle both ID and Title matches)
+      const updatedGames = currentGames.filter(item => {
+        if (typeof item === 'object' && item.id) {
+          return item.id != gameId;
+        }
+        // If item is a string, and gameId matches the string
+        return item != gameId;
+      });
 
       const { error } = await supabase.from('profiles').update({ currently_playing: updatedGames }).eq('id', profile.id);
       if (error) alert('Error: ' + error.message);
@@ -616,6 +641,9 @@ async function loadCurrentlyPlayingList(profile) {
     const title = game.title || 'Unknown Game';
     const consoleName = game.console || '';
     
+    // Use ID if available, otherwise title for removal reference
+    const removeRef = game.id || title;
+
     return `
       <div class="group relative bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-lg overflow-hidden hover:border-cyan-500 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20 flex flex-col h-full">
         <a href="${link}" class="block flex-1">
@@ -629,7 +657,7 @@ async function loadCurrentlyPlayingList(profile) {
         </a>
         ${isOwnProfile ? `
           <button class="remove-game-btn absolute top-2 right-2 bg-red-600/90 hover:bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg" 
-                  data-id="${game.id || title}" title="Remove from list">
+                  data-id="${removeRef}" title="Remove from list">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         ` : ''}
@@ -704,7 +732,7 @@ async function loadWallComments(profileId) {
   list.innerHTML = comments.map(c => {
     const link = c.author ? getProfileLink(c.author) : '#/home';
     const displayName = c.author?.username || 'Unknown';
-    const avatarSrc = c.author?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = c.author?.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
       <img src="${avatarSrc}" class="w-8 h-8 rounded-full bg-gray-600 object-cover">
@@ -730,7 +758,7 @@ async function loadFriends(userId) {
   list.innerHTML = friends.map(f => {
     const link = getProfileLink(f);
     const displayName = f.username || 'Unknown';
-    const avatarSrc = f.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
+    const avatarSrc = f.avatar_url || ` https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" onclick="window.location.hash='${link}'">
       <div class="relative">
