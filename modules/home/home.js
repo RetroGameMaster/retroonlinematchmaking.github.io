@@ -7,17 +7,12 @@ export default function initModule(rom) {
   
   // Load all dynamic content
   loadSiteSettings();
-  loadFeaturedGame();
+  loadFeaturedGame();      // Now Random
   loadOnlineUsers();       // REAL Who's Online (Heartbeat based)
-  loadRecentActivity();    // REAL Latest Game & New Member
-
-  // Refresh the online list every 30 seconds to catch heartbeat updates
-  setInterval(() => {
-    loadOnlineUsers();
-  }, 30000);
+  loadRecentActivity();    // REAL Latest Game & New Member (With Links)
 }
 
-// 1. Render the Base Layout (Now with a 3-column grid for Sidebar)
+// 1. Render the Base Layout
 function renderHomeLayout() {
   const appContent = document.getElementById('app-content');
   if (!appContent) return;
@@ -46,18 +41,18 @@ function renderHomeLayout() {
         <!-- LEFT COLUMN (2/3 width): Featured Game & Clip -->
         <div class="lg:col-span-2 space-y-8">
           
-          <!-- Featured Game -->
+          <!-- Featured Game (Random) -->
           <div class="bg-gray-800 rounded-xl overflow-hidden border border-cyan-500/30 shadow-lg shadow-cyan-900/20 flex flex-col">
             <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-4 border-b border-cyan-500/30 flex justify-between items-center">
               <h2 class="text-xl font-bold text-cyan-300 flex items-center gap-2">
-                <span class="text-2xl">🎮</span> Featured Game
+                <span class="text-2xl">🎲</span> Random Pick
               </h2>
               <span id="featured-game-status" class="text-xs text-gray-400 italic">Loading...</span>
             </div>
             <div id="featured-game-content" class="flex-1 flex flex-col">
               <div class="p-8 text-center text-gray-500">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500 mb-2"></div>
-                <p>Scanning library...</p>
+                <p>Shuffling library...</p>
               </div>
             </div>
           </div>
@@ -84,7 +79,7 @@ function renderHomeLayout() {
         <!-- RIGHT COLUMN (1/3 width): Live Sidebar -->
         <div class="space-y-6">
           
-          <!-- Who's Online (REAL DATA - Heartbeat) -->
+          <!-- Who's Online -->
           <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden">
             <div class="bg-gray-900/50 p-4 border-b border-gray-700 flex justify-between items-center">
               <h3 class="font-bold text-white flex items-center gap-2">
@@ -101,7 +96,7 @@ function renderHomeLayout() {
             </div>
           </div>
 
-          <!-- Recent Community Activity (REAL DATA) -->
+          <!-- Recent Community Activity -->
           <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden">
             <div class="bg-gray-900/50 p-4 border-b border-gray-700">
               <h3 class="font-bold text-white flex items-center gap-2">
@@ -113,7 +108,7 @@ function renderHomeLayout() {
             </div>
           </div>
 
-          <!-- Social Links (Compact) -->
+          <!-- Social Links -->
           <div class="grid grid-cols-1 gap-3">
             <a id="discord-link" href="#" target="_blank" class="flex items-center gap-3 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 p-3 rounded-lg transition group">
               <div class="text-2xl">💬</div>
@@ -146,7 +141,7 @@ function renderHomeLayout() {
   `;
 }
 
-// 2. Load Site Settings (Clip & Socials)
+// 2. Load Site Settings
 async function loadSiteSettings() {
   try {
     const { data, error } = await supabase
@@ -166,7 +161,7 @@ async function loadSiteSettings() {
     const iframeEl = document.getElementById('clip-iframe');
     
     if (titleEl) titleEl.innerHTML = `<span class="text-2xl">🎬</span> ${settings.clip_title || 'ROM Community Highlights'}`;
-    // Fixed: Removed space in embed URL
+    // Fixed space in URL
     if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     
     ['discord', 'patreon', 'youtube'].forEach(key => {
@@ -181,19 +176,18 @@ async function loadSiteSettings() {
   }
 }
 
-// 3. Load Featured Game (Latest Approved)
+// 3. Load RANDOM Featured Game
 async function loadFeaturedGame() {
   const container = document.getElementById('featured-game-content');
   const statusEl = document.getElementById('featured-game-status');
   if (!container) return;
 
   try {
+    // Fetch ALL approved games
     const { data: games, error } = await supabase
       .from('games')
       .select('*')
-      .eq('status', 'approved')
-      .order('updated_at', { ascending: false })
-      .limit(1);
+      .eq('status', 'approved');
 
     if (error || !games || games.length === 0) {
       container.innerHTML = `
@@ -208,7 +202,10 @@ async function loadFeaturedGame() {
       return;
     }
 
-    const game = games[0];
+    // Pick ONE random game
+    const randomIndex = Math.floor(Math.random() * games.length);
+    const game = games[randomIndex];
+    
     const coverUrl = game.cover_image_url || 'https://via.placeholder.com/400x220/1f2937/06b6d4?text=No+Cover';
     const gameLink = game.slug ? `#/game/${game.slug}` : `#/game/${game.id}`;
 
@@ -234,7 +231,7 @@ async function loadFeaturedGame() {
         </a>
       </div>
     `;
-    if(statusEl) statusEl.textContent = "Just Added";
+    if(statusEl) statusEl.textContent = "Random Pick";
 
   } catch (error) {
     console.error('Featured game error:', error);
@@ -242,22 +239,21 @@ async function loadFeaturedGame() {
   }
 }
 
-// 4. Load REAL Online Users (Using Heartbeat Logic)
+// 4. Load REAL Online Users (Heartbeat based)
 async function loadOnlineUsers() {
   const listEl = document.getElementById('online-users-list');
   const countEl = document.getElementById('online-count');
   if (!listEl) return;
 
   try {
-    // Calculate time threshold (2 minutes ago)
+    // Calculate 2 minutes ago
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
 
-    // Fetch users who have seen activity in the last 2 minutes
+    // Fetch users active in last 2 mins
     const { data: users, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url, last_seen')
+      .select('id, username, avatar_url')
       .gte('last_seen', twoMinutesAgo)
-      .order('last_seen', { ascending: false })
       .limit(10);
 
     if (error) throw error;
@@ -298,7 +294,7 @@ async function loadOnlineUsers() {
   }
 }
 
-// 5. Load REAL Recent Activity (Newest Game + Newest User)
+// 5. Load REAL Recent Activity (With Working Links)
 async function loadRecentActivity() {
   const feedEl = document.getElementById('activity-feed');
   if (!feedEl) return;
@@ -324,11 +320,11 @@ async function loadRecentActivity() {
     const activities = [];
 
     if (latestGame) {
-      const gameLink = latestGame.slug ? `#/game/${latestGame.slug}` : '#/games';
+      const gameLink = latestGame.slug ? `#/game/${latestGame.slug}` : '#';
       activities.push({
         type: 'game',
-        // Now includes the <a> tag directly in the text
-        html: `New game added: <a href="${gameLink}" class="text-cyan-400 hover:text-cyan-300 hover:underline font-bold transition">${latestGame.title}</a>`,
+        // Directly inject HTML anchor tag
+        html: `New game added: <a href="${gameLink}" class="text-cyan-400 hover:text-cyan-300 hover:underline font-bold">${latestGame.title}</a>`,
         time: latestGame.approved_at,
         icon: '🎮',
         color: 'text-cyan-400'
@@ -336,11 +332,11 @@ async function loadRecentActivity() {
     }
 
     if (latestUser) {
-      const userLink = latestUser.username ? `#/profile/${latestUser.username}` : '#/search-users';
+      const userLink = latestUser.username ? `#/profile/${latestUser.username}` : '#';
       activities.push({
         type: 'user',
-        // Now includes the <a> tag directly in the text
-        html: `<a href="${userLink}" class="text-purple-400 hover:text-purple-300 hover:underline font-bold transition">${latestUser.username}</a> joined the community`,
+        // Directly inject HTML anchor tag
+        html: `<a href="${userLink}" class="text-purple-400 hover:text-purple-300 hover:underline font-bold">${latestUser.username}</a> joined the community`,
         time: latestUser.created_at,
         icon: '👤',
         color: 'text-purple-400'
@@ -355,10 +351,10 @@ async function loadRecentActivity() {
     // Sort by time (newest first)
     activities.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-    // Render using the new 'html' property
+    // Use innerHTML directly since we constructed safe HTML strings above
     feedEl.innerHTML = activities.map(act => `
-      <div class="flex gap-3 items-start group cursor-pointer" onclick="window.location.hash='${act.type === 'game' ? (latestGame?.slug ? '#/game/'+latestGame.slug : '#/games') : (latestUser?.username ? '#/profile/'+latestUser.username : '#/search-users')}'">
-        <div class="mt-1 ${act.color} text-lg shrink-0">${act.icon}</div>
+      <div class="flex gap-3 items-start">
+        <div class="mt-1 ${act.color} text-lg">${act.icon}</div>
         <div class="flex-1">
           <div class="text-gray-300 text-sm leading-tight">${act.html}</div>
           <div class="text-xs text-gray-500 mt-1">${new Date(act.time).toLocaleDateString()}</div>
@@ -371,3 +367,10 @@ async function loadRecentActivity() {
     feedEl.innerHTML = `<div class="text-center text-gray-500 text-xs">Activity unavailable</div>`;
   }
 }
+
+// Auto-refresh online users every 30s
+setInterval(() => {
+  if(document.getElementById('online-users-list')) {
+    loadOnlineUsers();
+  }
+}, 30000);
