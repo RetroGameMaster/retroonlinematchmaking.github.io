@@ -383,7 +383,7 @@ async function loadOnlineUsers() {
 
     listEl.innerHTML = users.map(user => {
       const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
-      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      const avatar = user.avatar_url || ` https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
       
       return `
         <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
@@ -475,14 +475,14 @@ async function loadRecentActivity() {
 }
 
 // ============================================================================
-// 4. REALTIME LIVE FEED (Ticker)
+// 4. REALTIME LIVE FEED (Ticker) - FIXED
 // ============================================================================
 
 function startRealtimeFeed() {
   const tickerEl = document.getElementById('ticker-content');
   if (!tickerEl) return;
 
-  // Initial Message
+  // Initial Message Rotation
   let messages = [
     "Welcome to ROM!",
     "Check out the Random Game of the Hour!",
@@ -503,21 +503,36 @@ function startRealtimeFeed() {
   updateTicker();
   setInterval(updateTicker, 4000); // Rotate static messages every 4s
 
-  // Subscribe to Database Changes
-  realtimeChannel = supabase.channel('live-feed')
-    .on('postgres_changes', 
-      { event: 'INSERT', schema: 'public', table: 'games' }, 
-      (payload) => {
-        flashTicker(`🎮 New Game Added: ${payload.new.title}`);
-      }
-    )
-    .on('postgres_changes', 
-      { event: 'INSERT', schema: 'public', table: 'profiles' }, 
-      (payload) => {
-        flashTicker(`👤 New Member: ${payload.new.username}`);
-      }
-    )
-    .subscribe();
+  // --- FIX: Define channel, attach listeners, THEN subscribe ---
+  realtimeChannel = supabase.channel('live-feed');
+
+  // Attach Game Insert Listener
+  realtimeChannel.on('postgres_changes', 
+    { event: 'INSERT', schema: 'public', table: 'games' }, 
+    (payload) => {
+      flashTicker(`🎮 New Game Added: ${payload.new.title}`);
+      loadFeaturedGame(); // Refresh featured game if a new one appears
+    }
+  );
+
+  // Attach Profile Insert Listener
+  realtimeChannel.on('postgres_changes', 
+    { event: 'INSERT', schema: 'public', table: 'profiles' }, 
+    (payload) => {
+      flashTicker(`👤 New Member: ${payload.new.username}`);
+      loadOnlineUsers(); // Refresh online list
+      loadRecentActivity(); // Refresh activity feed
+    }
+  );
+
+  // Subscribe ONLY after listeners are attached
+  realtimeChannel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      console.log('✅ Realtime feed subscribed successfully');
+    } else if (status === 'CHANNEL_ERROR') {
+      console.error('❌ Realtime feed subscription error');
+    }
+  });
 }
 
 function flashTicker(text) {
