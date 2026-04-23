@@ -42,6 +42,7 @@ async function initializeChat() {
     return;
   }
   
+  // Fetch full profile once
   userProfile = await getUserProfile(currentUser.id);
   
   loadChatInterface();
@@ -219,8 +220,7 @@ async function loadRoomsList() {
     listEl.innerHTML = '';
     uniqueRooms.forEach(room => {
       const isActive = currentRoom === room.id && chatType === 'room';
-      // Use onclick handler directly in the generated HTML for simplicity with closures
-      const roomHtml = renderRoomItem(room, isActive);
+      const roomHtml = renderRoomItem(room, 0, isActive);
       const el = htmlToElement(roomHtml);
       el.onclick = () => joinRoom(room.id);
       listEl.appendChild(el);
@@ -271,13 +271,15 @@ async function loadDMsList() {
       .in('id', partners);
 
     listEl.innerHTML = '';
-    profiles.forEach(profile => {
-      const isActive = currentDM === profile.id && chatType === 'dm';
-      const dmHtml = renderUserItem(profile, isActive);
-      const el = htmlToElement(dmHtml);
-      el.onclick = () => joinDM(profile.id, profile.username);
-      listEl.appendChild(el);
-    });
+    if(profiles) {
+      profiles.forEach(profile => {
+        const isActive = currentDM === profile.id && chatType === 'dm';
+        const dmHtml = renderUserItem(profile, isActive);
+        const el = htmlToElement(dmHtml);
+        el.onclick = () => joinDM(profile.id, profile.username);
+        listEl.appendChild(el);
+      });
+    }
 
   } catch (err) {
     console.error(err);
@@ -357,18 +359,17 @@ async function joinRoom(roomId) {
   if(input) input.disabled = false;
   if(btn) btn.disabled = false;
 
-  loadMessages();
-  subscribeToMessages(roomId, 'room', handleRealtimeMessage);
-  
   // Send a system join message using the CORRECT username from userProfile
-  const { error } = await supabase.from('chat_messages').insert({
+  await supabase.from('chat_messages').insert({
     room_id: roomId,
     user_id: currentUser.id,
-    username: userProfile?.username || 'Anonymous', // Force correct name
+    username: userProfile?.username || 'Anonymous', 
     message: `${userProfile?.username || 'User'} joined the room`,
     message_type: 'join'
   });
 
+  loadMessages();
+  subscribeToMessages(roomId, 'room', handleRealtimeMessage);
   loadRoomsList();
 }
 
@@ -395,47 +396,66 @@ async function loadMessages() {
   if (!container) return;
   container.innerHTML = '<div class="text-center text-gray-500 mt-4">Loading history...</div>';
 
-  let query;
+  let messages = [];
+  let error = null;
+
+  // 1. Fetch Messages First (No Join)
   if (chatType === 'room') {
-    // Join with profiles to get accurate username and avatar
-    query = supabase
+    const { data, error: e } = await supabase
       .from('chat_messages')
-      .select(`
-        *,
-        profiles:user_id (username, avatar_url)
-      `)
+      .select('*')
       .eq('room_id', currentRoom)
       .order('created_at', { ascending: true })
       .limit(50);
+    messages = data || [];
+    error = e;
   } else {
-    // For DMs, join profiles for both sender and recipient context if needed, 
-    // but primarily we need the sender's profile info
-    query = supabase
+    const { data, error: e } = await supabase
       .from('private_messages')
-      .select(`
-        *,
-        profiles:sender_id (username, avatar_url)
-      `)
+      .select('*')
       .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${currentDM}),and(sender_id.eq.${currentDM},recipient_id.eq.${currentUser.id})`)
       .order('created_at', { ascending: true })
       .limit(50);
+    messages = data || [];
+    error = e;
   }
 
-  const { data, error } = await query;
+  if (error) {
+    console.error('Error loading messages:', error);
+    container.innerHTML = '<div class="text-red-400 text-center">Failed to load messages</div>';
+    return;
+  }
 
-  if (error || !data || data.length === 0) {
+  if (!messages || messages.length === 0) {
     container.innerHTML = '<div class="text-center text-gray-500 mt-10">No messages yet. Say hi!</div>';
     return;
   }
 
+  // 2. Fetch Profiles for all unique User IDs in this message list
+  const userIds = [...new Set(messages.map(m => m.user_id))];
+  let profilesMap = {};
+  
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', userIds);
+    
+    if (profiles) {
+      profilesMap = profiles.reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {});
+    }
+  }
+
+  // 3. Render with Merged Data
   container.innerHTML = '';
-  data.forEach(msg => {
-    // Extract profile data from the joined result
-    const profile = msg.profiles || {}; 
+  messages.forEach(msg => {
+    const profile = profilesMap[msg.user_id] || {};
     const displayName = profile.username || msg.username || 'Anonymous';
     const avatarUrl = profile.avatar_url || '';
     
-    // Pass the extra avatarUrl argument to renderMessage
     const msgHtml = renderMessage(msg, currentUser.id, displayName, avatarUrl);
     const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
@@ -451,14 +471,30 @@ function handleRealtimeMessage(payload) {
   if (eventType === 'INSERT') {
     if (document.querySelector(`[data-msg-id="${newRow.id}"]`)) return;
 
-    const msgHtml = renderMessage(newRow, currentUser.id, userProfile?.username);
+    // For realtime, we might not have the profile yet. 
+    // Fallback to msg.username or fetch profile if needed. 
+    // Ideally, the payload includes enough info, or we do a quick fetch.
+    // For now, use what we have + global userProfile if it's self
+    let displayName = newRow.username || 'Anonymous';
+    let avatarUrl = '';
+
+    if (newRow.user_id === currentUser.id) {
+      displayName = userProfile?.username || 'Me';
+      avatarUrl = userProfile?.avatar_url || '';
+    } else {
+      // Optional: Quick fetch for other users if needed, but usually username is in payload
+      // To keep it fast, we rely on the username stored in the message row for others
+      // If you need avatars for others in realtime, you'd need a small fetch here.
+    }
+
+    const msgHtml = renderMessage(newRow, currentUser.id, displayName, avatarUrl);
     const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
     container.scrollTop = container.scrollHeight;
   } else if (eventType === 'UPDATE') {
     const el = document.querySelector(`[data-msg-id="${newRow.id}"]`);
     if (el) {
-      const newHtml = renderMessage(newRow, currentUser.id, userProfile?.username);
+      const newHtml = renderMessage(newRow, currentUser.id, newRow.username || 'User', '');
       const newEl = htmlToElement(newHtml);
       el.replaceWith(newEl);
     }
@@ -475,7 +511,7 @@ async function sendMessage(text) {
     user_id: currentUser.id,
     user_email: currentUser.email,
     username: userProfile?.username || 'Anonymous',
-    message: sanitizeInput(text), // Explicitly sanitize
+    message: sanitizeInput(text),
     created_at: new Date().toISOString()
   };
 
