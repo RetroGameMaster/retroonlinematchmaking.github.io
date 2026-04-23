@@ -217,7 +217,62 @@ async function handleHashChange() {
         await loadProfileDetail(providedSlug);
         return;
     }
+// ============================================================================
+// GLOBAL HEARTBEAT LOGIC (Add this to app.js)
+// ============================================================================
 
+let heartbeatInterval;
+
+async function startHeartbeat() {
+  // Only run if user is logged in
+  if (!rom.currentUser) return;
+
+  const updatePresence = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Update 'last_seen' to now and set 'is_online' to true
+      await supabase
+        .from('profiles')
+        .update({ 
+          last_seen: new Date().toISOString(),
+          is_online: true 
+        })
+        .eq('id', user.id);
+      
+      console.log('💓 Heartbeat sent');
+    } catch (err) {
+      console.error('Heartbeat failed:', err);
+    }
+  };
+
+  // Send immediate heartbeat
+  await updatePresence();
+
+  // Then send every 30 seconds
+  heartbeatInterval = setInterval(updatePresence, 30000);
+}
+
+// Stop heartbeat when user logs out
+function stopHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+}
+
+// Hook into your existing auth state listener in app.js
+// Example:
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN') {
+    rom.currentUser = session.user;
+    startHeartbeat(); // <--- Start beating
+  } else if (event === 'SIGNED_OUT') {
+    rom.currentUser = null;
+    stopHeartbeat(); // <--- Stop beating
+    // Optional: Set offline immediately
+    // supabase.from('profiles').update({ is_online: false }).eq('id', previousUserId);
+  }
+});
+    
     // For all other modules
     await loadModule(hash);
 }
