@@ -1,66 +1,57 @@
-import { fetchGlobalLobbies } from '../../lib/lobby-aggregator.js';
+// modules/live-lobbies/live-lobbies.js
 
 export default function initModule(rom) {
-  console.log('🌍 Live Lobbies module initialized');
+  console.log('🌍 Live Lobbies module initialized (Coming Soon)');
   
-  const container = document.getElementById('lobbies-container');
-  const refreshBtn = document.getElementById('refresh-lobbies');
+  const appContent = document.getElementById('app-content');
+  if (!appContent) return;
 
-  const renderLobbies = async () => {
-    if (!container) return;
-    
-    // Show loading state if empty
-    if (container.children.length === 0 || container.innerText.includes('Loading')) {
-       container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Scanning networks...</div>';
-    }
+  // Render the Coming Soon UI
+  appContent.innerHTML = `
+    <div class="max-w-4xl mx-auto p-8 animate-fade-in">
+      <div class="text-center py-20 bg-gray-800 rounded-xl border border-cyan-500/30 shadow-lg relative overflow-hidden">
+        
+        <!-- Background Decor -->
+        <div class="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
+          <div class="absolute top-10 left-10 text-9xl">🚧</div>
+          <div class="absolute bottom-10 right-10 text-9xl">📡</div>
+        </div>
 
-    try {
-      const lobbies = await fetchGlobalLobbies();
-      
-      if (lobbies.length === 0) {
-        container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400">No active lobbies found right now. Try again later!</div>';
-        return;
-      }
-
-      container.innerHTML = lobbies.map(lobby => `
-        <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-cyan-500 transition group relative overflow-hidden">
-          <div class="absolute top-0 right-0 w-16 h-16 bg-cyan-500/10 rounded-bl-full -mr-8 -mt-8 transition group-hover:bg-cyan-500/20"></div>
-          
-          <div class="flex justify-between items-start mb-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 bg-cyan-900/30 px-2 py-1 rounded">${lobby.source}</span>
-            <div class="flex items-center gap-1 text-green-400 text-sm font-bold">
-              <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              ${lobby.players} / ${lobby.max}
-            </div>
-          </div>
-          
-          <h3 class="text-lg font-bold text-white mb-1 truncate" title="${lobby.game}">${lobby.game}</h3>
-          <p class="text-gray-400 text-sm truncate mb-3">📂 ${lobby.room}</p>
-          
-          <div class="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
-            <div class="bg-gradient-to-r from-cyan-500 to-purple-500 h-full" style="width: ${Math.min((lobby.players / lobby.max) * 100, 100)}%"></div>
+        <!-- Icon -->
+        <div class="relative z-10 mb-6">
+          <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gray-900 border-2 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.3)]">
+            <span class="text-5xl">🚀</span>
           </div>
         </div>
-      `).join('');
 
-    } catch (error) {
-      console.error(error);
-      container.innerHTML = '<div class="col-span-full text-center py-12 text-red-400">Failed to load lobby data. Some services might be offline or blocking requests.</div>';
-    }
-  };
+        <!-- Title -->
+        <h1 class="relative z-10 text-4xl md:text-5xl font-bold text-cyan-400 mb-4 glow">
+          Coming Soon
+        </h1>
 
-  // Initial Load
-  renderLobbies();
+        <!-- Subtitle -->
+        <p class="relative z-10 text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+          We are building something amazing. The Global Live Lobby Feed will be available shortly.
+        </p>
 
-  // Refresh Button
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => {
-      refreshBtn.textContent = '⏳ Refreshing...';
-      refreshBtn.disabled = true;
-      renderLobbies().then(() => {
-        refreshBtn.textContent = '🔄 Refresh Data';
-        refreshBtn.disabled = false;
-      });
-    });
-  }
+        <!-- Status Badge -->
+        <div class="relative z-10 inline-block px-4 py-2 bg-gray-900 rounded-full border border-gray-700">
+          <span class="flex items-center gap-2 text-sm font-bold text-yellow-400">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+            </span>
+            In Development
+          </span>
+        </div>
+
+        <!-- Back Button -->
+        <div class="relative z-10 mt-12">
+          <a href="#/home" class="inline-block bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-3 rounded-lg font-bold transition transform hover:scale-105 shadow-lg">
+            ← Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
 }
