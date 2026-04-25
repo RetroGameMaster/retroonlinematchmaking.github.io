@@ -250,6 +250,18 @@ async function loadInitialStats() {
     console.error('Error loading stats:', error);
   }
 }
+function generateSlug(text) {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')     // Replace spaces with -
+    .replace(/[^\w\-]+/g, '') // Remove all non-word chars
+    .replace(/\-\-+/g, '-')   // Replace multiple - with single -
+    .replace(/^-+/, '')       // Trim - from start
+    .replace(/-+$/, '');      // Trim - from end
+}
 
 async function loadPendingSubmissions() {
   try {
