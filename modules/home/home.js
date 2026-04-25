@@ -1,5 +1,6 @@
 // modules/home/home.js
 import { supabase } from '../../lib/supabase.js';
+import { fetchGlobalLobbies } from '../../lib/lobby-aggregator.js';
 
 let realtimeChannel = null;
 
