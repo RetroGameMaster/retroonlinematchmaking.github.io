@@ -14,6 +14,7 @@ const modules = {
     'profile': () => import('./modules/profile/profile.js'),
     'submit-game': () => import('./modules/submit-game/submit-game.js'),
     'search-users': () => import('./modules/search-users/search-users.js')
+    'live-lobbies': () => import('./modules/live-lobbies/live-lobbies.js'),
 };
 
 // Fallback content
