@@ -26,7 +26,6 @@ export default function initModule(rom) {
 // ============================================================================
 
 function initAmbientEffects() {
-  // Add CRT Scanline Overlay to Body
   if (!document.getElementById('crt-overlay')) {
     const overlay = document.createElement('div');
     overlay.id = 'crt-overlay';
@@ -39,7 +38,6 @@ function initAmbientEffects() {
     overlay.style.animation = 'scanline 10s linear infinite';
     document.body.appendChild(overlay);
 
-    // Add Keyframes for Scanline
     const style = document.createElement('style');
     style.textContent = `
       @keyframes scanline {
@@ -66,26 +64,18 @@ function initAmbientEffects() {
         pointer-events: none;
         z-index: 1;
       }
-      .ambient-card:hover::before {
-        opacity: 1;
-      }
-      .ambient-card:hover {
-        transform: translateY(-2px);
-        z-index: 2;
-      }
+      .ambient-card:hover::before { opacity: 1; }
+      .ambient-card:hover { transform: translateY(-2px); z-index: 2; }
     `;
     document.head.appendChild(style);
   }
 
-  // Mouse Spotlight Logic
   document.addEventListener('mousemove', (e) => {
     const cards = document.querySelectorAll('.ambient-card');
     cards.forEach(card => {
       const rect = card.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      card.style.setProperty('--mouse-x', `${x}px`);
-      card.style.setProperty('--mouse-y', `${y}px`);
+      card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+      card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
     });
   });
 }
@@ -101,7 +91,7 @@ function renderHomeLayout() {
   appContent.innerHTML = `
     <div class="max-w-7xl mx-auto space-y-6 animate-fade-in relative z-10">
       
-      <!-- LIVE TICKER (New) -->
+      <!-- LIVE TICKER -->
       <div class="bg-gray-900/80 backdrop-blur border border-cyan-500/30 rounded-lg overflow-hidden h-10 relative flex items-center shadow-[0_0_15px_rgba(6,182,212,0.2)]">
         <div class="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-gray-900 to-transparent z-10"></div>
         <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-gray-900 to-transparent z-10"></div>
@@ -161,13 +151,7 @@ function renderHomeLayout() {
               </h2>
             </div>
             <div class="relative aspect-video bg-black">
-              <iframe id="clip-iframe" 
-                class="absolute top-0 left-0 w-full h-full" 
-                src="" 
-                frameborder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowfullscreen>
-              </iframe>
+              <iframe id="clip-iframe" class="absolute top-0 left-0 w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </div>
           </div>
         </div>
@@ -243,11 +227,7 @@ function renderHomeLayout() {
 
 async function loadSiteSettings() {
   try {
-    const { data, error } = await supabase
-      .from('site_settings')
-      .select('key, value')
-      .in('key', ['clip_title', 'clip_youtube_id', 'discord_url', 'patreon_url', 'youtube_url']);
-
+    const { data, error } = await supabase.from('site_settings').select('key, value').in('key', ['clip_title', 'clip_youtube_id', 'discord_url', 'patreon_url', 'youtube_url']);
     if (error) throw error;
 
     const settings = {};
@@ -280,11 +260,7 @@ async function loadFeaturedGame() {
   if (!container) return;
 
   try {
-    // Get ALL approved games first to count them
-    const { count, error: countError } = await supabase
-      .from('games')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'approved');
+    const { count, error: countError } = await supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'approved');
 
     if (countError || count === 0) {
        container.innerHTML = `
@@ -299,18 +275,10 @@ async function loadFeaturedGame() {
       return;
     }
 
-    // Pick a random offset
     const randomOffset = Math.floor(Math.random() * count);
-
-    const { data: games, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('status', 'approved')
-      .range(randomOffset, randomOffset)
-      .single();
+    const { data: games, error } = await supabase.from('games').select('*').eq('status', 'approved').range(randomOffset, randomOffset).single();
 
     if (error || !games) {
-      // Fallback to first if range fails
       const { data: fallback } = await supabase.from('games').select('*').eq('status', 'approved').limit(1).single();
       if(!fallback) throw new Error("No games");
       renderGameCard(fallback, container, statusEl);
@@ -371,11 +339,7 @@ async function loadOnlineUsers() {
     if (error) throw error;
 
     if (!users || users.length === 0) {
-      listEl.innerHTML = `
-        <div class="text-center text-gray-500 text-sm py-4">
-          <p>No one is online right now.</p>
-          <p class="text-xs mt-1 opacity-70">Be the first to log in!</p>
-        </div>`;
+      listEl.innerHTML = `<div class="text-center text-gray-500 text-sm py-4"><p>No one is online right now.</p><p class="text-xs mt-1 opacity-70">Be the first to log in!</p></div>`;
       if(countEl) countEl.textContent = "0";
       return;
     }
@@ -384,7 +348,7 @@ async function loadOnlineUsers() {
 
     listEl.innerHTML = users.map(user => {
       const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
-      const avatar = user.avatar_url || ` https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
       
       return `
         <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
@@ -411,20 +375,8 @@ async function loadRecentActivity() {
   if (!feedEl) return;
 
   try {
-    const { data: latestGame } = await supabase
-      .from('games')
-      .select('title, slug, approved_at')
-      .eq('status', 'approved')
-      .order('approved_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    const { data: latestUser } = await supabase
-      .from('profiles')
-      .select('username, created_at')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    const { data: latestGame } = await supabase.from('games').select('title, slug, approved_at').eq('status', 'approved').order('approved_at', { ascending: false }).limit(1).single();
+    const { data: latestUser } = await supabase.from('profiles').select('username, created_at').order('created_at', { ascending: false }).limit(1).single();
 
     const activities = [];
 
@@ -476,7 +428,7 @@ async function loadRecentActivity() {
 }
 
 // ============================================================================
-// 4. REALTIME LIVE FEED (Ticker) - FIXED
+// 4. REALTIME LIVE FEED (Ticker) - FIXED WITH UPDATE LISTENERS
 // ============================================================================
 
 function startRealtimeFeed() {
@@ -502,31 +454,42 @@ function startRealtimeFeed() {
   };
   
   updateTicker();
-  setInterval(updateTicker, 4000); // Rotate static messages every 4s
+  setInterval(updateTicker, 4000);
 
-  // --- FIX: Define channel, attach listeners, THEN subscribe ---
+  // --- Setup Channel ---
   realtimeChannel = supabase.channel('live-feed');
 
-  // Attach Game Insert Listener
+  // 1. Listen for NEW GAMES (INSERT)
   realtimeChannel.on('postgres_changes', 
     { event: 'INSERT', schema: 'public', table: 'games' }, 
     (payload) => {
-      flashTicker(`🎮 New Game Added: ${payload.new.title}`);
-      loadFeaturedGame(); // Refresh featured game if a new one appears
+      // Only show if approved (optional, depends on your RLS)
+      if(payload.new.status === 'approved') {
+        flashTicker(`🎮 New Game Added: ${payload.new.title}`);
+        loadFeaturedGame();
+      }
     }
   );
 
-  // Attach Profile Insert Listener
+  // 2. Listen for NEW USERS (INSERT)
   realtimeChannel.on('postgres_changes', 
     { event: 'INSERT', schema: 'public', table: 'profiles' }, 
     (payload) => {
       flashTicker(`👤 New Member: ${payload.new.username}`);
-      loadOnlineUsers(); // Refresh online list
-      loadRecentActivity(); // Refresh activity feed
+      loadOnlineUsers();
+      loadRecentActivity();
     }
   );
 
-  // Subscribe ONLY after listeners are attached
+  // 3. Listen for USER UPDATES (Heartbeat & Playing Status)
+  realtimeChannel.on('postgres_changes', 
+    { event: 'UPDATE', schema: 'public', table: 'profiles' }, 
+    (payload) => {
+      handleProfileUpdate(payload.old, payload.new);
+    }
+  );
+
+  // Subscribe
   realtimeChannel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
       console.log('✅ Realtime feed subscribed successfully');
@@ -534,6 +497,32 @@ function startRealtimeFeed() {
       console.error('❌ Realtime feed subscription error');
     }
   });
+}
+
+// Helper: Detect what changed in the profile update
+function handleProfileUpdate(oldProfile, newProfile) {
+  // Refresh Online Users if last_seen changed
+  if (oldProfile.last_seen !== newProfile.last_seen) {
+    loadOnlineUsers();
+  }
+
+  // Check if 'currently_playing' changed
+  let oldGames = [], newGames = [];
+  
+  try {
+    oldGames = typeof oldProfile.currently_playing === 'string' ? JSON.parse(oldProfile.currently_playing) : (oldProfile.currently_playing || []);
+    newGames = typeof newProfile.currently_playing === 'string' ? JSON.parse(newProfile.currently_playing) : (newProfile.currently_playing || []);
+  } catch (e) { /* ignore parse errors */ }
+
+  // Simple diff: if lengths differ or JSON string differs, something changed
+  if (JSON.stringify(oldGames) !== JSON.stringify(newGames)) {
+    // Find the new game added
+    const addedGame = newGames.find(g => !oldGames.some(og => og.id === g.id || og.title === g.title));
+    
+    if (addedGame) {
+      flashTicker(`🎮 ${newProfile.username} is now playing ${addedGame.title}!`);
+    }
+  }
 }
 
 function flashTicker(text) {
@@ -559,7 +548,7 @@ function flashTicker(text) {
   }, 300);
 }
 
-// Cleanup on unload (optional but good practice)
+// Cleanup
 window.addEventListener('beforeunload', () => {
   if (realtimeChannel) {
     supabase.removeChannel(realtimeChannel);
