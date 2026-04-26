@@ -1,4 +1,4 @@
-4// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES & YOUTUBE FIX
+// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES & YOUTUBE FIX
 let isInitialized = false;
 
 // ===== HELPER: Convert YouTube URLs to Embed Format (Robust) =====
@@ -15,7 +15,7 @@ function getEmbedUrl(url) {
 
     let videoId = '';
 
-    // 1. Handle youtu.be short links (e.g., https://youtu.be/VIDEO_ID)
+    // 1. Handle youtu.be short links (e.g., https://youtu.be/VIDEO_ID )
     const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
     if (shortMatch) {
         videoId = shortMatch[1];
@@ -35,6 +35,7 @@ function getEmbedUrl(url) {
     console.warn('Could not parse YouTube ID from:', url);
     return url;
 }
+
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
     if (isInitialized) return;
@@ -106,13 +107,10 @@ export default async function initGameDetail(rom, identifier) {
 function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
     
-   // 1. Handle Dynamic Background (Video, GIF, or Image)
-if (game.background_video_url || game.background_image_url) {
+    // 1. Handle Dynamic Background (Video, GIF, or Image)
+    if (game.background_video_url || game.background_image_url) {
         // Set body to transparent so we see the bg
         document.body.style.background = 'transparent';
-        
-        // IMPORTANT: Do NOT set overflow:hidden on body, it breaks scrolling!
-        // We only hide overflow on the background element itself if needed.
         
         const existingBg = document.getElementById('dynamic-game-bg');
         if (existingBg) existingBg.remove();
@@ -130,7 +128,7 @@ if (game.background_video_url || game.background_image_url) {
             bgVideo.muted = true;
             bgVideo.playsInline = true;
             
-            // Styles
+            // Styles - Increased opacity to 0.45 for better visibility
             Object.assign(bgVideo.style, {
                 position: 'fixed',
                 top: '0',
@@ -138,8 +136,8 @@ if (game.background_video_url || game.background_image_url) {
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                zIndex: '-2', // Behind everything
-                opacity: '0.15' // Much darker so text is readable
+                zIndex: '-2', 
+                opacity: '0.45' // INCREASED: Was 0.15, now 0.45
             });
             
             document.body.insertBefore(bgVideo, document.body.firstChild);
@@ -148,7 +146,7 @@ if (game.background_video_url || game.background_image_url) {
             const bgImg = document.createElement('div');
             bgImg.id = 'dynamic-game-bg';
             
-            // Styles
+            // Styles - Increased opacity to 0.45 for better visibility
             Object.assign(bgImg.style, {
                 position: 'fixed',
                 top: '0',
@@ -159,14 +157,15 @@ if (game.background_video_url || game.background_image_url) {
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
-                zIndex: '-2', // Behind everything
-                opacity: '0.15' // Much darker so text is readable
+                zIndex: '-2', 
+                opacity: '0.45' // INCREASED: Was 0.15, now 0.45
             });
             
             document.body.insertBefore(bgImg, document.body.firstChild);
         }
 
-        // Add a dark overlay to ensure text readability regardless of image brightness
+        // Add a dark overlay to ensure text readability
+        // Lightened from 0.85 to 0.65 to let more background show through
         const existingOverlay = document.getElementById('bg-overlay');
         if (!existingOverlay) {
             const overlay = document.createElement('div');
@@ -177,24 +176,25 @@ if (game.background_video_url || game.background_image_url) {
                 left: '0',
                 width: '100%',
                 height: '100%',
-                backgroundColor: 'rgba(0, 0, 0, 0.85)', // Heavy dark tint
-                zIndex: '-1', // Between bg and content
-                pointerEvents: 'none' // Let clicks pass through
+                backgroundColor: 'rgba(0, 0, 0, 0.65)', // LIGHTENED: Was 0.85, now 0.65
+                zIndex: '-1', 
+                pointerEvents: 'none' 
             });
             document.body.insertBefore(overlay, document.body.firstChild);
         }
     }
+
     // 2. Prepare Button HTML
     const buttonContainerHTML = `
-        <div class="mb-8 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+        <div class="mb-8 p-4 bg-gray-800/90 backdrop-blur-md rounded-lg border border-gray-700 shadow-xl">
             ${!currentUser ? `
-                <p class="text-gray-400 text-sm mb-2">Want to track this game?</p>
-                <button onclick="window.location.hash='#/auth'" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors text-sm">
+                <p class="text-gray-300 text-sm mb-2 font-medium">Want to track this game?</p>
+                <button onclick="window.location.hash='#/auth'" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors text-sm font-bold shadow-lg">
                     🔒 Log In to Add to List
                 </button>
             ` : `
                 <div id="playing-action-container">
-                    <div class="text-center text-gray-400 py-2">
+                    <div class="text-center text-gray-300 py-2 font-medium">
                         <span class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500 mr-2"></span>
                         Checking status...
                     </div>
@@ -206,38 +206,38 @@ if (game.background_video_url || game.background_image_url) {
     // 3. Prepare Metadata Panel (New)
     const hasMetadata = game.developer || game.publisher || game.genre || game.release_date || (game.features && game.features.length > 0);
     const metadataHTML = hasMetadata ? `
-        <div class="bg-gray-800/80 backdrop-blur-md rounded-xl border border-cyan-500/30 p-6 mb-8 shadow-lg">
-            <h3 class="text-xl font-bold text-cyan-400 mb-4 border-b border-gray-700 pb-2">📋 Game Information</h3>
+        <div class="bg-gray-800/90 backdrop-blur-md rounded-xl border border-cyan-500/30 p-6 mb-8 shadow-xl">
+            <h3 class="text-xl font-bold text-cyan-400 mb-4 border-b border-gray-700 pb-2 drop-shadow-md">📋 Game Information</h3>
             <div class="grid grid-cols-1 gap-4 text-sm">
                 ${game.developer ? `
                     <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <span class="text-gray-400">Developer</span>
-                        <span class="text-white font-medium">${escapeHtml(game.developer)}</span>
+                        <span class="text-gray-300 font-medium">Developer</span>
+                        <span class="text-white font-bold drop-shadow-md">${escapeHtml(game.developer)}</span>
                     </div>
                 ` : ''}
                 ${game.publisher ? `
                     <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <span class="text-gray-400">Publisher</span>
-                        <span class="text-white font-medium">${escapeHtml(game.publisher)}</span>
+                        <span class="text-gray-300 font-medium">Publisher</span>
+                        <span class="text-white font-bold drop-shadow-md">${escapeHtml(game.publisher)}</span>
                     </div>
                 ` : ''}
                 ${game.genre ? `
                     <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <span class="text-gray-400">Genre</span>
-                        <span class="text-white font-medium">${escapeHtml(game.genre)}</span>
+                        <span class="text-gray-300 font-medium">Genre</span>
+                        <span class="text-white font-bold drop-shadow-md">${escapeHtml(game.genre)}</span>
                     </div>
                 ` : ''}
                 ${game.release_date ? `
                     <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <span class="text-gray-400">Released</span>
-                        <span class="text-white font-medium">${new Date(game.release_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        <span class="text-gray-300 font-medium">Released</span>
+                        <span class="text-white font-bold drop-shadow-md">${new Date(game.release_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                     </div>
                 ` : ''}
                 ${game.features && game.features.length > 0 ? `
                     <div class="pt-2">
-                        <span class="text-gray-400 block mb-2">Features</span>
+                        <span class="text-gray-300 font-medium block mb-2">Features</span>
                         <div class="flex flex-wrap gap-2">
-                            ${game.features.map(f => `<span class="bg-cyan-900/40 text-cyan-300 px-2 py-1 rounded text-xs border border-cyan-800">${escapeHtml(f)}</span>`).join('')}
+                            ${game.features.map(f => `<span class="bg-cyan-900/60 text-cyan-200 px-2 py-1 rounded text-xs border border-cyan-700 font-bold drop-shadow-md">${escapeHtml(f)}</span>`).join('')}
                         </div>
                     </div>
                 ` : ''}
@@ -247,7 +247,7 @@ if (game.background_video_url || game.background_image_url) {
 
     // 4. Prepare Video Section (New) - FIXED WITH getEmbedUrl
     const videoHTML = game.video_url ? `
-        <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-lg relative" style="aspect-ratio: 16/9;">
+        <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-2xl relative" style="aspect-ratio: 16/9;">
             <iframe 
                 src="${getEmbedUrl(game.video_url)}" 
                 title="Game Trailer" 
@@ -260,7 +260,6 @@ if (game.background_video_url || game.background_image_url) {
     ` : '';
 
     // 5. Prepare Connection Details (New)
-    // Try to parse JSON details first, fallback to old text fields
     let connectionDetails = [];
     if (game.connection_details) {
         try {
@@ -269,7 +268,6 @@ if (game.background_video_url || game.background_image_url) {
         } catch (e) { /* ignore */ }
     }
     
-    // If no structured details, create one from old fields
     if (connectionDetails.length === 0 && (game.connection_method || game.server_details)) {
         connectionDetails.push({
             name: game.connection_method || 'General Connection',
@@ -279,22 +277,22 @@ if (game.background_video_url || game.background_image_url) {
     }
 
     const connectionHTML = connectionDetails.length > 0 ? `
-        <div class="bg-gray-800/80 backdrop-blur-md rounded-xl border border-purple-500/30 p-6 mb-8 shadow-lg">
-            <h3 class="text-xl font-bold text-purple-400 mb-4 border-b border-gray-700 pb-2">🔌 How to Connect</h3>
+        <div class="bg-gray-800/90 backdrop-blur-md rounded-xl border border-purple-500/30 p-6 mb-8 shadow-xl">
+            <h3 class="text-xl font-bold text-purple-400 mb-4 border-b border-gray-700 pb-2 drop-shadow-md">🔌 How to Connect</h3>
             <div class="space-y-6">
                 ${connectionDetails.map((method, idx) => `
-                    <div class="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                    <div class="bg-gray-900/60 rounded-lg p-4 border border-gray-700 shadow-lg">
                         <div class="flex items-center gap-3 mb-3">
-                            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-purple-900/50 text-purple-400 font-bold border border-purple-700">${idx + 1}</span>
-                            <h4 class="text-lg font-bold text-white">${escapeHtml(method.name)}</h4>
-                            ${method.type ? `<span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded uppercase">${method.type}</span>` : ''}
+                            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-purple-900/60 text-purple-300 font-bold border border-purple-600 shadow-md">${idx + 1}</span>
+                            <h4 class="text-lg font-bold text-white drop-shadow-md">${escapeHtml(method.name)}</h4>
+                            ${method.type ? `<span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded uppercase font-bold">${method.type}</span>` : ''}
                         </div>
-                        ${method.instructions ? `<p class="text-gray-300 text-sm whitespace-pre-line ml-11">${escapeHtml(method.instructions)}</p>` : ''}
+                        ${method.instructions ? `<p class="text-gray-300 text-sm whitespace-pre-line ml-11 font-medium">${escapeHtml(method.instructions)}</p>` : ''}
                         ${method.serverAddress ? `
-                            <div class="mt-3 ml-11 flex items-center gap-2 bg-black/40 p-2 rounded border border-gray-700">
-                                <span class="text-xs text-gray-500 uppercase font-bold">Server/DNS:</span>
-                                <code class="text-cyan-400 font-mono text-sm select-all">${method.serverAddress}</code>
-                                <button onclick="navigator.clipboard.writeText('${method.serverAddress}'); alert('Copied!')" class="ml-auto text-gray-500 hover:text-white" title="Copy">
+                            <div class="mt-3 ml-11 flex items-center gap-2 bg-black/50 p-2 rounded border border-gray-600">
+                                <span class="text-xs text-gray-400 uppercase font-bold">Server/DNS:</span>
+                                <code class="text-cyan-300 font-mono text-sm select-all font-bold drop-shadow-md">${method.serverAddress}</code>
+                                <button onclick="navigator.clipboard.writeText('${method.serverAddress}'); alert('Copied!')" class="ml-auto text-gray-400 hover:text-white transition" title="Copy">
                                     📋
                                 </button>
                             </div>
@@ -308,7 +306,7 @@ if (game.background_video_url || game.background_image_url) {
     // 6. Main Layout Construction
     container.innerHTML = `
         <div class="max-w-7xl mx-auto p-4 relative z-10">
-            <a href="#/games" class="text-cyan-400 hover:underline mb-4 inline-block flex items-center gap-2">
+            <a href="#/games" class="text-cyan-400 hover:text-cyan-300 hover:underline mb-4 inline-block flex items-center gap-2 font-bold drop-shadow-md transition">
                 <span>←</span> Back to Games
             </a>
             
@@ -318,10 +316,10 @@ if (game.background_video_url || game.background_image_url) {
                     <!-- Cover Image -->
                     <div class="sticky top-4">
                         ${game.cover_image_url 
-                            ? `<img src="${game.cover_image_url}" class="w-full rounded-lg shadow-2xl border-2 border-gray-700" alt="${escapeHtml(game.title)}">` 
-                            : '<div class="w-full h-64 bg-gray-700 rounded-lg flex items-center justify-center text-4xl border-2 border-gray-600">🎮</div>'}
+                            ? `<img src="${game.cover_image_url}" class="w-full rounded-lg shadow-2xl border-2 border-gray-600" alt="${escapeHtml(game.title)}">` 
+                            : '<div class="w-full h-64 bg-gray-700 rounded-lg flex items-center justify-center text-4xl border-2 border-gray-600 shadow-xl">🎮</div>'}
                         
-                        <!-- Playing Button (Moved to sidebar for better layout) -->
+                        <!-- Playing Button -->
                         ${buttonContainerHTML}
                     </div>
 
@@ -331,15 +329,15 @@ if (game.background_video_url || game.background_image_url) {
                 
                 <!-- Right Column: Title, Desc, Video, Connections, Screenshots, Achievements -->
                 <div class="lg:w-2/3">
-                    <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">${escapeHtml(game.title)}</h1>
+                    <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">${escapeHtml(game.title)}</h1>
                     
                     <div class="flex gap-2 mb-6 flex-wrap">
-                        <span class="bg-cyan-900/40 text-cyan-300 border border-cyan-700 px-3 py-1 rounded text-sm font-bold shadow-sm">${escapeHtml(game.console)}</span>
-                        ${game.year ? `<span class="bg-gray-800 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm shadow-sm">${game.year}</span>` : ''}
+                        <span class="bg-cyan-900/60 text-cyan-200 border border-cyan-600 px-3 py-1 rounded text-sm font-bold shadow-md">${escapeHtml(game.console)}</span>
+                        ${game.year ? `<span class="bg-gray-800/80 text-gray-200 border border-gray-600 px-3 py-1 rounded text-sm font-bold shadow-md">${game.year}</span>` : ''}
                     </div>
                     
-                    <div class="prose prose-invert max-w-none mb-8">
-                        <p class="text-gray-300 text-lg leading-relaxed whitespace-pre-line">${escapeHtml(game.description || 'No description available.')}</p>
+                    <div class="prose prose-invert max-w-none mb-8 bg-gray-900/40 p-6 rounded-xl border border-gray-700/50 backdrop-blur-sm">
+                        <p class="text-gray-200 text-lg leading-relaxed whitespace-pre-line font-medium drop-shadow-md">${escapeHtml(game.description || 'No description available.')}</p>
                     </div>
 
                     <!-- Video Showcase -->
@@ -351,12 +349,12 @@ if (game.background_video_url || game.background_image_url) {
                     <!-- Screenshots Section -->
                     ${game.screenshot_urls && game.screenshot_urls.length > 0 ? `
                         <div class="mb-8">
-                            <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">🖼️ Screenshots</h2>
+                            <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2 drop-shadow-md">🖼️ Screenshots</h2>
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 ${game.screenshot_urls.map(url => `
                                     <img src="${url}" 
                                          alt="Screenshot" 
-                                         class="w-full h-40 object-cover rounded-lg border border-gray-700 hover:border-cyan-500 hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg"
+                                         class="w-full h-40 object-cover rounded-lg border border-gray-600 hover:border-cyan-400 hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg"
                                          onclick="this.classList.toggle('h-96'); this.classList.toggle('col-span-2'); this.classList.toggle('md:col-span-3');">
                                 `).join('')}
                             </div>
@@ -365,8 +363,8 @@ if (game.background_video_url || game.background_image_url) {
 
                     <!-- Achievements Section -->
                     <div id="achievements-container" class="mb-8">
-                        <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">🏆 Achievements</h2>
-                        <div class="text-center py-8 text-gray-400">
+                        <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2 drop-shadow-md">🏆 Achievements</h2>
+                        <div class="text-center py-8 text-gray-300 font-medium">
                             <div class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-cyan-500"></div>
                             <p class="mt-2">Loading achievements...</p>
                         </div>
@@ -426,11 +424,11 @@ async function checkAndRenderPlayingState(game, userId, rom) {
 function renderPlayingButton(container, game, userId, rom, isPlaying) {
     if (isPlaying) {
         container.innerHTML = `
-            <button id="btn-toggle-playing" class="w-full bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 px-4 py-3 rounded-lg transition-colors text-sm font-bold flex items-center justify-center gap-2 shadow-lg">
+            <button id="btn-toggle-playing" class="w-full bg-red-900/40 hover:bg-red-900/60 border border-red-600 text-red-300 px-4 py-3 rounded-lg transition-colors text-sm font-bold flex items-center justify-center gap-2 shadow-lg">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 Remove from My List
             </button>
-            <p class="text-green-400 text-xs mt-2 text-center font-medium">✓ Added to your profile</p>
+            <p class="text-green-400 text-xs mt-2 text-center font-bold">✓ Added to your profile</p>
         `;
         document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(game, userId, rom, true));
     } else {
@@ -439,7 +437,7 @@ function renderPlayingButton(container, game, userId, rom, isPlaying) {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                 Add to My List
             </button>
-            <p class="text-gray-500 text-xs mt-2 text-center font-medium">Show this game on your profile</p>
+            <p class="text-gray-400 text-xs mt-2 text-center font-bold">Show this game on your profile</p>
         `;
         document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(game, userId, rom, false));
     }
@@ -528,7 +526,7 @@ async function loadAchievements(rom, gameId) {
             .order('points', { ascending: false });
 
         if (aError || !achievements || achievements.length === 0) {
-            container.innerHTML = `<p class="text-gray-500 text-sm">No achievements available for this game.</p>`;
+            container.innerHTML = `<p class="text-gray-400 text-sm font-medium">No achievements available for this game.</p>`;
             return;
         }
 
@@ -555,24 +553,24 @@ async function loadAchievements(rom, gameId) {
                     const rate = totalPlayers > 0 ? Math.round((count / totalPlayers) * 100) : 0;
                     
                     return `
-                    <div class="bg-gray-800/80 backdrop-blur rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-lg">
+                    <div class="bg-gray-800/90 backdrop-blur rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-xl">
                         <div class="flex gap-3">
                             <div class="flex-shrink-0">
                                 <img src="${a.badge_url || 'https://via.placeholder.com/48/1f2937/6b7280?text=🏆'}" 
-                                     alt="${escapeHtml(a.title)}" class="w-12 h-12 rounded object-cover border border-gray-600">
+                                     alt="${escapeHtml(a.title)}" class="w-12 h-12 rounded object-cover border border-gray-600 shadow-md">
                             </div>
                             <div class="flex-1">
                                 <div class="flex justify-between items-start">
-                                    <h3 class="text-sm font-bold text-white leading-tight">${escapeHtml(a.title)}</h3>
-                                    <span class="text-yellow-400 text-xs font-bold bg-yellow-900/30 px-1.5 py-0.5 rounded ml-2 border border-yellow-700/50">${a.points} pts</span>
+                                    <h3 class="text-sm font-bold text-white leading-tight drop-shadow-md">${escapeHtml(a.title)}</h3>
+                                    <span class="text-yellow-400 text-xs font-bold bg-yellow-900/40 px-1.5 py-0.5 rounded ml-2 border border-yellow-700/50 shadow-sm">${a.points} pts</span>
                                 </div>
-                                <p class="text-gray-400 text-xs mt-1 mb-2 line-clamp-2">${escapeHtml(a.description || '')}</p>
+                                <p class="text-gray-300 text-xs mt-1 mb-2 line-clamp-2 font-medium">${escapeHtml(a.description || '')}</p>
                                 <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1 relative overflow-hidden">
                                     <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" 
                                          style="width: ${rate}%"></div>
                                 </div>
                                 <div class="flex justify-between items-center mt-1">
-                                    <span class="text-[10px] text-gray-500">${count} unlocks</span>
+                                    <span class="text-[10px] text-gray-400 font-bold">${count} unlocks</span>
                                     <span class="text-[10px] text-cyan-400 font-bold">${rate > 0 ? rate + '%' : '0%'}</span>
                                 </div>
                             </div>
