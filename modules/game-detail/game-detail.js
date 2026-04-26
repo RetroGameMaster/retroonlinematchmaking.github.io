@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES & YOUTUBE FIX
+4// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES & YOUTUBE FIX
 let isInitialized = false;
 
 // ===== HELPER: Convert YouTube URLs to Embed Format (Robust) =====
@@ -108,49 +108,82 @@ function renderGame(game, container, rom) {
     
    // 1. Handle Dynamic Background (Video, GIF, or Image)
 if (game.background_video_url || game.background_image_url) {
-    document.body.style.background = 'transparent';
-    document.body.style.overflow = 'hidden';
-    
-    const existingBg = document.getElementById('dynamic-game-bg');
-    if (existingBg) existingBg.remove();
+        // Set body to transparent so we see the bg
+        document.body.style.background = 'transparent';
+        
+        // IMPORTANT: Do NOT set overflow:hidden on body, it breaks scrolling!
+        // We only hide overflow on the background element itself if needed.
+        
+        const existingBg = document.getElementById('dynamic-game-bg');
+        if (existingBg) existingBg.remove();
 
-    // Priority: Image/GIF overrides Video if both exist
-    const bgUrl = game.background_image_url || game.background_video_url;
-    
-    // Detect if it's a video file (.mp4) or an image/gif
-    const isVideo = !game.background_image_url && bgUrl.toLowerCase().endsWith('.mp4');
+        const bgUrl = game.background_image_url || game.background_video_url;
+        const isVideo = !game.background_image_url && bgUrl.toLowerCase().endsWith('.mp4');
 
-    if (isVideo) {
-        // Render Video Background
-        const bgVideo = document.createElement('video');
-        bgVideo.id = 'dynamic-game-bg';
-        bgVideo.src = bgUrl;
-        bgVideo.autoplay = true;
-        bgVideo.loop = true;
-        bgVideo.muted = true;
-        bgVideo.playsInline = true;
-        Object.assign(bgVideo.style, {
-            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-            objectFit: 'cover', zIndex: '-1', opacity: '0.4'
-        });
-        document.body.insertBefore(bgVideo, document.body.firstChild);
-    } else {
-        // Render Image/GIF Background
-        const bgImg = document.createElement('div');
-        bgImg.id = 'dynamic-game-bg';
-        bgImg.style.backgroundImage = `url(${bgUrl})`;
-        bgImg.style.backgroundSize = 'cover';
-        bgImg.style.backgroundPosition = 'center';
-        bgImg.style.position = 'fixed';
-        bgImg.style.top = '0';
-        bgImg.style.left = '0';
-        bgImg.style.width = '100%';
-        bgImg.style.height = '100%';
-        bgImg.style.zIndex = '-1';
-        bgImg.style.opacity = '0.4';
-        document.body.insertBefore(bgImg, document.body.firstChild);
+        if (isVideo) {
+            // Render Video Background
+            const bgVideo = document.createElement('video');
+            bgVideo.id = 'dynamic-game-bg';
+            bgVideo.src = bgUrl;
+            bgVideo.autoplay = true;
+            bgVideo.loop = true;
+            bgVideo.muted = true;
+            bgVideo.playsInline = true;
+            
+            // Styles
+            Object.assign(bgVideo.style, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                zIndex: '-2', // Behind everything
+                opacity: '0.15' // Much darker so text is readable
+            });
+            
+            document.body.insertBefore(bgVideo, document.body.firstChild);
+        } else {
+            // Render Image/GIF Background
+            const bgImg = document.createElement('div');
+            bgImg.id = 'dynamic-game-bg';
+            
+            // Styles
+            Object.assign(bgImg.style, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                backgroundImage: `url(${bgUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                zIndex: '-2', // Behind everything
+                opacity: '0.15' // Much darker so text is readable
+            });
+            
+            document.body.insertBefore(bgImg, document.body.firstChild);
+        }
+
+        // Add a dark overlay to ensure text readability regardless of image brightness
+        const existingOverlay = document.getElementById('bg-overlay');
+        if (!existingOverlay) {
+            const overlay = document.createElement('div');
+            overlay.id = 'bg-overlay';
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.85)', // Heavy dark tint
+                zIndex: '-1', // Between bg and content
+                pointerEvents: 'none' // Let clicks pass through
+            });
+            document.body.insertBefore(overlay, document.body.firstChild);
+        }
     }
-}
     // 2. Prepare Button HTML
     const buttonContainerHTML = `
         <div class="mb-8 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
