@@ -1297,6 +1297,50 @@ function createGameEditForm(game) {
           <textarea id="editDescription" rows="6" required 
                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">${escapeHtml(game.description || '')}</textarea>
         </div>
+        <div class="grid md:grid-cols-2 gap-4 mb-4">
+    <div>
+        <label class="block text-gray-300 mb-2">Developer</label>
+        <input type="text" id="editDeveloper" value="${escapeHtml(game.developer || '')}"
+               class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+    </div>
+    <div>
+        <label class="block text-gray-300 mb-2">Publisher</label>
+        <input type="text" id="editPublisher" value="${escapeHtml(game.publisher || '')}"
+               class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+    </div>
+</div>
+
+<div class="grid md:grid-cols-2 gap-4 mb-4">
+    <div>
+        <label class="block text-gray-300 mb-2">Genre</label>
+        <input type="text" id="editGenre" value="${escapeHtml(game.genre || '')}"
+               class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none" placeholder="e.g., Vehicular Combat">
+    </div>
+    <div>
+        <label class="block text-gray-300 mb-2">Release Date</label>
+        <input type="date" id="editReleaseDate" value="${game.release_date ? game.release_date.split('T')[0] : ''}"
+               class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none">
+    </div>
+</div>
+
+<div class="mb-4">
+    <label class="block text-gray-300 mb-2">Features (Comma separated)</label>
+    <input type="text" id="editFeatures" value="${game.features ? game.features.join(', ') : ''}"
+           class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none" placeholder="e.g., Co-op, Splitscreen, Licensed Soundtrack">
+</div>
+
+<div class="mb-4">
+    <label class="block text-gray-300 mb-2">Gameplay Video URL (YouTube/Vimeo)</label>
+    <input type="url" id="editVideoUrl" value="${escapeHtml(game.video_url || '')}"
+           class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none" placeholder="https://www.youtube.com/watch?v=...">
+</div>
+
+<div class="mb-4">
+    <label class="block text-gray-300 mb-2">Animated Background Video URL</label>
+    <input type="url" id="editBackgroundVideo" value="${escapeHtml(game.background_video_url || '')}"
+           class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none" placeholder="Direct .mp4 link or YouTube embed">
+    <p class="text-xs text-gray-500 mt-1">Leave empty for static background. Supports direct MP4 links.</p>
+</div>
        
         <div class="grid md:grid-cols-2 gap-4">
           <div>
@@ -1511,6 +1555,13 @@ async function saveGameEditForm(game) {
       players_max: parseInt(document.getElementById('editPlayersMax').value) || 1,
       servers_available: document.getElementById('editServersAvailable').checked,
       cover_image_url: coverImageUrl,
+      developer: document.getElementById('editDeveloper').value.trim() || null,
+      publisher: document.getElementById('editPublisher').value.trim() || null,
+      genre: document.getElementById('editGenre').value.trim() || null,
+      release_date: document.getElementById('editReleaseDate').value || null,
+      features: document.getElementById('editFeatures').value.split(',').map(f => f.trim()).filter(f => f) || [],
+      video_url: document.getElementById('editVideoUrl').value.trim() || null,
+      background_video_url: document.getElementById('editBackgroundVideo').value.trim() || null,
       updated_at: new Date().toISOString(),
       slug: generateSlug(document.getElementById('editTitle').value.trim())
     };
