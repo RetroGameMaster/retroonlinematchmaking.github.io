@@ -1,27 +1,40 @@
 // modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES & YOUTUBE FIX
 let isInitialized = false;
 
-// ===== HELPER: Convert YouTube URLs to Embed Format =====
+// ===== HELPER: Convert YouTube URLs to Embed Format (Robust) =====
 function getEmbedUrl(url) {
     if (!url) return '';
     
+    // Trim whitespace
+    url = url.trim();
+
     // If it's already an embed URL, return as is
-    if (url.includes('youtube.com/embed/') || url.includes('youtu.be/')) {
+    if (url.includes('youtube.com/embed/')) {
         return url;
     }
 
-    // Handle standard watch URLs (e.g., https://www.youtube.com/watch?v=VIDEO_ID)
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
+    let videoId = '';
 
-    if (match && match[2].length === 11) {
-        return `https://www.youtube.com/embed/${match[2]}`;
+    // 1. Handle youtu.be short links (e.g., https://youtu.be/VIDEO_ID)
+    const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if (shortMatch) {
+        videoId = shortMatch[1];
+    } 
+    // 2. Handle standard watch URLs (e.g., https://www.youtube.com/watch?v=VIDEO_ID&t=...)
+    else {
+        const params = new URLSearchParams(url.split('?')[1]);
+        videoId = params.get('v');
     }
 
-    // If no match, return original (might be a direct .mp4 or other source)
+    // If we found a valid ID (11 chars), construct embed URL
+    if (videoId && videoId.length === 11) {
+        return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
+    }
+
+    // Fallback: Return original if no ID found (might be direct .mp4)
+    console.warn('Could not parse YouTube ID from:', url);
     return url;
 }
-
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
     if (isInitialized) return;
