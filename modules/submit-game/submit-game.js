@@ -1,4 +1,4 @@
-// modules/submit-game/submit-game.js - COMPLETE FIXED VERSION WITH SLUGS
+// modules/submit-game/submit-game.js - COMPLETE FIXED VERSION WITH SLUGS & NEW METADATA
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 function initSubmitGame(rom) {
@@ -76,7 +76,6 @@ function initSubmitGame(rom) {
     methodsContainer.appendChild(newMethod);
     methodCount++;
     
-    // Show remove button on first method if it's not visible
     const firstMethod = document.querySelector('.connection-method[data-index="0"] .remove-method-btn');
     if (firstMethod && firstMethod.style.display === 'none') {
       firstMethod.style.display = 'block';
@@ -141,14 +140,25 @@ function initSubmitGame(rom) {
       return;
     }
     
-    // Collect form data
+    // Collect form data (Including New Metadata Fields)
     const gameData = {
       title: gameTitle,
       releaseYear: document.getElementById('releaseYear').value || null,
       description: description,
       maxPlayers: parseInt(maxPlayers),
       genre: Array.from(genre).map(opt => opt.value),
-      console: consoleSelect.value, // ✅ Use single console value
+      console: consoleSelect.value,
+      
+      // --- NEW METADATA FIELDS ---
+      developer: document.getElementById('developer')?.value.trim() || null,
+      publisher: document.getElementById('publisher')?.value.trim() || null,
+      releaseDate: document.getElementById('releaseDate')?.value || null,
+      features: document.getElementById('features')?.value.trim() ? 
+                 document.getElementById('features').value.split(',').map(f => f.trim()).filter(f => f) : [],
+      videoUrl: document.getElementById('videoUrl')?.value.trim() || null,
+      backgroundVideoUrl: document.getElementById('backgroundVideoUrl')?.value.trim() || null,
+      // ---------------------------
+
       communityLink: document.getElementById('communityLink').value.trim() || null,
       submitterContact: document.getElementById('submitterContact').value.trim() || null,
       additionalNotes: document.getElementById('additionalNotes').value.trim() || null,
@@ -191,7 +201,7 @@ function initSubmitGame(rom) {
     submitBtn.disabled = true;
     
     try {
-      // Save the game submission WITHOUT slug
+      // Save the game submission
       const result = await saveGameSubmission(gameData, rom.supabase);
       
       // Upload images
@@ -211,7 +221,6 @@ function initSubmitGame(rom) {
         Thank you for contributing to the ROM community!
       `);
       
-      // Reset form after success
       setTimeout(() => {
         resetForm();
         methodCount = 1;
@@ -480,10 +489,9 @@ function initSubmitGame(rom) {
   }
 
   async function saveGameSubmission(gameData, supabaseClient) {
-    // ✅ DO NOT include slug in game_submissions
     const submissionData = {
       title: gameData.title,
-      console: gameData.console, // ✅ Use single console value
+      console: gameData.console,
       year: gameData.releaseYear ? parseInt(gameData.releaseYear) : null,
       description: gameData.description,
       notes: gameData.additionalNotes || null,
@@ -498,7 +506,17 @@ function initSubmitGame(rom) {
       server_details: gameData.connectionMethods.filter(m => m.serverAddress).map(m => m.serverAddress).join(', '),
       status: 'pending',
       screenshot_urls: [],
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      
+      // --- NEW METADATA FIELDS FOR DB ---
+      developer: gameData.developer,
+      publisher: gameData.publisher,
+      genre: gameData.genre.join(', '), // Store as comma-separated string for now
+      release_date: gameData.releaseDate,
+      features: gameData.features, // Store as array if column is text[], else join
+      video_url: gameData.videoUrl,
+      background_video_url: gameData.backgroundVideoUrl
+      // ----------------------------------
     };
     
     const { data, error } = await supabaseClient
@@ -518,7 +536,6 @@ function initSubmitGame(rom) {
     try {
       const screenshotUrls = [];
       
-      // Upload cover image
       if (coverImage) {
         const fileExt = coverImage.name.split('.').pop();
         const fileName = `submissions/${submissionId}/cover-${Date.now()}.${fileExt}`;
@@ -550,7 +567,6 @@ function initSubmitGame(rom) {
         }
       }
       
-      // Upload screenshots
       if (screenshots.length > 0) {
         for (let i = 0; i < screenshots.length && i < 3; i++) {
           const screenshot = screenshots[i];
