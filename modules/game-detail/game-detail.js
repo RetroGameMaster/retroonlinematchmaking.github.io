@@ -106,33 +106,51 @@ export default async function initGameDetail(rom, identifier) {
 function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
     
-    // 1. Handle Animated Background
-    if (game.background_video_url) {
-        document.body.style.background = 'transparent';
-        document.body.style.overflow = 'hidden'; // Prevent scrollbars from video
-        
-        // Remove existing bg if any
-        const existingBg = document.getElementById('dynamic-game-bg');
-        if (existingBg) existingBg.remove();
+   // 1. Handle Dynamic Background (Video, GIF, or Image)
+if (game.background_video_url || game.background_image_url) {
+    document.body.style.background = 'transparent';
+    document.body.style.overflow = 'hidden';
+    
+    const existingBg = document.getElementById('dynamic-game-bg');
+    if (existingBg) existingBg.remove();
 
+    // Priority: Image/GIF overrides Video if both exist
+    const bgUrl = game.background_image_url || game.background_video_url;
+    
+    // Detect if it's a video file (.mp4) or an image/gif
+    const isVideo = !game.background_image_url && bgUrl.toLowerCase().endsWith('.mp4');
+
+    if (isVideo) {
+        // Render Video Background
         const bgVideo = document.createElement('video');
         bgVideo.id = 'dynamic-game-bg';
-        bgVideo.src = game.background_video_url;
+        bgVideo.src = bgUrl;
         bgVideo.autoplay = true;
         bgVideo.loop = true;
         bgVideo.muted = true;
         bgVideo.playsInline = true;
-        bgVideo.style.position = 'fixed';
-        bgVideo.style.top = '0';
-        bgVideo.style.left = '0';
-        bgVideo.style.width = '100%';
-        bgVideo.style.height = '100%';
-        bgVideo.style.objectFit = 'cover';
-        bgVideo.style.zIndex = '-1';
-        bgVideo.style.opacity = '0.4'; // Dimmed so text is readable
+        Object.assign(bgVideo.style, {
+            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+            objectFit: 'cover', zIndex: '-1', opacity: '0.4'
+        });
         document.body.insertBefore(bgVideo, document.body.firstChild);
+    } else {
+        // Render Image/GIF Background
+        const bgImg = document.createElement('div');
+        bgImg.id = 'dynamic-game-bg';
+        bgImg.style.backgroundImage = `url(${bgUrl})`;
+        bgImg.style.backgroundSize = 'cover';
+        bgImg.style.backgroundPosition = 'center';
+        bgImg.style.position = 'fixed';
+        bgImg.style.top = '0';
+        bgImg.style.left = '0';
+        bgImg.style.width = '100%';
+        bgImg.style.height = '100%';
+        bgImg.style.zIndex = '-1';
+        bgImg.style.opacity = '0.4';
+        document.body.insertBefore(bgImg, document.body.firstChild);
     }
-
+}
     // 2. Prepare Button HTML
     const buttonContainerHTML = `
         <div class="mb-8 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
