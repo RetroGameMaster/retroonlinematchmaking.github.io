@@ -1,5 +1,26 @@
-// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES
+// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES & YOUTUBE FIX
 let isInitialized = false;
+
+// ===== HELPER: Convert YouTube URLs to Embed Format =====
+function getEmbedUrl(url) {
+    if (!url) return '';
+    
+    // If it's already an embed URL, return as is
+    if (url.includes('youtube.com/embed/') || url.includes('youtu.be/')) {
+        return url;
+    }
+
+    // Handle standard watch URLs (e.g., https://www.youtube.com/watch?v=VIDEO_ID)
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+
+    if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}`;
+    }
+
+    // If no match, return original (might be a direct .mp4 or other source)
+    return url;
+}
 
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
@@ -160,11 +181,11 @@ function renderGame(game, container, rom) {
         </div>
     ` : '';
 
-    // 4. Prepare Video Section (New)
+    // 4. Prepare Video Section (New) - FIXED WITH getEmbedUrl
     const videoHTML = game.video_url ? `
         <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-lg relative" style="aspect-ratio: 16/9;">
             <iframe 
-                src="${game.video_url}" 
+                src="${getEmbedUrl(game.video_url)}" 
                 title="Game Trailer" 
                 frameborder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
