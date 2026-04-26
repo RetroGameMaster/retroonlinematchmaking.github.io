@@ -502,83 +502,65 @@ function startRealtimeFeed() {
   };
   
   updateTicker();
-  setInterval(updateTicker, 4000); // Rotate static messages every 4s
+  setInterval(updateTicker, 4000);
 
-  // --- FIX: Define channel, attach listeners, THEN subscribe ---
+  // Create Channel
   realtimeChannel = supabase.channel('live-feed');
 
-  // 1. Listen for NEW Games (INSERT)
+  // --- GAMES LISTENER (INSERT & UPDATE) ---
   realtimeChannel.on('postgres_changes', 
-    { event: 'INSERT', schema: 'public', table: 'games' }, 
+    { event: '*', schema: 'public', table: 'games' }, 
     (payload) => {
-      // Only alert if it's already approved (rare for direct insert, but possible)
-      if (payload.new.status === 'approved') {
-        flashTicker(`🎮 New Game Added: ${payload.new.title}`);
-        loadFeaturedGame();
-        loadRecentActivity();
-      }
-    }
-  );
-
-  // 2. Listen for APPROVED Games (UPDATE status -> approved)
-  realtimeChannel.on('postgres_changes', 
-    { event: 'UPDATE', schema: 'public', table: 'games' }, 
-    (payload) => {
-      // Check if status changed to 'approved'
-      if (payload.old.status !== 'approved' && payload.new.status === 'approved') {
-        flashTicker(`🎮 New Game Added: ${payload.new.title}`);
-        loadFeaturedGame();
-        loadRecentActivity();
-      }
-    }
-  );
-
-  // 3. Listen for NEW Users (INSERT)
-  realtimeChannel.on('postgres_changes', 
-    { event: 'INSERT', schema: 'public', table: 'profiles' }, 
-    (payload) => {
-      flashTicker(`👤 New Member: ${payload.new.username}`);
-      loadOnlineUsers();
-      loadRecentActivity();
-    }
-  );
-
-  // 4. Listen for User Activity Updates (Heartbeat / Currently Playing)
-  realtimeChannel.on('postgres_changes', 
-    { event: 'UPDATE', schema: 'public', table: 'profiles' }, 
-    (payload) => {
-      // Refresh online list always on heartbeat
-      loadOnlineUsers();
-
-      // Check if 'currently_playing' changed to announce it
-      const oldPlaying = payload.old.currently_playing;
-      const newPlaying = payload.new.currently_playing;
+      console.log('🔴 GAME EVENT RECEIVED:', payload);
       
-      if (JSON.stringify(oldPlaying) !== JSON.stringify(newPlaying)) {
-        // Simple check: if newPlaying exists and is different, announce
-        // Note: This might trigger on heartbeat if currently_playing is touched, 
-        // but usually heartbeat only touches last_seen.
-        if (newPlaying && Array.isArray(newPlaying) && newPlaying.length > 0) {
-           // Try to find the most recently added game if possible, or just announce generally
-           // For simplicity, we just refresh the feed, or announce if we can detect a specific game
-           // To avoid spam, we only flash ticker if we detect a specific game change logic here
-           // But for now, refreshing the feed is the most reliable part.
-           loadRecentActivity(); 
+      // Only trigger if status is approved or became approved
+      if (payload.eventType === 'INSERT' || (payload.eventType === 'UPDATE' && payload.new.status === 'approved')) {
+        flashTicker(`🎮 New Game Added: ${payload.new.title}`);
+        loadFeaturedGame();
+        loadRecentActivity();
+      }
+    }
+  );
+
+  // --- PROFILES LISTENER (INSERT & UPDATE) ---
+  realtimeChannel.on('postgres_changes', 
+    { event: '*', schema: 'public', table: 'profiles' }, 
+    (payload) => {
+      console.log('🔵 PROFILE EVENT RECEIVED:', payload);
+
+      if (payload.eventType === 'INSERT') {
+        flashTicker(`👤 New Member: ${payload.new.username}`);
+        loadOnlineUsers();
+        loadRecentActivity();
+      } 
+      else if (payload.eventType === 'UPDATE') {
+        // Refresh online list on any update (heartbeat)
+        loadOnlineUsers();
+        
+        // Check if they started playing a NEW game
+        const oldGame = payload.old.currently_playing;
+        const newGame = payload.new.currently_playing;
+        
+        if (newGame && JSON.stringify(oldGame) !== JSON.stringify(newGame)) {
+           // Extract game title logic here if needed, or just announce activity
+           // For now, just refresh feed
+           loadRecentActivity();
         }
       }
     }
   );
 
-  // Subscribe ONLY after listeners are attached
+  // Subscribe
   realtimeChannel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
-      console.log('✅ Realtime feed subscribed successfully');
+      console.log('✅ REALTIME SUBSCRIBED SUCCESSFULLY');
     } else if (status === 'CHANNEL_ERROR') {
-      console.error('❌ Realtime feed subscription error');
+      console.error('❌ REALTIME CHANNEL ERROR');
+    } else if (status === 'TIMED_OUT') {
+      console.error('⚠️ REALTIME CONNECTION TIMED OUT');
     }
   });
 }
-
 function flashTicker(text) {
   const tickerEl = document.getElementById('ticker-content');
   if (!tickerEl) return;
