@@ -253,7 +253,7 @@ async function loadSiteSettings() {
     const settings = {};
     if (Array.isArray(data)) data.forEach(s => settings[s.key] = s.value);
 
-    const rawId = settings.clip_youtube_id || 'dQw4w9WgXcQ';
+    const rawId = settings.clip_youtube_id || 'ujuGjJ1W6jg';
     const cleanId = rawId.replace(/.*(?:youtu\.be\/|v\/|u\/\w+\/|embed\/|watch\?v=|&v=|\/shorts\/)([^#&?]{11}).*/, '$1').trim() || 'dQw4w9WgXcQ';
 
     const titleEl = document.getElementById('clip-title');
