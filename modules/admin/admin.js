@@ -1341,6 +1341,22 @@ function createGameEditForm(game) {
            class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-cyan-500 focus:outline-none" placeholder="Direct .mp4 link or YouTube embed">
     <p class="text-xs text-gray-500 mt-1">Leave empty for static background. Supports direct MP4 links.</p>
 </div>
+<!-- Admin Only: Background Image/GIF Upload -->
+<div class="mt-4 p-4 bg-gray-900/50 rounded border border-purple-500/30">
+    <label class="block text-purple-300 font-bold mb-2 text-sm">🎨 Background Image/GIF (Admin Only)</label>
+    <p class="text-xs text-gray-400 mb-2">Upload a GIF or static image. Overrides the video URL if present.</p>
+    
+    ${game.background_image_url ? `
+        <div class="mb-3">
+            <p class="text-xs text-gray-500 mb-1">Current Background:</p>
+            <img src="${game.background_image_url}" class="h-24 w-auto rounded border border-gray-600" alt="Current BG">
+            <a href="${game.background_image_url}" target="_blank" class="text-xs text-cyan-400 underline ml-2">Open Full Size</a>
+        </div>
+    ` : ''}
+
+    <input type="file" id="editBgImage" accept="image/gif, image/jpeg, image/png" 
+           class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700">
+</div>
        
         <div class="grid md:grid-cols-2 gap-4">
           <div>
@@ -1540,6 +1556,41 @@ async function saveGameEditForm(game) {
         }
       }
     }
+    // --- NEW: Handle Background Image Upload (Admin Only) ---
+const bgInput = document.getElementById('editBgImage');
+let bgImageUrl = game.background_image_url; // Keep existing if no new file
+
+if (bgInput && bgInput.files.length > 0) {
+    const bgFile = bgInput.files[0];
+    
+    // Validate file type
+    if (!bgFile.type.startsWith('image/')) {
+        alert('Background must be an image (GIF, JPG, PNG)');
+        throw new Error('Invalid background file type');
+    }
+
+    const fileExt = bgFile.name.split('.').pop();
+    const fileName = `games/${gameId}/bg-${Date.now()}.${fileExt}`;
+    
+    console.log('⬆️ Uploading background image...', bgFile.name);
+    
+    const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('game-images')
+        .upload(fileName, bgFile, { 
+            cacheControl: '3600', 
+            upsert: true 
+        });
+
+    if (uploadError) {
+        console.error('Background upload failed:', uploadError);
+        throw new Error('Failed to upload background: ' + uploadError.message);
+    }
+
+    const publicUrl = `https://lapyxhothazalssrbimb.supabase.co/storage/v1/object/public/game-images/${fileName}`;
+    bgImageUrl = publicUrl;
+    console.log('✅ Background uploaded:', publicUrl);
+}
     
     // Prepare updates
      const updates = {
@@ -1562,6 +1613,7 @@ async function saveGameEditForm(game) {
       features: document.getElementById('editFeatures').value.split(',').map(f => f.trim()).filter(f => f) || [],
       video_url: document.getElementById('editVideoUrl').value.trim() || null,
       background_video_url: document.getElementById('editBackgroundVideo').value.trim() || null,
+      background_image_url: bgImageUrl,
       updated_at: new Date().toISOString(),
       slug: generateSlug(document.getElementById('editTitle').value.trim())
     };
