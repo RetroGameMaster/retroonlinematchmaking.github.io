@@ -1,4 +1,4 @@
-// modules/game-detail/game-detail.js - FIXED SYNC & HYBRID DATA SUPPORT
+// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES
 let isInitialized = false;
 
 // ===== MAIN INIT FUNCTION =====
@@ -55,7 +55,7 @@ export default async function initGameDetail(rom, identifier) {
         loading.classList.add('hidden');
         content.classList.remove('hidden');
 
-        // Render Game Info + Screenshots + Playing Button
+        // Render Game Info + Screenshots + Playing Button + New Features
         renderGame(game, content, rom);
 
         // Load Achievements with Real Calculations
@@ -72,8 +72,34 @@ export default async function initGameDetail(rom, identifier) {
 function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
     
-    // We determine the button state asynchronously to ensure accuracy
-    // Render a loading state for the button first
+    // 1. Handle Animated Background
+    if (game.background_video_url) {
+        document.body.style.background = 'transparent';
+        document.body.style.overflow = 'hidden'; // Prevent scrollbars from video
+        
+        // Remove existing bg if any
+        const existingBg = document.getElementById('dynamic-game-bg');
+        if (existingBg) existingBg.remove();
+
+        const bgVideo = document.createElement('video');
+        bgVideo.id = 'dynamic-game-bg';
+        bgVideo.src = game.background_video_url;
+        bgVideo.autoplay = true;
+        bgVideo.loop = true;
+        bgVideo.muted = true;
+        bgVideo.playsInline = true;
+        bgVideo.style.position = 'fixed';
+        bgVideo.style.top = '0';
+        bgVideo.style.left = '0';
+        bgVideo.style.width = '100%';
+        bgVideo.style.height = '100%';
+        bgVideo.style.objectFit = 'cover';
+        bgVideo.style.zIndex = '-1';
+        bgVideo.style.opacity = '0.4'; // Dimmed so text is readable
+        document.body.insertBefore(bgVideo, document.body.firstChild);
+    }
+
+    // 2. Prepare Button HTML
     const buttonContainerHTML = `
         <div class="mb-8 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
             ${!currentUser ? `
@@ -92,50 +118,169 @@ function renderGame(game, container, rom) {
         </div>
     `;
 
+    // 3. Prepare Metadata Panel (New)
+    const hasMetadata = game.developer || game.publisher || game.genre || game.release_date || (game.features && game.features.length > 0);
+    const metadataHTML = hasMetadata ? `
+        <div class="bg-gray-800/80 backdrop-blur-md rounded-xl border border-cyan-500/30 p-6 mb-8 shadow-lg">
+            <h3 class="text-xl font-bold text-cyan-400 mb-4 border-b border-gray-700 pb-2">📋 Game Information</h3>
+            <div class="grid grid-cols-1 gap-4 text-sm">
+                ${game.developer ? `
+                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
+                        <span class="text-gray-400">Developer</span>
+                        <span class="text-white font-medium">${escapeHtml(game.developer)}</span>
+                    </div>
+                ` : ''}
+                ${game.publisher ? `
+                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
+                        <span class="text-gray-400">Publisher</span>
+                        <span class="text-white font-medium">${escapeHtml(game.publisher)}</span>
+                    </div>
+                ` : ''}
+                ${game.genre ? `
+                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
+                        <span class="text-gray-400">Genre</span>
+                        <span class="text-white font-medium">${escapeHtml(game.genre)}</span>
+                    </div>
+                ` : ''}
+                ${game.release_date ? `
+                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
+                        <span class="text-gray-400">Released</span>
+                        <span class="text-white font-medium">${new Date(game.release_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                    </div>
+                ` : ''}
+                ${game.features && game.features.length > 0 ? `
+                    <div class="pt-2">
+                        <span class="text-gray-400 block mb-2">Features</span>
+                        <div class="flex flex-wrap gap-2">
+                            ${game.features.map(f => `<span class="bg-cyan-900/40 text-cyan-300 px-2 py-1 rounded text-xs border border-cyan-800">${escapeHtml(f)}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    ` : '';
+
+    // 4. Prepare Video Section (New)
+    const videoHTML = game.video_url ? `
+        <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-lg relative" style="aspect-ratio: 16/9;">
+            <iframe 
+                src="${game.video_url}" 
+                title="Game Trailer" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen
+                class="w-full h-full absolute top-0 left-0">
+            </iframe>
+        </div>
+    ` : '';
+
+    // 5. Prepare Connection Details (New)
+    // Try to parse JSON details first, fallback to old text fields
+    let connectionDetails = [];
+    if (game.connection_details) {
+        try {
+            const parsed = typeof game.connection_details === 'string' ? JSON.parse(game.connection_details) : game.connection_details;
+            if (Array.isArray(parsed)) connectionDetails = parsed;
+        } catch (e) { /* ignore */ }
+    }
+    
+    // If no structured details, create one from old fields
+    if (connectionDetails.length === 0 && (game.connection_method || game.server_details)) {
+        connectionDetails.push({
+            name: game.connection_method || 'General Connection',
+            instructions: game.server_details || 'See description for details.',
+            type: 'other'
+        });
+    }
+
+    const connectionHTML = connectionDetails.length > 0 ? `
+        <div class="bg-gray-800/80 backdrop-blur-md rounded-xl border border-purple-500/30 p-6 mb-8 shadow-lg">
+            <h3 class="text-xl font-bold text-purple-400 mb-4 border-b border-gray-700 pb-2">🔌 How to Connect</h3>
+            <div class="space-y-6">
+                ${connectionDetails.map((method, idx) => `
+                    <div class="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-purple-900/50 text-purple-400 font-bold border border-purple-700">${idx + 1}</span>
+                            <h4 class="text-lg font-bold text-white">${escapeHtml(method.name)}</h4>
+                            ${method.type ? `<span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded uppercase">${method.type}</span>` : ''}
+                        </div>
+                        ${method.instructions ? `<p class="text-gray-300 text-sm whitespace-pre-line ml-11">${escapeHtml(method.instructions)}</p>` : ''}
+                        ${method.serverAddress ? `
+                            <div class="mt-3 ml-11 flex items-center gap-2 bg-black/40 p-2 rounded border border-gray-700">
+                                <span class="text-xs text-gray-500 uppercase font-bold">Server/DNS:</span>
+                                <code class="text-cyan-400 font-mono text-sm select-all">${method.serverAddress}</code>
+                                <button onclick="navigator.clipboard.writeText('${method.serverAddress}'); alert('Copied!')" class="ml-auto text-gray-500 hover:text-white" title="Copy">
+                                    📋
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
+
+    // 6. Main Layout Construction
     container.innerHTML = `
-        <div class="max-w-7xl mx-auto p-4">
-            <a href="#/games" class="text-cyan-400 hover:underline mb-4 inline-block">← Back to Games</a>
+        <div class="max-w-7xl mx-auto p-4 relative z-10">
+            <a href="#/games" class="text-cyan-400 hover:underline mb-4 inline-block flex items-center gap-2">
+                <span>←</span> Back to Games
+            </a>
             
-            <div class="flex flex-col md:flex-row gap-8">
-                <!-- Left: Cover + Info -->
-                <div class="md:w-1/3">
-                    ${game.cover_image_url 
-                        ? `<img src="${game.cover_image_url}" class="w-full rounded-lg shadow-lg" alt="${escapeHtml(game.title)}">` 
-                        : '<div class="w-full h-64 bg-gray-700 rounded-lg flex items-center justify-center text-4xl">🎮</div>'}
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Left Column: Cover + Metadata + Connection -->
+                <div class="lg:w-1/3 space-y-6">
+                    <!-- Cover Image -->
+                    <div class="sticky top-4">
+                        ${game.cover_image_url 
+                            ? `<img src="${game.cover_image_url}" class="w-full rounded-lg shadow-2xl border-2 border-gray-700" alt="${escapeHtml(game.title)}">` 
+                            : '<div class="w-full h-64 bg-gray-700 rounded-lg flex items-center justify-center text-4xl border-2 border-gray-600">🎮</div>'}
+                        
+                        <!-- Playing Button (Moved to sidebar for better layout) -->
+                        ${buttonContainerHTML}
+                    </div>
+
+                    <!-- Metadata Side Panel -->
+                    ${metadataHTML}
                 </div>
                 
-                <!-- Right: Details -->
-                <div class="md:w-2/3">
-                    <h1 class="text-3xl font-bold text-white mb-2">${escapeHtml(game.title)}</h1>
+                <!-- Right Column: Title, Desc, Video, Connections, Screenshots, Achievements -->
+                <div class="lg:w-2/3">
+                    <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">${escapeHtml(game.title)}</h1>
                     
-                    <div class="flex gap-2 mb-4">
-                        <span class="bg-gray-700 text-cyan-300 px-3 py-1 rounded text-sm">${escapeHtml(game.console)}</span>
-                        ${game.year ? `<span class="bg-gray-700 text-gray-300 px-3 py-1 rounded text-sm">${game.year}</span>` : ''}
+                    <div class="flex gap-2 mb-6 flex-wrap">
+                        <span class="bg-cyan-900/40 text-cyan-300 border border-cyan-700 px-3 py-1 rounded text-sm font-bold shadow-sm">${escapeHtml(game.console)}</span>
+                        ${game.year ? `<span class="bg-gray-800 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm shadow-sm">${game.year}</span>` : ''}
                     </div>
                     
-                    <p class="text-gray-300 mb-6 whitespace-pre-line">${escapeHtml(game.description || 'No description available.')}</p>
+                    <div class="prose prose-invert max-w-none mb-8">
+                        <p class="text-gray-300 text-lg leading-relaxed whitespace-pre-line">${escapeHtml(game.description || 'No description available.')}</p>
+                    </div>
 
-                    <!-- 🎮 I'M PLAYING THIS BUTTON (Dynamic) -->
-                    ${buttonContainerHTML}
+                    <!-- Video Showcase -->
+                    ${videoHTML}
+
+                    <!-- Connection Details -->
+                    ${connectionHTML}
                     
-                    <!-- 🖼️ SCREENSHOTS SECTION -->
+                    <!-- Screenshots Section -->
                     ${game.screenshot_urls && game.screenshot_urls.length > 0 ? `
                         <div class="mb-8">
-                            <h2 class="text-xl font-bold text-white mb-3">🖼️ Screenshots</h2>
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">🖼️ Screenshots</h2>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 ${game.screenshot_urls.map(url => `
                                     <img src="${url}" 
                                          alt="Screenshot" 
-                                         class="w-full h-40 object-cover rounded-lg border border-gray-700 hover:border-cyan-500 transition cursor-pointer"
-                                         onclick="this.classList.toggle('h-96')">
+                                         class="w-full h-40 object-cover rounded-lg border border-gray-700 hover:border-cyan-500 hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg"
+                                         onclick="this.classList.toggle('h-96'); this.classList.toggle('col-span-2'); this.classList.toggle('md:col-span-3');">
                                 `).join('')}
                             </div>
                         </div>
                     ` : ''}
 
-                    <!-- 🏆 ACHIEVEMENTS SECTION -->
+                    <!-- Achievements Section -->
                     <div id="achievements-container" class="mb-8">
-                        <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements</h2>
+                        <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">🏆 Achievements</h2>
                         <div class="text-center py-8 text-gray-400">
                             <div class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-cyan-500"></div>
                             <p class="mt-2">Loading achievements...</p>
@@ -146,19 +291,18 @@ function renderGame(game, container, rom) {
         </div>
     `;
 
-    // Now fetch fresh data to set the correct button state
+    // Initialize Button Logic
     if (currentUser) {
         checkAndRenderPlayingState(game, currentUser.id, rom);
     }
 }
 
-// New Helper: Fetches fresh data to determine button state
+// ===== CHECK PLAYING STATE (Preserved Original Logic) =====
 async function checkAndRenderPlayingState(game, userId, rom) {
     const container = document.getElementById('playing-action-container');
     if (!container) return;
 
     try {
-        // 1. Fetch FRESH profile data
         const { data: profile, error } = await rom.supabase
             .from('profiles')
             .select('currently_playing')
@@ -167,7 +311,6 @@ async function checkAndRenderPlayingState(game, userId, rom) {
 
         if (error) throw error;
 
-        // 2. Parse the list (Handling both Old Strings and New Objects)
         let currentGames = [];
         if (profile?.currently_playing) {
             try {
@@ -180,14 +323,12 @@ async function checkAndRenderPlayingState(game, userId, rom) {
             } catch (e) { currentGames = []; }
         }
 
-        // 3. Check if game exists (Flexible check)
         const isPlaying = currentGames.some(g => {
             if (typeof g === 'string') return g.toLowerCase() === game.title.toLowerCase();
             if (typeof g === 'object') return (g.id === game.id) || (g.title && g.title.toLowerCase() === game.title.toLowerCase());
             return false;
         });
 
-        // 4. Render the correct button
         renderPlayingButton(container, game, userId, rom, isPlaying);
 
     } catch (err) {
@@ -196,30 +337,30 @@ async function checkAndRenderPlayingState(game, userId, rom) {
     }
 }
 
-// Helper: Renders the button based on state
+// ===== RENDER BUTTON (Preserved Original Logic) =====
 function renderPlayingButton(container, game, userId, rom, isPlaying) {
     if (isPlaying) {
         container.innerHTML = `
-            <button id="btn-toggle-playing" class="w-full md:w-auto bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 px-4 py-2 rounded transition-colors text-sm flex items-center justify-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <button id="btn-toggle-playing" class="w-full bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 px-4 py-3 rounded-lg transition-colors text-sm font-bold flex items-center justify-center gap-2 shadow-lg">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 Remove from My List
             </button>
-            <p class="text-green-400 text-xs mt-2">✓ Added to your profile</p>
+            <p class="text-green-400 text-xs mt-2 text-center font-medium">✓ Added to your profile</p>
         `;
         document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(game, userId, rom, true));
     } else {
         container.innerHTML = `
-            <button id="btn-toggle-playing" class="w-full md:w-auto bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded transition-colors text-sm flex items-center justify-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            <button id="btn-toggle-playing" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg transition-colors text-sm font-bold flex items-center justify-center gap-2 shadow-lg">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                 Add to My List
             </button>
-            <p class="text-gray-500 text-xs mt-2">Show this game on your profile</p>
+            <p class="text-gray-500 text-xs mt-2 text-center font-medium">Show this game on your profile</p>
         `;
         document.getElementById('btn-toggle-playing').addEventListener('click', () => handleTogglePlaying(game, userId, rom, false));
     }
 }
 
-// ===== HANDLE TOGGLE PLAYING LOGIC (Fixed to save Objects) =====
+// ===== HANDLE TOGGLE PLAYING (Preserved Original Logic) =====
 async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
     const btn = document.getElementById('btn-toggle-playing');
     const container = document.getElementById('playing-action-container');
@@ -231,7 +372,6 @@ async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
     btn.innerHTML = `<span class="animate-spin mr-2">⟳</span> Updating...`;
 
     try {
-        // 1. Fetch Fresh Data
         const { data: profile } = await rom.supabase
             .from('profiles')
             .select('currently_playing')
@@ -246,7 +386,6 @@ async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
             } catch (e) { currentGames = []; }
         }
 
-        // 2. Normalize List: Remove existing instance of this game (string or object)
         const cleanList = currentGames.filter(g => {
             if (typeof g === 'string') return g.toLowerCase() !== game.title.toLowerCase();
             if (typeof g === 'object') return g.id !== game.id;
@@ -255,10 +394,8 @@ async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
 
         let newGamesList;
         if (isCurrentlyPlaying) {
-            // Remove: We already filtered it out above
             newGamesList = cleanList;
         } else {
-            // Add: Push the full Game Object
             const gameObj = {
                 id: game.id,
                 title: game.title,
@@ -268,7 +405,6 @@ async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
             newGamesList = [...cleanList, gameObj];
         }
 
-        // 3. Update Database
         const { error } = await rom.supabase
             .from('profiles')
             .update({ currently_playing: newGamesList })
@@ -276,15 +412,12 @@ async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
 
         if (error) throw error;
 
-        // 4. Update Local State (rom.currentUser) so profile works immediately without refresh
         if (rom.currentUser) {
             rom.currentUser.user_metadata = rom.currentUser.user_metadata || {};
             rom.currentUser.user_metadata.currently_playing = newGamesList;
-            // Also attach directly to user object for easy access
             rom.currentUser.currently_playing = newGamesList;
         }
 
-        // 5. Re-render Button
         renderPlayingButton(container, game, userId, rom, !isCurrentlyPlaying);
 
     } catch (err) {
@@ -297,7 +430,7 @@ async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
     }
 }
 
-// ===== LOAD ACHIEVEMENTS =====
+// ===== LOAD ACHIEVEMENTS (Preserved Original Logic) =====
 async function loadAchievements(rom, gameId) {
     const container = document.getElementById('achievements-container');
     if (!container) return;
@@ -331,29 +464,26 @@ async function loadAchievements(rom, gameId) {
         }
 
         container.innerHTML = `
-            <h2 class="text-xl font-bold text-white mb-3">🏆 Achievements (${achievements.length})</h2>
-            <p class="text-gray-400 text-sm mb-4">${totalPlayers > 0 ? totalPlayers + ' players have unlocked achievements' : 'Be the first to unlock!'}</p>
-            
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 ${achievements.map(a => {
                     const count = unlockCounts[a.id] || 0;
                     const rate = totalPlayers > 0 ? Math.round((count / totalPlayers) * 100) : 0;
                     
                     return `
-                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition">
+                    <div class="bg-gray-800/80 backdrop-blur rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-lg">
                         <div class="flex gap-3">
                             <div class="flex-shrink-0">
                                 <img src="${a.badge_url || 'https://via.placeholder.com/48/1f2937/6b7280?text=🏆'}" 
-                                     alt="${escapeHtml(a.title)}" class="w-12 h-12 rounded object-cover">
+                                     alt="${escapeHtml(a.title)}" class="w-12 h-12 rounded object-cover border border-gray-600">
                             </div>
                             <div class="flex-1">
                                 <div class="flex justify-between items-start">
                                     <h3 class="text-sm font-bold text-white leading-tight">${escapeHtml(a.title)}</h3>
-                                    <span class="text-yellow-400 text-xs font-bold bg-yellow-900/30 px-1.5 py-0.5 rounded ml-2">${a.points} pts</span>
+                                    <span class="text-yellow-400 text-xs font-bold bg-yellow-900/30 px-1.5 py-0.5 rounded ml-2 border border-yellow-700/50">${a.points} pts</span>
                                 </div>
                                 <p class="text-gray-400 text-xs mt-1 mb-2 line-clamp-2">${escapeHtml(a.description || '')}</p>
                                 <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1 relative overflow-hidden">
-                                    <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500" 
+                                    <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" 
                                          style="width: ${rate}%"></div>
                                 </div>
                                 <div class="flex justify-between items-center mt-1">
