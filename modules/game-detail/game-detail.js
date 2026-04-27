@@ -127,7 +127,26 @@ function renderGame(game, container, rom) {
             document.body.insertBefore(overlay, document.body.firstChild);
         }
     }
+// Check for Guides
+let guideButtonHTML = '';
+try {
+    const { data: guides } = await rom.supabase
+        .from('guides')
+        .select('id, title, slug')
+        .eq('game_id', game.id)
+        .eq('is_approved', true)
+        .limit(1); // Just check if at least one exists
 
+    if (guides && guides.length > 0) {
+        guideButtonHTML = `
+            <a href="#/guide/${guides[0].slug || guides[0].id}" class="block w-full text-center py-3 mt-4 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 text-purple-200 font-bold rounded-lg transition">
+                📖 Read Setup Guide & Wiki
+            </a>
+        `;
+    }
+} catch (e) {
+    console.error('Error checking for guides', e);
+}
     // 3. Prepare Rating Section HTML
     const ratingHTML = `
         <div class="mb-8 p-6 bg-gray-800/90 backdrop-blur-md rounded-xl border border-yellow-500/30 shadow-xl">
