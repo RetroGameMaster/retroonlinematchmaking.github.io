@@ -1,4 +1,4 @@
-// modules/games/games.js - FIXED DOUBLE INITIALIZATION & SORT ORDER
+// modules/games/games.js - FIXED CONSOLE FILTER & DOUBLE INITIALIZATION
 let isInitialized = false;
 
 async function initGamesModule(rom) {
@@ -37,6 +37,15 @@ async function initGamesModule(rom) {
         const clearFiltersBtn = document.getElementById('clearFilters');
         const resetViewBtn = document.getElementById('resetViewBtn');
         
+        // --- FIX: Add Console Dropdown Listener ---
+        const consoleFilter = document.getElementById('console-filter');
+        if (consoleFilter) {
+            consoleFilter.addEventListener('change', () => {
+                applyFilters(); // Auto-apply when selection changes
+            });
+        }
+        // ----------------------------------------
+        
         console.log('Initializing filters...');
         console.log('filterBtn:', !!filterBtn);
         console.log('filterPanel:', !!filterPanel);
@@ -72,7 +81,7 @@ async function initGamesModule(rom) {
     
     // Initialize search
     function initSearch() {
-        const searchInput = document.getElementById('game-search'); // Fixed ID to match HTML
+        const searchInput = document.getElementById('game-search');
         const searchBtn = document.getElementById('searchBtn');
         
         console.log('Initializing search...');
@@ -116,8 +125,8 @@ async function initGamesModule(rom) {
             const { data: games, error } = await rom.supabase
                 .from('games')
                 .select('*')
-                .eq('status', 'approved') // Only show approved games
-                .order('approved_at', { ascending: false }); // Fixed: Use approved_at
+                .eq('status', 'approved')
+                .order('approved_at', { ascending: false });
             
             if (error) {
                 throw error;
@@ -237,7 +246,7 @@ async function initGamesModule(rom) {
     
     // Display games in grid
     function displayGames(games) {
-        const gamesList = document.getElementById('games-list'); // Fixed ID to match HTML
+        const gamesList = document.getElementById('games-list');
         const emptyState = document.getElementById('emptyState');
         
         console.log('🖥️ Displaying games...');
