@@ -4,6 +4,58 @@ import { supabase } from '../../lib/supabase.js';
 export default async function initSchedulerModule(rom) {
     console.log('📅 Initializing LFG Scheduler...');
     
+    // SEO: Optimize the Feature Page 
+    
+    function updateSEOMeta() {
+        // 1. Dynamic Title Tag
+        document.title = "LFG Scheduler - Find Retro Gaming Partners | ROM";
+
+        // 2. Meta Description (Targets keywords like 'find players', 'retro multiplayer')
+        let metaDesc = document.querySelector('meta[name="description"]');
+        if (!metaDesc) {
+            metaDesc = document.createElement('meta');
+            metaDesc.name = "description";
+            document.head.appendChild(metaDesc);
+        }
+        metaDesc.content = "Join the ultimate retro gaming community. Schedule sessions, find players for PS2, GameCube, Xbox, and more. Organize tournaments and climb the leaderboards on ROM.";
+
+        // 3. Canonical URL (Prevents duplicate content issues with hash routing)
+        let canonical = document.querySelector('link[rel="canonical"]');
+        if (!canonical) {
+            canonical = document.createElement('link');
+            canonical.rel = "canonical";
+            document.head.appendChild(canonical);
+        }
+        // Sets canonical to the clean URL without hashes if possible, or current hash
+        canonical.href = window.location.href.split('#')[0] + '#/lfg-scheduler';
+
+        // 4. Structured Data (Schema.org) - Tells Google this is a Community/Service
+        const schemaScript = document.getElementById('lfg-schema');
+        if (schemaScript) schemaScript.remove();
+
+        const schema = {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "ROM LFG Scheduler",
+            "applicationCategory": "GameApplication",
+            "description": "A real-time scheduling tool for retro gamers to organize multiplayer sessions.",
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+            },
+            "featureList": "Session Scheduling, Player Matching, Tournament Hosting, Console Filtering"
+        };
+
+        const script = document.createElement('script');
+        script.id = 'lfg-schema';
+        script.type = 'application/ld+json';
+        script.text = JSON.stringify(schema);
+        document.head.appendChild(script);
+    }
+
+    // Run SEO Update
+    updateSEOMeta();
     const grid = document.getElementById('lobby-grid');
     const countEl = document.getElementById('lobby-count');
     const createBtn = document.getElementById('btn-create-event');
