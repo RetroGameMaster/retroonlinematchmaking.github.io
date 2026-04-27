@@ -268,7 +268,7 @@ function renderHomeLayout() {
       <div class="mt-12 pt-8 border-t border-gray-800 text-gray-500 text-sm leading-relaxed">
         <h2 class="text-gray-400 font-bold mb-2 text-lg">About Retro Online Matchmaking</h2>
         <p class="mb-4">
-          ROM is the premier destination for playing classic retro games online. Whether you're looking to play <strong>SOCOM II</strong> on PS2, <strong>Twisted Metal: Black</strong> on Xbox, or <strong>Warhawk</strong> on PSP, our community provides the servers, lobbies, and guides to get you connected. 
+          ROM is the premier destination for playing classic retro games online. Whether you're looking to play <strong>SOCOM II</strong> on PS2, <strong>Twisted Metal: Black</strong> on PS2, or <strong>Tekken 5 Dark Ressurection</strong> on PSP, our community provides the servers, lobbies, and guides to get you connected. 
           We support a wide range of consoles including PlayStation, Xbox, Nintendo, and PC classics. Join thousands of players who are keeping the retro multiplayer dream alive.
         </p>
       </div>
