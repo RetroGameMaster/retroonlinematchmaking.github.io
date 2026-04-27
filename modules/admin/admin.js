@@ -1677,6 +1677,7 @@ if (bgInput && bgInput.files.length > 0) {
       video_url: document.getElementById('editVideoUrl').value.trim() || null,
       background_video_url: document.getElementById('editBackgroundVideo').value.trim() || null,
       background_image_url: bgImageUrl,
+      status: 'approved',
       updated_at: new Date().toISOString(),
       slug: generateSlug(document.getElementById('editTitle').value.trim())
     };
