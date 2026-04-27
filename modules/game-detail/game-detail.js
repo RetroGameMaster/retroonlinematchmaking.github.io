@@ -1,5 +1,5 @@
 // modules/game-detail/game-detail.js 
-
+let isInitialized = false;
 // ===== HELPER: Convert YouTube URLs to Embed Format (Robust) =====
 function getEmbedUrl(url) {
     if (!url) return '';
