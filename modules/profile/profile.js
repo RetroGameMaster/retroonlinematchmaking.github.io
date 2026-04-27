@@ -19,7 +19,46 @@ export async function initModule(container, params) {
       <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
       <p class="text-cyan-400 mt-4 text-xl">Loading Profile...</p>
     </div>
-  `;
+  `;const updatePageSEO = (profile) => {
+    document.title = `${profile.username}'s Profile | RetroOnlineMatchmaking`;
+    
+    // Update/Open Graph Meta Tags
+    const setMeta = (name, content, property = false) => {
+      let tag = document.querySelector(`meta[${property ? 'property' : 'name'}="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(property ? 'property' : 'name', name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    setMeta('description', `Check out ${profile.username}'s retro gaming profile, achievements, and currently playing games on ROM.`);
+    setMeta('og:title', `${profile.username}'s Profile`);
+    setMeta('og:description', `Retro gamer since ${new Date(profile.created_at).getFullYear()}. Playing: ${profile.favorite_console || 'Various'}.`);
+    setMeta('og:image', profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username);
+    setMeta('og:url', window.location.href);
+    setMeta('og:type', 'profile');
+    
+    // JSON-LD Structured Data
+    const scriptId = 'profile-schema';
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": profile.username,
+      "url": window.location.href,
+      "image": profile.avatar_url,
+      "description": profile.bio || `Profile of ${profile.username} on RetroOnlineMatchmaking`,
+      "knowsAbout": ["Retro Gaming", profile.favorite_console].filter(Boolean)
+    });
+  };
 
   try {
     // 1. Identify User (by Slug or ID)
@@ -54,7 +93,15 @@ export async function initModule(container, params) {
     
     // FIX 1: DYNAMIC ADMIN CHECK
     const isTargetUserAdmin = !!targetUser.is_admin;
-
+    // --- NEW: Trigger SEO and Data Loaders ---
+    updatePageSEO(targetUser); // Apply SEO tags
+    
+    // Load new sections (Ensure these functions exist in your file)
+    if (typeof loadCurrentlyPlayingList === 'function') loadCurrentlyPlayingList(targetUser);
+    if (typeof loadSiteAwardsWall === 'function') loadSiteAwardsWall(targetUser.id);
+    if (typeof loadProudAchievementsWall === 'function') loadProudAchievementsWall(targetUser.id, isOwnProfile);
+    if (typeof loadGameAchievementsWall === 'function') loadGameAchievementsWall(targetUser.id, isOwnProfile);
+    if (typeof loadMasteredGamesWall === 'function') loadMasteredGamesWall(targetUser.id);
     // 3. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
