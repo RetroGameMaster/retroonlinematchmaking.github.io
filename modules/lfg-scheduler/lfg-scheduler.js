@@ -13,23 +13,21 @@ export default async function initSchedulerModule(rom) {
     const form = document.getElementById('create-form');
     const consoleFilter = document.getElementById('filter-console');
     const statusFilter = document.getElementById('filter-status');
+    const eventConsoleSelect = document.getElementById('event-console');
     
     // Edit Mode State
     let currentEditId = null;
 
-    if (!grid) {
-        console.error('❌ CRITICAL: #lobby-grid not found in DOM!');
-        return;
-    }
+    if (!grid) return;
 
     // Get Current User
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError) console.warn('Auth error:', authError);
-    
+    const { data: { user } } = await supabase.auth.getUser();
     const currentUser = user;
-    console.log('👤 Current User:', currentUser ? currentUser.email : 'Guest');
 
-    // Load initial data
+    // 1. Load Consoles Dynamically
+    await loadConsoles();
+
+    // 2. Load initial data
     await loadLobbies();
 
     // Event Listeners
@@ -57,6 +55,39 @@ export default async function initSchedulerModule(rom) {
 
     // --- Core Functions ---
 
+    async function loadConsoles() {
+        // Fetch distinct consoles from games table
+        const { data, error } = await supabase
+            .from('games')
+            .select('console')
+            .eq('status', 'approved')
+            .not('console', 'is', null);
+
+        if (error) {
+            console.error('Error loading consoles:', error);
+            return;
+        }
+
+        // Extract unique values
+        const uniqueConsoles = [...new Set(data.map(item => item.console))].sort();
+
+        // Clear existing options (keep first "Loading..." or "All" placeholder)
+        const filterOptions = '<option value="">All Consoles</option>';
+        const formOptions = '<option value="" disabled selected>Select Console</option>';
+
+        let filterHtml = filterOptions;
+        let formHtml = formOptions;
+
+        uniqueConsoles.forEach(consoleName => {
+            const option = `<option value="${consoleName}">${consoleName}</option>`;
+            filterHtml += option;
+            formHtml += option;
+        });
+
+        if (consoleFilter) consoleFilter.innerHTML = filterHtml;
+        if (eventConsoleSelect) eventConsoleSelect.innerHTML = formHtml;
+    }
+
     async function loadLobbies() {
         if (!grid) return;
         grid.innerHTML = `<div class="col-span-full text-center py-12"><div class="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500"></div></div>`;
@@ -79,17 +110,15 @@ export default async function initSchedulerModule(rom) {
         const { data, error } = await query;
 
         if (error) {
-            console.error('❌ Error loading lobbies:', error);
-            grid.innerHTML = `<div class="text-red-400 text-center">Failed to load lobbies: ${error.message}</div>`;
+            console.error('Error loading lobbies:', error);
+            grid.innerHTML = `<div class="text-red-400 text-center">Failed to load lobbies.</div>`;
             return;
         }
-
-        console.log(`✅ Loaded ${data?.length || 0} events`);
 
         if (countEl) countEl.textContent = data?.length || 0;
 
         if (!data || data.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-12">No scheduled sessions found. Be the first to host!</div>`;
+            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-12">No scheduled sessions found.</div>`;
             return;
         }
 
@@ -175,8 +204,8 @@ export default async function initSchedulerModule(rom) {
     function resetForm() {
         currentEditId = null;
         form.reset();
-        document.querySelector('#create-modal h2').textContent = '📡 Host New Session';
-        document.querySelector('#create-form button[type="submit"]').textContent = 'Launch Signal';
+        document.querySelector('#create-modal h2').textContent = '📅 Schedule New Session';
+        document.querySelector('#create-form button[type="submit"]').textContent = 'Create Event';
         
         // Set default time
         const now = new Date();
@@ -194,6 +223,7 @@ export default async function initSchedulerModule(rom) {
         const time = document.getElementById('event-time').value;
         const desc = document.getElementById('event-desc').value;
 
+        if (!consoleVal) return alert('Please select a console.');
         if (!time) return alert('Please select a start time.');
 
         const btn = form.querySelector('button[type="submit"]');
@@ -218,7 +248,6 @@ export default async function initSchedulerModule(rom) {
             loadLobbies();
             alert('Session broadcasted successfully!');
         } catch (err) {
-            console.error('Create error:', err);
             alert('Error: ' + err.message);
         } finally {
             btn.textContent = originalText;
@@ -247,7 +276,7 @@ export default async function initSchedulerModule(rom) {
                 start_time: new Date(time).toISOString(),
                 description: desc,
                 updated_at: new Date().toISOString()
-            }).eq('id', currentEditId).eq('host_id', currentUser.id);
+            }).eq('id', currentEditId).eq('host_id', currentUser.id); // Security check
 
             if (error) throw error;
 
@@ -255,10 +284,9 @@ export default async function initSchedulerModule(rom) {
             loadLobbies();
             alert('Session updated!');
         } catch (err) {
-            console.error('Update error:', err);
             alert('Error: ' + err.message);
         } finally {
-            btn.textContent = 'Launch Signal';
+            btn.textContent = 'Create Event';
             btn.disabled = false;
         }
     }
@@ -267,6 +295,7 @@ export default async function initSchedulerModule(rom) {
     window.editLobby = async (eventId) => {
         if (!currentUser) return alert('Log in first.');
         
+        // Fetch event details
         const { data: event, error } = await supabase
             .from('lfg_events')
             .select('*')
@@ -276,17 +305,20 @@ export default async function initSchedulerModule(rom) {
         if (error || !event) return alert('Event not found.');
         if (event.host_id !== currentUser.id) return alert('You can only edit your own events.');
 
+        // Populate Form
         currentEditId = eventId;
         document.getElementById('event-title').value = event.title;
         document.getElementById('event-console').value = event.console;
         document.getElementById('event-max').value = event.max_players;
         
+        // Format datetime for input
         const dateObj = new Date(event.start_time);
         dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
         document.getElementById('event-time').value = dateObj.toISOString().slice(0, 16);
         
         document.getElementById('event-desc').value = event.description || '';
 
+        // Update Modal UI
         document.querySelector('#create-modal h2').textContent = '✏️ Edit Session';
         document.querySelector('#create-form button[type="submit"]').textContent = 'Save Changes';
         
@@ -302,7 +334,7 @@ export default async function initSchedulerModule(rom) {
                 .from('lfg_events')
                 .delete()
                 .eq('id', eventId)
-                .eq('host_id', currentUser.id);
+                .eq('host_id', currentUser.id); // Security check
 
             if (error) throw error;
             loadLobbies();
