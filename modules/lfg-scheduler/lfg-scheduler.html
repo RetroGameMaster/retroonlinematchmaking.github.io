@@ -1,0 +1,94 @@
+<div class="max-w-6xl mx-auto p-4 animate-fade-in">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-4xl font-bold text-cyan-400 glow mb-2">📅 LFG Scheduler</h1>
+            <p class="text-gray-400">Plan ahead! Schedule gaming sessions and recruit players.</p>
+        </div>
+        <button id="btn-create-event" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-[0_0_15px_rgba(6,182,212,0.4)] transition transform hover:-translate-y-1">
+            + Schedule Session
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-4 mb-6 flex flex-wrap gap-4 items-center">
+        <select id="filter-console" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 focus:border-cyan-500 outline-none">
+            <option value="">All Consoles</option>
+            <option value="PS2">PS2</option>
+            <option value="GameCube">GameCube</option>
+            <option value="Xbox">Original Xbox</option>
+            <option value="Dreamcast">Dreamcast</option>
+            <option value="PC">PC</option>
+            <option value="Other">Other</option>
+        </select>
+        
+        <select id="filter-status" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 focus:border-cyan-500 outline-none">
+            <option value="open">Open Signups</option>
+            <option value="">All Statuses</option>
+            <option value="full">Full</option>
+            <option value="completed">Completed</option>
+        </select>
+
+        <div class="ml-auto text-sm text-gray-400">
+            Showing <span id="lobby-count" class="text-cyan-400 font-bold">0</span> scheduled sessions
+        </div>
+    </div>
+
+    <!-- Events Grid -->
+    <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Loading State -->
+        <div class="col-span-full text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500"></div>
+            <p class="text-gray-400 mt-4">Loading schedule...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Create Event Modal -->
+<div id="create-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-cyan-500 rounded-xl max-w-lg w-full p-6 shadow-[0_0_30px_rgba(6,182,212,0.3)] relative">
+        <button id="close-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
+        
+        <h2 class="text-2xl font-bold text-cyan-400 mb-6">📅 Schedule New Session</h2>
+        
+        <form id="create-form" class="space-y-4">
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Session Title</label>
+                <input type="text" id="event-title" required placeholder="e.g., SOCOM II Ranked Matches" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Console</label>
+                    <select id="event-console" required class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none">
+                        <option value="PS2">PS2</option>
+                        <option value="GameCube">GameCube</option>
+                        <option value="Xbox">Xbox</option>
+                        <option value="Dreamcast">Dreamcast</option>
+                        <option value="PC">PC</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Max Players</label>
+                    <input type="number" id="event-max" min="2" max="64" value="4" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Start Time</label>
+                <input type="datetime-local" id="event-time" required class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Description / Rules</label>
+                <textarea id="event-desc" rows="3" placeholder="Mic required? Rank restrictions?" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none"></textarea>
+            </div>
+
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" id="cancel-create" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded font-bold">Create Event</button>
+            </div>
+        </form>
+    </div>
+</div>
