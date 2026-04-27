@@ -1,5 +1,5 @@
-// modules/game-detail/game-detail.js 
-let isInitialized = false;
+// modules/game-detail/game-detail.js - FIXED (Removed isInitialized)
+
 // ===== HELPER: Convert YouTube URLs to Embed Format (Robust) =====
 function getEmbedUrl(url) {
     if (!url) return '';
@@ -14,7 +14,7 @@ function getEmbedUrl(url) {
 
     let videoId = '';
 
-    // 1. Handle youtu.be short links (e.g., https://youtu.be/VIDEO_ID )
+    // 1. Handle youtu.be short links (e.g., https://youtu.be/VIDEO_ID  )
     const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
     if (shortMatch) {
         videoId = shortMatch[1];
@@ -37,9 +37,9 @@ function getEmbedUrl(url) {
 
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
-    if (isInitialized) return;
-    isInitialized = true;
-
+    // REMOVED: if (isInitialized) return;
+    // REMOVED: isInitialized = true;
+    
     console.log('🎮 Loading game for slug:', identifier);
 
     if (!rom.supabase) {
