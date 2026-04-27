@@ -712,8 +712,3 @@ function initSubmitGame(rom) {
 }
 
 export default initSubmitGame;
-
-if (typeof window.rom !== 'undefined') {
-  console.log('Auto-initializing submit-game module...');
-  initSubmitGame(window.rom);
-}
