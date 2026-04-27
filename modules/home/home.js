@@ -1,4 +1,4 @@
-// modules/home/home.js
+// modules/home/home.js - ENHANCED WITH DYNAMIC CONTENT
 import { supabase } from '../../lib/supabase.js';
 import { fetchGlobalLobbies } from '../../lib/lobby-aggregator.js';
 
@@ -6,27 +6,70 @@ let realtimeChannel = null;
 
 export default function initModule(rom) {
   console.log('🏠 Homepage initialized');
+  
+  // 1. Inject SEO Meta Tags immediately
+  injectSEOMeta();
+  
+  // 2. Render Layout
   renderHomeLayout();
   
-  // Initialize Ambient Effects
+  // 3. Initialize Effects
   initAmbientEffects();
   
-  // Load all dynamic content
+  // 4. Load Dynamic Content
   loadSiteSettings();
-  loadFeaturedGame();
+  loadFeaturedGame();       // Random Pick
+  loadGameOfTheWeek();      // NEW: Curated/Trending Game
   loadOnlineUsers();
   loadRecentActivity();
+  loadCommunitySpotlight(); // NEW: Featured User
   
-  // Start Realtime Listeners for Live Feed
+  // 5. Start Realtime Listeners
   startRealtimeFeed();
 }
 
 // ============================================================================
-// 1. AMBIENT EFFECTS (CRT Scanlines, Breathing Glow, Mouse Spotlight)
+// 0. SEO INJECTION (Critical for Ranking)
 // ============================================================================
+function injectSEOMeta() {
+  // Update Title
+  document.title = "Retro Online Matchmaking | Play Classic Games Online";
+  
+  // Update Meta Description
+  let metaDesc = document.querySelector('meta[name="description"]');
+  if (!metaDesc) {
+    metaDesc = document.createElement('meta');
+    metaDesc.name = "description";
+    document.head.appendChild(metaDesc);
+  }
+  metaDesc.content = "Connect with retro gaming communities. Play SOCOM II, Twisted Metal, Warhawk, and more with modern matchmaking. Join lobbies, track achievements, and find friends today.";
 
+  // Add JSON-LD Structured Data for the Organization/Site
+  const scriptId = 'home-schema-jsonld';
+  if (!document.getElementById(scriptId)) {
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Retro Online Matchmaking",
+      "url": window.location.origin,
+      "description": "The premier destination for retro online multiplayer gaming.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": `${window.location.origin}/#/games?q={search_term_string}`,
+        "query-input": "required name=search_term_string"
+      }
+    });
+    document.head.appendChild(script);
+  }
+}
+
+// ============================================================================
+// 1. AMBIENT EFFECTS
+// ============================================================================
 function initAmbientEffects() {
-  // Add CRT Scanline Overlay to Body
   if (!document.getElementById('crt-overlay')) {
     const overlay = document.createElement('div');
     overlay.id = 'crt-overlay';
@@ -39,61 +82,33 @@ function initAmbientEffects() {
     overlay.style.animation = 'scanline 10s linear infinite';
     document.body.appendChild(overlay);
 
-    // Add Keyframes for Scanline
     const style = document.createElement('style');
     style.textContent = `
-      @keyframes scanline {
-        0% { background-position: 0 0; }
-        100% { background-position: 0 100%; }
-      }
-      @keyframes breathe {
-        0%, 100% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.15), inset 0 0 10px rgba(6, 182, 212, 0.05); border-color: rgba(6, 182, 212, 0.3); }
-        50% { box-shadow: 0 0 25px rgba(6, 182, 212, 0.3), inset 0 0 20px rgba(6, 182, 212, 0.1); border-color: rgba(6, 182, 212, 0.6); }
-      }
-      .ambient-card {
-        animation: breathe 4s ease-in-out infinite;
-        transition: transform 0.2s, box-shadow 0.2s;
-        position: relative;
-        overflow: hidden;
-      }
-      .ambient-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(6, 182, 212, 0.15) 0%, transparent 50%);
-        opacity: 0;
-        transition: opacity 0.3s;
-        pointer-events: none;
-        z-index: 1;
-      }
-      .ambient-card:hover::before {
-        opacity: 1;
-      }
-      .ambient-card:hover {
-        transform: translateY(-2px);
-        z-index: 2;
-      }
+      @keyframes scanline { 0% { background-position: 0 0; } 100% { background-position: 0 100%; } }
+      @keyframes breathe { 0%, 100% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.15); border-color: rgba(6, 182, 212, 0.3); } 50% { box-shadow: 0 0 25px rgba(6, 182, 212, 0.3); border-color: rgba(6, 182, 212, 0.6); } }
+      @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+      .animate-marquee { animation: marquee 20s linear infinite; }
+      .ambient-card { animation: breathe 4s ease-in-out infinite; transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
+      .ambient-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(6, 182, 212, 0.15) 0%, transparent 50%); opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1; }
+      .ambient-card:hover::before { opacity: 1; }
+      .ambient-card:hover { transform: translateY(-2px); z-index: 2; }
     `;
     document.head.appendChild(style);
   }
 
-  // Mouse Spotlight Logic
   document.addEventListener('mousemove', (e) => {
     const cards = document.querySelectorAll('.ambient-card');
     cards.forEach(card => {
       const rect = card.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      card.style.setProperty('--mouse-x', `${x}px`);
-      card.style.setProperty('--mouse-y', `${y}px`);
+      card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+      card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
     });
   });
 }
 
 // ============================================================================
-// 2. RENDER LAYOUT
+// 2. RENDER LAYOUT (ENHANCED)
 // ============================================================================
-
 function renderHomeLayout() {
   const appContent = document.getElementById('app-content');
   if (!appContent) return;
@@ -101,107 +116,131 @@ function renderHomeLayout() {
   appContent.innerHTML = `
     <div class="max-w-7xl mx-auto space-y-6 animate-fade-in relative z-10">
       
-      <!-- LIVE TICKER (New) -->
+      <!-- LIVE TICKER -->
       <div class="bg-gray-900/80 backdrop-blur border border-cyan-500/30 rounded-lg overflow-hidden h-10 relative flex items-center shadow-[0_0_15px_rgba(6,182,212,0.2)]">
         <div class="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-gray-900 to-transparent z-10"></div>
         <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-gray-900 to-transparent z-10"></div>
-        
         <div class="whitespace-nowrap animate-marquee flex items-center gap-8 px-4">
           <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
             <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Live Feed
           </span>
-          <span id="ticker-content" class="text-gray-300 text-sm font-mono">
-            Waiting for activity...
+          <span id="ticker-content" class="text-gray-300 text-sm font-mono">Waiting for activity...</span>
+          <!-- Duplicate for seamless loop -->
+          <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+            <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Live Feed
           </span>
+          <span id="ticker-content-dup" class="text-gray-300 text-sm font-mono">Waiting for activity...</span>
         </div>
       </div>
 
-      <!-- Welcome Header -->
-      <div class="text-center py-6 relative">
-        <div class="absolute top-0 right-0 flex items-center gap-2 text-xs text-green-400 bg-green-900/20 px-3 py-1 rounded-full border border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.3)]">
-          <span class="relative flex h-2 w-2">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
+      <!-- Welcome Header with Stats -->
+      <div class="text-center py-8 relative">
+        <div class="absolute top-0 right-0 flex items-center gap-2 text-xs text-green-400 bg-green-900/20 px-3 py-1 rounded-full border border-green-500/30">
+          <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
           System Online
         </div>
-        <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 glow mb-2 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+        <h1 class="text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 glow mb-4 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
           WELCOME TO ROM
         </h1>
-        <p class="text-gray-400 text-lg">RetroOnlineMatchmaking • Connect • Play • Compete</p>
+        <p class="text-gray-400 text-lg max-w-2xl mx-auto mb-6">
+          The ultimate hub for retro online multiplayer. Connect, compete, and relive the golden age of gaming.
+        </p>
+        
+        <!-- Live Stats Counter -->
+        <div class="flex justify-center gap-4 md:gap-8 text-sm md:text-base">
+          <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+            <span class="block text-2xl font-bold text-cyan-400" id="stat-games">-</span>
+            <span class="text-gray-500 text-xs uppercase">Games</span>
+          </div>
+          <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+            <span class="block text-2xl font-bold text-purple-400" id="stat-users">-</span>
+            <span class="text-gray-500 text-xs uppercase">Members</span>
+          </div>
+          <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+            <span class="block text-2xl font-bold text-green-400" id="stat-online">-</span>
+            <span class="text-gray-500 text-xs uppercase">Online</span>
+          </div>
+        </div>
       </div>
 
       <!-- Main Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- LEFT COLUMN -->
+        <!-- LEFT COLUMN (Content) -->
         <div class="lg:col-span-2 space-y-8">
           
-          <!-- Featured Game -->
-          <div class="ambient-card bg-gray-800 rounded-xl overflow-hidden border border-cyan-500/30 shadow-lg shadow-cyan-900/20 flex flex-col">
-            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-4 border-b border-cyan-500/30 flex justify-between items-center">
-              <h2 class="text-xl font-bold text-cyan-300 flex items-center gap-2">
-                <span class="text-2xl">🎮</span> Random Pick
-              </h2>
-              <span id="featured-game-status" class="text-xs text-gray-400 italic">Loading...</span>
+          <!-- Game of the Week (NEW PRIORITY) -->
+          <div class="ambient-card bg-gradient-to-br from-purple-900/40 to-gray-800 rounded-xl overflow-hidden border border-purple-500/40 shadow-lg shadow-purple-900/20 flex flex-col relative group">
+            <div class="absolute top-0 right-0 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-10 shadow-lg">
+              🏆 GAME OF THE WEEK
             </div>
-            <div id="featured-game-content" class="flex-1 flex flex-col">
+            <div id="gotw-content" class="flex-1 flex flex-col">
               <div class="p-8 text-center text-gray-500">
-                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500 mb-2"></div>
-                <p>Scanning library...</p>
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500 mb-2"></div>
+                <p>Selecting champion...</p>
               </div>
             </div>
           </div>
 
+          <!-- Random Pick -->
+          <div class="ambient-card bg-gray-800 rounded-xl overflow-hidden border border-cyan-500/30 shadow-lg shadow-cyan-900/20 flex flex-col">
+            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-4 border-b border-cyan-500/30 flex justify-between items-center">
+              <h2 class="text-xl font-bold text-cyan-300 flex items-center gap-2">
+                <span class="text-2xl">🎲</span> Random Pick
+              </h2>
+              <span id="featured-game-status" class="text-xs text-gray-400 italic">Loading...</span>
+            </div>
+            <div id="featured-game-content" class="flex-1 flex flex-col"></div>
+          </div>
+
           <!-- Clip of the Week -->
-          <div class="ambient-card bg-gray-800 rounded-xl overflow-hidden border border-purple-500/30 shadow-lg shadow-purple-900/20 flex flex-col">
-            <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 p-4 border-b border-purple-500/30">
-              <h2 id="clip-title" class="text-xl font-bold text-purple-300 flex items-center gap-2">
-                <span class="text-2xl">🎬</span> Loading Clip...
+          <div class="ambient-card bg-gray-800 rounded-xl overflow-hidden border border-pink-500/30 shadow-lg shadow-pink-900/20 flex flex-col">
+            <div class="bg-gradient-to-r from-pink-900/50 to-red-900/50 p-4 border-b border-pink-500/30">
+              <h2 id="clip-title" class="text-xl font-bold text-pink-300 flex items-center gap-2">
+                <span class="text-2xl">🎬</span> Community Highlights
               </h2>
             </div>
             <div class="relative aspect-video bg-black">
-              <iframe id="clip-iframe" 
-                class="absolute top-0 left-0 w-full h-full" 
-                src="" 
-                frameborder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowfullscreen>
-              </iframe>
+              <iframe id="clip-iframe" class="absolute top-0 left-0 w-full h-full" src="" frameborder="0" allowfullscreen></iframe>
             </div>
           </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT COLUMN (Sidebar) -->
         <div class="space-y-6">
           
           <!-- Who's Online -->
           <div class="ambient-card bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden">
             <div class="bg-gray-900/50 p-4 border-b border-gray-700 flex justify-between items-center">
               <h3 class="font-bold text-white flex items-center gap-2">
-                <span class="relative flex h-2.5 w-2.5">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                </span>
+                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span></span>
                 Who's Online
               </h3>
-              <span id="online-count" class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded-full shadow-[0_0_5px_rgba(34,197,94,0.5)]">0</span>
+              <span id="online-count" class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded-full">0</span>
             </div>
-            <div id="online-users-list" class="p-2 max-h-64 overflow-y-auto custom-scrollbar">
-              <div class="p-4 text-center text-gray-500 text-sm">Scanning network...</div>
+            <div id="online-users-list" class="p-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
+          </div>
+
+          <!-- Community Spotlight (NEW) -->
+          <div class="ambient-card bg-gray-800 rounded-xl border border-yellow-500/30 shadow-lg shadow-yellow-900/10 overflow-hidden">
+            <div class="bg-gradient-to-r from-yellow-900/40 to-gray-900/50 p-4 border-b border-yellow-500/30">
+              <h3 class="font-bold text-yellow-300 flex items-center gap-2">
+                <span class="text-xl">⭐</span> Member Spotlight
+              </h3>
+            </div>
+            <div id="spotlight-content" class="p-4 text-center">
+              <div class="animate-pulse text-gray-500 text-sm">Finding standout member...</div>
             </div>
           </div>
 
-          <!-- Recent Community Activity -->
+          <!-- Live Activity -->
           <div class="ambient-card bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden">
             <div class="bg-gray-900/50 p-4 border-b border-gray-700">
               <h3 class="font-bold text-white flex items-center gap-2">
                 <span class="text-yellow-400">⚡</span> Live Activity
               </h3>
             </div>
-            <div id="activity-feed" class="p-4 space-y-4">
-              <div class="text-center text-gray-500 text-sm">Fetching recent events...</div>
-            </div>
+            <div id="activity-feed" class="p-4 space-y-4"></div>
           </div>
 
           <!-- Social Links -->
@@ -225,6 +264,15 @@ function renderHomeLayout() {
         </div>
       </div>
 
+      <!-- SEO Text Block (Hidden visually but readable by bots if needed, or styled subtly) -->
+      <div class="mt-12 pt-8 border-t border-gray-800 text-gray-500 text-sm leading-relaxed">
+        <h2 class="text-gray-400 font-bold mb-2 text-lg">About Retro Online Matchmaking</h2>
+        <p class="mb-4">
+          ROM is the premier destination for playing classic retro games online. Whether you're looking to play <strong>SOCOM II</strong> on PS2, <strong>Twisted Metal: Black</strong> on Xbox, or <strong>Warhawk</strong> on PSP, our community provides the servers, lobbies, and guides to get you connected. 
+          We support a wide range of consoles including PlayStation, Xbox, Nintendo, and PC classics. Join thousands of players who are keeping the retro multiplayer dream alive.
+        </p>
+      </div>
+
       <!-- Radio Reminder -->
       <div class="text-center py-6 border-t border-gray-800">
         <p class="text-gray-500 text-sm flex items-center justify-center gap-2">
@@ -241,15 +289,50 @@ function renderHomeLayout() {
 // 3. DATA LOADERS
 // ============================================================================
 
+async function loadStats() {
+  try {
+    // Parallel requests for speed
+    const [gamesRes, usersRes] = await Promise.all([
+      supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+      supabase.from('profiles').select('*', { count: 'exact', head: true })
+    ]);
+
+    const gameCount = gamesRes.count || 0;
+    const userCount = usersRes.count || 0;
+
+    // Animate numbers
+    animateValue("stat-games", 0, gameCount, 1500);
+    animateValue("stat-users", 0, userCount, 1500);
+    
+    // Online count is handled by loadOnlineUsers, but we can set initial here if needed
+  } catch (error) {
+    console.error('Stats error:', error);
+  }
+}
+
+function animateValue(id, start, end, duration) {
+  const obj = document.getElementById(id);
+  if (!obj) return;
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString();
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+  window.requestAnimationFrame(step);
+}
+
 async function loadSiteSettings() {
   try {
     const { data, error } = await supabase
       .from('site_settings')
       .select('key, value')
-      .in('key', ['clip_title', 'clip_youtube_id', 'discord_url', 'patreon_url', 'youtube_url']);
+      .in('key', ['clip_title', 'clip_youtube_id', 'discord_url', 'patreon_url']);
 
     if (error) throw error;
-
     const settings = {};
     if (Array.isArray(data)) data.forEach(s => settings[s.key] = s.value);
 
@@ -262,7 +345,7 @@ async function loadSiteSettings() {
     if (titleEl) titleEl.innerHTML = `<span class="text-2xl">🎬</span> ${settings.clip_title || 'ROM Community Highlights'}`;
     if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     
-    ['discord', 'patreon', 'youtube'].forEach(key => {
+    ['discord', 'patreon'].forEach(key => {
       const el = document.getElementById(`${key}-link`);
       if (el) {
         const url = (settings[`${key}_url`] || `https://${key}.com`).trim();
@@ -280,28 +363,17 @@ async function loadFeaturedGame() {
   if (!container) return;
 
   try {
-    // Get ALL approved games first to count them
     const { count, error: countError } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'approved');
 
     if (countError || count === 0) {
-       container.innerHTML = `
-        <div class="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <div class="text-6xl mb-4 opacity-50">🕹️</div>
-          <h3 class="text-xl font-bold text-gray-300">No Games Yet</h3>
-          <p class="text-gray-500 mt-2">Be the first to submit a game!</p>
-          <a href="#/admin" class="mt-6 px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-full font-bold transition">Submit Game</a>
-        </div>
-      `;
-      if(statusEl) statusEl.textContent = "Empty";
-      return;
+       container.innerHTML = `<div class="p-8 text-center text-gray-500">No games available yet.</div>`;
+       return;
     }
 
-    // Pick a random offset
     const randomOffset = Math.floor(Math.random() * count);
-
     const { data: games, error } = await supabase
       .from('games')
       .select('*')
@@ -310,30 +382,57 @@ async function loadFeaturedGame() {
       .single();
 
     if (error || !games) {
-      // Fallback to first if range fails
       const { data: fallback } = await supabase.from('games').select('*').eq('status', 'approved').limit(1).single();
-      if(!fallback) throw new Error("No games");
-      renderGameCard(fallback, container, statusEl);
+      if(fallback) renderGameCard(fallback, container, statusEl, false);
     } else {
-      renderGameCard(games, container, statusEl);
+      renderGameCard(games, container, statusEl, false);
     }
-
   } catch (error) {
     console.error('Featured game error:', error);
-    container.innerHTML = `<div class="p-4 text-red-400 text-center">Failed to load featured game.</div>`;
   }
 }
 
-function renderGameCard(game, container, statusEl) {
+// NEW: Game of the Week Logic
+async function loadGameOfTheWeek() {
+  const container = document.getElementById('gotw-content');
+  if (!container) return;
+
+  try {
+    // Logic: Pick the most recently approved game that has a cover image and high rating (or just random from top 10)
+    const { data: games, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('status', 'approved')
+      .not('cover_image_url', 'is', null)
+      .order('approved_at', { ascending: false })
+      .limit(5);
+
+    if (error || !games || games.length === 0) {
+      container.innerHTML = `<div class="p-8 text-center text-gray-500">No featured game this week.</div>`;
+      return;
+    }
+
+    // Pick random from top 5 to rotate slightly
+    const selected = games[Math.floor(Math.random() * games.length)];
+    renderGameCard(selected, container, null, true);
+
+  } catch (error) {
+    console.error('Game of the week error:', error);
+  }
+}
+
+function renderGameCard(game, container, statusEl, isFeatured = false) {
   const coverUrl = game.cover_image_url || 'https://via.placeholder.com/400x220/1f2937/06b6d4?text=No+Cover';
   const gameLink = game.slug ? `#/game/${game.slug}` : `#/game/${game.id}`;
+  const themeClass = isFeatured ? 'from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-purple-500/40' : 'from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow-cyan-500/40';
 
   container.innerHTML = `
-    <div class="relative h-48 w-full overflow-hidden">
-      <img src="${coverUrl}" alt="${game.title}" class="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-500">
-      <div class="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
+    <div class="relative h-56 w-full overflow-hidden group">
+      <img src="${coverUrl}" alt="${game.title}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700">
+      <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
+      ${isFeatured ? '<div class="absolute top-4 left-4 px-3 py-1 bg-yellow-500 text-black text-xs font-black rounded-full uppercase tracking-wider shadow-lg animate-pulse">🏆 Game of the Week</div>' : ''}
       <div class="absolute bottom-4 left-4">
-        <span class="px-3 py-1 bg-cyan-600 text-white text-xs font-bold rounded-full uppercase tracking-wider shadow-[0_0_10px_rgba(8,145,178,0.6)]">${game.console}</span>
+        <span class="px-3 py-1 bg-gray-900/80 backdrop-blur text-white text-xs font-bold rounded border border-gray-600">${game.console}</span>
       </div>
     </div>
     <div class="p-6 flex-1 flex flex-col justify-between">
@@ -343,24 +442,25 @@ function renderGameCard(game, container, statusEl) {
         <div class="flex flex-wrap gap-2 mb-4">
           <span class="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded border border-gray-600">${game.multiplayer_type || 'Multiplayer'}</span>
           ${game.year ? `<span class="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded border border-gray-600">${game.year}</span>` : ''}
+          ${game.rating > 0 ? `<span class="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded border border-yellow-700/50">★ ${game.rating.toFixed(1)}</span>` : ''}
         </div>
       </div>
-      <a href="${gameLink}" class="w-full block text-center py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-lg transition transform hover:-translate-y-1 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]">
-        View Game Details
+      <a href="${gameLink}" class="w-full block text-center py-3 bg-gradient-to-r ${themeClass} text-white font-bold rounded-lg transition transform hover:-translate-y-1 shadow-lg">
+        ${isFeatured ? 'View Featured Game' : 'View Game Details'}
       </a>
     </div>
   `;
-  if(statusEl) statusEl.textContent = "Random Pick";
+  if(statusEl) statusEl.textContent = isFeatured ? "This Week's Pick" : "Random Pick";
 }
 
 async function loadOnlineUsers() {
   const listEl = document.getElementById('online-users-list');
   const countEl = document.getElementById('online-count');
+  const statEl = document.getElementById('stat-online');
   if (!listEl) return;
 
   try {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-
     const { data: users, error } = await supabase
       .from('profiles')
       .select('id, username, avatar_url')
@@ -370,17 +470,14 @@ async function loadOnlineUsers() {
 
     if (error) throw error;
 
-    if (!users || users.length === 0) {
-      listEl.innerHTML = `
-        <div class="text-center text-gray-500 text-sm py-4">
-          <p>No one is online right now.</p>
-          <p class="text-xs mt-1 opacity-70">Be the first to log in!</p>
-        </div>`;
-      if(countEl) countEl.textContent = "0";
+    const count = users?.length || 0;
+    if(countEl) countEl.textContent = count;
+    if(statEl) animateValue("stat-online", 0, count, 1000);
+
+    if (!users || count === 0) {
+      listEl.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">No one online right now.</div>`;
       return;
     }
-
-    if(countEl) countEl.textContent = users.length;
 
     listEl.innerHTML = users.map(user => {
       const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
@@ -402,7 +499,51 @@ async function loadOnlineUsers() {
 
   } catch (error) {
     console.error('Online users error:', error);
-    listEl.innerHTML = `<div class="text-center text-red-400 text-xs">Failed to load users</div>`;
+  }
+}
+
+// NEW: Community Spotlight
+async function loadCommunitySpotlight() {
+  const container = document.getElementById('spotlight-content');
+  if (!container) return;
+
+  try {
+    // Pick a random active user (has a bio or submitted a game)
+    // Simple version: Random user with a username
+    const { count, error: countErr } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).not('username', 'is', null);
+    
+    if (countErr || count === 0) {
+      container.innerHTML = `<div class="text-gray-500 text-sm">No members to spotlight yet.</div>`;
+      return;
+    }
+
+    const offset = Math.floor(Math.random() * count);
+    const { data: user, error } = await supabase
+      .from('profiles')
+      .select('username, avatar_url, bio')
+      .not('username', 'is', null)
+      .range(offset, offset)
+      .single();
+
+    if (error || !user) return;
+
+    const link = `#/profile/${user.username}`;
+    const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=FBBF24&color=000`;
+
+    container.innerHTML = `
+      <a href="${link}" class="group block">
+        <div class="relative inline-block mb-3">
+          <img src="${avatar}" alt="${user.username}" class="w-20 h-20 rounded-full border-2 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)] group-hover:scale-110 transition-transform">
+          <div class="absolute -bottom-1 -right-1 bg-yellow-500 text-black text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">★</div>
+        </div>
+        <h4 class="text-white font-bold text-lg group-hover:text-yellow-400 transition">${user.username}</h4>
+        <p class="text-gray-400 text-xs mt-1 line-clamp-2 italic">"${user.bio || 'Active community member'}"</p>
+        <button class="mt-3 text-xs bg-gray-700 hover:bg-yellow-600 hover:text-black text-gray-300 px-3 py-1 rounded-full transition font-bold">View Profile</button>
+      </a>
+    `;
+
+  } catch (error) {
+    console.error('Spotlight error:', error);
   }
 }
 
@@ -427,28 +568,8 @@ async function loadRecentActivity() {
       .single();
 
     const activities = [];
-
-    if (latestGame) {
-      activities.push({
-        type: 'game',
-        text: `New game added: <strong>${latestGame.title}</strong>`,
-        time: latestGame.approved_at,
-        icon: '🎮',
-        color: 'text-cyan-400',
-        link: latestGame.slug ? `#/game/${latestGame.slug}` : '#'
-      });
-    }
-
-    if (latestUser) {
-      activities.push({
-        type: 'user',
-        text: `<strong>${latestUser.username}</strong> joined the community`,
-        time: latestUser.created_at,
-        icon: '👤',
-        color: 'text-purple-400',
-        link: latestUser.username ? `#/profile/${latestUser.username}` : '#'
-      });
-    }
+    if (latestGame) activities.push({ type: 'game', text: `New game: <strong>${latestGame.title}</strong>`, time: latestGame.approved_at, icon: '🎮', color: 'text-cyan-400', link: `#/game/${latestGame.slug || latestGame.id}` });
+    if (latestUser) activities.push({ type: 'user', text: `<strong>${latestUser.username}</strong> joined`, time: latestUser.created_at, icon: '👤', color: 'text-purple-400', link: `#/profile/${latestUser.username || latestUser.id}` });
 
     if (activities.length === 0) {
       feedEl.innerHTML = `<div class="text-center text-gray-500 text-sm">No recent activity.</div>`;
@@ -457,7 +578,7 @@ async function loadRecentActivity() {
 
     activities.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-    feedEl.innerHTML = activities.map(act => `
+    feedEl.innerHTML = activities.slice(0, 5).map(act => `
       <div class="flex gap-3 items-start relative z-10">
         <div class="mt-1 ${act.color} text-lg drop-shadow-md">${act.icon}</div>
         <div class="flex-1">
@@ -471,101 +592,76 @@ async function loadRecentActivity() {
 
   } catch (error) {
     console.error('Activity feed error:', error);
-    feedEl.innerHTML = `<div class="text-center text-gray-500 text-xs">Activity unavailable</div>`;
   }
 }
 
 // ============================================================================
-// 4. REALTIME LIVE FEED (Ticker) - FIXED
+// 4. REALTIME LIVE FEED
 // ============================================================================
-
 function startRealtimeFeed() {
+  // Initial Stats Load
+  loadStats();
+
   const tickerEl = document.getElementById('ticker-content');
+  const tickerDup = document.getElementById('ticker-content-dup');
   if (!tickerEl) return;
 
-  // Initial Message Rotation
-  let messages = [
-    "Welcome to ROM!",
-    "Check out the Random Game of the Hour!",
-    "Join the Discord to chat!",
-    "Listen to Vivi_Gaming Radio!"
-  ];
-  
+  let messages = ["Welcome to ROM!", "Check out the Game of the Week!", "Join the Discord!", "Listen to Vivi_Gaming Radio!"];
   let msgIndex = 0;
+  
   const updateTicker = () => {
+    const nextMsg = messages[msgIndex];
+    msgIndex = (msgIndex + 1) % messages.length;
+    
+    // Fade out
     tickerEl.style.opacity = '0';
+    if(tickerDup) tickerDup.style.opacity = '0';
+    
     setTimeout(() => {
-      tickerEl.textContent = messages[msgIndex];
+      tickerEl.textContent = nextMsg;
+      if(tickerDup) tickerDup.textContent = nextMsg;
+      // Fade in
       tickerEl.style.opacity = '1';
-      msgIndex = (msgIndex + 1) % messages.length;
+      if(tickerDup) tickerDup.style.opacity = '1';
     }, 500);
   };
   
   updateTicker();
-  setInterval(updateTicker, 4000);
+  setInterval(updateTicker, 5000);
 
-  // Create Channel
   realtimeChannel = supabase.channel('live-feed');
 
-  // --- GAMES LISTENER (INSERT & UPDATE) ---
-  realtimeChannel.on('postgres_changes', 
-    { event: '*', schema: 'public', table: 'games' }, 
-    (payload) => {
-      console.log('🔴 GAME EVENT RECEIVED:', payload);
-      
-      // Only trigger if status is approved or became approved
-      if (payload.eventType === 'INSERT' || (payload.eventType === 'UPDATE' && payload.new.status === 'approved')) {
-        flashTicker(`🎮 New Game Added: ${payload.new.title}`);
-        loadFeaturedGame();
-        loadRecentActivity();
-      }
-    }
-  );
-
-  // --- PROFILES LISTENER (INSERT & UPDATE) ---
-  realtimeChannel.on('postgres_changes', 
-    { event: '*', schema: 'public', table: 'profiles' }, 
-    (payload) => {
-      console.log('🔵 PROFILE EVENT RECEIVED:', payload);
-
-      if (payload.eventType === 'INSERT') {
-        flashTicker(`👤 New Member: ${payload.new.username}`);
-        loadOnlineUsers();
-        loadRecentActivity();
-      } 
-      else if (payload.eventType === 'UPDATE') {
-        // Refresh online list on any update (heartbeat)
-        loadOnlineUsers();
-        
-        // Check if they started playing a NEW game
-        const oldGame = payload.old.currently_playing;
-        const newGame = payload.new.currently_playing;
-        
-        if (newGame && JSON.stringify(oldGame) !== JSON.stringify(newGame)) {
-           // Extract game title logic here if needed, or just announce activity
-           // For now, just refresh feed
-           loadRecentActivity();
-        }
-      }
-    }
-  );
-
-  // Subscribe
-  realtimeChannel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      console.log('✅ REALTIME SUBSCRIBED SUCCESSFULLY');
-    } else if (status === 'CHANNEL_ERROR') {
-      console.error('❌ REALTIME CHANNEL ERROR');
-    } else if (status === 'TIMED_OUT') {
-      console.error('⚠️ REALTIME CONNECTION TIMED OUT');
+  realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, (payload) => {
+    if (payload.eventType === 'INSERT' || (payload.eventType === 'UPDATE' && payload.new.status === 'approved')) {
+      flashTicker(`🎮 New Game: ${payload.new.title}`);
+      loadFeaturedGame();
+      loadRecentActivity();
+      loadStats(); // Update game count
     }
   });
+
+  realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+    if (payload.eventType === 'INSERT') {
+      flashTicker(`👤 New Member: ${payload.new.username}`);
+      loadOnlineUsers();
+      loadRecentActivity();
+      loadStats(); // Update user count
+    } else if (payload.eventType === 'UPDATE') {
+      loadOnlineUsers();
+      loadStats(); // Update online count
+    }
+  });
+
+  realtimeChannel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') console.log('✅ REALTIME SUBSCRIBED');
+  });
 }
+
 function flashTicker(text) {
   const tickerEl = document.getElementById('ticker-content');
+  const tickerDup = document.getElementById('ticker-content-dup');
   if (!tickerEl) return;
 
-  // Visual Flash Effect
   tickerEl.parentElement.classList.add('shadow-[0_0_20px_rgba(34,211,238,0.6)]');
   tickerEl.classList.add('text-cyan-200');
   
@@ -574,19 +670,18 @@ function flashTicker(text) {
     tickerEl.classList.remove('text-cyan-200');
   }, 1000);
 
-  // Update Text with Fade
   tickerEl.style.transition = 'opacity 0.3s';
   tickerEl.style.opacity = '0';
+  if(tickerDup) tickerDup.style.opacity = '0';
   
   setTimeout(() => {
     tickerEl.textContent = text;
+    if(tickerDup) tickerDup.textContent = text;
     tickerEl.style.opacity = '1';
+    if(tickerDup) tickerDup.style.opacity = '1';
   }, 300);
 }
 
-// Cleanup on unload (optional but good practice)
 window.addEventListener('beforeunload', () => {
-  if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel);
-  }
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
