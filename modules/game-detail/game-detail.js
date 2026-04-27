@@ -547,7 +547,6 @@ async function renderGame(game, container, rom) {
         checkAndRenderPlayingState(game, currentUser.id, rom);
         loadUserRating(game, currentUser.id, rom); // Load User Rating
     }
-}
 
 // ===== SEO: UPDATE META TAGS =====
 function updateMetaTags(game) {
