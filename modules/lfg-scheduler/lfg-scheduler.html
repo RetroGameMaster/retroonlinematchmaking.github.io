@@ -14,12 +14,7 @@
     <div class="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-4 mb-6 flex flex-wrap gap-4 items-center">
         <select id="filter-console" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 focus:border-cyan-500 outline-none">
             <option value="">All Consoles</option>
-            <option value="PS2">PS2</option>
-            <option value="GameCube">GameCube</option>
-            <option value="Xbox">Original Xbox</option>
-            <option value="Dreamcast">Dreamcast</option>
-            <option value="PC">PC</option>
-            <option value="Other">Other</option>
+            <!-- Options will be loaded dynamically -->
         </select>
         
         <select id="filter-status" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 focus:border-cyan-500 outline-none">
@@ -34,7 +29,7 @@
         </div>
     </div>
 
-    <!-- Events Grid (ID FIXED TO MATCH JS) -->
+    <!-- Events Grid -->
     <div id="lobby-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Loading State -->
         <div class="col-span-full text-center py-12">
@@ -49,7 +44,7 @@
     <div class="bg-gray-900 border border-cyan-500 rounded-xl max-w-lg w-full p-6 shadow-[0_0_30px_rgba(6,182,212,0.3)] relative">
         <button id="close-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
         
-        <h2 class="text-2xl font-bold text-cyan-400 mb-6">📡 Host New Session</h2>
+        <h2 class="text-2xl font-bold text-cyan-400 mb-6">📅 Schedule New Session</h2>
         
         <form id="create-form" class="space-y-4">
             <div>
@@ -61,12 +56,8 @@
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">Console</label>
                     <select id="event-console" required class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none">
-                        <option value="PS2">PS2</option>
-                        <option value="GameCube">GameCube</option>
-                        <option value="Xbox">Xbox</option>
-                        <option value="Dreamcast">Dreamcast</option>
-                        <option value="PC">PC</option>
-                        <option value="Other">Other</option>
+                        <option value="">Loading consoles...</option>
+                        <!-- Options will be loaded dynamically -->
                     </select>
                 </div>
                 <div>
@@ -87,7 +78,7 @@
 
             <div class="pt-4 flex justify-end gap-3">
                 <button type="button" id="cancel-create" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded font-bold">Launch Signal</button>
+                <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded font-bold">Create Event</button>
             </div>
         </form>
     </div>
