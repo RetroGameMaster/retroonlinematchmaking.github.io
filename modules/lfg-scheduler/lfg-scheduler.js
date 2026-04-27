@@ -17,11 +17,17 @@ export default async function initSchedulerModule(rom) {
     // Edit Mode State
     let currentEditId = null;
 
-    if (!grid) return;
+    if (!grid) {
+        console.error('❌ CRITICAL: #lobby-grid not found in DOM!');
+        return;
+    }
 
     // Get Current User
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) console.warn('Auth error:', authError);
+    
     const currentUser = user;
+    console.log('👤 Current User:', currentUser ? currentUser.email : 'Guest');
 
     // Load initial data
     await loadLobbies();
@@ -73,15 +79,17 @@ export default async function initSchedulerModule(rom) {
         const { data, error } = await query;
 
         if (error) {
-            console.error('Error loading lobbies:', error);
-            grid.innerHTML = `<div class="text-red-400 text-center">Failed to load lobbies.</div>`;
+            console.error('❌ Error loading lobbies:', error);
+            grid.innerHTML = `<div class="text-red-400 text-center">Failed to load lobbies: ${error.message}</div>`;
             return;
         }
+
+        console.log(`✅ Loaded ${data?.length || 0} events`);
 
         if (countEl) countEl.textContent = data?.length || 0;
 
         if (!data || data.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-12">No scheduled sessions found.</div>`;
+            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-12">No scheduled sessions found. Be the first to host!</div>`;
             return;
         }
 
@@ -210,6 +218,7 @@ export default async function initSchedulerModule(rom) {
             loadLobbies();
             alert('Session broadcasted successfully!');
         } catch (err) {
+            console.error('Create error:', err);
             alert('Error: ' + err.message);
         } finally {
             btn.textContent = originalText;
@@ -238,7 +247,7 @@ export default async function initSchedulerModule(rom) {
                 start_time: new Date(time).toISOString(),
                 description: desc,
                 updated_at: new Date().toISOString()
-            }).eq('id', currentEditId).eq('host_id', currentUser.id); // Security check
+            }).eq('id', currentEditId).eq('host_id', currentUser.id);
 
             if (error) throw error;
 
@@ -246,6 +255,7 @@ export default async function initSchedulerModule(rom) {
             loadLobbies();
             alert('Session updated!');
         } catch (err) {
+            console.error('Update error:', err);
             alert('Error: ' + err.message);
         } finally {
             btn.textContent = 'Launch Signal';
@@ -257,7 +267,6 @@ export default async function initSchedulerModule(rom) {
     window.editLobby = async (eventId) => {
         if (!currentUser) return alert('Log in first.');
         
-        // Fetch event details
         const { data: event, error } = await supabase
             .from('lfg_events')
             .select('*')
@@ -267,20 +276,17 @@ export default async function initSchedulerModule(rom) {
         if (error || !event) return alert('Event not found.');
         if (event.host_id !== currentUser.id) return alert('You can only edit your own events.');
 
-        // Populate Form
         currentEditId = eventId;
         document.getElementById('event-title').value = event.title;
         document.getElementById('event-console').value = event.console;
         document.getElementById('event-max').value = event.max_players;
         
-        // Format datetime for input
         const dateObj = new Date(event.start_time);
         dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
         document.getElementById('event-time').value = dateObj.toISOString().slice(0, 16);
         
         document.getElementById('event-desc').value = event.description || '';
 
-        // Update Modal UI
         document.querySelector('#create-modal h2').textContent = '✏️ Edit Session';
         document.querySelector('#create-form button[type="submit"]').textContent = 'Save Changes';
         
@@ -296,7 +302,7 @@ export default async function initSchedulerModule(rom) {
                 .from('lfg_events')
                 .delete()
                 .eq('id', eventId)
-                .eq('host_id', currentUser.id); // Security check
+                .eq('host_id', currentUser.id);
 
             if (error) throw error;
             loadLobbies();
