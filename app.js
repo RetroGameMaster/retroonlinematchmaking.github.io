@@ -329,7 +329,8 @@ supabase.auth.onAuthStateChange((event, session) => {
     // supabase.from('profiles').update({ is_online: false }).eq('id', previousUserId);
   }
 });
-    
+    // Clean up game backgrounds before loading new module
+    cleanupGameBackgrounds();
     // For all other modules
     await loadModule(hash);
     renderRandomQuote(); 
@@ -411,7 +412,8 @@ async function loadModule(moduleName) {
 async function loadGameDetail(identifier) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
-
+    // Clean up previous backgrounds first
+    cleanupGameBackgrounds();
     // Inject base HTML structure first
     appContent.innerHTML = `
         <div id="game-loading" class="text-center py-16">
@@ -465,7 +467,8 @@ async function loadGameDetail(identifier) {
 async function loadGameEdit(gameId) {
   const appContent = document.getElementById('app-content');
   if (!appContent) return;
-
+  // Clean up previous backgrounds first
+  cleanupGameBackgrounds();
   appContent.innerHTML = `
     <div class="text-center p-8">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
@@ -785,7 +788,23 @@ function createGameEditForm(game, isAdmin) {
         </form>
     `;
 }
-
+// ============================================================================
+// GLOBAL BACKGROUND CLEANUP (FIXES BG STICKING)
+// ============================================================================
+window.cleanupGameBackgrounds = function() {
+    const bgElement = document.getElementById('dynamic-game-bg');
+    if (bgElement) {
+        bgElement.remove();
+    }
+    const overlay = document.getElementById('bg-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+    // Reset body styles to default
+    document.body.style.background = '';
+    document.body.style.overflow = '';
+    console.log('🧹 Game backgrounds cleaned up');
+};
 function initializeEditForm(game, isAdmin) {
     const form = document.getElementById('gameEditForm');
     if (!form) return;
