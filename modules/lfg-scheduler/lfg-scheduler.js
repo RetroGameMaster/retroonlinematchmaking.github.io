@@ -1,9 +1,10 @@
 import { supabase } from '../../lib/supabase.js';
 
+// CORRECT EXPORT NAME
 export default async function initSchedulerModule(rom) {
     console.log('📅 Initializing LFG Scheduler...');
     
-    const grid = document.getElementById('events-grid');
+    const grid = document.getElementById('lobby-grid');
     const countEl = document.getElementById('lobby-count');
     const createBtn = document.getElementById('btn-create-event');
     const modal = document.getElementById('create-modal');
@@ -12,38 +13,45 @@ export default async function initSchedulerModule(rom) {
     const form = document.getElementById('create-form');
     const consoleFilter = document.getElementById('filter-console');
     const statusFilter = document.getElementById('filter-status');
+    
+    // Edit Mode State
+    let currentEditId = null;
 
     if (!grid) return;
 
+    // Get Current User
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUser = user;
+
     // Load initial data
-    await loadEvents();
+    await loadLobbies();
 
     // Event Listeners
     if (createBtn) createBtn.addEventListener('click', () => {
-        // Set default time to now + 1 hour
-        const now = new Date();
-        now.setHours(now.getHours() + 1);
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('event-time').value = now.toISOString().slice(0, 16);
+        resetForm();
         modal.classList.remove('hidden');
     });
 
     if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
     if (cancelBtn) cancelBtn.addEventListener('click', () => modal.classList.add('hidden'));
     
-    if (consoleFilter) consoleFilter.addEventListener('change', loadEvents);
-    if (statusFilter) statusFilter.addEventListener('change', loadEvents);
+    if (consoleFilter) consoleFilter.addEventListener('change', loadLobbies);
+    if (statusFilter) statusFilter.addEventListener('change', loadLobbies);
 
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await createEvent();
+            if (currentEditId) {
+                await updateEvent();
+            } else {
+                await createEvent();
+            }
         });
     }
 
     // --- Core Functions ---
 
-    async function loadEvents() {
+    async function loadLobbies() {
         if (!grid) return;
         grid.innerHTML = `<div class="col-span-full text-center py-12"><div class="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500"></div></div>`;
 
@@ -52,12 +60,10 @@ export default async function initSchedulerModule(rom) {
             .select(`
                 *,
                 host_profile:profiles!host_id (username, avatar_url),
-                game:games (title, cover_image_url),
                 participants:lfg_participants(count)
             `)
             .order('start_time', { ascending: true });
 
-        // Apply Filters
         const consoleVal = consoleFilter?.value;
         const statusVal = statusFilter?.value;
 
@@ -67,15 +73,15 @@ export default async function initSchedulerModule(rom) {
         const { data, error } = await query;
 
         if (error) {
-            console.error('Error loading events:', error);
-            grid.innerHTML = `<div class="text-red-400 text-center">Failed to load schedule.</div>`;
+            console.error('Error loading lobbies:', error);
+            grid.innerHTML = `<div class="text-red-400 text-center">Failed to load lobbies.</div>`;
             return;
         }
 
         if (countEl) countEl.textContent = data?.length || 0;
 
         if (!data || data.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-12">No scheduled sessions found. Be the first to plan one!</div>`;
+            grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-12">No scheduled sessions found.</div>`;
             return;
         }
 
@@ -89,44 +95,37 @@ export default async function initSchedulerModule(rom) {
         events.forEach(event => {
             const host = event.host_profile;
             const isFull = event.status === 'full';
-            const isCompleted = event.status === 'completed';
             const participantCount = event.participants?.[0]?.count || 0;
             const startTime = new Date(event.start_time).toLocaleString();
+            const isHost = currentUser && currentUser.id === event.host_id;
             
-            let statusColor = 'border-cyan-500/50';
-            let statusText = 'OPEN';
-            let statusTextColor = 'text-green-400';
-            let btnText = 'Join Session';
-            let btnDisabled = false;
-
-            if (isFull) {
-                statusColor = 'border-red-500/50';
-                statusText = 'FULL';
-                statusTextColor = 'text-red-400';
-                btnText = 'Session Full';
-                btnDisabled = true;
-            } else if (isCompleted) {
-                statusColor = 'border-gray-500/50';
-                statusText = 'ENDED';
-                statusTextColor = 'text-gray-400';
-                btnText = 'Ended';
-                btnDisabled = true;
-            }
-
             const card = document.createElement('div');
-            card.className = `bg-gray-800/80 backdrop-blur border ${statusColor} rounded-xl p-5 hover:border-cyan-400 transition-all group relative overflow-hidden`;
+            card.className = `bg-gray-800/80 backdrop-blur border ${isFull ? 'border-red-500/50' : 'border-cyan-500/50'} rounded-xl p-5 hover:border-cyan-400 transition-all group relative overflow-hidden`;
+            
+            // Admin Controls (Edit/Delete) - Only visible to host
+            const adminControls = isHost ? `
+                <div class="absolute top-2 left-2 flex gap-2 z-10">
+                    <button onclick="window.editLobby('${event.id}')" class="bg-yellow-600 hover:bg-yellow-500 text-white text-xs px-2 py-1 rounded shadow">✏️ Edit</button>
+                    <button onclick="window.deleteLobby('${event.id}')" class="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded shadow">🗑️</button>
+                </div>
+            ` : '';
+
+            const hostBadge = isHost ? `<span class="text-[10px] bg-cyan-900 text-cyan-300 px-2 py-0.5 rounded ml-2">YOU ARE HOSTING</span>` : '';
             
             card.innerHTML = `
+                ${adminControls}
                 <div class="absolute top-0 right-0 bg-gray-900/80 px-3 py-1 rounded-bl-lg border-l border-b border-gray-700">
-                    <span class="text-xs font-bold ${statusTextColor}">${statusText}</span>
+                    <span class="text-xs font-bold ${isFull ? 'text-red-400' : 'text-green-400'}">${isFull ? 'FULL' : 'OPEN'}</span>
                 </div>
 
-                <div class="flex items-start gap-4 mb-4">
+                <div class="flex items-start gap-4 mb-4 mt-4">
                     <div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden border-2 border-cyan-500/50">
                         ${host?.avatar_url ? `<img src="${host.avatar_url}" class="w-full h-full object-cover">` : '<div class="w-full h-full flex items-center justify-center text-xl">👤</div>'}
                     </div>
                     <div>
-                        <h3 class="font-bold text-white text-lg leading-tight group-hover:text-cyan-400 transition">${escapeHtml(event.title)}</h3>
+                        <h3 class="font-bold text-white text-lg leading-tight group-hover:text-cyan-400 transition flex items-center">
+                            ${escapeHtml(event.title)} ${hostBadge}
+                        </h3>
                         <p class="text-sm text-gray-400">Hosted by <span class="text-cyan-300">${host?.username || 'Unknown'}</span></p>
                     </div>
                 </div>
@@ -148,20 +147,38 @@ export default async function initSchedulerModule(rom) {
 
                 ${event.description ? `<p class="text-xs text-gray-500 italic mb-4 line-clamp-2">"${event.description}"</p>` : ''}
 
-                <button 
-                    onclick="window.joinLobbyEvent('${event.id}')"
-                    ${btnDisabled ? 'disabled class="w-full bg-gray-700 text-gray-500 py-2 rounded cursor-not-allowed"' : 'class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded transition shadow-lg hover:shadow-cyan-500/50"'}
-                >
-                    ${btnText}
-                </button>
+                ${!isHost ? `
+                    <button 
+                        onclick="window.joinLobby('${event.id}')"
+                        ${isFull ? 'disabled class="w-full bg-gray-700 text-gray-500 py-2 rounded cursor-not-allowed"' : 'class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded transition shadow-lg hover:shadow-cyan-500/50"'}
+                    >
+                        ${isFull ? 'Session Full' : 'Join Session'}
+                    </button>
+                ` : `
+                    <div class="w-full text-center text-xs text-gray-500 py-2 border border-gray-700 rounded bg-gray-900/50">
+                        You are managing this session
+                    </div>
+                `}
             `;
             grid.appendChild(card);
         });
     }
 
+    function resetForm() {
+        currentEditId = null;
+        form.reset();
+        document.querySelector('#create-modal h2').textContent = '📡 Host New Session';
+        document.querySelector('#create-form button[type="submit"]').textContent = 'Launch Signal';
+        
+        // Set default time
+        const now = new Date();
+        now.setHours(now.getHours() + 1);
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('event-time').value = now.toISOString().slice(0, 16);
+    }
+
     async function createEvent() {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return alert('Please log in to host a session.');
+        if (!currentUser) return alert('Please log in to host a session.');
 
         const title = document.getElementById('event-title').value;
         const consoleVal = document.getElementById('event-console').value;
@@ -173,12 +190,12 @@ export default async function initSchedulerModule(rom) {
 
         const btn = form.querySelector('button[type="submit"]');
         const originalText = btn.textContent;
-        btn.textContent = 'Creating...';
+        btn.textContent = 'Broadcasting...';
         btn.disabled = true;
 
         try {
             const { error } = await supabase.from('lfg_events').insert({
-                host_id: user.id,
+                host_id: currentUser.id,
                 title,
                 console: consoleVal,
                 max_players: max,
@@ -190,9 +207,8 @@ export default async function initSchedulerModule(rom) {
             if (error) throw error;
 
             modal.classList.add('hidden');
-            form.reset();
-            loadEvents();
-            alert('Session scheduled successfully!');
+            loadLobbies();
+            alert('Session broadcasted successfully!');
         } catch (err) {
             alert('Error: ' + err.message);
         } finally {
@@ -201,31 +217,116 @@ export default async function initSchedulerModule(rom) {
         }
     }
 
-    // Helper
+    async function updateEvent() {
+        if (!currentUser || !currentEditId) return;
+
+        const title = document.getElementById('event-title').value;
+        const consoleVal = document.getElementById('event-console').value;
+        const max = parseInt(document.getElementById('event-max').value);
+        const time = document.getElementById('event-time').value;
+        const desc = document.getElementById('event-desc').value;
+
+        const btn = form.querySelector('button[type="submit"]');
+        btn.textContent = 'Updating...';
+        btn.disabled = true;
+
+        try {
+            const { error } = await supabase.from('lfg_events').update({
+                title,
+                console: consoleVal,
+                max_players: max,
+                start_time: new Date(time).toISOString(),
+                description: desc,
+                updated_at: new Date().toISOString()
+            }).eq('id', currentEditId).eq('host_id', currentUser.id); // Security check
+
+            if (error) throw error;
+
+            modal.classList.add('hidden');
+            loadLobbies();
+            alert('Session updated!');
+        } catch (err) {
+            alert('Error: ' + err.message);
+        } finally {
+            btn.textContent = 'Launch Signal';
+            btn.disabled = false;
+        }
+    }
+
+    // Expose Global Functions
+    window.editLobby = async (eventId) => {
+        if (!currentUser) return alert('Log in first.');
+        
+        // Fetch event details
+        const { data: event, error } = await supabase
+            .from('lfg_events')
+            .select('*')
+            .eq('id', eventId)
+            .single();
+
+        if (error || !event) return alert('Event not found.');
+        if (event.host_id !== currentUser.id) return alert('You can only edit your own events.');
+
+        // Populate Form
+        currentEditId = eventId;
+        document.getElementById('event-title').value = event.title;
+        document.getElementById('event-console').value = event.console;
+        document.getElementById('event-max').value = event.max_players;
+        
+        // Format datetime for input
+        const dateObj = new Date(event.start_time);
+        dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
+        document.getElementById('event-time').value = dateObj.toISOString().slice(0, 16);
+        
+        document.getElementById('event-desc').value = event.description || '';
+
+        // Update Modal UI
+        document.querySelector('#create-modal h2').textContent = '✏️ Edit Session';
+        document.querySelector('#create-form button[type="submit"]').textContent = 'Save Changes';
+        
+        modal.classList.remove('hidden');
+    };
+
+    window.deleteLobby = async (eventId) => {
+        if (!currentUser) return alert('Log in first.');
+        if (!confirm('Are you sure you want to cancel this session?')) return;
+
+        try {
+            const { error } = await supabase
+                .from('lfg_events')
+                .delete()
+                .eq('id', eventId)
+                .eq('host_id', currentUser.id); // Security check
+
+            if (error) throw error;
+            loadLobbies();
+            alert('Session cancelled.');
+        } catch (err) {
+            alert('Error: ' + err.message);
+        }
+    };
+
+    window.joinLobby = async (eventId) => {
+        if (!currentUser) return alert('Log in to join.');
+        if(!confirm('Join this session?')) return;
+
+        try {
+            const { error } = await supabase.from('lfg_participants').insert({
+                event_id: eventId,
+                user_id: currentUser.id
+            });
+            if (error) throw error;
+            alert('Joined! Good luck.');
+            loadLobbies();
+        } catch (err) {
+            alert('Failed to join: ' + err.message);
+        }
+    };
+
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-
-    // Expose join function globally for the HTML onclick
-    window.joinLobbyEvent = async (eventId) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return alert('Log in to join.');
-
-        if(!confirm('Join this scheduled session?')) return;
-
-        try {
-            const { error } = await supabase.from('lfg_participants').insert({
-                event_id: eventId,
-                user_id: user.id
-            });
-            if (error) throw error;
-            alert('Joined! See you there.');
-            loadEvents();
-        } catch (err) {
-            alert('Failed to join: ' + err.message);
-        }
-    };
 }
