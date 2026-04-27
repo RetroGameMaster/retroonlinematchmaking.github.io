@@ -262,7 +262,70 @@ function generateSlug(text) {
     .replace(/^-+/, '')       // Trim - from start
     .replace(/-+$/, '');      // Trim - from end
 }
+// Helper to normalize console names to match the dropdown values
+function normalizeConsoleName(consoleName) {
+  if (!consoleName) return '';
+  
+  const lower = consoleName.toLowerCase();
+  
+  // Map common variations to standard dropdown values
+  const mapping = {
+    'playstation 2': 'PS2',
+    'ps2': 'PS2',
+    'playstation2': 'PS2',
+    'playstation 1': 'PS1',
+    'ps1': 'PS1',
+    'playstation': 'PS1',
+    'playstation 3': 'PS3',
+    'ps3': 'PS3',
+    'playstation 4': 'PS4',
+    'ps4': 'PS4',
+    'playstation 5': 'PS5',
+    'ps5': 'PS5',
+    'xbox': 'XBOX',
+    'xbox 360': 'XBOX 360',
+    'xbox one': 'XBOX ONE', 
+    'gamecube': 'GameCube',
+    'gc': 'GameCube',
+    'nintendo 64': 'N64',
+    'n64': 'N64',
+    'super nintendo': 'SNES',
+    'snes': 'SNES',
+    'super nes': 'SNES',
+    'nes': 'NES',
+    'nintendo entertainment system': 'NES',
+    'sega genesis': 'Genesis/Megadrive',
+    'genesis': 'Genesis/Megadrive',
+    'megadrive': 'Genesis/Megadrive',
+    'sega saturn': 'Saturn',
+    'saturn': 'Saturn',
+    'dreamcast': 'Dreamcast',
+    'gameboy advance': 'GBA',
+    'gba': 'GBA',
+    'gameboy': 'Gameboy',
+    'game boy': 'Gameboy',
+    'gbc': 'Gameboy Color',
+    'gameboy color': 'Gameboy Color',
+    'game boy color': 'Gameboy Color',
+    '3ds': '3DS',
+    'nintendo 3ds': '3DS',
+    'switch': 'Nintendo Switch',
+    'nintendo switch': 'Nintendo Switch',
+    'pc': 'PC',
+    'steam': 'PC'
+  };
 
+  // Check for exact match first
+  if (mapping[lower]) return mapping[lower];
+  
+  // Check for partial match
+  for (const key in mapping) {
+    if (lower.includes(key)) return mapping[key];
+  }
+
+  // If no match, return the original trimmed string
+  return consoleName.trim();
+}
 async function loadPendingSubmissions() {
   try {
     console.log('Loading pending submissions...');
@@ -1745,7 +1808,7 @@ window.approveSubmission = async (submissionId) => {
 
     const gameData = {
       title: submission.title,
-      console: submission.console,
+      console: normalizeConsoleName(submission.console),
       year: submission.year,
       description: submission.description,
       file_url: submission.file_url,
