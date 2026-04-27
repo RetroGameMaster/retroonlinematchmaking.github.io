@@ -1,0 +1,54 @@
+<div class="max-w-6xl mx-auto p-4 animate-fade-in">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-cyan-400 glow mb-2">📚 Game Guides & Wikis</h1>
+            <p class="text-gray-400">Community tutorials, setup guides, and strategy.</p>
+        </div>
+        <!-- Only show if admin/logged in (handled in JS) -->
+        <button id="btn-create-guide" class="hidden bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-lg font-bold shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+            + Write Guide
+        </button>
+    </div>
+
+    <!-- Search & Filter -->
+    <div class="bg-gray-800/50 border border-gray-700 rounded-xl p-4 mb-6 flex gap-4">
+        <input type="text" id="guide-search" placeholder="Search guides..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-4 py-2 text-white focus:border-cyan-500 outline-none">
+        <select id="guide-difficulty" class="bg-gray-900 border border-gray-600 rounded px-4 py-2 text-white">
+            <option value="">Any Difficulty</option>
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+        </select>
+    </div>
+
+    <!-- Grid -->
+    <div id="guides-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-12 text-gray-500">Loading guides...</div>
+    </div>
+</div>
+
+<!-- Simple Create Modal (Expand later) -->
+<div id="guide-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-purple-500 rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <h2 class="text-2xl font-bold text-purple-400 mb-4">Write New Guide</h2>
+        <form id="guide-form" class="space-y-4">
+            <input type="text" id="g-title" placeholder="Guide Title" required class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white">
+            <select id="g-game" required class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white">
+                <option value="">Select Game...</option>
+                <!-- Populated by JS -->
+            </select>
+            <select id="g-diff" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white">
+                <option value="Easy">Easy</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="Hard">Hard</option>
+            </select>
+            <input type="text" id="g-video" placeholder="YouTube URL (Optional)" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white">
+            <textarea id="g-content" rows="10" placeholder="Write your guide here... (HTML allowed for bold/lists)" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white font-mono text-sm"></textarea>
+            
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" id="close-guide-modal" class="text-gray-400 hover:text-white">Cancel</button>
+                <button type="submit" class="bg-purple-600 text-white px-6 py-2 rounded font-bold">Submit Guide</button>
+            </div>
+        </form>
+    </div>
+</div>
