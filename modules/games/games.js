@@ -1,4 +1,4 @@
-// modules/games/games.js - FIXED DOUBLE INITIALIZATION & ID MISMATCH
+// modules/games/games.js - FIXED DOUBLE INITIALIZATION & SORT ORDER
 let isInitialized = false;
 
 async function initGamesModule(rom) {
@@ -24,7 +24,6 @@ async function initGamesModule(rom) {
     
     // Wait a moment for HTML to be fully loaded
     setTimeout(() => {
-        // Initialize filters and search
         initFilters();
         initSearch();
         loadGames();
@@ -73,8 +72,7 @@ async function initGamesModule(rom) {
     
     // Initialize search
     function initSearch() {
-        // FIX: Updated ID to match HTML (game-search instead of gameSearch)
-        const searchInput = document.getElementById('game-search');
+        const searchInput = document.getElementById('game-search'); // Fixed ID to match HTML
         const searchBtn = document.getElementById('searchBtn');
         
         console.log('Initializing search...');
@@ -96,12 +94,11 @@ async function initGamesModule(rom) {
                     performSearch();
                 }
             });
-            
-            // Also listen for input to search as you type (optional)
+            // Also search on input change for instant results
             searchInput.addEventListener('input', () => {
-                 if (searchInput.value.trim().length === 0) {
+                if (searchInput.value.trim().length === 0) {
                     loadGames();
-                 }
+                }
             });
         }
         
@@ -120,7 +117,7 @@ async function initGamesModule(rom) {
                 .from('games')
                 .select('*')
                 .eq('status', 'approved') // Only show approved games
-                .order('created_at', { ascending: false });
+                .order('approved_at', { ascending: false }); // Fixed: Use approved_at
             
             if (error) {
                 throw error;
@@ -178,14 +175,35 @@ async function initGamesModule(rom) {
                 .select('*')
                 .eq('status', 'approved');
             
-            // Platform filter (Using the dropdown in HTML)
+            // Console filter (Fixed to use HTML ID 'console-filter')
             const consoleFilter = document.getElementById('console-filter');
             if (consoleFilter && consoleFilter.value) {
                 query = query.ilike('console', `%${consoleFilter.value}%`);
             }
             
-            // Note: Year and Player filters removed as they don't exist in your current HTML
-            // If you add them back to HTML later, you can re-enable this logic
+            // Sort order
+            const sortOrder = document.getElementById('sortOrder');
+            if (sortOrder) {
+                switch(sortOrder.value) {
+                    case 'newest':
+                        query = query.order('approved_at', { ascending: false });
+                        break;
+                    case 'oldest':
+                        query = query.order('approved_at', { ascending: true });
+                        break;
+                    case 'title_asc':
+                        query = query.order('title', { ascending: true });
+                        break;
+                    case 'title_desc':
+                        query = query.order('title', { ascending: false });
+                        break;
+                    case 'most_players':
+                        query = query.order('players_max', { ascending: false });
+                        break;
+                    default:
+                        query = query.order('approved_at', { ascending: false });
+                }
+            }
             
             const { data: games, error } = await query;
             
@@ -205,54 +223,50 @@ async function initGamesModule(rom) {
     
     // Clear filters
     function clearFilters() {
-        // Reset console dropdown
         const consoleFilter = document.getElementById('console-filter');
         if (consoleFilter) consoleFilter.value = '';
         
-        // Reset search
+        const sortOrder = document.getElementById('sortOrder');
+        if (sortOrder) sortOrder.value = 'newest';
+        
         const searchInput = document.getElementById('game-search');
         if (searchInput) searchInput.value = '';
         
-        // Reload all games
         loadGames();
     }
     
     // Display games in grid
     function displayGames(games) {
-        // FIX: Updated ID to match HTML (games-list instead of gamesGrid)
-        const gamesList = document.getElementById('games-list');
+        const gamesList = document.getElementById('games-list'); // Fixed ID to match HTML
         const emptyState = document.getElementById('emptyState');
         
         console.log('🖥️ Displaying games...');
-        console.log('gamesList element:', !!gamesList);
-        console.log('emptyState element:', !!emptyState);
-        console.log(`Number of games: ${games.length}`);
+        console.log('games-list element:', !!gamesList);
         
         if (!gamesList) {
             console.error('❌ games-list element not found!');
+            showMessage('error', 'Container not found');
+            showLoading(false);
             return;
         }
         
         if (games.length === 0) {
             gamesList.innerHTML = `
                 <div class="text-center py-12">
-                    <div class="text-6xl mb-4 opacity-50">🕹️</div>
+                    <div class="text-6xl mb-4">🕹️</div>
                     <h3 class="text-xl font-bold text-gray-300">No Games Found</h3>
                     <p class="text-gray-500 mt-2">Try adjusting your search or filters.</p>
                 </div>
             `;
-            if (emptyState) emptyState.classList.remove('hidden');
-            console.log('📭 No games to display');
+            showLoading(false);
             return;
         }
         
-        if (emptyState) emptyState.classList.add('hidden');
-        
-        // Create the grid container inside games-list
-        let gamesGrid = document.getElementById('games-grid-container');
+        // Create Grid Container inside games-list
+        let gamesGrid = document.getElementById('gamesGrid');
         if (!gamesGrid) {
-            gamesList.innerHTML = '<div id="games-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"></div>';
-            gamesGrid = document.getElementById('games-grid-container');
+            gamesList.innerHTML = '<div id="gamesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"></div>';
+            gamesGrid = document.getElementById('gamesGrid');
         }
         
         gamesGrid.innerHTML = '';
@@ -268,7 +282,6 @@ async function initGamesModule(rom) {
         setTimeout(() => {
             document.querySelectorAll('.game-card').forEach(card => {
                 card.addEventListener('click', function(e) {
-                    // Don't navigate if clicking on favorite button
                     if (e.target.closest('.favorite-btn') || e.target.classList.contains('favorite-btn')) {
                         return;
                     }
@@ -276,9 +289,6 @@ async function initGamesModule(rom) {
                     const gameId = this.dataset.gameId;
                     const gameSlug = this.dataset.gameSlug;
                     
-                    console.log(`🎮 Clicked game: ${gameId}, slug: ${gameSlug || 'none'}`);
-                    
-                    // Use slug URL if available, otherwise use ID
                     if (gameSlug) {
                         window.location.hash = `#/game/${gameSlug}`;
                     } else {
@@ -287,25 +297,20 @@ async function initGamesModule(rom) {
                 });
             });
         }, 100);
+        
+        showLoading(false);
     }
     
     // Create game card HTML
     function createGameCard(game) {
         const rating = game.rating || 0;
         const views = game.views_count || 0;
-        
-        // Get platforms as array
         const platforms = game.console?.split(',').map(p => p.trim()) || [];
         
-        // Create platform badges
         const platformBadges = platforms.map(platform => 
             `<span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">${platform}</span>`
         ).join('');
         
-        // Determine game URL
-        const gameUrl = game.slug ? `#/game/${game.slug}` : `#/game/${game.id}`;
-        
-        // Format date
         const approvedDate = game.approved_at ? new Date(game.approved_at).toLocaleDateString() : 'N/A';
         
         return `
@@ -381,17 +386,24 @@ async function initGamesModule(rom) {
     // Show loading state
     function showLoading(show) {
         const gamesList = document.getElementById('games-list');
+        if (!gamesList) return;
         
-        if (gamesList && show) {
-            // Only show spinner if list is empty
-            if (gamesList.innerHTML.trim() === '') {
-                gamesList.innerHTML = `
-                    <div class="text-center py-12">
-                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
-                        <p class="text-gray-400 mt-4">Loading game library...</p>
-                    </div>
+        let loader = document.getElementById('gamesLoading');
+        
+        if (show) {
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.id = 'gamesLoading';
+                loader.className = 'text-center py-12';
+                loader.innerHTML = `
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                    <p class="text-gray-400 mt-4">Loading game library...</p>
                 `;
+                gamesList.appendChild(loader);
             }
+            loader.style.display = 'block';
+        } else {
+            if (loader) loader.style.display = 'none';
         }
     }
     
@@ -399,7 +411,6 @@ async function initGamesModule(rom) {
     function showMessage(type, text) {
         console.log(`💬 ${type.toUpperCase()}: ${text}`);
         
-        // Create or get message container
         let messageContainer = document.getElementById('gamesMessage');
         if (!messageContainer) {
             messageContainer = document.createElement('div');
@@ -423,27 +434,18 @@ async function initGamesModule(rom) {
             </div>
         `;
         
-        // Auto-remove after 5 seconds
         setTimeout(() => {
             const msg = document.getElementById(messageId);
             if (msg) msg.remove();
         }, 5000);
     }
     
-    // Utility function to escape HTML
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-    
-    // Global function for favorite button (placeholder)
-    window.toggleFavorite = function(gameId) {
-        console.log('Toggle favorite for:', gameId);
-        showMessage('info', 'Favorite feature coming soon!');
-    };
 }
 
-// Export for module system
 export default initGamesModule;
