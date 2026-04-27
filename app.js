@@ -15,6 +15,7 @@ const modules = {
     'submit-game': () => import('./modules/submit-game/submit-game.js'),
     'search-users': () => import('./modules/search-users/search-users.js'),
     'live-lobbies': () => import('./modules/live-lobbies/live-lobbies.js'),
+    'lfg-scheduler': () => import('./modules/lfg-scheduler/lfg-scheduler.js'),
 };
 
 // Fallback content
