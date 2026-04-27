@@ -174,7 +174,7 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Apply filters
+        // Apply filters
     async function applyFilters() {
         showLoading(true);
         
@@ -184,10 +184,14 @@ async function initGamesModule(rom) {
                 .select('*')
                 .eq('status', 'approved');
             
-            // Console filter (Fixed to use HTML ID 'console-filter')
+            // Console filter
             const consoleFilter = document.getElementById('console-filter');
             if (consoleFilter && consoleFilter.value) {
-                query = query.ilike('console', `%${consoleFilter.value}%`);
+                const selectedConsole = consoleFilter.value.trim();
+                
+                console.log(`🔍 Filtering by console: "${selectedConsole}"`);
+
+                query = query.ilike('console', `%${selectedConsole}%`);
             }
             
             // Sort order
@@ -220,6 +224,7 @@ async function initGamesModule(rom) {
                 throw error;
             }
             
+            console.log(`✅ Filter result: ${games.length} games found`);
             displayGames(games || []);
             
         } catch (error) {
