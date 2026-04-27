@@ -1,5 +1,4 @@
-// modules/game-detail/game-detail.js - COMPLETE WITH NEW FEATURES & YOUTUBE FIX
-let isInitialized = false;
+// modules/game-detail/game-detail.js 
 
 // ===== HELPER: Convert YouTube URLs to Embed Format (Robust) =====
 function getEmbedUrl(url) {
