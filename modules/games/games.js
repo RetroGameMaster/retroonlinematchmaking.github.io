@@ -1,15 +1,26 @@
-// modules/games/games.js - FIXED CONSOLE FILTER & DOUBLE INITIALIZATION
+// modules/games/games.js - FIXED RE-INITIALIZATION & CONSOLE FILTER
 let isInitialized = false;
 
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
     
-    // Prevent double initialization
-    if (isInitialized) {
-        console.log('⚠️ Games module already initialized, skipping...');
+    // FIX: Check if the DOM element actually exists and has content.
+    // If the grid is missing (because we navigated away and back), we MUST re-initialize.
+    const gamesList = document.getElementById('games-list');
+    const hasGamesLoaded = gamesList && gamesList.querySelectorAll('.game-card').length > 0;
+
+    if (isInitialized && hasGamesLoaded) {
+        console.log('⚠️ Games module already initialized and populated, skipping...');
         return;
     }
-    isInitialized = true;
+    
+    // Reset flag if DOM was cleared, allowing re-initialization
+    if (!hasGamesLoaded) {
+        console.log('🔄 Games grid empty or missing, re-initializing...');
+        isInitialized = true; // Set to true immediately to prevent double calls during this load
+    } else {
+        isInitialized = true;
+    }
     
     // Ensure we have supabase
     if (!rom.supabase) {
@@ -174,7 +185,7 @@ async function initGamesModule(rom) {
         }
     }
     
-        // Apply filters
+    // Apply filters
     async function applyFilters() {
         showLoading(true);
         
