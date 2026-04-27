@@ -1,5 +1,5 @@
-// modules/games/games.js - FIXED DOUBLE INITIALIZATION
-let isInitialized = false; // Add this at the top
+// modules/games/games.js - FIXED DOUBLE INITIALIZATION & ID MISMATCH
+let isInitialized = false;
 
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
@@ -73,7 +73,8 @@ async function initGamesModule(rom) {
     
     // Initialize search
     function initSearch() {
-        const searchInput = document.getElementById('gameSearch');
+        // FIX: Updated ID to match HTML (game-search instead of gameSearch)
+        const searchInput = document.getElementById('game-search');
         const searchBtn = document.getElementById('searchBtn');
         
         console.log('Initializing search...');
@@ -95,6 +96,13 @@ async function initGamesModule(rom) {
                     performSearch();
                 }
             });
+            
+            // Also listen for input to search as you type (optional)
+            searchInput.addEventListener('input', () => {
+                 if (searchInput.value.trim().length === 0) {
+                    loadGames();
+                 }
+            });
         }
         
         if (searchBtn) {
@@ -111,7 +119,8 @@ async function initGamesModule(rom) {
             const { data: games, error } = await rom.supabase
                 .from('games')
                 .select('*')
-                .order('last_activity', { ascending: false });
+                .eq('status', 'approved') // Only show approved games
+                .order('created_at', { ascending: false });
             
             if (error) {
                 throw error;
@@ -141,6 +150,7 @@ async function initGamesModule(rom) {
             const { data: games, error } = await rom.supabase
                 .from('games')
                 .select('*')
+                .eq('status', 'approved')
                 .or(`title.ilike.%${query}%,description.ilike.%${query}%,console.ilike.%${query}%`)
                 .order('title', { ascending: true });
             
@@ -149,13 +159,6 @@ async function initGamesModule(rom) {
             }
             
             displayGames(games || []);
-            
-            // Update results count
-            const resultsCount = document.getElementById('resultsCount');
-            if (resultsCount) {
-                resultsCount.textContent = `Found ${games?.length || 0} games`;
-                resultsCount.classList.remove('hidden');
-            }
             
         } catch (error) {
             console.error('Error searching games:', error);
@@ -172,75 +175,17 @@ async function initGamesModule(rom) {
         try {
             let query = rom.supabase
                 .from('games')
-                .select('*');
+                .select('*')
+                .eq('status', 'approved');
             
-            // Platform filter
-            const platformFilter = document.querySelector('input[name="platformFilter"]:checked');
-            if (platformFilter && platformFilter.value !== 'all') {
-                query = query.ilike('console', `%${platformFilter.value}%`);
+            // Platform filter (Using the dropdown in HTML)
+            const consoleFilter = document.getElementById('console-filter');
+            if (consoleFilter && consoleFilter.value) {
+                query = query.ilike('console', `%${consoleFilter.value}%`);
             }
             
-            // Year filter
-            const yearFilter = document.querySelector('input[name="yearFilter"]:checked');
-            if (yearFilter && yearFilter.value !== 'all') {
-                const currentYear = new Date().getFullYear();
-                let startYear, endYear;
-                
-                switch(yearFilter.value) {
-                    case '2000s':
-                        startYear = 2000; endYear = 2009;
-                        break;
-                    case '2010s':
-                        startYear = 2010; endYear = 2019;
-                        break;
-                    case '2020s':
-                        startYear = 2020; endYear = currentYear;
-                        break;
-                    case 'retro':
-                        startYear = 1990; endYear = 1999;
-                        break;
-                }
-                
-                if (startYear && endYear) {
-                    query = query.gte('year', startYear).lte('year', endYear);
-                }
-            }
-            
-            // Player count filter
-            const playersFilter = document.querySelector('input[name="playersFilter"]:checked');
-            if (playersFilter && playersFilter.value !== 'all') {
-                switch(playersFilter.value) {
-                    case '2-4':
-                        query = query.gte('players_max', 2).lte('players_max', 4);
-                        break;
-                    case '5-8':
-                        query = query.gte('players_max', 5).lte('players_max', 8);
-                        break;
-                    case '9+':
-                        query = query.gte('players_max', 9);
-                        break;
-                }
-            }
-            
-            // Sort order
-            const sortOrder = document.getElementById('sortOrder').value;
-            switch(sortOrder) {
-                case 'newest':
-                    query = query.order('approved_at', { ascending: false });
-                    break;
-                case 'oldest':
-                    query = query.order('approved_at', { ascending: true });
-                    break;
-                case 'title_asc':
-                    query = query.order('title', { ascending: true });
-                    break;
-                case 'title_desc':
-                    query = query.order('title', { ascending: false });
-                    break;
-                case 'most_players':
-                    query = query.order('players_max', { ascending: false });
-                    break;
-            }
+            // Note: Year and Player filters removed as they don't exist in your current HTML
+            // If you add them back to HTML later, you can re-enable this logic
             
             const { data: games, error } = await query;
             
@@ -260,78 +205,58 @@ async function initGamesModule(rom) {
     
     // Clear filters
     function clearFilters() {
-        // Reset all filter inputs
-        document.querySelectorAll('input[name="platformFilter"]').forEach(radio => {
-            if (radio.value === 'all') radio.checked = true;
-        });
+        // Reset console dropdown
+        const consoleFilter = document.getElementById('console-filter');
+        if (consoleFilter) consoleFilter.value = '';
         
-        document.querySelectorAll('input[name="yearFilter"]').forEach(radio => {
-            if (radio.value === 'all') radio.checked = true;
-        });
-        
-        document.querySelectorAll('input[name="playersFilter"]').forEach(radio => {
-            if (radio.value === 'all') radio.checked = true;
-        });
-        
-        const sortOrder = document.getElementById('sortOrder');
-        if (sortOrder) sortOrder.value = 'newest';
-        
-        // Clear search
-        const searchInput = document.getElementById('gameSearch');
+        // Reset search
+        const searchInput = document.getElementById('game-search');
         if (searchInput) searchInput.value = '';
         
-        const resultsCount = document.getElementById('resultsCount');
-        if (resultsCount) resultsCount.classList.add('hidden');
+        // Reload all games
+        loadGames();
     }
     
     // Display games in grid
     function displayGames(games) {
-        const gamesGrid = document.getElementById('gamesGrid');
+        // FIX: Updated ID to match HTML (games-list instead of gamesGrid)
+        const gamesList = document.getElementById('games-list');
         const emptyState = document.getElementById('emptyState');
         
         console.log('🖥️ Displaying games...');
-        console.log('gamesGrid element:', !!gamesGrid);
+        console.log('gamesList element:', !!gamesList);
         console.log('emptyState element:', !!emptyState);
         console.log(`Number of games: ${games.length}`);
         
-        if (!gamesGrid) {
-            console.error('❌ gamesGrid element not found! Trying to create it...');
-            // Try to find or create the games grid
-            const appContent = document.getElementById('app-content');
-            if (appContent) {
-                appContent.innerHTML += `
-                    <div id="gamesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"></div>
-                `;
-                // Try again with the newly created element
-                const newGamesGrid = document.getElementById('gamesGrid');
-                if (newGamesGrid) {
-                    console.log('✅ Created gamesGrid element');
-                    displayGamesInElement(newGamesGrid, games, emptyState);
-                    return;
-                }
-            }
+        if (!gamesList) {
+            console.error('❌ games-list element not found!');
             return;
         }
         
-        displayGamesInElement(gamesGrid, games, emptyState);
-    }
-    
-    function displayGamesInElement(gamesGrid, games, emptyState) {
         if (games.length === 0) {
-            gamesGrid.innerHTML = '';
-            if (emptyState) {
-                emptyState.classList.remove('hidden');
-            }
+            gamesList.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4 opacity-50">🕹️</div>
+                    <h3 class="text-xl font-bold text-gray-300">No Games Found</h3>
+                    <p class="text-gray-500 mt-2">Try adjusting your search or filters.</p>
+                </div>
+            `;
+            if (emptyState) emptyState.classList.remove('hidden');
             console.log('📭 No games to display');
             return;
         }
         
-        if (emptyState) {
-            emptyState.classList.add('hidden');
+        if (emptyState) emptyState.classList.add('hidden');
+        
+        // Create the grid container inside games-list
+        let gamesGrid = document.getElementById('games-grid-container');
+        if (!gamesGrid) {
+            gamesList.innerHTML = '<div id="games-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"></div>';
+            gamesGrid = document.getElementById('games-grid-container');
         }
         
-        // Clear and add games
         gamesGrid.innerHTML = '';
+        
         games.forEach(game => {
             const gameCard = createGameCard(game);
             gamesGrid.innerHTML += gameCard;
@@ -339,7 +264,7 @@ async function initGamesModule(rom) {
         
         console.log(`✅ Added ${games.length} game cards to grid`);
         
-        // Add click event listeners - FIXED EVENT LISTENER
+        // Add click event listeners
         setTimeout(() => {
             document.querySelectorAll('.game-card').forEach(card => {
                 card.addEventListener('click', function(e) {
@@ -364,7 +289,7 @@ async function initGamesModule(rom) {
         }, 100);
     }
     
-    // Create game card HTML - FIXED CLICK ISSUE
+    // Create game card HTML
     function createGameCard(game) {
         const rating = game.rating || 0;
         const views = game.views_count || 0;
@@ -455,15 +380,18 @@ async function initGamesModule(rom) {
     
     // Show loading state
     function showLoading(show) {
-        const loadingDiv = document.getElementById('gamesLoading');
-        const gamesGrid = document.getElementById('gamesGrid');
+        const gamesList = document.getElementById('games-list');
         
-        if (loadingDiv) {
-            loadingDiv.classList.toggle('hidden', !show);
-        }
-        
-        if (gamesGrid && show) {
-            gamesGrid.innerHTML = '';
+        if (gamesList && show) {
+            // Only show spinner if list is empty
+            if (gamesList.innerHTML.trim() === '') {
+                gamesList.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                        <p class="text-gray-400 mt-4">Loading game library...</p>
+                    </div>
+                `;
+            }
         }
     }
     
@@ -509,13 +437,13 @@ async function initGamesModule(rom) {
         div.textContent = text;
         return div.innerHTML;
     }
+    
+    // Global function for favorite button (placeholder)
+    window.toggleFavorite = function(gameId) {
+        console.log('Toggle favorite for:', gameId);
+        showMessage('info', 'Favorite feature coming soon!');
+    };
 }
 
 // Export for module system
 export default initGamesModule;
-
-// REMOVE THE AUTO-INITIALIZE AT THE BOTTOM - this is causing double initialization
-// if (typeof window.rom !== 'undefined') {
-//     console.log('Auto-initializing games module...');
-//     initGamesModule(window.rom);
-// }
