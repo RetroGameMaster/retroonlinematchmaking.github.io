@@ -5,7 +5,7 @@ import { supabase, isAdmin } from '../../lib/supabase.js';
 // ============================================================================
 
 export async function initModule(container, params) {
-  // FORCE TARGET: Always render directly into #app-content to bypass app.js passing issues
+  // FORCE TARGET: Always render directly into #app-content
   const targetContainer = document.getElementById('app-content');
   
   if (!targetContainer) {
@@ -52,13 +52,16 @@ export async function initModule(container, params) {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const isOwnProfile = currentUser && currentUser.id === targetUser.id;
     
-    // FIX 1: DYNAMIC ADMIN CHECK
+    // Dynamic Admin Check
     const isTargetUserAdmin = !!targetUser.is_admin;
 
-    // 3. Render the Layout
+    // 3. SEO: Update Meta Tags & Schema for this Profile
+    updateProfileSEO(targetUser);
+
+    // 4. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
-    // 4. Attach Event Listeners (Now includes loaders for new walls)
+    // 5. Attach Event Listeners
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
 
   } catch (error) {
@@ -71,6 +74,66 @@ export async function initModule(container, params) {
       </div>
     `;
   }
+}
+
+// ============================================================================
+// SEO HELPER: Dynamic Meta Tags & Schema
+// ============================================================================
+function updateProfileSEO(profile) {
+  const siteName = "RetroOnlineMatchmaking";
+  const title = `${profile.username}'s Profile - ${siteName}`;
+  const description = profile.bio ? `${profile.bio.substring(0, 150)}...` : `View ${profile.username}'s retro gaming profile, achievements, and currently playing games on ${siteName}.`;
+  const imageUrl = profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username;
+  const url = window.location.href;
+
+  // Update Title
+  document.title = title;
+
+  // Update/Open Graph Meta Tags
+  const setMeta = (name, content, property = false) => {
+    let tag = document.querySelector(`meta[${property ? 'property' : 'name'}="${name}"]`);
+    if (!tag) {
+      tag = document.createElement('meta');
+      if (property) tag.setAttribute('property', name);
+      else tag.setAttribute('name', name);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute('content', content);
+  };
+
+  setMeta('description', description);
+  setMeta('og:title', title, true);
+  setMeta('og:description', description, true);
+  setMeta('og:image', imageUrl, true);
+  setMeta('og:url', url, true);
+  setMeta('og:type', 'profile', true);
+  setMeta('profile:username', profile.username, true);
+  setMeta('twitter:card', 'summary');
+  setMeta('twitter:title', title);
+  setMeta('twitter:description', description);
+  setMeta('twitter:image', imageUrl);
+
+  // Inject JSON-LD Schema
+  const schemaId = 'profile-schema';
+  let schemaTag = document.getElementById(schemaId);
+  if (!schemaTag) {
+    schemaTag = document.createElement('script');
+    schemaTag.type = 'application/ld+json';
+    schemaTag.id = schemaId;
+    document.head.appendChild(schemaTag);
+  }
+  
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": profile.username,
+    "url": url,
+    "image": imageUrl,
+    "description": description,
+    "jobTitle": profile.is_admin ? "Administrator" : "Gamer",
+    "knowsAbout": ["Retro Gaming", profile.favorite_console || "Gaming"].filter(Boolean)
+  };
+  schemaTag.textContent = JSON.stringify(schemaData);
 }
 
 // ============================================================================
@@ -103,7 +166,6 @@ async function fetchProfileByUserId(id) {
   return error ? null : data;
 }
 
-// --- fetchWallComments ---
 async function fetchWallComments(profileId) {
   const { data: comments, error } = await supabase
     .from('profile_comments')
@@ -166,7 +228,6 @@ async function fetchFriends(userId) {
   }).filter(p => p !== null);
 }
 
-// FIX 2: Helper to check friendship status
 async function checkFriendStatus(currentUserId, targetUserId) {
   if (!currentUserId) return null;
 
@@ -186,7 +247,6 @@ async function checkFriendStatus(currentUserId, targetUserId) {
   return relationship || null;
 }
 
-// NEW: Fetch full game details for the "Currently Playing" list
 async function fetchCurrentlyPlayingGames(gameIdentifiers) {
   if (!gameIdentifiers || gameIdentifiers.length === 0) return [];
 
@@ -243,10 +303,9 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
 }
 
 // ============================================================================
-// NEW ACHIEVEMENT DATA FETCHERS
+// ACHIEVEMENT DATA FETCHERS
 // ============================================================================
 
-// Fetch Site Awards (Type = 'site')
 async function fetchSiteAwards(userId) {
   const { data, error } = await supabase
     .from('user_achievements')
@@ -267,11 +326,9 @@ async function fetchSiteAwards(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  // Safety filter: ensure achievement data exists
   return (data || []).filter(item => item.achievements);
 }
 
-// Fetch "Most Proud" Achievements (is_proud = true)
 async function fetchProudAchievements(userId) {
   const { data, error } = await supabase
     .from('user_achievements')
@@ -293,11 +350,9 @@ async function fetchProudAchievements(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  // Safety filter: ensure achievement data exists
   return (data || []).filter(item => item.achievements);
 }
 
-// Fetch ALL Game Achievements (Type = 'game', regardless of proud status)
 async function fetchGameAchievements(userId) {
   const { data, error } = await supabase
     .from('user_achievements')
@@ -319,13 +374,10 @@ async function fetchGameAchievements(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  // Safety filter: ensure achievement data exists
   return (data || []).filter(item => item.achievements);
 }
 
-// Fetch Mastered Games (User has ALL achievements for a game)
 async function fetchMasteredGames(userId) {
-  // 1. Get all games that have achievements
   const { data: allGamesWithAchievements } = await supabase
     .from('achievements')
     .select('game_id, games(title, slug, cover_image_url, console)', { count: 'exact' })
@@ -333,7 +385,6 @@ async function fetchMasteredGames(userId) {
 
   if (!allGamesWithAchievements) return [];
 
-  // Group by game_id to count total achievements per game
   const gameTotals = {};
   allGamesWithAchievements.forEach(a => {
     if (!gameTotals[a.game_id]) {
@@ -345,7 +396,6 @@ async function fetchMasteredGames(userId) {
     gameTotals[a.game_id].total++;
   });
 
-  // 2. Get user's unlocked achievements
   const { data: userUnlocks } = await supabase
     .from('user_achievements')
     .select('achievement_id, achievements(game_id)')
@@ -353,7 +403,6 @@ async function fetchMasteredGames(userId) {
 
   if (!userUnlocks) return [];
 
-  // Count unlocks per game for this user
   const userCounts = {};
   userUnlocks.forEach(u => {
     const gid = u.achievements?.game_id;
@@ -362,7 +411,6 @@ async function fetchMasteredGames(userId) {
     }
   });
 
-  // 3. Filter for mastered games (userCount == totalCount)
   const masteredIds = [];
   Object.keys(gameTotals).forEach(gid => {
     if (userCounts[gid] === gameTotals[gid].total) {
@@ -372,7 +420,6 @@ async function fetchMasteredGames(userId) {
 
   if (masteredIds.length === 0) return [];
 
-  // 4. Fetch game details for mastered IDs
   const { data: masteredGames } = await supabase
     .from('games')
     .select('id, title, slug, cover_image_url, console')
@@ -420,6 +467,434 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
 
           <div class="ra-info">
             <h1 class="ra-username">${profile.username}</h1>
+            ${profile.display_name ? `<div class="ra-display-name">${profile.display_name}</div>` : ''}
+            
+            <div class="ra-stats-row">
+              <div class="ra-stat">
+                <span class="ra-stat-icon">🎮</span>
+                <span class="ra-stat-val">${profile.stats?.games_approved || 0}</span>
+                <span class="ra-stat-label">Games</span>
+              </div>
+              <div class="ra-stat">
+                <span class="ra-stat-icon">💬</span>
+                <span class="ra-stat-val">${profile.stats?.comments_made || 0}</span>
+                <span class="ra-stat-label">Comments</span>
+              </div>
+              <div class="ra-stat">
+                <span class="ra-stat-icon">⭐</span>
+                <span class="ra-stat-val">${profile.stats?.total_points || 0}</span>
+                <span class="ra-stat-label">Points</span>
+              </div>
+            </div>
+          </div>
+
+          ${isOwnProfile ? `
+            <button id="btn-edit-profile" class="ra-edit-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Edit
+            </button>
+          ` : ''}
+        </div>
+      </div>
+
+      ${profile.signature_text ? `
+        <div class="ra-signature-box" style="${profile.signature_custom_css || ''}">
+          ${profile.signature_text}
+        </div>
+      ` : ''}
+
+      <!-- Site Awards Wall -->
+      <div class="ra-card mb-6 border-purple-500/50 bg-purple-900/10">
+        <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
+          🎖️ Site Awards & Badges
+        </h3>
+        <div id="site-awards-list" class="flex flex-wrap gap-4 min-h-[60px]">
+          <div class="text-gray-500 text-sm italic">Loading awards...</div>
+        </div>
+      </div>
+
+      <div class="ra-grid">
+        <div class="ra-col-main">
+          <div class="ra-card">
+            <h3>About</h3>
+            <p class="ra-bio">${profile.bio || 'No bio added yet.'}</p>
+          </div>
+          
+          <!-- Currently Playing Section -->
+          <div class="ra-card">
+            <h3>🎮 What I'm Playing Currently</h3>
+            <div id="currently-playing-container">
+              <div id="currently-playing-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="col-span-full text-center text-gray-500 py-4">
+                  <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
+                  <span class="ml-2 text-sm">Loading games...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Most Proud Achievements Wall -->
+          <div class="ra-card mt-6">
+            <h3 class="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
+              ⭐ Most Proud Achievements
+            </h3>
+            <div id="proud-achievements-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-500"></div>
+                <span class="ml-2 text-sm">Loading proud moments...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- All Game Achievements Wall -->
+          <div class="ra-card mt-6">
+            <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
+              🎮 Game Achievements
+              <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
+            </h3>
+            <div id="game-achievements-list" class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-3">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
+                <span class="ml-2 text-sm">Loading achievements...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ra-card mt-6">
+            <h3>Shout Box / Wall</h3>
+            <div id="wall-container">
+              ${isOwnProfile || currentUser ? `
+                <div class="wall-post-form">
+                  <textarea id="new-wall-comment" placeholder="Say something on ${profile.username}'s wall..." class="ra-input"></textarea>
+                  <button id="btn-post-wall" class="btn-primary mt-2">Post Shout</button>
+                </div>
+              ` : ''}
+              <div id="wall-list" class="space-y-3 mt-4">
+                <div class="text-center text-gray-500 py-4">Loading wall comments...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ra-col-side">
+          <div class="ra-card">
+            <h3>Friends</h3>
+            <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              <div class="text-sm text-gray-500 py-2">Loading friends...</div>
+            </div>
+            
+            ${!isOwnProfile ? `
+              <div id="friend-action-container" class="mt-3">
+                <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Mastered Games Wall -->
+          <div class="ra-card mt-6">
+            <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+              🏆 Mastered Games
+            </h3>
+            <div id="mastered-games-list" class="grid grid-cols-2 gap-3">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
+                <span class="ml-2 text-sm">Checking completion...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ra-card mt-6">
+            <h3>Profile Details</h3>
+            <ul class="ra-details-list text-sm space-y-2">
+              <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
+              <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
+              ${isTargetUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      ${isOwnProfile ? `
+        <div id="edit-modal" class="ra-modal">
+          <div class="ra-modal-content">
+            <h2>Edit Profile Settings</h2>
+            <form id="profile-form">
+              <label>Bio</label>
+              <textarea name="bio" class="ra-input" rows="3">${profile.bio || ''}</textarea>
+
+              <hr class="border-gray-700 my-4">
+              <label>Signature Content (HTML Allowed)</label>
+              <textarea name="signature_text" class="ra-input" rows="3">${profile.signature_text || ''}</textarea>
+              
+              <label>Signature Custom CSS</label>
+              <textarea name="signature_custom_css" class="ra-input font-mono text-xs" rows="4">${profile.signature_custom_css || ''}</textarea>
+
+              <hr class="border-gray-700 my-4">
+              <label>Avatar Overlay Custom CSS</label>
+              <textarea name="avatar_custom_css" class="ra-input font-mono text-xs" rows="4">${profile.avatar_custom_css || ''}</textarea>
+
+              <hr class="border-gray-700 my-4">
+              <label>Update Profile Picture</label>
+              <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
+              <div class="mt-2">
+                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+              </div>
+
+              <hr class="border-gray-700 my-4">
+              <label>Background Type</label>
+              <select name="bg_type" id="bg_type" class="ra-input">
+                <option value="color" ${profile.custom_background?.type === 'color' ? 'selected' : ''}>Solid Color</option>
+                <option value="image" ${profile.custom_background?.type === 'image' ? 'selected' : ''}>Uploaded Image / GIF</option>
+                <option value="gradient" ${profile.custom_background?.type === 'gradient' ? 'selected' : ''}>Gradient</option>
+              </select>
+
+              <div id="bg-upload-container" style="display: ${profile.custom_background?.type === 'image' ? 'block' : 'none'}; margin-top: 15px;">
+                <label class="block text-sm font-bold text-cyan-400 mb-1">Upload New Background</label>
+                <input type="file" id="bg_file_input" accept="image/*" class="ra-input">
+              </div>
+
+              <label class="block mt-4">Background Value</label>
+              <input type="text" name="bg_value" id="bg_value_input" class="ra-input" value="${profile.custom_background?.value || '#1f2937'}">
+
+              <div class="modal-actions">
+                <button type="button" id="btn-cancel-edit" class="bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function getBackgroundCSS(bg) {
+  if (!bg || !bg.type) return 'background-color: #111827;';
+  const { type, value } = bg;
+  if (type === 'image') return `background-image: url('${value}'); background-size: cover; background-position: center; background-attachment: fixed;`;
+  if (type === 'gradient') return `background-image: ${value}; background-attachment: fixed;`;
+  return `background-color: ${value};`;
+}
+
+// ============================================================================
+// EVENT LISTENERS & INTERACTIVITY (Part 1)
+// ============================================================================
+
+function attachEventListeners(container, profile, isOwnProfile, currentUser) {
+  // --- 1. Edit Modal Logic ---
+  const editBtn = document.getElementById('btn-edit-profile');
+  const modal = document.getElementById('edit-modal');
+  const cancelBtn = document.getElementById('btn-cancel-edit');
+  const form = document.getElementById('profile-form');
+  const bgTypeSelect = document.getElementById('bg_type');
+  const bgUploadContainer = document.getElementById('bg-upload-container');
+
+  if (editBtn && modal) editBtn.addEventListener('click', () => modal.style.display = 'flex');
+  if (cancelBtn && modal) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+
+  if (bgTypeSelect && bgUploadContainer) {
+    bgTypeSelect.addEventListener('change', (e) => {
+      bgUploadContainer.style.display = e.target.value === 'image' ? 'block' : 'none';
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      let finalBgValue = formData.get('bg_value');
+      const bgType = formData.get('bg_type');
+      let finalAvatarUrl = profile.avatar_url;
+
+      const avatarInput = document.getElementById('avatar_file_input');
+      if (avatarInput && avatarInput.files.length > 0) {
+        const file = avatarInput.files[0];
+        const fileName = `${profile.id}/avatar_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.textContent = 'Uploading...';
+        submitBtn.disabled = true;
+
+        try {
+          const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
+          if (error) throw error;
+          const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
+          finalAvatarUrl = publicUrl;
+        } catch (err) {
+          alert('Avatar upload failed: ' + err.message);
+          submitBtn.textContent = 'Save Changes';
+          submitBtn.disabled = false;
+          return;
+        }
+      }
+
+      const fileInput = document.getElementById('bg_file_input');
+      if (bgType === 'image' && fileInput && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileName = `${profile.id}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.textContent = 'Uploading...';
+        submitBtn.disabled = true;
+
+        try {
+          const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
+          if (error) throw error;
+          const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
+          finalBgValue = publicUrl;
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
+          submitBtn.textContent = 'Save Changes';
+          submitBtn.disabled = false;
+          return;
+        }
+      }
+
+      const updates = {
+        bio: formData.get('bio'),
+        signature_text: formData.get('signature_text'),
+        signature_custom_css: formData.get('signature_custom_css'),
+        avatar_custom_css: formData.get('avatar_custom_css'),
+        avatar_url: finalAvatarUrl,
+        custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
+      };
+
+      const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
+      if (error) alert('Error: ' + error.message);
+      else { alert('Saved!'); location.reload(); }
+    });
+  }
+
+  // --- 2. Load Wall Comments ---
+  loadWallComments(profile.id);
+
+  // --- 3. Post Wall Comment ---
+  const postBtn = document.getElementById('btn-post-wall');
+  if (postBtn) {
+    postBtn.addEventListener('click', async () => {
+      const input = document.getElementById('new-wall-comment');
+      const content = input.value.trim();
+      if (!content) return;
+      const { error } = await supabase.from('profile_comments').insert({
+        target_user_id: profile.id, author_id: currentUser.id, content: content
+      });
+      if (error) alert('Error: ' + error.message);
+      else { input.value = ''; loadWallComments(profile.id); }
+    });
+  }
+
+  // --- 4. Load Friends List ---
+  loadFriends(profile.id);
+
+  // --- 5. Smart Friend Button Logic ---
+  if (!isOwnProfile && currentUser) {
+    loadFriendButtonState(profile.id, currentUser.id);
+  }
+
+  // --- 6. Load Currently Playing Games ---
+  loadCurrentlyPlayingList(profile);
+
+  // --- 7. Load Achievement Walls ---
+  loadSiteAwardsWall(profile.id);
+  loadProudAchievementsWall(profile.id, isOwnProfile); 
+  loadGameAchievementsWall(profile.id, isOwnProfile);
+  loadMasteredGamesWall(profile.id);
+
+  // --- 8. Remove Game Listener ---
+  const listContainer = document.getElementById('currently-playing-list');
+  if (listContainer && isOwnProfile) {
+    listContainer.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.remove-game-btn');
+      if (!btn) return;
+      
+      e.stopPropagation();
+      e.preventDefault();
+      
+      const gameId = btn.getAttribute('data-id');
+      if (!confirm('Remove this game from your list?')) return;
+
+      let currentGames = [];
+      if (profile.currently_playing) {
+        try {
+          currentGames = typeof profile.currently_playing === 'string' 
+            ? JSON.parse(profile.currently_playing) 
+            : profile.currently_playing;
+        } catch (e) { currentGames = []; }
+      }
+
+      const updatedGames = currentGames.filter(item => {
+        if (typeof item === 'object' && item.id) {
+          return item.id != gameId;
+        }
+        return item != gameId;
+      });
+
+      const { error } = await supabase.from('profiles').update({ currently_playing: updatedGames }).eq('id', profile.id);
+      if (error) alert('Error: ' + error.message);
+      else location.reload();
+    });
+  }
+}
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+function getProfileLink(profile) {
+  if (!profile) return '#/home';
+  if (profile.username) return `#/profile/${profile.username}`;
+  return `#/profile/${profile.id}`;
+}
+
+function getGameLink(game) {
+  if (!game) return '#/games';
+  if (game.slug) return `#/game/${game.slug}`;
+  if (game.title) {
+    const slug = game.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    return `#/game/${slug}`;
+  }
+  return '#/games';
+}
+
+function getBackgroundCSS(bg) {
+  if (!bg || !bg.type) return 'background-color: #111827;';
+  const { type, value, opacity = 1, position = 'center', size = 'cover' } = bg;
+  
+  if (type === 'image') {
+    return `background-image: url('${value}'); background-size: ${size}; background-position: ${position}; background-attachment: fixed; opacity: ${opacity};`;
+  }
+  if (type === 'gradient') {
+    return `background-image: ${value}; background-attachment: fixed;`;
+  }
+  return `background-color: ${value};`;
+}
+
+// ============================================================================
+// RENDERING LOGIC
+// ============================================================================
+
+function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin, currentUser) {
+  const bgStyle = getBackgroundCSS(profile.custom_background);
+  const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
+  const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
+
+  // Dynamic SEO Update
+  updateProfileSEO(profile);
+
+  container.innerHTML = `
+    <div class="ra-profile-wrapper" style="${bgStyle}">
+      <div class="ra-header">
+        <div class="ra-header-overlay"></div>
+        <div class="ra-header-content">
+          <div class="ra-avatar-container" style="${avatarStyle}">
+            <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + (profile.username || 'User')}" 
+                 alt="${profile.username}" 
+                 class="${avatarClass}">
+            <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'}"></div>
+          </div>
+
+          <div class="ra-info">
+            <h1 class="ra-username">${profile.username || 'Unknown User'}</h1>
             ${profile.display_name ? `<div class="ra-display-name">${profile.display_name}</div>` : ''}
             
             <div class="ra-stats-row">
@@ -539,7 +1014,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <div class="text-sm text-gray-500 py-2">Loading friends...</div>
             </div>
             
-            ${!isOwnProfile ? `
+            ${!isOwnProfile && currentUser ? `
               <div id="friend-action-container" class="mt-3">
                 <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
               </div>
@@ -593,7 +1068,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <label>Update Profile Picture</label>
               <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
               <div class="mt-2">
-                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
+                <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + (profile.username || 'User')}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
               </div>
 
               <hr class="border-gray-700 my-4">
@@ -624,14 +1099,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   `;
 }
 
-function getBackgroundCSS(bg) {
-  if (!bg || !bg.type) return 'background-color: #111827;';
-  const { type, value } = bg;
-  if (type === 'image') return `background-image: url('${value}'); background-size: cover; background-position: center; background-attachment: fixed;`;
-  if (type === 'gradient') return `background-image: ${value}; background-attachment: fixed;`;
-  return `background-color: ${value};`;
-}
-
 // ============================================================================
 // EVENT LISTENERS & INTERACTIVITY
 // ============================================================================
@@ -647,6 +1114,11 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
   if (editBtn && modal) editBtn.addEventListener('click', () => modal.style.display = 'flex');
   if (cancelBtn && modal) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+  if (modal) {
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) modal.style.display = 'none';
+    });
+  }
 
   if (bgTypeSelect && bgUploadContainer) {
     bgTypeSelect.addEventListener('change', (e) => {
@@ -667,6 +1139,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         const file = avatarInput.files[0];
         const fileName = `${profile.id}/avatar_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
         const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
         submitBtn.textContent = 'Uploading...';
         submitBtn.disabled = true;
 
@@ -677,7 +1150,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
           finalAvatarUrl = publicUrl;
         } catch (err) {
           alert('Avatar upload failed: ' + err.message);
-          submitBtn.textContent = 'Save Changes';
+          submitBtn.textContent = originalText;
           submitBtn.disabled = false;
           return;
         }
@@ -688,6 +1161,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         const file = fileInput.files[0];
         const fileName = `${profile.id}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
         const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
         submitBtn.textContent = 'Uploading...';
         submitBtn.disabled = true;
 
@@ -698,7 +1172,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
           finalBgValue = publicUrl;
         } catch (err) {
           alert('Upload failed: ' + err.message);
-          submitBtn.textContent = 'Save Changes';
+          submitBtn.textContent = originalText;
           submitBtn.disabled = false;
           return;
         }
@@ -710,12 +1184,22 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         signature_custom_css: formData.get('signature_custom_css'),
         avatar_custom_css: formData.get('avatar_custom_css'),
         avatar_url: finalAvatarUrl,
-        custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
+        custom_background: { 
+          type: bgType, 
+          value: finalBgValue, 
+          opacity: 1, 
+          position: 'center', 
+          size: 'cover',
+          blur: profile.custom_background?.blur || '0'
+        }
       };
 
       const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
       if (error) alert('Error: ' + error.message);
-      else { alert('Saved!'); location.reload(); }
+      else { 
+        alert('Saved!'); 
+        location.reload(); 
+      }
     });
   }
 
@@ -729,11 +1213,30 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       const input = document.getElementById('new-wall-comment');
       const content = input.value.trim();
       if (!content) return;
+      
+      const submitBtn = postBtn;
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Posting...';
+      submitBtn.disabled = true;
+
       const { error } = await supabase.from('profile_comments').insert({
-        target_user_id: profile.id, author_id: currentUser.id, content: content
+        target_user_id: profile.id, 
+        author_id: currentUser.id, 
+        content: content,
+        author_username: currentUser.email.split('@')[0], // Fallback username
+        target_username: profile.username
       });
-      if (error) alert('Error: ' + error.message);
-      else { input.value = ''; loadWallComments(profile.id); }
+      
+      if (error) {
+        alert('Error: ' + error.message);
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      } else { 
+        input.value = ''; 
+        loadWallComments(profile.id); 
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
     });
   }
 
@@ -751,7 +1254,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   // --- NEW: Load Achievement Walls ---
   loadSiteAwardsWall(profile.id);
   loadProudAchievementsWall(profile.id, isOwnProfile); 
-  loadGameAchievementsWall(profile.id, isOwnProfile); // NEW: Load All Game Achievements
+  loadGameAchievementsWall(profile.id, isOwnProfile);
   loadMasteredGamesWall(profile.id);
 
   // --- 7. Remove Game Listener ---
@@ -791,7 +1294,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 }
 
 // ============================================================================
-// NEW RENDERING FUNCTIONS FOR ACHIEVEMENT WALLS
+// ACHIEVEMENT WALL RENDERING FUNCTIONS
 // ============================================================================
 
 async function loadSiteAwardsWall(userId) {
@@ -807,7 +1310,6 @@ async function loadSiteAwardsWall(userId) {
 
   listEl.innerHTML = awards.map(item => {
     const a = item.achievements;
-    // Safety check for badge_url
     const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Award';
     
     return `
@@ -844,7 +1346,6 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
     const a = item.achievements;
     const game = a.games;
     const gameLink = game ? getGameLink(game) : '#/games';
-    // Safety check for badge_url
     const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Trophy';
     
     return `
@@ -875,7 +1376,6 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
     `;
   }).join('');
 
-  // Attach listeners for "Remove Proud" if own profile
   if (isOwnProfile) {
     listEl.querySelectorAll('.remove-proud-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -891,15 +1391,14 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
 
         if (error) alert('Error: ' + error.message);
         else {
-          loadProudAchievementsWall(userId, true); // Reload Proud Wall
-          loadGameAchievementsWall(userId, true);  // Reload Main Wall to update star
+          loadProudAchievementsWall(userId, true);
+          loadGameAchievementsWall(userId, true);
         }
       });
     });
   }
 }
 
-// NEW: Load All Game Achievements Wall
 async function loadGameAchievementsWall(userId, isOwnProfile) {
   const listEl = document.getElementById('game-achievements-list');
   const countEl = document.getElementById('game-achieve-count');
@@ -907,84 +1406,95 @@ async function loadGameAchievementsWall(userId, isOwnProfile) {
 
   const items = await fetchGameAchievements(userId);
 
+  if (countEl) {
+      countEl.textContent = items.length ? `(${items.length})` : '(0)';
+  }
+
   if (!items || items.length === 0) {
     listEl.innerHTML = '<div class="col-span-full text-center text-gray-500 italic py-4">No game achievements unlocked yet.</div>';
-    if (countEl) countEl.textContent = '';
     return;
   }
 
-  if (countEl) countEl.textContent = `${items.length}`;
-
-  listEl.innerHTML = items.map((item) => {
+  listEl.innerHTML = items.map(item => {
     const a = item.achievements;
     const game = a.games;
     const gameLink = game ? getGameLink(game) : '#/games';
-    
-    // Safety check for badge_url
-    const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Trophy';
-    
-    // Only show toggle if own profile
-    const toggleBtn = isOwnProfile ? `
-      <button class="absolute top-1 right-1 p-1 rounded-full bg-gray-900/80 hover:bg-yellow-600 transition-colors z-10" 
-              onclick="window.toggleProudStatus(event, '${a.id}', ${item.is_proud})" 
-              title="${item.is_proud ? 'Remove from Most Proud' : 'Mark as Most Proud'}">
-        <span class="text-xs ${item.is_proud ? 'text-yellow-400' : 'text-gray-400'}">
-          ${item.is_proud ? '⭐' : '☆'}
-        </span>
-      </button>
-    ` : '';
+    const badgeSrc = a.badge_url || 'https://via.placeholder.com/48?text=ACH';
+    const isProud = item.is_proud;
 
     return `
-      <div class="group relative bg-gray-800/50 border border-gray-700 rounded-lg p-2 hover:border-cyan-500/50 transition-colors flex flex-col items-center text-center">
-        ${toggleBtn}
-        
-        <img src="${badgeSrc}" 
-             alt="${a.title}" 
-             class="w-10 h-10 object-contain mb-1 group-hover:scale-110 transition-transform">
-        
-        <h4 class="text-[10px] font-bold text-gray-300 line-clamp-2 leading-tight mb-1" title="${a.title}">${a.title}</h4>
-        
+      <div class="group relative bg-gray-800/30 border border-cyan-500/20 rounded p-1.5 hover:border-cyan-400 transition-colors flex flex-col items-center text-center">
+        <div class="relative">
+          <img src="${badgeSrc}" 
+               alt="${a.title}" 
+               class="w-8 h-8 object-contain group-hover:scale-105 transition-transform">
+          ${isProud ? '<div class="absolute -top-1 -right-1 text-yellow-400 text-xs">⭐</div>' : ''}
+        </div>
+        <h5 class="text-[10px] font-bold text-cyan-100 line-clamp-1 mt-1" title="${a.title}">${a.title}</h5>
         ${game ? `
-          <a href="${gameLink}" class="text-[9px] text-cyan-500 hover:underline truncate w-full block">
+          <a href="${gameLink}" class="text-[9px] text-cyan-400 hover:underline truncate w-full block">
             ${game.title}
           </a>
         ` : ''}
-        
-        <div class="mt-0.5 flex items-center gap-1">
-          <span class="text-[9px] text-yellow-500 font-bold">${a.points}</span>
+        <div class="mt-0.5">
+          <span class="text-[9px] text-gray-400">${a.points} pts</span>
         </div>
+
+        ${isOwnProfile ? `
+          <div class="mt-1 flex gap-1">
+            ${isProud ? `
+              <button class="text-[8px] text-red-400 hover:text-red-300 underline remove-proud-main-btn" data-achieve-id="${a.id}">
+                Un-Proud
+              </button>
+            ` : `
+              <button class="text-[8px] text-green-400 hover:text-green-300 underline make-proud-btn" data-achieve-id="${a.id}">
+                Make Proud
+              </button>
+            `}
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
-}
 
-// Global Helper to Toggle "Most Proud" Status
-window.toggleProudStatus = async function(e, achievementId, currentStatus) {
-  e.stopPropagation();
-  e.preventDefault();
+  if (isOwnProfile) {
+    listEl.querySelectorAll('.make-proud-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const achieveId = btn.getAttribute('data-achieve-id');
+        const { error } = await supabase
+          .from('user_achievements')
+          .update({ is_proud: true })
+          .eq('user_id', userId)
+          .eq('achievement_id', achieveId);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return alert('Please log in.');
+        if (error) alert('Error: ' + error.message);
+        else {
+          loadProudAchievementsWall(userId, true);
+          loadGameAchievementsWall(userId, true);
+        }
+      });
+    });
 
-  const newStatus = !currentStatus;
-  
-  try {
-    const { error } = await supabase
-      .from('user_achievements')
-      .update({ is_proud: newStatus })
-      .eq('achievement_id', achievementId)
-      .eq('user_id', user.id);
+    listEl.querySelectorAll('.remove-proud-main-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const achieveId = btn.getAttribute('data-achieve-id');
+        const { error } = await supabase
+          .from('user_achievements')
+          .update({ is_proud: false })
+          .eq('user_id', userId)
+          .eq('achievement_id', achieveId);
 
-    if (error) throw error;
-
-    // Refresh the walls immediately
-    loadProudAchievementsWall(user.id, true);
-    loadGameAchievementsWall(user.id, true);
-    
-  } catch (err) {
-    alert('Error updating status: ' + err.message);
+        if (error) alert('Error: ' + error.message);
+        else {
+          loadProudAchievementsWall(userId, true);
+          loadGameAchievementsWall(userId, true);
+        }
+      });
+    });
   }
-};
+}
 
 async function loadMasteredGamesWall(userId) {
   const listEl = document.getElementById('mastered-games-list');
@@ -993,36 +1503,125 @@ async function loadMasteredGamesWall(userId) {
   const games = await fetchMasteredGames(userId);
 
   if (!games || games.length === 0) {
-    listEl.innerHTML = '<div class="col-span-full text-center text-gray-500 italic py-4">No mastered games yet.</div>';
+    listEl.innerHTML = '<div class="col-span-full text-center text-gray-500 italic py-4">No fully mastered games yet.</div>';
     return;
   }
 
   listEl.innerHTML = games.map(game => {
-    const link = getGameLink(game);
-    const cover = game.cover_image_url || 'https://via.placeholder.com/150x200?text=No+Cover';
-    
+    const coverSrc = game.cover_image_url || 'https://via.placeholder.com/150x200?text=Game';
+    const gameLink = getGameLink(game);
     return `
-      <a href="${link}" class="group relative block aspect-[3/4] rounded-lg overflow-hidden border border-green-500/50 hover:border-green-400 transition-all">
-        <img src="${cover}" alt="${game.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-2">
-          <h4 class="text-xs font-bold text-white line-clamp-2 leading-tight mb-1">${game.title}</h4>
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] text-green-400 font-bold">100%</span>
-            <span class="text-[10px] text-gray-300">${game.console || 'Unknown'}</span>
+      <div class="group relative bg-gray-800/50 border border-green-500/30 rounded-lg overflow-hidden hover:border-green-400 transition-colors">
+        <a href="${gameLink}" class="block">
+          <img src="${coverSrc}" alt="${game.title}" class="w-full h-32 object-cover">
+          <div class="p-2">
+            <h4 class="text-xs font-bold text-green-100 truncate" title="${game.title}">${game.title}</h4>
+            <p class="text-[10px] text-gray-400">${game.console}</p>
+          </div>
+        </a>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================================
+// SUPPORTING LOADING FUNCTIONS
+// ============================================================================
+
+async function loadWallComments(profileId) {
+  const listEl = document.getElementById('wall-list');
+  if (!listEl) return;
+
+  const comments = await fetchWallComments(profileId);
+  if (!comments || comments.length === 0) {
+    listEl.innerHTML = '<div class="text-center text-gray-500 py-4">No shouts on the wall yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = comments.map(comment => {
+    const authorLink = getProfileLink(comment.author);
+    const avatarSrc = comment.author.avatar_url || 'https://ui-avatars.com/api/?name=' + (comment.author.username || 'User');
+    return `
+      <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+        <div class="flex items-start gap-3">
+          <a href="${authorLink}"><img src="${avatarSrc}" class="w-10 h-10 rounded-full object-cover"></a>
+          <div class="flex-1">
+            <div class="flex justify-between">
+              <a href="${authorLink}" class="font-bold text-cyan-400 hover:underline">${comment.author.username || 'Unknown'}</a>
+              <span class="text-xs text-gray-500">${new Date(comment.created_at).toLocaleString()}</span>
+            </div>
+            <p class="mt-1 text-gray-300">${comment.content}</p>
           </div>
         </div>
-        <!-- Mastered Icon Overlay -->
-        <div class="absolute top-1 right-1 bg-green-600 text-white p-1 rounded-full shadow-lg">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadFriends(profileId) {
+  const listEl = document.getElementById('friends-list');
+  if (!listEl) return;
+
+  const friends = await fetchFriends(profileId);
+  if (!friends || friends.length === 0) {
+    listEl.innerHTML = '<div class="text-center text-gray-500 py-4">No friends yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = friends.map(friend => {
+    if (!friend) return '';
+    const friendLink = getProfileLink(friend);
+    const avatarSrc = friend.avatar_url || 'https://ui-avatars.com/api/?name=' + (friend.username || 'User');
+    return `
+      <a href="${friendLink}" class="flex items-center gap-3 p-2 rounded hover:bg-gray-700/50 transition-colors">
+        <img src="${avatarSrc}" class="w-10 h-10 rounded-full object-cover border ${friend.is_online ? 'border-green-500' : 'border-gray-600'}">
+        <div>
+          <div class="font-medium text-white">${friend.username || 'Unknown'}</div>
+          <div class="text-xs text-gray-400">${friend.is_online ? 'Online' : 'Offline'}</div>
         </div>
       </a>
     `;
   }).join('');
 }
 
-// ============================================================================
-// EXISTING HELPER FUNCTIONS (Unchanged)
-// ============================================================================
+async function loadFriendButtonState(targetUserId, currentUserId) {
+  const container = document.getElementById('friend-action-container');
+  if (!container) return;
+
+  const status = await checkFriendStatus(currentUserId, targetUserId);
+
+  if (!status) {
+    container.innerHTML = `<button id="btn-send-request" class="btn-secondary w-full">Add Friend</button>`;
+    document.getElementById('btn-send-request').addEventListener('click', async () => {
+      const { error } = await supabase.from('friends').insert([{ user_id: currentUserId, friend_id: targetUserId, status: 'pending' }]);
+      if (error) alert('Error: ' + error.message);
+      else { alert('Friend request sent!'); loadFriendButtonState(targetUserId, currentUserId); }
+    });
+  } else if (status.status === 'pending') {
+    if (status.user_id === currentUserId) {
+      container.innerHTML = `<div class="text-center text-gray-500 text-sm py-2">Request sent</div>`;
+    } else {
+      container.innerHTML = `
+        <div class="flex gap-2">
+          <button id="btn-accept-friend" class="btn-primary flex-1">Accept</button>
+          <button id="btn-reject-friend" class="btn-secondary flex-1">Reject</button>
+        </div>
+      `;
+      document.getElementById('btn-accept-friend').addEventListener('click', async () => {
+        const { error } = await supabase.from('friends').update({ status: 'accepted' }).eq('id', status.id);
+        if (error) alert('Error: ' + error.message);
+        else { loadFriendButtonState(targetUserId, currentUserId); }
+      });
+      document.getElementById('btn-reject-friend').addEventListener('click', async () => {
+        const { error } = await supabase.from('friends').delete().eq('id', status.id);
+        if (error) alert('Error: ' + error.message);
+        else { loadFriendButtonState(targetUserId, currentUserId); }
+      });
+    }
+  } else if (status.status === 'accepted') {
+    container.innerHTML = `<button disabled class="w-full bg-green-900/50 border border-green-700 text-green-400 py-2 rounded text-sm cursor-default">✓ Friends</button>`;
+  }
+}
 
 async function loadCurrentlyPlayingList(profile) {
   const listEl = document.getElementById('currently-playing-list');
@@ -1043,6 +1642,7 @@ async function loadCurrentlyPlayingList(profile) {
   }
 
   const games = await fetchCurrentlyPlayingGames(rawGames);
+  // Determine if own profile by checking for the edit button existence
   const isOwnProfile = document.getElementById('btn-edit-profile') !== null;
 
   if (games.length === 0) {
@@ -1079,98 +1679,63 @@ async function loadCurrentlyPlayingList(profile) {
   }).join('');
 }
 
-async function loadFriendButtonState(targetUserId, currentUserId) {
-  const container = document.getElementById('friend-action-container');
-  if (!container) return;
-
-  const relationship = await checkFriendStatus(currentUserId, targetUserId);
+// SEO Helper
+function updateProfileSEO(profile) {
+  const title = `${profile.username} - Retro Online Matchmaking Profile`;
+  const description = profile.bio ? `${profile.bio} - View ${profile.username}'s gaming stats, achievements, and currently playing games on ROM.` : `View ${profile.username}'s profile on Retro Online Matchmaking.`;
   
-  if (!relationship) {
-    container.innerHTML = `
-      <button id="btn-add-friend" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded text-sm transition-colors">Add Friend</button>
-    `;
-    document.getElementById('btn-add-friend').addEventListener('click', async () => {
-      if(!confirm('Send friend request?')) return;
-      const { error } = await supabase.from('friends').insert({
-        user_id: currentUserId, friend_id: targetUserId, status: 'pending'
-      });
-      if (error) alert('Error: ' + error.message);
-      else {
-        alert('Request sent!');
-        loadFriendButtonState(targetUserId, currentUserId);
-      }
-    });
-  } else if (relationship.status === 'pending') {
-    if (relationship.user_id === currentUserId) {
-      container.innerHTML = `<button disabled class="w-full bg-gray-800 text-gray-400 py-2 rounded text-sm cursor-not-allowed">Request Sent</button>`;
-    } else {
-      container.innerHTML = `
-        <div class="flex gap-2">
-          <button id="btn-accept-friend" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded text-sm">Accept</button>
-          <button id="btn-decline-friend" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded text-sm">Decline</button>
-        </div>
-      `;
-      document.getElementById('btn-accept-friend').addEventListener('click', async () => {
-        await supabase.from('friends').update({ status: 'accepted' }).eq('id', relationship.id);
-        alert('Friend added!');
-        loadFriendButtonState(targetUserId, currentUserId);
-      });
-      document.getElementById('btn-decline-friend').addEventListener('click', async () => {
-        await supabase.from('friends').delete().eq('id', relationship.id);
-        alert('Request declined.');
-        loadFriendButtonState(targetUserId, currentUserId);
-      });
-    }
-  } else if (relationship.status === 'accepted') {
-    container.innerHTML = `<button disabled class="w-full bg-green-900/50 border border-green-700 text-green-400 py-2 rounded text-sm cursor-default">✓ Friends</button>`;
-  }
-}
+  // Update Document Title
+  document.title = title;
 
-async function loadWallComments(profileId) {
-  const list = document.getElementById('wall-list');
-  if (!list) return;
-  const comments = await fetchWallComments(profileId);
-  if (comments.length === 0) {
-    list.innerHTML = '<div class="text-sm text-gray-500 italic py-4 text-center">No shouts yet.</div>';
-    return;
+  // Update Meta Description
+  let metaDesc = document.querySelector('meta[name="description"]');
+  if (!metaDesc) {
+    metaDesc = document.createElement('meta');
+    metaDesc.name = 'description';
+    document.head.appendChild(metaDesc);
   }
-  list.innerHTML = comments.map(c => {
-    const link = c.author ? getProfileLink(c.author) : '#/home';
-    const displayName = c.author?.username || 'Unknown';
-    const avatarSrc = c.author?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
-    return `
-    <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
-      <img src="${avatarSrc}" class="w-8 h-8 rounded-full bg-gray-600 object-cover">
-      <div class="flex-1">
-        <div class="flex items-baseline gap-2">
-          <span class="font-bold text-cyan-400 text-sm hover:underline cursor-pointer" onclick="window.location.hash='${link}'">${displayName}</span>
-          <span class="text-xs text-gray-500">${new Date(c.created_at).toLocaleDateString()}</span>
-        </div>
-        <p class="text-gray-300 text-sm mt-1 break-words">${c.content}</p>
-      </div>
-    </div>`;
-  }).join('');
-}
+  metaDesc.content = description;
 
-async function loadFriends(userId) {
-  const list = document.getElementById('friends-list');
-  if (!list) return;
-  const friends = await fetchFriends(userId);
-  if (friends.length === 0) {
-    list.innerHTML = '<div class="text-sm text-gray-500 italic py-2 text-center">No friends yet.</div>';
-    return;
+  // Update Open Graph Tags
+  let ogTitle = document.querySelector('meta[property="og:title"]');
+  if (!ogTitle) {
+    ogTitle = document.createElement('meta');
+    ogTitle.property = 'og:title';
+    document.head.appendChild(ogTitle);
   }
-  list.innerHTML = friends.map(f => {
-    const link = getProfileLink(f);
-    const displayName = f.username || 'Unknown';
-    const avatarSrc = f.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
-    return `
-    <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" onclick="window.location.hash='${link}'">
-      <div class="relative">
-        <img src="${avatarSrc}" class="w-6 h-6 rounded-full object-cover">
-        <div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-gray-900 ${f.is_online ? 'bg-green-500' : 'bg-gray-500'}"></div>
-      </div>
-      <span class="text-sm text-gray-300 truncate flex-1">${displayName}</span>
-    </div>`;
-  }).join('');
+  ogTitle.content = title;
+
+  let ogDesc = document.querySelector('meta[property="og:description"]');
+  if (!ogDesc) {
+    ogDesc = document.createElement('meta');
+    ogDesc.property = 'og:description';
+    document.head.appendChild(ogDesc);
+  }
+  ogDesc.content = description;
+
+  let ogImage = document.querySelector('meta[property="og:image"]');
+  if (!ogImage) {
+    ogImage = document.createElement('meta');
+    ogImage.property = 'og:image';
+    document.head.appendChild(ogImage);
+  }
+  ogImage.content = profile.avatar_url || 'https://ui-avatars.com/api/?name=' + (profile.username || 'User');
+
+  // Inject JSON-LD Schema
+  const schemaScript = document.getElementById('profile-schema');
+  if (schemaScript) schemaScript.remove();
+  
+  const script = document.createElement('script');
+  script.id = 'profile-schema';
+  script.type = 'application/ld+json';
+  script.text = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": profile.username,
+    "url": window.location.href,
+    "image": profile.avatar_url,
+    "description": profile.bio,
+    "knowsAbout": ["Retro Gaming", "Online Multiplayer", profile.favorite_console].filter(Boolean)
+  });
+  document.head.appendChild(script);
 }
