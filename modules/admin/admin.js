@@ -647,223 +647,7 @@ WHERE email = 'retrogamemasterra@gmail.com';
     }
   }
 }
-// --- NEW: Load Universal Guides ---
-export async function loadAdminGuides() {
-    const list = document.getElementById('adminGuidesList');
-    if (!list) return;
-    
-    const { data, error } = await supabase.from('guides').select('*').order('created_at', { ascending: false });
-    
-    if (error) {
-        list.innerHTML = `<div class="text-red-400">Error: ${error.message}</div>`;
-        return;
-    }
 
-    if (!data || data.length === 0) {
-        list.innerHTML = `<div class="col-span-full text-center text-gray-500">No guides yet. Create one!</div>`;
-        return;
-    }
-
-    list.innerHTML = data.map(guide => `
-        <div class="bg-gray-900 p-4 rounded border border-purple-500/30 hover:border-purple-400 transition">
-            <div class="flex justify-between items-start mb-2">
-                <h3 class="font-bold text-white text-lg">${guide.title}</h3>
-                <span class="text-xs px-2 py-1 rounded ${guide.is_approved ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}">
-                    ${guide.is_approved ? 'Published' : 'Draft'}
-                </span>
-            </div>
-            <p class="text-sm text-gray-400 mb-4 truncate">${guide.description || 'No description'}</p>
-            <div class="flex gap-2">
-                <button onclick="window.editGuide('${guide.id}')" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded">Edit</button>
-                <button onclick="window.deleteGuide('${guide.id}')" class="flex-1 bg-red-900/50 hover:bg-red-800 text-red-200 text-xs py-2 rounded">Delete</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-// --- NEW: Open Guide Modal (Create/Edit) ---
-window.openGuideModal = async (guideId = null) => {
-    const modal = document.getElementById('guideModal');
-    const form = document.getElementById('guideForm');
-    const titleEl = document.getElementById('guideModalTitle');
-    
-    form.reset();
-    
-    if (guideId) {
-        titleEl.textContent = 'Edit Guide';
-        const { data } = await supabase.from('guides').select('*').eq('id', guideId).single();
-        if (data) {
-            document.getElementById('guideId').value = data.id;
-            document.getElementById('guideName').value = data.title;
-            document.getElementById('guideDesc').value = data.description || '';
-            document.getElementById('guideContent').value = data.content_html || '';
-            document.getElementById('guideVideo').value = data.video_url || '';
-            document.getElementById('guideApproved').checked = data.is_approved;
-        }
-    } else {
-        titleEl.textContent = 'Create New Guide';
-        document.getElementById('guideId').value = '';
-    }
-    
-    modal.classList.remove('hidden');
-};
-
-window.closeGuideModal = () => {
-    document.getElementById('guideModal').classList.add('hidden');
-    loadAdminGuides(); // Refresh list
-};
-
-// --- NEW: Save Guide ---
-document.getElementById('guideForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('guideId').value;
-    const title = document.getElementById('guideName').value;
-    
-    // Auto-generate slug
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-    const payload = {
-        title: title,
-        slug: slug,
-        description: document.getElementById('guideDesc').value,
-        content_html: document.getElementById('guideContent').value,
-        video_url: document.getElementById('guideVideo').value,
-        is_approved: document.getElementById('guideApproved').checked,
-        updated_at: new Date().toISOString()
-    };
-
-    let error;
-    if (id) {
-        ({ error } = await supabase.from('guides').update(payload).eq('id', id));
-    } else {
-        ({ error } = await supabase.from('guides').insert([{ ...payload, created_at: new Date().toISOString() }]));
-    }
-
-    if (error) {
-        alert('Error saving guide: ' + error.message);
-    } else {
-        closeGuideModal();
-    }
-});
-
-// --- NEW: Edit/Delete Guide Helpers ---
-window.editGuide = (id) => openGuideModal(id);
-
-window.deleteGuide = async (id) => {
-    if (!confirm('Delete this guide? This will unlink it from all games.')) return;
-    const { error } = await supabase.from('guides').delete().eq('id', id);
-    if (error) alert('Error: ' + error.message);
-    else loadAdminGuides();
-};
-
-// --- UPDATED: Load Games (With Guide Count) ---
-export async function loadAdminGames() {
-    const list = document.getElementById('adminGamesList');
-    if (!list) return;
-    
-    // Fetch games AND their linked guides count
-    const { data, error } = await supabase
-        .from('games')
-        .select(`
-            *,
-            guides_count:game_guides(count)
-        `)
-        .order('created_at', { ascending: false });
-
-    if (error) return console.error(error);
-
-    list.innerHTML = data.map(game => {
-        const count = game.guides_count?.[0]?.count || 0;
-        return `
-        <tr class="hover:bg-gray-800">
-            <td class="py-3 px-4 text-white">${game.title}</td>
-            <td class="py-3 px-4 text-gray-400">${game.console}</td>
-            <td class="py-3 px-4">
-                <span class="text-xs bg-purple-900 text-purple-200 px-2 py-1 rounded">
-                    ${count} Linked Guide${count !== 1 ? 's' : ''}
-                </span>
-            </td>
-            <td class="py-3 px-4">
-                <button onclick="window.editGame('${game.id}')" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold">Edit & Link Guides</button>
-            </td>
-        </tr>
-    `}).join('');
-}
-
-// --- UPDATED: Edit Game (Load Linked Guides) ---
-window.editGame = async (id) => {
-    const modal = document.getElementById('gameModal');
-    const { data: game } = await supabase.from('games').select('*').eq('id', id).single();
-    if (!game) return;
-
-    // Populate Basic Fields
-    document.getElementById('gameId').value = game.id;
-    document.getElementById('gameTitle').value = game.title;
-    document.getElementById('gameSystem').value = game.console;
-    document.getElementById('gameDescription').value = game.description || '';
-    
-    // 1. Load All Available Guides for Dropdown
-    const { data: allGuides } = await supabase.from('guides').select('id, title').order('title');
-    const selectEl = document.getElementById('gameGuidesSelect');
-    selectEl.innerHTML = '';
-    
-    if (allGuides) {
-        allGuides.forEach(g => {
-            const opt = document.createElement('option');
-            opt.value = g.id;
-            opt.textContent = g.title;
-            selectEl.appendChild(opt);
-        });
-    }
-
-    // 2. Fetch Currently Linked Guides for this Game
-    const { data: links } = await supabase.from('game_guides').select('guide_id').eq('game_id', id);
-    const linkedIds = links ? links.map(l => l.guide_id) : [];
-
-    // 3. Set Selection
-    Array.from(selectEl.options).forEach(opt => {
-        opt.selected = linkedIds.includes(opt.value);
-    });
-
-    modal.classList.remove('hidden');
-};
-
-// --- UPDATED: Save Game (Handle Links) ---
-document.getElementById('gameForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const gameId = document.getElementById('gameId').value;
-    const selectedGuideIds = Array.from(document.getElementById('gameGuidesSelect').selectedOptions).map(o => o.value);
-
-    // 1. Update Basic Game Info
-    const gameData = {
-        title: document.getElementById('gameTitle').value,
-        console: document.getElementById('gameSystem').value,
-        description: document.getElementById('gameDescription').value,
-        updated_at: new Date().toISOString()
-    };
-
-    const { error: gameError } = await supabase.from('games').update(gameData).eq('id', gameId);
-    if (gameError) return alert('Error updating game: ' + gameError.message);
-
-    // 2. Sync Links (Delete old, Insert new)
-    // Delete existing links for this game
-    await supabase.from('game_guides').delete().eq('game_id', gameId);
-
-    // Insert new links
-    if (selectedGuideIds.length > 0) {
-        const links = selectedGuideIds.map(guid => ({ game_id: gameId, guide_id: guid }));
-        const { error: linkError } = await supabase.from('game_guides').insert(links);
-        if (linkError) return alert('Error linking guides: ' + linkError.message);
-    }
-
-    alert('Game and guides updated!');
-    closeGameModal();
-    loadAdminGames();
-});
-
-window.closeGameModal = () => {
-    document.getElementById('gameModal').classList.add('hidden');
-};
 async function showAddAdminModal() {
   try {
     // Get all non-admin users - handle missing column
@@ -3120,5 +2904,225 @@ async function loadRecentAwardsLog() {
 // ============================================================================
 // END AWARD MANAGER
 // ============================================================================
+// ============================================================================
+// GUIDE LIBRARY FUNCTIONS
+// ============================================================================
+
+let allGuidesCache = []; // Cache for guides
+
+// 1. Load Guides into the Table
+async function loadAdminGuides(filterStatus = 'all') {
+    const listEl = document.getElementById('adminGuidesList');
+    const loadingEl = document.getElementById('guidesLoading');
+    
+    if (!listEl) return; // Not on admin page
+    
+    listEl.innerHTML = '';
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    try {
+        let query = supabase.from('guides').select('*').order('created_at', { ascending: false });
+        
+        if (filterStatus !== 'all') {
+            const isApproved = filterStatus === 'approved';
+            query = query.eq('is_approved', isApproved);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        allGuidesCache = data || [];
+        
+        // Update Stats
+        const totalGuidesEl = document.getElementById('total-guides');
+        if (totalGuidesEl) {
+            const { count } = await supabase.from('guides').select('*', { count: 'exact', head: true });
+            totalGuidesEl.textContent = count || 0;
+        }
+
+        if (!data || data.length === 0) {
+            listEl.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-gray-500">No guides found.</td></tr>`;
+            return;
+        }
+
+        listEl.innerHTML = data.map(guide => `
+            <tr class="hover:bg-gray-800 transition">
+                <td class="py-3 px-4 text-white font-medium">${escapeHtml(guide.title)}</td>
+                <td class="py-3 px-4 text-gray-400 text-sm">Universal Guide</td>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-1 rounded text-xs font-bold ${getDifficultyColor(guide.difficulty)}">
+                        ${guide.difficulty}
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-1 rounded text-xs font-bold ${guide.is_approved ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}">
+                        ${guide.is_approved ? 'Approved' : 'Pending'}
+                    </span>
+                </td>
+                <td class="py-3 px-4 flex gap-2">
+                    <button onclick="editGuide('${guide.id}')" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold">Edit</button>
+                    <button onclick="toggleGuideApproval('${guide.id}', ${!guide.is_approved})" class="text-purple-400 hover:text-purple-300 text-sm font-bold">
+                        ${guide.is_approved ? 'Unapprove' : 'Approve'}
+                    </button>
+                    <button onclick="deleteGuide('${guide.id}')" class="text-red-400 hover:text-red-300 text-sm font-bold">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error('Error loading guides:', err);
+        if (listEl) listEl.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-red-400">Error loading guides.</td></tr>`;
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+// 2. Open Modal (Create New)
+function openGuideModal() {
+    document.getElementById('guideModalTitle').textContent = 'Create New Universal Guide';
+    document.getElementById('guideForm').reset();
+    document.getElementById('guideId').value = '';
+    document.getElementById('guideApproved').checked = false;
+    
+    // Pre-load games into the dropdown just in case we want to link later, 
+    // but for standalone guides, we mainly need the form ready.
+    // (Optional: If you want to pre-select a game to link immediately, populate here)
+    
+    document.getElementById('guideModal').classList.remove('hidden');
+}
+
+// 3. Close Modal
+function closeGuideModal() {
+    document.getElementById('guideModal').classList.add('hidden');
+}
+
+// 4. Edit Guide (Populate Modal)
+async function editGuide(id) {
+    const guide = allGuidesCache.find(g => g.id === id);
+    if (!guide) return;
+
+    document.getElementById('guideModalTitle').textContent = 'Edit Universal Guide';
+    document.getElementById('guideId').value = guide.id;
+    document.getElementById('guideTitle').value = guide.title;
+    document.getElementById('guideDifficulty').value = guide.difficulty;
+    document.getElementById('guideVideoUrl').value = guide.video_url || '';
+    document.getElementById('guideContent').value = guide.content_html || '';
+    document.getElementById('guideApproved').checked = guide.is_approved;
+
+    document.getElementById('guideModal').classList.remove('hidden');
+}
+
+// 5. Save Guide (Create or Update)
+async function handleGuideSubmit(e) {
+    e.preventDefault();
+    
+    const id = document.getElementById('guideId').value;
+    const title = document.getElementById('guideTitle').value;
+    const difficulty = document.getElementById('guideDifficulty').value;
+    const videoUrl = document.getElementById('guideVideoUrl').value;
+    const content = document.getElementById('guideContent').value;
+    const isApproved = document.getElementById('guideApproved').checked;
+
+    // Generate Slug
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const payload = {
+        title,
+        slug,
+        difficulty,
+        video_url: videoUrl,
+        content_html: content,
+        is_approved: isApproved,
+        updated_at: new Date().toISOString()
+    };
+
+    try {
+        let error;
+        if (id) {
+            // Update
+            const res = await supabase.from('guides').update(payload).eq('id', id);
+            error = res.error;
+        } else {
+            // Create
+            // Note: author_id is handled by RLS or default, ensure your table allows null or has a default
+            const res = await supabase.from('guides').insert([{ ...payload, author_id: (await supabase.auth.getUser()).data.user?.id }]);
+            error = res.error;
+        }
+
+        if (error) throw error;
+
+        alert('Guide saved successfully!');
+        closeGuideModal();
+        loadAdminGuides('all'); // Refresh list
+        
+        // Refresh stats
+        loadStats(); 
+
+    } catch (err) {
+        console.error('Error saving guide:', err);
+        alert('Error saving guide: ' + err.message);
+    }
+}
+
+// 6. Toggle Approval
+async function toggleGuideApproval(id, newStatus) {
+    if (!confirm(`Are you sure you want to ${newStatus ? 'approve' : 'unapprove'} this guide?`)) return;
+
+    try {
+        const { error } = await supabase.from('guides').update({ is_approved: newStatus }).eq('id', id);
+        if (error) throw error;
+        loadAdminGuides('all');
+    } catch (err) {
+        alert('Error updating status: ' + err.message);
+    }
+}
+
+// 7. Delete Guide
+async function deleteGuide(id) {
+    if (!confirm('Delete this guide? This will remove it from all linked games.')) return;
+
+    try {
+        // Cascade delete handles the game_guides links automatically
+        const { error } = await supabase.from('guides').delete().eq('id', id);
+        if (error) throw error;
+        loadAdminGuides('all');
+        loadStats();
+    } catch (err) {
+        alert('Error deleting guide: ' + err.message);
+    }
+}
+
+// Helper: Difficulty Color
+function getDifficultyColor(diff) {
+    switch(diff) {
+        case 'Easy': return 'bg-green-900 text-green-300';
+        case 'Medium': return 'bg-yellow-900 text-yellow-300';
+        case 'Hard': return 'bg-orange-900 text-orange-300';
+        case 'Expert': return 'bg-red-900 text-red-300';
+        default: return 'bg-gray-700 text-gray-300';
+    }
+}
+
+// Helper: Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Initialize Listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Attach Submit Listener
+    const guideForm = document.getElementById('guideForm');
+    if (guideForm) {
+        guideForm.addEventListener('submit', handleGuideSubmit);
+    }
+
+    // Initial Load if on admin page
+    if (document.getElementById('adminGuidesList')) {
+        loadAdminGuides('all');
+    }
+});
 // Export for module system
 export default initModule;
