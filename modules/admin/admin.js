@@ -93,9 +93,7 @@ async function loadAdminPanel() {
 <button id="tab-awards" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     🎖️ Award Manager
 </button>
-<button id="tab-guides" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
-        📚 Universal Guides
-    </button>
+<button id="tab-guides" class="admin-tab ...">📚 Guides</button>
 <button id="tab-admins" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     👑 Admins
 </button>
@@ -206,8 +204,11 @@ function setupTabListeners() {
         loadAchievementsAdmin();
         break;
           case 'tab-awards':
-    loadAwardManager();
-    break;
+        loadAwardManager();
+        break;
+          case 'tab-guides': 
+          loadAdminGuides(); 
+          break;
     case 'tab-admins':
         loadAdminList();
         break;
