@@ -225,7 +225,13 @@ async function handleHashChange() {
         await loadGameDetail(identifier);
         return;
     }
-
+// Check for single guide detail page
+if (hash.startsWith('guide/')) {
+    const slug = hash.split('/')[1];
+    console.log('Loading guide detail for:', slug);
+    await loadGuideDetail(slug);
+    return;
+}
     // Check for game edit page
     if (hash.startsWith('edit-game/')) {
         const gameId = hash.split('/')[1];
@@ -1083,7 +1089,111 @@ window.rom = {
         window.location.hash = `#/${module}`;
     }
 };
+async function loadGuideDetail(slug) {
+    const appContent = document.getElementById('app-content');
+    if (!appContent) return;
 
+    appContent.innerHTML = `
+        <div class="max-w-4xl mx-auto p-4">
+            <div class="text-center py-16">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+                <p class="text-gray-400 mt-4">Loading guide...</p>
+            </div>
+        </div>
+    `;
+
+    try {
+        // Fetch the guide
+        const { data: guide, error } = await supabase
+            .from('guides')
+            .select('*')
+            .eq('is_approved', true)
+            .or(`slug.eq.${slug},id.eq.${slug}`)
+            .single();
+
+        if (error || !guide) {
+            appContent.innerHTML = `
+                <div class="max-w-2xl mx-auto text-center py-12">
+                    <div class="text-6xl mb-4">📚</div>
+                    <h1 class="text-3xl font-bold text-white mb-2">Guide Not Found</h1>
+                    <p class="text-gray-400 mb-6">This guide doesn't exist or hasn't been approved yet.</p>
+                    <a href="#/guides" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">Back to Guides</a>
+                </div>
+            `;
+            return;
+        }
+
+        // Render the guide
+        appContent.innerHTML = `
+            <div class="max-w-4xl mx-auto p-4">
+                <div class="mb-6">
+                    <a href="#/guides" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+                        ← Back to Guides
+                    </a>
+                </div>
+                
+                <article class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
+                    <!-- Header -->
+                    <div class="bg-gradient-to-r from-cyan-900/50 to-purple-900/50 p-8 border-b border-gray-700">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${getDifficultyColor(guide.difficulty)}">
+                                ${guide.difficulty}
+                            </span>
+                            <span class="text-gray-400 text-sm">${new Date(guide.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-bold text-white mb-4">${escapeHtml(guide.title)}</h1>
+                        
+                        ${guide.video_url ? `
+                            <div class="mt-6 aspect-video bg-black rounded-lg overflow-hidden border border-gray-600">
+                                <iframe class="w-full h-full" src="https://www.youtube.com/embed/${extractVideoId(guide.video_url)}" frameborder="0" allowfullscreen></iframe>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Content -->
+                    <div class="p-8 prose prose-invert max-w-none">
+                        <div class="text-gray-300 leading-relaxed whitespace-pre-wrap">${guide.content_html}</div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="bg-gray-900/50 p-6 border-t border-gray-700 flex justify-between items-center">
+                        <div class="text-sm text-gray-400">
+                            Written by <span class="text-white font-bold">${guide.author_id ? 'Admin' : 'Anonymous'}</span>
+                        </div>
+                        <button onclick="window.location.hash='#/guides'" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold">
+                            View All Guides →
+                        </button>
+                    </div>
+                </article>
+            </div>
+        `;
+
+    } catch (err) {
+        console.error('Error loading guide:', err);
+        appContent.innerHTML = `<div class="text-center text-red-400 py-12">Error loading guide: ${err.message}</div>`;
+    }
+}
+
+// Helpers for the guide view
+function getDifficultyColor(diff) {
+    if (diff === 'Easy') return 'bg-green-900 text-green-300';
+    if (diff === 'Hard') return 'bg-red-900 text-red-300';
+    if (diff === 'Expert') return 'bg-purple-900 text-purple-300';
+    return 'bg-yellow-900 text-yellow-300';
+}
+
+function extractVideoId(url) {
+    if (!url) return '';
+    const match = url.match(/(?:youtu\.be\/|watch\?v=|embed\/)([^&?]+)/);
+    return match ? match[1] : url;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 // Initialize the app when DOM is loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
