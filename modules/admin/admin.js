@@ -3351,12 +3351,5 @@ async function setupGameGuidesLinker(gameId) {
     }
 }
 
-// Local helper to avoid scope issues with global escapeHtml
-function escapeHtmlLocal(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 // Export for module system
 export default initModule;
