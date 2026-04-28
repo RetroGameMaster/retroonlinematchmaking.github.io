@@ -1105,11 +1105,11 @@ async function loadGuideDetail(slug) {
     try {
         // Fetch the guide
         const { data: guide, error } = await supabase
-            .from('guides')
-            .select('*')
-            .eq('is_approved', true)
-            .or(`slug.eq.${slug},id.eq.${slug}`)
-            .single();
+    .from('guides')
+    .select('*')
+    .eq('is_approved', true)
+    .or(`(slug.eq.${slug}),(id.eq.${slug})`) 
+    .single();
 
         if (error || !guide) {
             appContent.innerHTML = `
