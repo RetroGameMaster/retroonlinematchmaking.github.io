@@ -3083,7 +3083,6 @@ window.editGuide = function(id) {
     openGuideModal(id);
 };
 
-// 4. Save Function (Fixed to use getCurrentUser)
 async function saveGuide(editId) {
     const title = document.getElementById('guide-title').value.trim();
     const difficulty = document.getElementById('guide-difficulty').value;
@@ -3093,13 +3092,31 @@ async function saveGuide(editId) {
     
     if (!title) return showNotification('Title is required', 'error');
 
+    // Generate a safe slug
+    let slug = title.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    
+    // Add random suffix if editing to avoid slug conflicts during testing, 
+    // or if creating new, we'll handle duplicate errors below.
+    if (!editId) {
+        slug = `${slug}-${Math.random().toString(36).substring(2, 5)}`;
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+        showNotification('❌ Error: User not logged in', 'error');
+        return;
+    }
+
     const payload = {
         title,
-        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        slug,
         difficulty,
         video_url: videoUrl || null,
         content_html: content,
         is_approved: isApproved,
+        author_id: user.id, // Explicitly set author
         updated_at: new Date().toISOString()
     };
 
@@ -3109,30 +3126,37 @@ async function saveGuide(editId) {
     btn.textContent = 'Saving...';
 
     try {
-        let error;
+        let result;
         if (editId) {
-            // Update
-            const res = await supabase.from('guides').update(payload).eq('id', editId);
-            error = res.error;
+            // Remove author_id from update payload to avoid issues
+            delete payload.author_id;
+            result = await supabase.from('guides').update(payload).eq('id', editId);
         } else {
-            // Insert
-            const user = await getCurrentUser();
-            if (!user) throw new Error('User not logged in');
-            
-            const res = await supabase.from('guides').insert([{ 
-                ...payload, 
-                author_id: user.id 
-            }]);
-            error = res.error;
+            result = await supabase.from('guides').insert([payload]);
         }
 
-        if (error) throw error;
+        if (result.error) {
+            console.error('Supabase Error Details:', result.error);
+            
+            // Handle Duplicate Slug Error specifically
+            if (result.error.code === '23505') {
+                throw new Error('A guide with this title already exists. Please use a different title.');
+            }
+            
+            // Handle RLS / Permission Error
+            if (result.error.message.includes('new row violates row-level security')) {
+                throw new Error('Permission denied. Check your Supabase RLS policies for the "guides" table.');
+            }
+
+            throw result.error;
+        }
 
         showNotification(editId ? '✅ Guide updated!' : '✅ Guide created!');
-        closeGuideModal();
-        loadAdminGuides(); // Refresh list
+        window.closeGuideModal();
+        loadAdminGuides();
+        
     } catch (err) {
-        console.error('Error saving guide:', err);
+        console.error('Full Error Object:', err);
         showNotification('❌ Error: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
