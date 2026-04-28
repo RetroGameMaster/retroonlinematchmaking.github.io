@@ -93,6 +93,9 @@ async function loadAdminPanel() {
 <button id="tab-awards" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     🎖️ Award Manager
 </button>
+<button id="tab-guides" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+        📚 Universal Guides
+    </button>
 <button id="tab-admins" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     👑 Admins
 </button>
@@ -166,6 +169,9 @@ async function loadAdminPanel() {
         break;
         case 'tab-awards':
         loadAwardManager(); 
+        break;
+        case 'tab-guides':
+        loadAdminGuides();
         break;
     }
   });
@@ -2904,5 +2910,221 @@ async function loadRecentAwardsLog() {
 // ============================================================================
 // END AWARD MANAGER
 // ============================================================================
+// ============================================================================
+// UNIVERSAL GUIDE MANAGEMENT
+// ============================================================================
+
+let allGuidesCache = [];
+
+async function loadAdminGuides() {
+    const content = document.getElementById('admin-content');
+    if (!content) return;
+
+    content.innerHTML = `
+        <div class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+            <p class="text-gray-400 mt-2">Loading guides...</p>
+        </div>
+    `;
+
+    try {
+        const { data, error } = await supabase
+            .from('guides')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        allGuidesCache = data || [];
+
+        content.innerHTML = `
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">📚 Universal Guides (${allGuidesCache.length})</h2>
+                <button onclick="openGuideModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded flex items-center gap-2">
+                    <span>➕</span> Create New Guide
+                </button>
+            </div>
+
+            <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-800">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Difficulty</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        ${allGuidesCache.length === 0 ? '<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">No guides found. Create one to get started!</td></tr>' : ''}
+                        ${allGuidesCache.map(g => `
+                            <tr class="hover:bg-gray-800">
+                                <td class="px-6 py-4 text-white font-medium">${escapeHtml(g.title)}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 rounded text-xs font-bold ${getDifficultyColor(g.difficulty)}">${g.difficulty}</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 rounded text-xs font-bold ${g.is_approved ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}">
+                                        ${g.is_approved ? 'Approved' : 'Pending'}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 flex gap-2">
+                                    <button onclick="editGuide('${g.id}')" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold">Edit</button>
+                                    <button onclick="toggleGuideApproval('${g.id}', ${!g.is_approved})" class="text-purple-400 hover:text-purple-300 text-sm font-bold">
+                                        ${g.is_approved ? 'Unapprove' : 'Approve'}
+                                    </button>
+                                    <button onclick="deleteGuide('${g.id}')" class="text-red-400 hover:text-red-300 text-sm font-bold">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        console.error('Error loading guides:', err);
+        content.innerHTML = `<div class="text-red-400 text-center py-8">Error: ${err.message}</div>`;
+    }
+}
+
+function getDifficultyColor(diff) {
+    switch(diff) {
+        case 'Easy': return 'bg-green-900 text-green-300';
+        case 'Medium': return 'bg-yellow-900 text-yellow-300';
+        case 'Hard': return 'bg-orange-900 text-orange-300';
+        case 'Expert': return 'bg-red-900 text-red-300';
+        default: return 'bg-gray-700 text-gray-300';
+    }
+}
+
+// Modal Handling
+function openGuideModal(guide = null) {
+    const modalHtml = `
+        <div id="guide-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+            <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-purple-500">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-bold text-purple-400">${guide ? '✏️ Edit Guide' : '✨ Create New Guide'}</h3>
+                        <button onclick="document.getElementById('guide-modal').remove()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                    </div>
+                    
+                    <form id="guide-form" class="space-y-4">
+                        <input type="hidden" id="guide-id" value="${guide ? guide.id : ''}">
+                        
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Title *</label>
+                            <input type="text" id="guide-title" value="${guide ? escapeHtml(guide.title) : ''}" required 
+                                   class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-purple-500 outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-1">Difficulty</label>
+                                <select id="guide-difficulty" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white">
+                                    <option value="Easy" ${guide && guide.difficulty === 'Easy' ? 'selected' : ''}>Easy</option>
+                                    <option value="Medium" ${!guide || guide.difficulty === 'Medium' ? 'selected' : ''}>Medium</option>
+                                    <option value="Hard" ${guide && guide.difficulty === 'Hard' ? 'selected' : ''}>Hard</option>
+                                    <option value="Expert" ${guide && guide.difficulty === 'Expert' ? 'selected' : ''}>Expert</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-1">YouTube URL (Optional)</label>
+                                <input type="url" id="guide-video" value="${guide ? escapeHtml(guide.video_url || '') : ''}" 
+                                       class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-purple-500 outline-none" placeholder="https://youtube.com/...">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Content (HTML Allowed) *</label>
+                            <textarea id="guide-content" rows="12" required 
+                                      class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white font-mono text-sm focus:border-purple-500 outline-none">${guide ? escapeHtml(guide.content_html || '') : ''}</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Tip: You can paste formatted text from Word/Docs directly here.</p>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-2">
+                            <input type="checkbox" id="guide-approved" ${guide && guide.is_approved ? 'checked' : ''} 
+                                   class="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded">
+                            <label class="text-sm text-green-400 font-bold">Publish Immediately (Approved)</label>
+                        </div>
+
+                        <div class="flex justify-end gap-3 pt-6 border-t border-gray-700">
+                            <button type="button" onclick="document.getElementById('guide-modal').remove()" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                            <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded font-bold shadow-lg">Save Guide</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    document.getElementById('guide-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveGuide(guide ? guide.id : null);
+    });
+}
+
+window.editGuide = async (id) => {
+    const guide = allGuidesCache.find(g => g.id === id);
+    if (guide) openGuideModal(guide);
+};
+
+async function saveGuide(id) {
+    const title = document.getElementById('guide-title').value;
+    const difficulty = document.getElementById('guide-difficulty').value;
+    const video_url = document.getElementById('guide-video').value;
+    const content_html = document.getElementById('guide-content').value;
+    const is_approved = document.getElementById('guide-approved').checked;
+    
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
+    const payload = {
+        title,
+        slug,
+        difficulty,
+        video_url,
+        content_html,
+        is_approved,
+        updated_at: new Date().toISOString()
+    };
+
+    if (!id) {
+        // Create
+        const user = await getCurrentUser();
+        payload.author_id = user?.id;
+        payload.created_at = new Date().toISOString();
+    }
+
+    const { error } = id 
+        ? await supabase.from('guides').update(payload).eq('id', id)
+        : await supabase.from('guides').insert([payload]);
+
+    if (error) {
+        showNotification('❌ Error saving guide: ' + error.message, 'error');
+    } else {
+        showNotification('✅ Guide saved successfully!');
+        document.getElementById('guide-modal').remove();
+        loadAdminGuides();
+    }
+}
+
+window.toggleGuideApproval = async (id, newStatus) => {
+    if (!confirm(`Are you sure you want to ${newStatus ? 'approve' : 'unapprove'} this guide?`)) return;
+    const { error } = await supabase.from('guides').update({ is_approved: newStatus }).eq('id', id);
+    if (error) showNotification('❌ Error: ' + error.message, 'error');
+    else {
+        showNotification('✅ Status updated!');
+        loadAdminGuides();
+    }
+};
+
+window.deleteGuide = async (id) => {
+    if (!confirm('Delete this guide? This will remove it from all linked games.')) return;
+    const { error } = await supabase.from('guides').delete().eq('id', id);
+    if (error) showNotification('❌ Error: ' + error.message, 'error');
+    else {
+        showNotification('✅ Guide deleted!');
+        loadAdminGuides();
+    }
+};
 // Export for module system
 export default initModule;
