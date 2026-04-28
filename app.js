@@ -1188,12 +1188,6 @@ function extractVideoId(url) {
     return match ? match[1] : url;
 }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 // Initialize the app when DOM is loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
