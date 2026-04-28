@@ -1244,7 +1244,6 @@ function createGameEditForm(game) {
   const adminEmails = ['retrogamemasterra@gmail.com', 'admin@retroonlinematchmaking.com'];
   const isAdmin = currentUser && adminEmails.includes(currentUser.email?.toLowerCase());
 }
-  return `
     <div class="bg-gray-800 rounded-lg p-6">
       <h2 class="text-2xl font-bold text-white mb-6">✏️ Edit Game: ${escapeHtml(game.title)}</h2>
      
