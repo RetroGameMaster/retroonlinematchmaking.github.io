@@ -1610,7 +1610,6 @@ function setupGameEditForm(game) {
             guidesContainer.innerHTML = `<p class="text-red-400 text-sm">Error: Guide system not loaded. Refresh page.</p>`;
         }
     }
-}
 
 async function saveGameEditForm(game) {
   const saveBtn = document.getElementById('saveGameBtn');
