@@ -1103,15 +1103,32 @@ async function loadGuideDetail(slug) {
     `;
 
     try {
-        // Fetch the guide
-        const { data: guide, error } = await supabase
-    .from('guides')
-    .select('*')
-    .eq('is_approved', true)
-    .or(`(slug.eq.${slug}),(id.eq.${slug})`) 
-    .single();
+        let guide = null;
 
-        if (error || !guide) {
+        // Strategy 1: Try fetching by Slug first (if it looks like a slug)
+        if (slug.includes('-')) {
+            const { data, error } = await supabase
+                .from('guides')
+                .select('*')
+                .eq('slug', slug)
+                .single();
+            
+            if (!error && data) guide = data;
+        }
+
+        // Strategy 2: If not found, try fetching by ID (in case user passed an ID)
+        if (!guide) {
+            const { data, error } = await supabase
+                .from('guides')
+                .select('*')
+                .eq('id', slug)
+                .single();
+            
+            if (!error && data) guide = data;
+        }
+
+        // Final Check: Ensure it's approved (manual check since we split queries)
+        if (!guide || !guide.is_approved) {
             appContent.innerHTML = `
                 <div class="max-w-2xl mx-auto text-center py-12">
                     <div class="text-6xl mb-4">📚</div>
@@ -1158,7 +1175,7 @@ async function loadGuideDetail(slug) {
                     <!-- Footer -->
                     <div class="bg-gray-900/50 p-6 border-t border-gray-700 flex justify-between items-center">
                         <div class="text-sm text-gray-400">
-                            Written by <span class="text-white font-bold">${guide.author_id ? 'Admin' : 'Anonymous'}</span>
+                            Written by <span class="text-white font-bold">Admin</span>
                         </div>
                         <button onclick="window.location.hash='#/guides'" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold">
                             View All Guides →
