@@ -78,27 +78,39 @@ export default async function initGameDetail(rom, identifier) {
 async function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
 
-    // 0. CHECK FOR GUIDES (New Step)
+   // 0. CHECK FOR LINKED GUIDES (Fixed to use game_guides junction table)
     let guideButtonHTML = '';
     try {
-        const { data: guides } = await rom.supabase
-            .from('guides')
-            .select('id, title, slug')
+        // Query the junction table 'game_guides' and join with 'guides'
+        const { data: linkedGuides, error: guideError } = await rom.supabase
+            .from('game_guides')
+            .select(`
+                guide_id,
+                guides (
+                    id,
+                    title,
+                    slug
+                )
+            `)
             .eq('game_id', game.id)
-            .eq('is_approved', true)
+            .eq('guides.is_approved', true)
             .limit(1);
 
-        if (guides && guides.length > 0) {
-            const guide = guides[0];
-            const guideLink = `#/guide/${guide.slug || guide.id}`;
-            guideButtonHTML = `
-                <a href="${guideLink}" class="block w-full text-center py-3 mt-4 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 text-purple-200 font-bold rounded-lg transition shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-                    📖 Read Setup Guide & Wiki
-                </a>
-            `;
+        if (!guideError && linkedGuides && linkedGuides.length > 0) {
+            // Extract the first valid guide from the nested response
+            const guideData = linkedGuides[0].guides;
+            
+            if (guideData) {
+                const guideLink = `#/guide/${guideData.slug || guideData.id}`;
+                guideButtonHTML = `
+                    <a href="${guideLink}" class="block w-full text-center py-3 mt-4 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 text-purple-200 font-bold rounded-lg transition shadow-[0_0_15px_rgba(168,85,247,0.3)] animate-pulse">
+                        📖 Read Setup Guide & Wiki
+                    </a>
+                `;
+            }
         }
     } catch (e) {
-        console.error('Error checking for guides', e);
+        console.error('Error checking for linked guides:', e);
     }
 
     // 1. SEO: Update Meta Tags & Schema
