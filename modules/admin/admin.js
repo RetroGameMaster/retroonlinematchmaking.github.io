@@ -1597,12 +1597,20 @@ function setupGameEditForm(game) {
 }
 
 // ========================================================================
-    // NEW: Initialize Guide Linker (Only runs if Admin HTML container exists)
+    // INIT GUIDE LINKER
     // ========================================================================
     const guidesContainer = document.getElementById('linked-guides-container');
+    
     if (guidesContainer) {
-        setupGameGuidesLinker(game.id);
+        // Check if the global function exists
+        if (typeof window.setupGameGuidesLinker === 'function') {
+            window.setupGameGuidesLinker(game.id);
+        } else {
+            // If function is missing, show error in the box
+            guidesContainer.innerHTML = `<p class="text-red-400 text-sm">Error: Guide system not loaded. Refresh page.</p>`;
+        }
     }
+}
 
 async function saveGameEditForm(game) {
   const saveBtn = document.getElementById('saveGameBtn');
@@ -3225,23 +3233,24 @@ window.deleteGuide = async function(id) {
         showNotification('❌ Error: ' + err.message, 'error');
     }
 };
-// =========================================================================
-// GLOBAL GUIDE LINKER FUNCTION (Attach to window for access)
-// =========================================================================
+// ============================================================================
+// GLOBAL GUIDE LINKER FUNCTION
+// ============================================================================
 window.setupGameGuidesLinker = async function(gameId) {
     const container = document.getElementById('linked-guides-container');
     if (!container) return;
 
     try {
-        // 1. Fetch Approved Guides
+        // 1. Fetch Approved Guides from the 'guides' table
         const { data: guides, error: guidesError } = await supabase
-            .from('guides')
+            .from('guides') 
             .select('id, title')
             .eq('is_approved', true)
             .order('title');
 
         if (guidesError) {
-            container.innerHTML = `<p class="text-red-400 text-xs">Error fetching guides.</p>`;
+            console.error("Supabase Error fetching guides:", guidesError);
+            container.innerHTML = `<p class="text-red-400 text-sm">DB Error: ${guidesError.message}</p>`;
             return;
         }
 
@@ -3252,7 +3261,8 @@ window.setupGameGuidesLinker = async function(gameId) {
             .eq('game_id', gameId);
 
         if (linksError) {
-            container.innerHTML = `<p class="text-red-400 text-xs">Error fetching links.</p>`;
+            console.error("Supabase Error fetching links:", linksError);
+            container.innerHTML = `<p class="text-red-400 text-sm">DB Error: ${linksError.message}</p>`;
             return;
         }
 
@@ -3260,55 +3270,69 @@ window.setupGameGuidesLinker = async function(gameId) {
 
         // 3. Render Content
         if (!guides || guides.length === 0) {
-            container.innerHTML = `<p class="text-gray-500 text-xs italic">No approved guides found in database.</p>`;
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <p class="text-gray-400 text-sm mb-2">No approved guides found.</p>
+                    <a href="#/admin" onclick="setTimeout(()=>location.reload(),100)" class="text-xs text-cyan-400 underline">Create one in Admin first</a>
+                </div>`;
             return;
         }
 
-        let html = '';
+        let html = '<div class="space-y-2">';
         guides.forEach(guide => {
             const isChecked = linkedIds.has(guide.id) ? 'checked' : '';
-            const statusText = linkedIds.has(guide.id) ? '<span class="text-green-400 text-xs ml-auto">Linked</span>' : '';
-            
+            const status = linkedIds.has(guide.id) 
+                ? `<span class="text-green-400 text-xs font-bold ml-auto">LINKED</span>` 
+                : `<span class="text-gray-600 text-xs ml-auto">-</span>`;
+
             html += `
-                <div class="flex items-center gap-3 p-2 hover:bg-gray-800 rounded cursor-pointer">
+                <div class="flex items-center gap-3 p-2 bg-gray-800 rounded border border-gray-700 hover:border-cyan-500 transition">
                     <input type="checkbox" 
                            data-id="${guide.id}" 
                            ${isChecked}
-                           class="guide-checkbox w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500">
-                    <label class="text-gray-300 text-sm flex-1 cursor-pointer">${guide.title}</label>
-                    ${statusText}
+                           class="guide-checkbox w-4 h-4 rounded bg-gray-700 border-gray-600 text-cyan-500 focus:ring-cyan-500 cursor-pointer">
+                    <label class="text-gray-300 text-sm flex-1 cursor-pointer truncate">${guide.title}</label>
+                    ${status}
                 </div>
             `;
         });
+        html += '</div>';
 
         container.innerHTML = html;
 
-        // 4. Attach Click Events
+        // 4. Attach Click Listeners
         container.querySelectorAll('.guide-checkbox').forEach(cb => {
             cb.addEventListener('change', async (e) => {
                 const guideId = e.target.dataset.id;
                 const isChecked = e.target.checked;
                 const row = e.target.closest('div');
-                const statusSpan = row.querySelector('span.text-green-400');
+                
+                // Optimistic UI update
+                const statusSpan = row.querySelector('span.ml-auto');
+                if(isChecked) {
+                    statusSpan.textContent = 'LINKED';
+                    statusSpan.className = 'text-green-400 text-xs font-bold ml-auto';
+                } else {
+                    statusSpan.textContent = '-';
+                    statusSpan.className = 'text-gray-600 text-xs ml-auto';
+                }
 
                 try {
                     if (isChecked) {
                         await supabase.from('game_guides').insert({ game_id: gameId, guide_id: guideId });
-                        if (statusSpan) statusSpan.remove();
-                        row.insertAdjacentHTML('beforeend', '<span class="text-green-400 text-xs ml-auto">Linked</span>');
                     } else {
                         await supabase.from('game_guides').delete().eq('game_id', gameId).eq('guide_id', guideId);
-                        if (statusSpan) statusSpan.remove();
                     }
                 } catch (err) {
-                    alert('Failed to update link');
-                    e.target.checked = !isChecked; // Revert on error
+                    alert('Failed to save link: ' + err.message);
+                    e.target.checked = !isChecked; // Revert
                 }
             });
         });
 
     } catch (err) {
-        container.innerHTML = `<p class="text-red-400 text-xs">Failed to load guides.</p>`;
+        console.error("Critical Error in Guide Linker:", err);
+        container.innerHTML = `<p class="text-red-400 text-sm">Critical Error: ${err.message}</p>`;
     }
 };
 
