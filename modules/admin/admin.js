@@ -1595,7 +1595,15 @@ function setupGameEditForm(game) {
     }
   };
 }
-  // ============================================================
+
+// ========================================================================
+    // NEW: Initialize Guide Linker (Only runs if Admin HTML container exists)
+    // ========================================================================
+    const guidesContainer = document.getElementById('linked-guides-container');
+    if (guidesContainer) {
+        setupGameGuidesLinker(game.id);
+    }
+// ============================================================
     // CRITICAL FIX: Explicitly call the Guide Linker here
     // ============================================================
     console.log('🔍 Checking for Guide Container...');
@@ -1606,14 +1614,6 @@ function setupGameEditForm(game) {
         setupGameGuidesLinker(game.id);
     } else {
         console.error('❌ ERROR: Guide container NOT found in DOM! Check your HTML string in createGameEditForm.');
-    }
-}
-// ========================================================================
-    // NEW: Initialize Guide Linker (Only runs if Admin HTML container exists)
-    // ========================================================================
-    const guidesContainer = document.getElementById('linked-guides-container');
-    if (guidesContainer) {
-        setupGameGuidesLinker(game.id);
     }
 async function saveGameEditForm(game) {
   const saveBtn = document.getElementById('saveGameBtn');
