@@ -10,14 +10,12 @@ export default async function initGuidesModule(rom) {
     const modal = document.getElementById('guide-modal');
     const closeBtn = document.getElementById('close-guide-modal');
     const form = document.getElementById('guide-form');
-    const gameSelect = document.getElementById('g-game');
+    // Removed gameSelect as we don't link directly in this simple view anymore
+    // If you still have a dropdown in your HTML for games, keep the element but don't use it for insertion logic below
 
     // Check Auth
     const { data: { user } } = await supabase.auth.getUser();
     if (user && createBtn) createBtn.classList.remove('hidden');
-
-    // Load Games for Dropdown
-    loadGamesForDropdown();
 
     // Initial Load
     loadGuides();
@@ -25,7 +23,10 @@ export default async function initGuidesModule(rom) {
     // Listeners
     if (searchInput) searchInput.addEventListener('input', loadGuides);
     if (diffFilter) diffFilter.addEventListener('change', loadGuides);
-    if (createBtn) createBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+    if (createBtn) createBtn.addEventListener('click', () => {
+        if (!user) return alert('Please log in to create a guide');
+        modal.classList.remove('hidden');
+    });
     if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
 
     if (form) {
@@ -35,23 +36,16 @@ export default async function initGuidesModule(rom) {
         });
     }
 
-    async function loadGamesForDropdown() {
-        const { data } = await supabase.from('games').select('id, title, console').order('title');
-        if (data && gameSelect) {
-            gameSelect.innerHTML = '<option value="">Select Game...</option>' + 
-                data.map(g => `<option value="${g.id}">${g.title} (${g.console})</option>`).join('');
-        }
-    }
-
     async function loadGuides() {
         if (!grid) return;
-        grid.innerHTML = '<div class="col-span-full text-center py-12">Loading...</div>';
+        grid.innerHTML = '<div class="col-span-full text-center py-12 text-cyan-400">Loading guides...</div>';
 
+        // FIX: Removed the join with 'games' because guides table has no game_id column.
+        // We only fetch from 'guides' and 'profiles'.
         let query = supabase
             .from('guides')
             .select(`
                 *,
-                game:games(title, cover_image_url, slug),
                 author:profiles(username, avatar_url)
             `)
             .eq('is_approved', true)
@@ -62,41 +56,45 @@ export default async function initGuidesModule(rom) {
 
         if (diff) query = query.eq('difficulty', diff);
         
-        // Note: Filtering by search text requires a different approach in Supabase 
-        // or filtering client-side for simplicity here.
-        
         const { data, error } = await query;
 
         if (error) {
-            grid.innerHTML = '<div class="text-red-400">Error loading guides.</div>';
+            console.error('Error loading guides:', error);
+            grid.innerHTML = '<div class="text-red-400 text-center py-12">Error loading guides: ' + error.message + '</div>';
             return;
         }
 
         // Client-side search filter
-        let filtered = data;
+        let filtered = data || [];
         if (search) {
-            filtered = data.filter(g => 
+            filtered = filtered.filter(g => 
                 g.title.toLowerCase().includes(search) || 
-                g.game?.title.toLowerCase().includes(search)
+                (g.content_html && g.content_html.toLowerCase().includes(search))
             );
         }
 
-        if (!filtered || filtered.length === 0) {
+        if (filtered.length === 0) {
             grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-12">No guides found yet.</div>';
             return;
         }
 
         grid.innerHTML = filtered.map(guide => `
-            <div class="bg-gray-800/80 border border-purple-500/30 rounded-xl p-5 hover:border-purple-400 transition cursor-pointer" onclick="window.location.hash='#/guide/${guide.slug || guide.id}'">
+            <div class="bg-gray-800/80 border border-purple-500/30 rounded-xl p-5 hover:border-purple-400 transition cursor-pointer group" onclick="window.location.hash='#/guide/${guide.slug || guide.id}'">
                 <div class="flex justify-between items-start mb-3">
                     <span class="text-xs font-bold px-2 py-1 rounded ${getDiffColor(guide.difficulty)}">${guide.difficulty}</span>
                     <span class="text-xs text-gray-500">${new Date(guide.created_at).toLocaleDateString()}</span>
                 </div>
-                <h3 class="text-xl font-bold text-white mb-2 line-clamp-2">${escapeHtml(guide.title)}</h3>
-                <p class="text-sm text-cyan-400 mb-4">For: ${guide.game?.title || 'Unknown Game'}</p>
-                <div class="flex items-center gap-2 text-xs text-gray-400">
-                    <span>By ${guide.author?.username || 'Anonymous'}</span>
-                    ${guide.video_url ? '<span class="text-red-400">📺 Video Included</span>' : ''}
+                <h3 class="text-xl font-bold text-white mb-2 line-clamp-2 group-hover:text-cyan-400 transition">${escapeHtml(guide.title)}</h3>
+                
+                <!-- Since guides are universal, we don't show "For: Game Title" unless you implement a complex join later -->
+                <p class="text-sm text-gray-400 mb-4 line-clamp-2">${guide.content_html ? guide.content_html.replace(/<[^>]*>?/gm, '').substring(0, 100) + '...' : 'No description'}</p>
+                
+                <div class="flex items-center gap-2 text-xs text-gray-400 border-t border-gray-700 pt-3">
+                    <div class="flex items-center gap-2">
+                        ${guide.author?.avatar_url ? `<img src="${guide.author.avatar_url}" class="w-5 h-5 rounded-full">` : '<div class="w-5 h-5 rounded-full bg-gray-600"></div>'}
+                        <span>By ${guide.author?.username || 'Anonymous'}</span>
+                    </div>
+                    ${guide.video_url ? '<span class="text-red-400 ml-auto">📺 Video Included</span>' : ''}
                 </div>
             </div>
         `).join('');
@@ -106,38 +104,51 @@ export default async function initGuidesModule(rom) {
         if (!user) return alert('Must be logged in');
         
         const title = document.getElementById('g-title').value;
-        const gameId = document.getElementById('g-game').value;
+        // Removed gameId requirement since guides are universal now
         const diff = document.getElementById('g-diff').value;
         const video = document.getElementById('g-video').value;
         const content = document.getElementById('g-content').value;
 
-        // Simple slug generator
-        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        if (!title || !content) return alert('Title and Content are required');
 
-        const { error } = await supabase.from('guides').insert({
-            game_id: gameId,
-            author_id: user.id,
-            title,
-            slug,
-            difficulty: diff,
-            video_url: video,
-            content_html: content,
-            is_approved: false // Requires admin approval
-        });
+        // Simple slug generator with timestamp to ensure uniqueness
+        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
 
-        if (error) {
-            alert('Error: ' + error.message);
-        } else {
+        const btn = form.querySelector('button[type="submit"]');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        try {
+            const { error } = await supabase.from('guides').insert({
+                // game_id: gameId, // REMOVED: No such column in guides table
+                author_id: user.id,
+                title,
+                slug,
+                difficulty: diff,
+                video_url: video || null,
+                content_html: content,
+                is_approved: false // Requires admin approval
+            });
+
+            if (error) throw error;
+
             alert('Guide submitted! It will appear after admin approval.');
             modal.classList.add('hidden');
             form.reset();
             loadGuides();
+        } catch (err) {
+            alert('Error submitting guide: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
         }
     }
 
     function getDiffColor(diff) {
         if (diff === 'Easy') return 'bg-green-900 text-green-300';
         if (diff === 'Hard') return 'bg-red-900 text-red-300';
+        if (diff === 'Expert') return 'bg-red-900 text-red-300';
         return 'bg-yellow-900 text-yellow-300';
     }
 
@@ -150,8 +161,7 @@ export default async function initGuidesModule(rom) {
     
     // Expose for routing if needed
     window.loadSingleGuide = async (identifier) => {
-        // Logic to fetch single guide by slug/ID and render full view
-        // We will implement the full view renderer next
         console.log("Loading guide:", identifier);
+        // Implementation for single guide view would go here
     };
 }
