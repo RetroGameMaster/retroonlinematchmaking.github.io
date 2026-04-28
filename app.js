@@ -1169,7 +1169,7 @@ async function loadGuideDetail(slug) {
 
                     <!-- Content -->
                     <div class="p-8 prose prose-invert max-w-none">
-                        <div class="guide-content text-gray-300 leading-relaxed prose prose-invert max-w-none"></div>
+                        <div class="text-gray-300 leading-relaxed whitespace-pre-wrap">${guide.content_html}</div>
                     </div>
 
                     <!-- Footer -->
@@ -1189,16 +1189,6 @@ async function loadGuideDetail(slug) {
         console.error('Error loading guide:', err);
         appContent.innerHTML = `<div class="text-center text-red-400 py-12">Error loading guide: ${err.message}</div>`;
     }
-    const contentContainer = appContent.querySelector('.guide-content');
-    if (contentContainer && guide.content_html) {
-    // Configure marked options if needed
-    marked.setOptions({
-        breaks: true, // Enable line breaks
-        gfm: true     // Enable GitHub Flavored Markdown
-    });
-    
-    // Convert Markdown to HTML
-    contentContainer.innerHTML = marked.parse(guide.content_html);
 }
 
 // Helpers for the guide view
