@@ -43,13 +43,13 @@ export default async function initGuidesModule(rom) {
         // FIX: Removed the join with 'games' because guides table has no game_id column.
         // We only fetch from 'guides' and 'profiles'.
         let query = supabase
-            .from('guides')
-            .select(`
-                *,
-                author:profiles(username, avatar_url)
-            `)
-            .eq('is_approved', true)
-            .order('created_at', { ascending: false });
+       .from('guides')
+       .select(`
+        *,
+        profiles:author_id (username, avatar_url)
+    `)
+    .eq('is_approved', true)
+    .order('created_at', { ascending: false });
 
         const search = searchInput?.value.toLowerCase();
         const diff = diffFilter?.value;
