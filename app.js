@@ -16,6 +16,7 @@ const modules = {
     'search-users': () => import('./modules/search-users/search-users.js'),
     'live-lobbies': () => import('./modules/live-lobbies/live-lobbies.js'),
     'lfg-scheduler': () => import('./modules/lfg-scheduler/lfg-scheduler.js'),
+    'guides': () => import('./modules/guides/guides.js'),
 };
 
 // Fallback content
