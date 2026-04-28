@@ -1595,6 +1595,19 @@ function setupGameEditForm(game) {
     }
   };
 }
+  // ============================================================
+    // CRITICAL FIX: Explicitly call the Guide Linker here
+    // ============================================================
+    console.log('🔍 Checking for Guide Container...');
+    const guidesContainer = document.getElementById('linked-guides-container');
+    
+    if (guidesContainer) {
+        console.log('✅ Guide container found! Initializing linker for game:', game.id);
+        setupGameGuidesLinker(game.id);
+    } else {
+        console.error('❌ ERROR: Guide container NOT found in DOM! Check your HTML string in createGameEditForm.');
+    }
+}
 // ========================================================================
     // NEW: Initialize Guide Linker (Only runs if Admin HTML container exists)
     // ========================================================================
