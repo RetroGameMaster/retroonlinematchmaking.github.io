@@ -1294,6 +1294,15 @@ function createGameEditForm(game) {
        
         <!-- Screenshots (Admin Only) -->
         ${isAdmin ? `
+<div class="mt-6 pt-6 border-t border-gray-600">
+    <h3 class="text-lg font-bold text-blue-300 mb-3">📚 Linked Universal Guides</h3>
+    <div id="linked-guides-container" class="bg-gray-900 p-4 rounded border border-gray-700">
+        <p class="text-gray-400 text-sm">Loading available guides...</p>
+    </div>
+    <p class="text-xs text-gray-500 mt-2">Check boxes to link guides to this game. Changes save automatically.</p>
+</div>
+` : ''}
+        ${isAdmin ? `
           <div>
             <h4 class="text-md font-bold text-purple-300 mb-3">Screenshots</h4>
             <div class="mb-4">
@@ -1322,7 +1331,7 @@ function createGameEditForm(game) {
           </div>
         ` : ''}
       </div>
-     
+    
       <!-- Game Details Form -->
       <form id="gameEditForm" class="space-y-4">
         <input type="hidden" id="editGameId" value="${game.id}">
@@ -1586,7 +1595,13 @@ function setupGameEditForm(game) {
     }
   };
 }
-
+// ========================================================================
+    // NEW: Initialize Guide Linker (Only runs if Admin HTML container exists)
+    // ========================================================================
+    const guidesContainer = document.getElementById('linked-guides-container');
+    if (guidesContainer) {
+        setupGameGuidesLinker(game.id);
+    }
 async function saveGameEditForm(game) {
   const saveBtn = document.getElementById('saveGameBtn');
   if (!saveBtn) {
@@ -3208,5 +3223,93 @@ window.deleteGuide = async function(id) {
         showNotification('❌ Error: ' + err.message, 'error');
     }
 };
+// ============================================================================
+// GAME GUIDE LINKER (ADMIN ONLY)
+// ============================================================================
+
+async function setupGameGuidesLinker(gameId) {
+    const container = document.getElementById('linked-guides-container');
+    if (!container) return;
+
+    try {
+        // 1. Fetch all approved guides
+        const { data: guides, error: guidesError } = await supabase
+            .from('guides')
+            .select('id, title')
+            .eq('is_approved', true)
+            .order('title');
+
+        if (guidesError) throw guidesError;
+
+        // 2. Fetch currently linked guides for this game
+        const { data: links, error: linksError } = await supabase
+            .from('game_guides')
+            .select('guide_id')
+            .eq('game_id', gameId);
+
+        if (linksError) throw linksError;
+
+        const linkedGuideIds = new Set(links.map(l => l.guide_id));
+
+        // 3. Render Checkboxes
+        if (!guides || guides.length === 0) {
+            container.innerHTML = `<p class="text-gray-500 italic">No approved guides available to link.</p>`;
+            return;
+        }
+
+        container.innerHTML = guides.map(guide => `
+            <div class="flex items-center gap-3 mb-2 p-2 hover:bg-gray-800 rounded transition">
+                <input type="checkbox" 
+                       id="link-guide-${guide.id}" 
+                       data-guide-id="${guide.id}"
+                       ${linkedGuideIds.has(guide.id) ? 'checked' : ''}
+                       class="w-4 h-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer">
+                <label for="link-guide-${guide.id}" class="text-gray-300 cursor-pointer flex-1">${escapeHtml(guide.title)}</label>
+                <span class="text-xs text-gray-500 status-indicator">${linkedGuideIds.has(guide.id) ? 'Linked' : ''}</span>
+            </div>
+        `).join('');
+
+        // 4. Add Event Listeners for Auto-Save
+        const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', async (e) => {
+                const guideId = e.target.dataset.guideId;
+                const isChecked = e.target.checked;
+                const statusSpan = e.target.parentElement.querySelector('.status-indicator');
+
+                try {
+                    if (isChecked) {
+                        // Create Link
+                        const { error } = await supabase.from('game_guides').insert({
+                            game_id: gameId,
+                            guide_id: guideId
+                        });
+                        if (error) throw error;
+                        if (statusSpan) statusSpan.textContent = 'Linked';
+                        showNotification('✅ Guide linked!');
+                    } else {
+                        // Remove Link
+                        const { error } = await supabase.from('game_guides')
+                            .delete()
+                            .eq('game_id', gameId)
+                            .eq('guide_id', guideId);
+                        if (error) throw error;
+                        if (statusSpan) statusSpan.textContent = '';
+                        showNotification('🔗 Guide unlinked.');
+                    }
+                } catch (err) {
+                    console.error('Error toggling guide link:', err);
+                    showNotification('❌ Error updating link: ' + err.message, 'error');
+                    // Revert checkbox on error
+                    e.target.checked = !isChecked;
+                }
+            });
+        });
+
+    } catch (error) {
+        console.error('Error loading guides for linker:', error);
+        container.innerHTML = `<p class="text-red-400 text-sm">Error loading guides: ${error.message}</p>`;
+    }
+}
 // Export for module system
 export default initModule;
