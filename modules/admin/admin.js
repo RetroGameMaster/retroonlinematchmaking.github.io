@@ -2917,6 +2917,10 @@ async function loadRecentAwardsLog() {
 let allGuidesCache = [];
 
 async function loadAdminGuides() {
+  const guidesSection = document.getElementById('guides-section');
+    if (guidesSection) {
+        guidesSection.classList.remove('hidden');
+    }
     const content = document.getElementById('admin-content');
     if (!content) return;
 
