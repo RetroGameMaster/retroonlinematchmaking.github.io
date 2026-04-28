@@ -96,7 +96,84 @@
             </div>
         </div>
     </div>
+    <!-- Universal Guides Section -->
+<div id="guides-section" class="bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-blue-500 hidden">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-blue-300">📚 Universal Guides</h2>
+        <button onclick="openGuideModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
+            <span>+ New Guide</span>
+        </button>
+    </div>
     
+    <!-- Guides Table -->
+    <div class="overflow-x-auto rounded-lg border border-gray-700">
+        <table class="min-w-full bg-gray-900">
+            <thead class="bg-gray-800">
+                <tr>
+                    <th class="py-3 px-4 text-left text-gray-300 font-semibold">Title</th>
+                    <th class="py-3 px-4 text-left text-gray-300 font-semibold">Difficulty</th>
+                    <th class="py-3 px-4 text-left text-gray-300 font-semibold">Status</th>
+                    <th class="py-3 px-4 text-left text-gray-300 font-semibold">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="adminGuidesList" class="divide-y divide-gray-800">
+                <!-- Guides will be loaded here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Guide Editor Modal (Hidden by default) -->
+<div id="guideModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="guideModalTitle" class="text-2xl font-bold text-white">Create/Edit Guide</h2>
+                <button onclick="closeGuideModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <form id="guideForm" class="space-y-4">
+                <input type="hidden" id="guideId">
+                
+                <div>
+                    <label class="block text-gray-300 mb-2">Title *</label>
+                    <input type="text" id="guideTitle" required class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-300 mb-2">Difficulty</label>
+                        <select id="guideDifficulty" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+                            <option value="Easy">Easy</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Hard">Hard</option>
+                            <option value="Expert">Expert</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 mb-2">YouTube URL (Optional)</label>
+                        <input type="url" id="guideVideoUrl" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-300 mb-2">Content (HTML Allowed)</label>
+                    <textarea id="guideContent" rows="8" required class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:border-blue-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="guideApproved" class="w-4 h-4 text-blue-500 bg-gray-700 border-gray-600 rounded">
+                    <label class="text-gray-300">Approve Immediately?</label>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" onclick="closeGuideModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded">Save Guide</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
     <!-- Quick Stats Dashboard -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
         <div class="bg-gray-800 p-6 rounded-xl text-center border border-green-500">
