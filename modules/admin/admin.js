@@ -2912,16 +2912,13 @@ async function loadRecentAwardsLog() {
 // END AWARD MANAGER
 // ============================================================================
 // ============================================================================
-// UNIVERSAL GUIDES MANAGEMENT
+// UNIVERSAL GUIDES MANAGEMENT (FIXED)
 // ============================================================================
 
 let allGuidesCache = [];
 
+// 1. Main Load Function
 async function loadAdminGuides() {
-  const guidesSection = document.getElementById('guides-section');
-    if (guidesSection) {
-        guidesSection.classList.remove('hidden');
-    }
     const content = document.getElementById('admin-content');
     if (!content) return;
 
@@ -2962,7 +2959,7 @@ async function loadAdminGuides() {
                     <tbody class="bg-gray-900 divide-y divide-gray-800">
                         ${guides && guides.length > 0 ? guides.map(g => `
                             <tr class="hover:bg-gray-800">
-                                <td class="px-6 py-4 text-white font-medium">${escapeHtml(g.title)}</td>
+                                <td class="px-6 py-4 text-white font-medium">${escapeHtmlLocal(g.title)}</td>
                                 <td class="px-6 py-4">
                                     <span class="px-2 py-1 rounded text-xs font-bold ${getDifficultyColor(g.difficulty)}">
                                         ${g.difficulty}
@@ -2995,6 +2992,7 @@ async function loadAdminGuides() {
     }
 }
 
+// 2. Helper Functions (Local Scope to prevent errors)
 function getDifficultyColor(diff) {
     switch(diff) {
         case 'Easy': return 'bg-green-900 text-green-300';
@@ -3005,7 +3003,14 @@ function getDifficultyColor(diff) {
     }
 }
 
-// Modal Handling
+function escapeHtmlLocal(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 3. Modal Handling
 window.openGuideModal = function(editId = null) {
     const guide = editId ? allGuidesCache.find(g => g.id === editId) : null;
     
@@ -3021,7 +3026,7 @@ window.openGuideModal = function(editId = null) {
                         
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">Title *</label>
-                            <input type="text" id="guide-title" value="${guide ? escapeHtml(guide.title) : ''}" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <input type="text" id="guide-title" value="${guide ? escapeHtmlLocal(guide.title) : ''}" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
@@ -3036,14 +3041,13 @@ window.openGuideModal = function(editId = null) {
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-300 mb-1">YouTube URL (Optional)</label>
-                                <input type="url" id="guide-video" value="${guide ? escapeHtml(guide.video_url) : ''}" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                <input type="url" id="guide-video" value="${guide ? escapeHtmlLocal(guide.video_url || '') : ''}" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
                             </div>
                         </div>
                         
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">Content (HTML Allowed)</label>
-                            <textarea id="guide-content" rows="10" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">${guide ? escapeHtml(guide.content_html) : ''}</textarea>
-                            <p class="text-xs text-gray-400 mt-1">Tip: You can use basic HTML tags like &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;li&gt;.</p>
+                            <textarea id="guide-content" rows="10" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">${guide ? escapeHtmlLocal(guide.content_html || '') : ''}</textarea>
                         </div>
                         
                         <div class="flex items-center">
@@ -3063,6 +3067,7 @@ window.openGuideModal = function(editId = null) {
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
+    // Attach Submit Listener
     document.getElementById('guide-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         await saveGuide(editId);
@@ -3078,6 +3083,7 @@ window.editGuide = function(id) {
     openGuideModal(id);
 };
 
+// 4. Save Function (Fixed to use getCurrentUser)
 async function saveGuide(editId) {
     const title = document.getElementById('guide-title').value.trim();
     const difficulty = document.getElementById('guide-difficulty').value;
@@ -3098,17 +3104,25 @@ async function saveGuide(editId) {
     };
 
     const btn = document.querySelector('#guide-form button[type="submit"]');
+    const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Saving...';
 
     try {
         let error;
         if (editId) {
+            // Update
             const res = await supabase.from('guides').update(payload).eq('id', editId);
             error = res.error;
         } else {
+            // Insert
             const user = await getCurrentUser();
-            const res = await supabase.from('guides').insert([{ ...payload, author_id: user.id }]);
+            if (!user) throw new Error('User not logged in');
+            
+            const res = await supabase.from('guides').insert([{ 
+                ...payload, 
+                author_id: user.id 
+            }]);
             error = res.error;
         }
 
@@ -3116,16 +3130,17 @@ async function saveGuide(editId) {
 
         showNotification(editId ? '✅ Guide updated!' : '✅ Guide created!');
         closeGuideModal();
-        loadAdminGuides();
+        loadAdminGuides(); // Refresh list
     } catch (err) {
         console.error('Error saving guide:', err);
         showNotification('❌ Error: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = editId ? 'Save Changes' : 'Create Guide';
+        btn.textContent = originalText;
     }
 }
 
+// 5. Action Functions
 window.toggleGuideApproval = async function(id, newStatus) {
     if (!confirm(`Are you sure you want to ${newStatus ? 'approve' : 'unapprove'} this guide?`)) return;
     try {
