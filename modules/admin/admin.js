@@ -3225,22 +3225,15 @@ window.deleteGuide = async function(id) {
         showNotification('❌ Error: ' + err.message, 'error');
     }
 };
-// ============================================================================
-// GAME GUIDE LINKER (ADMIN ONLY)
-// ============================================================================
-
-async function setupGameGuidesLinker(gameId) {
+// =========================================================================
+// GLOBAL GUIDE LINKER FUNCTION (Attach to window for access)
+// =========================================================================
+window.setupGameGuidesLinker = async function(gameId) {
     const container = document.getElementById('linked-guides-container');
-    if (!container) {
-        console.error('❌ [GUIDE LINKER] Container #linked-guides-container not found!');
-        return;
-    }
-
-    console.log('🔍 [GUIDE LINKER] Starting load for Game ID:', gameId);
+    if (!container) return;
 
     try {
-        // 1. Fetch all approved guides
-        console.log('📡 [GUIDE LINKER] Fetching approved guides...');
+        // 1. Fetch Approved Guides
         const { data: guides, error: guidesError } = await supabase
             .from('guides')
             .select('id, title')
@@ -3248,92 +3241,76 @@ async function setupGameGuidesLinker(gameId) {
             .order('title');
 
         if (guidesError) {
-            console.error('❌ [GUIDE LINKER] Error fetching guides:', guidesError);
-            throw guidesError;
+            container.innerHTML = `<p class="text-red-400 text-xs">Error fetching guides.</p>`;
+            return;
         }
 
-        console.log('✅ [GUIDE LINKER] Found guides:', guides ? guides.length : 0);
-
-        // 2. Fetch currently linked guides for this game
-        console.log('📡 [GUIDE LINKER] Fetching existing links...');
+        // 2. Fetch Existing Links
         const { data: links, error: linksError } = await supabase
             .from('game_guides')
             .select('guide_id')
             .eq('game_id', gameId);
 
         if (linksError) {
-            console.error('❌ [GUIDE LINKER] Error fetching links:', linksError);
-            throw linksError;
-        }
-
-        const linkedGuideIds = new Set(links ? links.map(l => l.guide_id) : []);
-        console.log('🔗 [GUIDE LINKER] Currently linked IDs:', Array.from(linkedGuideIds));
-
-        // 3. Render Checkboxes
-        if (!guides || guides.length === 0) {
-            container.innerHTML = `<p class="text-gray-500 italic">No approved guides available to link. Create one in the Guides tab first.</p>`;
+            container.innerHTML = `<p class="text-red-400 text-xs">Error fetching links.</p>`;
             return;
         }
 
-        container.innerHTML = guides.map(guide => `
-            <div class="flex items-center gap-3 mb-2 p-2 hover:bg-gray-800 rounded transition">
-                <input type="checkbox" 
-                       id="link-guide-${guide.id}" 
-                       data-guide-id="${guide.id}"
-                       ${linkedGuideIds.has(guide.id) ? 'checked' : ''}
-                       class="w-4 h-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer">
-                <label for="link-guide-${guide.id}" class="text-gray-300 cursor-pointer flex-1">${escapeHtml(guide.title)}</label>
-                <span class="text-xs text-gray-500 status-indicator">${linkedGuideIds.has(guide.id) ? 'Linked' : ''}</span>
-            </div>
-        `).join('');
+        const linkedIds = new Set(links ? links.map(l => l.guide_id) : []);
 
-        // 4. Add Event Listeners
-        const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => {
+        // 3. Render Content
+        if (!guides || guides.length === 0) {
+            container.innerHTML = `<p class="text-gray-500 text-xs italic">No approved guides found in database.</p>`;
+            return;
+        }
+
+        let html = '';
+        guides.forEach(guide => {
+            const isChecked = linkedIds.has(guide.id) ? 'checked' : '';
+            const statusText = linkedIds.has(guide.id) ? '<span class="text-green-400 text-xs ml-auto">Linked</span>' : '';
+            
+            html += `
+                <div class="flex items-center gap-3 p-2 hover:bg-gray-800 rounded cursor-pointer">
+                    <input type="checkbox" 
+                           data-id="${guide.id}" 
+                           ${isChecked}
+                           class="guide-checkbox w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500">
+                    <label class="text-gray-300 text-sm flex-1 cursor-pointer">${guide.title}</label>
+                    ${statusText}
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        // 4. Attach Click Events
+        container.querySelectorAll('.guide-checkbox').forEach(cb => {
             cb.addEventListener('change', async (e) => {
-                const guideId = e.target.dataset.guideId;
+                const guideId = e.target.dataset.id;
                 const isChecked = e.target.checked;
-                const statusSpan = e.target.parentElement.querySelector('.status-indicator');
+                const row = e.target.closest('div');
+                const statusSpan = row.querySelector('span.text-green-400');
 
                 try {
                     if (isChecked) {
-                        const { error } = await supabase.from('game_guides').insert({
-                            game_id: gameId,
-                            guide_id: guideId
-                        });
-                        if (error) throw error;
-                        if (statusSpan) statusSpan.textContent = 'Linked';
-                        showNotification('✅ Guide linked!');
+                        await supabase.from('game_guides').insert({ game_id: gameId, guide_id: guideId });
+                        if (statusSpan) statusSpan.remove();
+                        row.insertAdjacentHTML('beforeend', '<span class="text-green-400 text-xs ml-auto">Linked</span>');
                     } else {
-                        const { error } = await supabase.from('game_guides')
-                            .delete()
-                            .eq('game_id', gameId)
-                            .eq('guide_id', guideId);
-                        if (error) throw error;
-                        if (statusSpan) statusSpan.textContent = '';
-                        showNotification('🔗 Guide unlinked.');
+                        await supabase.from('game_guides').delete().eq('game_id', gameId).eq('guide_id', guideId);
+                        if (statusSpan) statusSpan.remove();
                     }
                 } catch (err) {
-                    console.error('Error toggling guide link:', err);
-                    showNotification('❌ Error: ' + err.message, 'error');
+                    alert('Failed to update link');
                     e.target.checked = !isChecked; // Revert on error
                 }
             });
         });
 
-        console.log('✅ [GUIDE LINKER] Setup complete!');
-
-    } catch (error) {
-        console.error('💥 [GUIDE LINKER] Critical Failure:', error);
-        container.innerHTML = `
-            <div class="text-red-400 text-sm">
-                <p><strong>Error loading guides:</strong> ${error.message}</p>
-                <p class="mt-1 text-xs opacity-75">Check Console (F12) for details.</p>
-                <p class="mt-2 text-xs text-yellow-500">Tip: Ensure you have RLS policies for 'guides' and 'game_guides' tables allowing authenticated users to SELECT/INSERT/DELETE.</p>
-            </div>
-        `;
+    } catch (err) {
+        container.innerHTML = `<p class="text-red-400 text-xs">Failed to load guides.</p>`;
     }
-}
+};
 
 // Export for module system
 export default initModule;
