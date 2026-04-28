@@ -3084,35 +3084,50 @@ window.editGuide = function(id) {
 };
 
 async function saveGuide(editId) {
+    console.log('💾 [GUIDE] Starting save process...', editId ? 'EDIT' : 'CREATE');
+
+    // 1. Get Values
     const title = document.getElementById('guide-title').value.trim();
     const difficulty = document.getElementById('guide-difficulty').value;
     const videoUrl = document.getElementById('guide-video').value.trim();
     const content = document.getElementById('guide-content').value;
     const isApproved = document.getElementById('guide-approved').checked;
-    
-    if (!title) return showNotification('Title is required', 'error');
 
-    // Generate a safe slug
+    if (!title) {
+        showNotification('❌ Title is required', 'error');
+        return;
+    }
+
+    // 2. Get Current User (Critical Step)
+    // We use the global rom object or supabase auth directly to ensure we have the ID
+    let user = window.rom?.currentUser;
+    
+    if (!user) {
+        console.warn('⚠️ [GUIDE] No user in rom object, fetching from Supabase...');
+        const { data: { user: freshUser } } = await supabase.auth.getUser();
+        user = freshUser;
+    }
+
+    if (!user) {
+        console.error('❌ [GUIDE] CRITICAL: No authenticated user found!');
+        showNotification('❌ Error: You must be logged in to save guides.', 'error');
+        return;
+    }
+
+    console.log('✅ [GUIDE] User identified:', user.id, user.email);
+
+    // 3. Generate Unique Slug
     let slug = title.toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
     
-    // Add random suffix if editing to avoid slug conflicts during testing, 
-    // or if creating new, we'll handle duplicate errors below.
-    if (!editId) {
-        slug = `${slug}-${Math.random().toString(36).substring(2, 5)}`;
-    }
-
-    const user = await getCurrentUser();
-    if (!user) {
-        showNotification('❌ Error: User not logged in', 'error');
-        return;
-    }
+    // Append timestamp to guarantee uniqueness and avoid DB errors
+    slug = `${slug}-${Date.now()}`;
 
     const payload = {
-        title,
-        slug,
-        difficulty,
+        title: title,
+        slug: slug,
+        difficulty: difficulty,
         video_url: videoUrl || null,
         content_html: content,
         is_approved: isApproved,
@@ -3120,44 +3135,49 @@ async function saveGuide(editId) {
         updated_at: new Date().toISOString()
     };
 
+    // UI Feedback
     const btn = document.querySelector('#guide-form button[type="submit"]');
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Saving...';
+    btn.textContent = 'Saving to DB...';
 
     try {
+        console.log('📤 [GUIDE] Sending payload to Supabase:', payload);
+
         let result;
         if (editId) {
-            // Remove author_id from update payload to avoid issues
-            delete payload.author_id;
+            delete payload.author_id; // Don't update author on edit
+            console.log(`✏️ [GUIDE] Updating guide ${editId}...`);
             result = await supabase.from('guides').update(payload).eq('id', editId);
         } else {
+            console.log('➕ [GUIDE] Inserting new guide...');
             result = await supabase.from('guides').insert([payload]);
         }
 
+        // 4. Check for Errors
         if (result.error) {
-            console.error('Supabase Error Details:', result.error);
-            
-            // Handle Duplicate Slug Error specifically
-            if (result.error.code === '23505') {
-                throw new Error('A guide with this title already exists. Please use a different title.');
-            }
-            
-            // Handle RLS / Permission Error
-            if (result.error.message.includes('new row violates row-level security')) {
-                throw new Error('Permission denied. Check your Supabase RLS policies for the "guides" table.');
-            }
-
+            console.error('❌ [GUIDE] Supabase returned an error:', result.error);
             throw result.error;
         }
 
-        showNotification(editId ? '✅ Guide updated!' : '✅ Guide created!');
-        window.closeGuideModal();
-        loadAdminGuides();
+        console.log('✅ [GUIDE] Save successful!', result.data);
+        showNotification(editId ? '✅ Guide updated!' : '✅ Guide created & saved!');
         
+        window.closeGuideModal();
+        loadAdminGuides(); // Refresh list
+
     } catch (err) {
-        console.error('Full Error Object:', err);
-        showNotification('❌ Error: ' + err.message, 'error');
+        console.error('💥 [GUIDE] Final Catch Block Error:', err);
+        let msg = err.message;
+        
+        // Friendly error messages for common issues
+        if (msg.includes('policy')) {
+            msg = 'Permission denied. Please run the SQL RLS policies in Supabase.';
+        } else if (msg.includes('unique')) {
+            msg = 'Save failed (Duplicate). Try a slightly different title.';
+        }
+
+        showNotification('❌ Error: ' + msg, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = originalText;
