@@ -1141,7 +1141,6 @@ async function loadGuideDetail(slug) {
         }
 
         // Render the guide HTML structure
-        // NOTE: We added id="guide-content-body" to the content div below
         appContent.innerHTML = `
             <div class="max-w-4xl mx-auto p-4">
                 <div class="mb-6">
@@ -1168,9 +1167,9 @@ async function loadGuideDetail(slug) {
                         ` : ''}
                     </div>
 
-                    <!-- Content Body (ID added here for Markdown injection) -->
+                    <!-- Content Body (ID added for JS targeting) -->
                     <div id="guide-content-body" class="p-8 prose prose-invert max-w-none text-gray-300">
-                        <!-- Markdown will be rendered here by script below -->
+                        <!-- Markdown will be rendered here by JS -->
                     </div>
 
                     <!-- Footer -->
@@ -1186,43 +1185,44 @@ async function loadGuideDetail(slug) {
             </div>
         `;
 
-        // === NEW: Render Markdown Content ===
-        const contentBody = document.getElementById('guide-content-body');
-        if (contentBody && guide.content_html && typeof marked !== 'undefined') {
-            // Configure Marked
+        // --- MARKDOWN PARSING LOGIC ---
+        // Check if marked library is loaded
+        if (typeof marked !== 'undefined' && guide.content_html) {
             marked.setOptions({
-                breaks: true,      // Enable line breaks
-                gfm: true          // GitHub Flavored Markdown
+                breaks: true,
+                gfm: true
             });
             
-            // Parse and inject HTML
-            contentBody.innerHTML = marked.parse(guide.content_html);
-            
-            // Style the generated elements
-            const links = contentBody.querySelectorAll('a');
-            links.forEach(link => {
-                link.classList.add('text-cyan-400', 'hover:text-cyan-300', 'underline', 'break-all');
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-            });
+            const contentBody = document.getElementById('guide-content-body');
+            if (contentBody) {
+                contentBody.innerHTML = marked.parse(guide.content_html);
+                
+                // Apply styles to parsed elements
+                const links = contentBody.querySelectorAll('a');
+                links.forEach(link => {
+                    link.classList.add('text-cyan-400', 'hover:text-cyan-300', 'underline', 'break-all');
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                });
 
-            const headers = contentBody.querySelectorAll('h1, h2, h3, h4, h5, h6');
-            headers.forEach(h => h.classList.add('text-white', 'font-bold', 'mt-6', 'mb-3'));
-            
-            const lists = contentBody.querySelectorAll('ul, ol');
-            lists.forEach(l => l.classList.add('list-disc', 'list-inside', 'space-y-2', 'mb-4', 'pl-4'));
-            
-            const boldText = contentBody.querySelectorAll('strong');
-            boldText.forEach(b => b.classList.add('text-white', 'font-bold'));
-            
-            const blockquotes = contentBody.querySelectorAll('blockquote');
-            blockquotes.forEach(bq => bq.classList.add('border-l-4', 'border-cyan-500', 'pl-4', 'italic', 'text-gray-400', 'my-4', 'bg-gray-900/50', 'p-3', 'rounded-r'));
-            
-            const codeBlocks = contentBody.querySelectorAll('pre, code');
-            codeBlocks.forEach(c => c.classList.add('bg-gray-900', 'text-green-400', 'p-2', 'rounded', 'font-mono', 'text-sm'));
-        } else if (contentBody && guide.content_html) {
+                const headers = contentBody.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                headers.forEach(h => h.classList.add('text-white', 'font-bold', 'mt-6', 'mb-3'));
+                
+                const lists = contentBody.querySelectorAll('ul, ol');
+                lists.forEach(l => l.classList.add('list-disc', 'list-inside', 'space-y-2', 'mb-4'));
+                
+                const boldText = contentBody.querySelectorAll('strong');
+                boldText.forEach(b => b.classList.add('text-white', 'font-bold'));
+                
+                const blockquotes = contentBody.querySelectorAll('blockquote');
+                blockquotes.forEach(bq => bq.classList.add('border-l-4', 'border-cyan-500', 'pl-4', 'italic', 'text-gray-400', 'my-4'));
+            }
+        } else {
             // Fallback if marked isn't loaded yet
-            contentBody.innerHTML = `<div class="text-yellow-400">Markdown parser loading... <br><br>${guide.content_html}</div>`;
+            const contentBody = document.getElementById('guide-content-body');
+            if (contentBody && guide.content_html) {
+                contentBody.innerText = guide.content_html; // Raw text fallback
+            }
         }
 
     } catch (err) {
