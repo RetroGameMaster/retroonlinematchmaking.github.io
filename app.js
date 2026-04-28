@@ -1105,7 +1105,7 @@ async function loadGuideDetail(slug) {
     try {
         let guide = null;
 
-        // Strategy 1: Try fetching by Slug first (if it looks like a slug)
+        // Strategy 1: Try fetching by Slug first
         if (slug.includes('-')) {
             const { data, error } = await supabase
                 .from('guides')
@@ -1116,7 +1116,7 @@ async function loadGuideDetail(slug) {
             if (!error && data) guide = data;
         }
 
-        // Strategy 2: If not found, try fetching by ID (in case user passed an ID)
+        // Strategy 2: If not found, try fetching by ID
         if (!guide) {
             const { data, error } = await supabase
                 .from('guides')
@@ -1127,7 +1127,7 @@ async function loadGuideDetail(slug) {
             if (!error && data) guide = data;
         }
 
-        // Final Check: Ensure it's approved (manual check since we split queries)
+        // Final Check: Ensure it's approved
         if (!guide || !guide.is_approved) {
             appContent.innerHTML = `
                 <div class="max-w-2xl mx-auto text-center py-12">
@@ -1139,6 +1139,97 @@ async function loadGuideDetail(slug) {
             `;
             return;
         }
+
+        // Render the guide HTML structure
+        // NOTE: We added id="guide-content-body" to the content div below
+        appContent.innerHTML = `
+            <div class="max-w-4xl mx-auto p-4">
+                <div class="mb-6">
+                    <a href="#/guides" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+                        ← Back to Guides
+                    </a>
+                </div>
+                
+                <article class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
+                    <!-- Header -->
+                    <div class="bg-gradient-to-r from-cyan-900/50 to-purple-900/50 p-8 border-b border-gray-700">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${getDifficultyColor(guide.difficulty)}">
+                                ${guide.difficulty}
+                            </span>
+                            <span class="text-gray-400 text-sm">${new Date(guide.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-bold text-white mb-4">${escapeHtml(guide.title)}</h1>
+                        
+                        ${guide.video_url ? `
+                            <div class="mt-6 aspect-video bg-black rounded-lg overflow-hidden border border-gray-600">
+                                <iframe class="w-full h-full" src="https://www.youtube.com/embed/${extractVideoId(guide.video_url)}" frameborder="0" allowfullscreen></iframe>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Content Body (ID added here for Markdown injection) -->
+                    <div id="guide-content-body" class="p-8 prose prose-invert max-w-none text-gray-300">
+                        <!-- Markdown will be rendered here by script below -->
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="bg-gray-900/50 p-6 border-t border-gray-700 flex justify-between items-center">
+                        <div class="text-sm text-gray-400">
+                            Written by <span class="text-white font-bold">Admin</span>
+                        </div>
+                        <button onclick="window.location.hash='#/guides'" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold">
+                            View All Guides →
+                        </button>
+                    </div>
+                </article>
+            </div>
+        `;
+
+        // === NEW: Render Markdown Content ===
+        const contentBody = document.getElementById('guide-content-body');
+        if (contentBody && guide.content_html && typeof marked !== 'undefined') {
+            // Configure Marked
+            marked.setOptions({
+                breaks: true,      // Enable line breaks
+                gfm: true          // GitHub Flavored Markdown
+            });
+            
+            // Parse and inject HTML
+            contentBody.innerHTML = marked.parse(guide.content_html);
+            
+            // Style the generated elements
+            const links = contentBody.querySelectorAll('a');
+            links.forEach(link => {
+                link.classList.add('text-cyan-400', 'hover:text-cyan-300', 'underline', 'break-all');
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+            });
+
+            const headers = contentBody.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            headers.forEach(h => h.classList.add('text-white', 'font-bold', 'mt-6', 'mb-3'));
+            
+            const lists = contentBody.querySelectorAll('ul, ol');
+            lists.forEach(l => l.classList.add('list-disc', 'list-inside', 'space-y-2', 'mb-4', 'pl-4'));
+            
+            const boldText = contentBody.querySelectorAll('strong');
+            boldText.forEach(b => b.classList.add('text-white', 'font-bold'));
+            
+            const blockquotes = contentBody.querySelectorAll('blockquote');
+            blockquotes.forEach(bq => bq.classList.add('border-l-4', 'border-cyan-500', 'pl-4', 'italic', 'text-gray-400', 'my-4', 'bg-gray-900/50', 'p-3', 'rounded-r'));
+            
+            const codeBlocks = contentBody.querySelectorAll('pre, code');
+            codeBlocks.forEach(c => c.classList.add('bg-gray-900', 'text-green-400', 'p-2', 'rounded', 'font-mono', 'text-sm'));
+        } else if (contentBody && guide.content_html) {
+            // Fallback if marked isn't loaded yet
+            contentBody.innerHTML = `<div class="text-yellow-400">Markdown parser loading... <br><br>${guide.content_html}</div>`;
+        }
+
+    } catch (err) {
+        console.error('Error loading guide:', err);
+        appContent.innerHTML = `<div class="text-center text-red-400 py-12">Error loading guide: ${err.message}</div>`;
+    }
+}
 
         // Render the guide
         appContent.innerHTML = `
