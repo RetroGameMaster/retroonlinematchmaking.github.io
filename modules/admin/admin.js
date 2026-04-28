@@ -1589,14 +1589,13 @@ function setupGameEditForm(game) {
         // Update indices
         updateScreenshotIndices(gameId);
       }
+   
     } catch (error) {
       console.error('Error removing screenshot:', error);
       showNotification('❌ Error: ' + error.message, 'error');
     }
   };
-}
-
-// ========================================================================
+  // ========================================================================
     // INIT GUIDE LINKER
     // ========================================================================
     const guidesContainer = document.getElementById('linked-guides-container');
@@ -1610,6 +1609,7 @@ function setupGameEditForm(game) {
             guidesContainer.innerHTML = `<p class="text-red-400 text-sm">Error: Guide system not loaded. Refresh page.</p>`;
         }
     }
+}
 
 async function saveGameEditForm(game) {
   const saveBtn = document.getElementById('saveGameBtn');
