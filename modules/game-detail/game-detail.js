@@ -61,8 +61,8 @@ export default async function initGameDetail(rom, identifier) {
         loading.classList.add('hidden');
         content.classList.remove('hidden');
 
-        // Render Game Info + SEO + Ratings
-        renderGame(game, content, rom);
+        // Render Game Info + SEO + Ratings + Guides
+        await renderGame(game, content, rom);
 
         // Load Achievements
         loadAchievements(rom, game.id);
@@ -74,9 +74,32 @@ export default async function initGameDetail(rom, identifier) {
     }
 }
 
-// ===== RENDER GAME FUNCTION =====
-function renderGame(game, container, rom) {
+// ===== RENDER GAME FUNCTION (NOW ASYNC) =====
+async function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
+
+    // 0. CHECK FOR GUIDES (New Step)
+    let guideButtonHTML = '';
+    try {
+        const { data: guides } = await rom.supabase
+            .from('guides')
+            .select('id, title, slug')
+            .eq('game_id', game.id)
+            .eq('is_approved', true)
+            .limit(1);
+
+        if (guides && guides.length > 0) {
+            const guide = guides[0];
+            const guideLink = `#/guide/${guide.slug || guide.id}`;
+            guideButtonHTML = `
+                <a href="${guideLink}" class="block w-full text-center py-3 mt-4 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 text-purple-200 font-bold rounded-lg transition shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                    📖 Read Setup Guide & Wiki
+                </a>
+            `;
+        }
+    } catch (e) {
+        console.error('Error checking for guides', e);
+    }
 
     // 1. SEO: Update Meta Tags & Schema
     updateMetaTags(game);
@@ -128,7 +151,7 @@ function renderGame(game, container, rom) {
         }
     }
 
-    // 3. Prepare Rating Section HTML
+    // 3. Prepare Rating Section HTML (Includes Guide Button)
     const ratingHTML = `
         <div class="mb-8 p-6 bg-gray-800/90 backdrop-blur-md rounded-xl border border-yellow-500/30 shadow-xl">
             <div class="flex items-center justify-between mb-4">
@@ -153,6 +176,8 @@ function renderGame(game, container, rom) {
                     <p id="rating-status-text" class="text-xs text-gray-400 mt-2 h-4"></p>
                 </div>
             `}
+            
+            ${guideButtonHTML}
         </div>
     `;
 
@@ -217,7 +242,7 @@ function renderGame(game, container, rom) {
         </div>
     ` : '';
 
-    // 6. Video & Connection Details (Unchanged)
+    // 6. Video & Connection Details
     const videoHTML = game.video_url ? `
         <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-2xl relative" style="aspect-ratio: 16/9;">
             <iframe src="${getEmbedUrl(game.video_url)}" title="Game Trailer" frameborder="0" allowfullscreen class="w-full h-full absolute top-0 left-0"></iframe>
@@ -323,7 +348,7 @@ function renderGame(game, container, rom) {
     // Initialize Logic
     if (currentUser) {
         checkAndRenderPlayingState(game, currentUser.id, rom);
-        loadUserRating(game, currentUser.id, rom); // Load User Rating
+        loadUserRating(game, currentUser.id, rom);
     }
 }
 
@@ -332,10 +357,8 @@ function updateMetaTags(game) {
     const title = `${game.title} (${game.console}) - Online Multiplayer Guide & Servers`;
     const description = `Play ${game.title} on ${game.console} online. Server details, connection guides, and community ratings. Released in ${game.year || 'N/A'}.`;
     
-    // Update Title
     document.title = title;
     
-    // Update Meta Description
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
         metaDesc = document.createElement('meta');
@@ -344,7 +367,6 @@ function updateMetaTags(game) {
     }
     metaDesc.content = description;
 
-    // Update Canonical (Optional but good for SEO)
     let canonical = document.querySelector('link[rel="canonical"]');
     if (!canonical) {
         canonical = document.createElement('link');
@@ -379,7 +401,7 @@ function injectSchemaMarkup(game) {
             "ratingValue": game.rating ? game.rating.toFixed(1) : "0",
             "bestRating": "5",
             "worstRating": "1",
-            "ratingCount": "1" // Ideally fetch real count from DB
+            "ratingCount": "1"
         },
         "image": game.cover_image_url || ""
     };
@@ -391,14 +413,12 @@ function injectSchemaMarkup(game) {
 }
 
 // ===== RATING SYSTEM LOGIC =====
-
 async function loadUserRating(game, userId, rom) {
     const container = document.getElementById('star-input-container');
     const statusText = document.getElementById('rating-status-text');
     if (!container) return;
 
     try {
-        // Fetch user's existing rating
         const { data, error } = await rom.supabase
             .from('game_ratings')
             .select('rating')
@@ -426,7 +446,6 @@ function renderStars(container, currentRating, game, userId, rom, statusText) {
         star.setAttribute('aria-label', `Rate ${i} stars`);
         
         star.addEventListener('click', async () => {
-            // Optimistic UI update
             renderStars(container, i, game, userId, rom, statusText);
             statusText.textContent = "Saving rating...";
             
@@ -442,21 +461,12 @@ function renderStars(container, currentRating, game, userId, rom, statusText) {
                 if (error) throw error;
 
                 statusText.textContent = "Rating saved!";
-                setTimeout(() => {
-                    statusText.textContent = "";
-                    // Reload page data to update average (or just update the number manually)
-                    const avgEl = document.getElementById('rating-average-display');
-                    if(avgEl && game.rating) {
-                         // Simple visual bump, real value requires re-fetching game data
-                         // For now, we trust the DB trigger updated the 'games' table
-                         // A full re-render is heavy, so we just show success message
-                    }
-                }, 2000);
+                setTimeout(() => { statusText.textContent = ""; }, 2000);
 
             } catch (err) {
                 console.error("Failed to save rating:", err);
                 statusText.textContent = "Failed to save.";
-                renderStars(container, currentRating, game, userId, rom, statusText); // Revert
+                renderStars(container, currentRating, game, userId, rom, statusText);
             }
         });
         
@@ -465,11 +475,9 @@ function renderStars(container, currentRating, game, userId, rom, statusText) {
 }
 
 // ===== EXISTING FUNCTIONS (Playing State, Achievements, etc.) =====
-
 async function checkAndRenderPlayingState(game, userId, rom) {
     const container = document.getElementById('playing-action-container');
     if (!container) return;
-    // ... (Existing logic unchanged) ...
     try {
         const { data: profile, error } = await rom.supabase
             .from('profiles')
