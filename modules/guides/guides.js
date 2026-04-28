@@ -92,7 +92,7 @@ export default async function initGuidesModule(rom) {
                 <div class="flex items-center gap-2 text-xs text-gray-400 border-t border-gray-700 pt-3">
                     <div class="flex items-center gap-2">
                         ${guide.author?.avatar_url ? `<img src="${guide.author.avatar_url}" class="w-5 h-5 rounded-full">` : '<div class="w-5 h-5 rounded-full bg-gray-600"></div>'}
-                        <span>By ${guide.author?.username || 'Anonymous'}</span>
+                        <span>By ${guide.profiles?.username || 'Anonymous'}</span>
                     </div>
                     ${guide.video_url ? '<span class="text-red-400 ml-auto">📺 Video Included</span>' : ''}
                 </div>
