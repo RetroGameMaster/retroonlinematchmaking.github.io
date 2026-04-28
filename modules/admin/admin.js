@@ -170,6 +170,13 @@ async function loadAdminPanel() {
         case 'tab-awards':
         loadAwardManager(); 
         break;
+        const guidesSection = document.getElementById('guides-section');
+        if (guidesSection) {
+        guidesSection.classList.remove('hidden');
+        // Optional: Hide other specific sections if they are currently visible
+        document.getElementById('adminGamesList')?.closest('.bg-gray-800')?.classList.add('hidden'); 
+        // ^ Only add the line above if you want to toggle visibility strictly
+    }
         case 'tab-guides':
         loadAdminGuides();
         break;
