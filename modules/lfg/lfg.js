@@ -189,13 +189,19 @@ async function handlePostLFG(e, rom) {
     btn.textContent = 'Posting...';
 
     try {
-        // Get username from profiles table or fallback to email
-        const username = rom.currentUser.user_metadata?.username || rom.currentUser.email.split('@')[0];
-        const avatarUrl = rom.currentUser.user_metadata?.avatar_url || null;
+        // Fetch fresh profile data to ensure avatar is correct
+        const { data: profile } = await rom.supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', rom.currentUser.id)
+            .single();
+
+        const username = profile?.username || rom.currentUser.email.split('@')[0];
+        const avatarUrl = profile?.avatar_url;
 
         const { error } = await rom.supabase.from('lfg_posts').insert([{
             user_id: rom.currentUser.id,
-            posted_username: username, // Fixed column name
+            posted_username: username,
             avatar_url: avatarUrl,
             game_title: game,
             platform: platform,
@@ -250,7 +256,6 @@ window.acceptLFG = async function(postId, hostId, rom) {
         if (updateError) throw updateError;
 
         // Create Alert
-        // We fetch the game title again to be safe in the message
         const { data: postData } = await rom.supabase.from('lfg_posts').select('game_title').eq('id', postId).single();
         const gameTitle = postData ? postData.game_title : 'a game';
 
@@ -305,6 +310,18 @@ async function renderLFGList(rom) {
             return;
         }
 
+        // Pre-fetch game slugs for links (Optimization: could be done in main query with join if needed)
+        const gameTitles = [...new Set(filtered.map(p => p.game_title))];
+        const { data: gamesData } = await rom.supabase
+            .from('games')
+            .select('title, slug')
+            .in('title', gameTitles);
+        
+        const gameSlugMap = {};
+        if(gamesData) {
+            gamesData.forEach(g => gameSlugMap[g.title] = g.slug);
+        }
+
         container.innerHTML = filtered.map(post => {
             // Handle potential null scheduled_time
             let dateStr = 'TBD';
@@ -317,14 +334,21 @@ async function renderLFGList(rom) {
             
             // Use posted_username from schema
             const displayName = post.posted_username || 'Anonymous';
+            // Use real avatar URL from DB, fallback to generator
             const avatarUrl = post.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff`;
+
+            // Determine Game Link
+            const gameSlug = gameSlugMap[post.game_title];
+            const gameLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(post.game_title)}`;
 
             return `
                 <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-lg flex flex-col h-full">
                     <div class="flex items-start gap-3 mb-3">
-                        <img src="${avatarUrl}" alt="${displayName}" class="w-10 h-10 rounded-full border border-cyan-500">
-                        <div class="flex-1">
-                            <h3 id="game-title-${post.id}" class="text-lg font-bold text-white leading-tight">${escapeHtml(post.game_title)}</h3>
+                        <img src="${avatarUrl}" alt="${displayName}" class="w-10 h-10 rounded-full border border-cyan-500 object-cover">
+                        <div class="flex-1 min-w-0">
+                            <a href="${gameLink}" class="text-lg font-bold text-white leading-tight hover:text-cyan-400 transition block truncate" title="View Game Page">
+                                ${escapeHtml(post.game_title)} ↗
+                            </a>
                             <div class="text-xs text-gray-400 mt-1">Posted by ${escapeHtml(displayName)}</div>
                         </div>
                     </div>
@@ -357,6 +381,32 @@ async function renderLFGList(rom) {
     } catch (err) {
         console.error('Error loading LFG:', err);
         container.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Error: ${err.message}</div>`;
+    }
+}
+
+/**
+ * Helper function for the Home Page Live Ticker
+ * Fetches recent LFG posts formatted for the scrolling marquee
+ */
+export async function getRecentLFGForTicker(rom) {
+    try {
+        const { data, error } = await rom.supabase
+            .from('lfg_posts')
+            .select('game_title, posted_username, region')
+            .eq('status', 'open')
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (error || !data) return [];
+
+        return data.map(post => ({
+            text: `${post.posted_username} is looking for players in ${post.game_title} (${post.region})`,
+            link: '#/lfg'
+        }));
+    } catch (err) {
+        console.error('Error fetching LFG for ticker:', err);
+        return [];
     }
 }
 
