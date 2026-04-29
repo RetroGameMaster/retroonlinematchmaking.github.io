@@ -75,8 +75,14 @@ export default async function initLFG(rom) {
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm text-gray-300 mb-1">Scheduled Time *</label>
-                            <input type="datetime-local" id="lfg-time" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                            <label class="block text-sm text-gray-300 mb-1">Players Needed *</label>
+                            <select id="lfg-players" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                                <option value="1">1 More Player</option>
+                                <option value="2">2 More Players</option>
+                                <option value="3">3 More Players</option>
+                                <option value="4">4+ More Players</option>
+                                <option value="Full">Full Lobby (Spectate/Wait)</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm text-gray-300 mb-1">Time Zone *</label>
@@ -92,6 +98,11 @@ export default async function initLFG(rom) {
                                 <option value="Australia/Sydney">Sydney (AEST)</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Scheduled Time *</label>
+                        <input type="datetime-local" id="lfg-time" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
                     </div>
 
                     <div>
@@ -174,11 +185,12 @@ async function handlePostLFG(e, rom) {
     const game = document.getElementById('lfg-game').value.trim();
     const region = document.getElementById('lfg-region').value;
     const platform = document.getElementById('lfg-platform').value.trim();
+    const playersNeeded = document.getElementById('lfg-players').value;
     const scheduledTime = document.getElementById('lfg-time').value;
     const timezone = document.getElementById('lfg-timezone').value;
     const description = document.getElementById('lfg-desc').value.trim();
 
-    if (!game || !region || !scheduledTime || !timezone) {
+    if (!game || !region || !scheduledTime || !timezone || !playersNeeded) {
         alert('Please fill in all required fields.');
         return;
     }
@@ -189,7 +201,7 @@ async function handlePostLFG(e, rom) {
     btn.textContent = 'Posting...';
 
     try {
-        // Fetch fresh profile data to ensure avatar is correct
+        // Fetch fresh profile data
         const { data: profile } = await rom.supabase
             .from('profiles')
             .select('username, avatar_url')
@@ -206,6 +218,7 @@ async function handlePostLFG(e, rom) {
             game_title: game,
             platform: platform,
             region: region,
+            players_needed: playersNeeded,
             scheduled_time: new Date(scheduledTime).toISOString(),
             timezone: timezone,
             description: description,
@@ -310,20 +323,20 @@ async function renderLFGList(rom) {
             return;
         }
 
-        // Pre-fetch game slugs for links (Optimization: could be done in main query with join if needed)
+        // Pre-fetch Game Data (Cover Art & Slug)
         const gameTitles = [...new Set(filtered.map(p => p.game_title))];
         const { data: gamesData } = await rom.supabase
             .from('games')
-            .select('title, slug')
+            .select('title, slug, cover_image_url')
             .in('title', gameTitles);
         
-        const gameSlugMap = {};
+        const gameMap = {};
         if(gamesData) {
-            gamesData.forEach(g => gameSlugMap[g.title] = g.slug);
+            gamesData.forEach(g => gameMap[g.title] = g);
         }
 
         container.innerHTML = filtered.map(post => {
-            // Handle potential null scheduled_time
+            // Date Logic
             let dateStr = 'TBD';
             let timeStr = '';
             if (post.scheduled_time) {
@@ -332,48 +345,79 @@ async function renderLFGList(rom) {
                 timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
             }
             
-            // Use posted_username from schema
+            // User Data
             const displayName = post.posted_username || 'Anonymous';
-            // Use real avatar URL from DB, fallback to generator
             const avatarUrl = post.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff`;
+            const profileLink = `#/profile/${displayName}`;
 
-            // Determine Game Link
-            const gameSlug = gameSlugMap[post.game_title];
+            // Game Data
+            const gameData = gameMap[post.game_title] || {};
+            const coverUrl = gameData.cover_image_url || 'https://via.placeholder.com/150x200/1f2937/06b6d4?text=No+Cover';
+            const gameSlug = gameData.slug;
             const gameLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(post.game_title)}`;
 
+            // Players Badge Color
+            let playersBadgeColor = 'bg-blue-900 text-blue-300 border-blue-700';
+            if(post.players_needed === 'Full') playersBadgeColor = 'bg-gray-700 text-gray-300 border-gray-500';
+            if(post.players_needed === '1') playersBadgeColor = 'bg-green-900 text-green-300 border-green-700';
+
             return `
-                <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-lg flex flex-col h-full">
-                    <div class="flex items-start gap-3 mb-3">
-                        <img src="${avatarUrl}" alt="${displayName}" class="w-10 h-10 rounded-full border border-cyan-500 object-cover">
-                        <div class="flex-1 min-w-0">
-                            <a href="${gameLink}" class="text-lg font-bold text-white leading-tight hover:text-cyan-400 transition block truncate" title="View Game Page">
-                                ${escapeHtml(post.game_title)} ↗
-                            </a>
-                            <div class="text-xs text-gray-400 mt-1">Posted by ${escapeHtml(displayName)}</div>
+                <div class="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition shadow-lg flex flex-col h-full group">
+                    <!-- Top Section: Image + Info -->
+                    <div class="flex p-4 gap-4 border-b border-gray-700 bg-gray-800/50">
+                        <!-- Game Cover -->
+                        <a href="${gameLink}" class="flex-shrink-0 relative group/img">
+                            <img src="${coverUrl}" alt="${post.game_title}" class="w-20 h-24 object-cover rounded border border-gray-600 group-hover/img:border-cyan-400 transition shadow-md">
+                            <div class="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition rounded flex items-center justify-center">
+                                <span class="opacity-0 group-hover/img:opacity-100 text-white text-xs font-bold drop-shadow-md">View</span>
+                            </div>
+                        </a>
+                        
+                        <!-- User & Game Title -->
+                        <div class="flex-1 min-w-0 flex flex-col justify-between">
+                            <div>
+                                <a href="${gameLink}" class="text-lg font-bold text-white leading-tight hover:text-cyan-400 transition block truncate" title="View Game Page">
+                                    ${escapeHtml(post.game_title)}
+                                </a>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <!-- Clickable Avatar -->
+                                    <a href="${profileLink}" class="flex items-center gap-2 hover:opacity-80 transition">
+                                        <img src="${avatarUrl}" alt="${displayName}" class="w-6 h-6 rounded-full border border-cyan-500 object-cover">
+                                        <span class="text-xs text-gray-400 hover:text-cyan-300 transition">${escapeHtml(displayName)}</span>
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <!-- Badges -->
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <span class="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-600">${post.platform || 'Any'}</span>
+                                <span class="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-600">${post.region}</span>
+                                <span class="${playersBadgeColor} px-2 py-0.5 rounded text-[10px] font-bold border">
+                                    ${post.players_needed === 'Full' ? 'Full Lobby' : (post.players_needed == '1' ? 'Needs 1' : `Needs ${post.players_needed}`)}
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="flex flex-wrap gap-2 mb-3">
-                        <span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs font-bold">${post.platform || 'Any'}</span>
-                        <span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs font-bold">${post.region}</span>
                     </div>
 
-                    <div class="bg-gray-900/50 p-3 rounded mb-4 flex-1">
-                        <div class="text-cyan-400 text-sm font-bold mb-1 flex items-center gap-2">
-                            <span>🕒</span> ${dateStr} ${timeStr ? '@ ' + timeStr : ''} <span class="text-gray-500 font-normal">(${post.timezone || 'UTC'})</span>
+                    <!-- Bottom Section: Details & Action -->
+                    <div class="p-4 flex-1 flex flex-col justify-between bg-gray-800">
+                        <div class="mb-4">
+                            <div class="text-cyan-400 text-xs font-bold mb-2 flex items-center gap-2">
+                                <span>🕒</span> ${dateStr} ${timeStr ? '@ ' + timeStr : ''} <span class="text-gray-500 font-normal">(${post.timezone || 'UTC'})</span>
+                            </div>
+                            ${post.description ? `<p class="text-gray-400 text-sm line-clamp-3">${escapeHtml(post.description)}</p>` : ''}
                         </div>
-                        ${post.description ? `<p class="text-gray-400 text-sm line-clamp-3">${escapeHtml(post.description)}</p>` : ''}
-                    </div>
 
-                    ${rom.currentUser && rom.currentUser.id !== post.user_id ? `
-                        <button onclick="acceptLFG('${post.id}', '${post.user_id}', window.rom)" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded font-bold text-sm transition">
-                            Accept Match
-                        </button>
-                    ` : `
-                        <div class="w-full text-center text-gray-500 text-sm py-2 bg-gray-900/30 rounded">
-                            ${rom.currentUser?.id === post.user_id ? 'Your Post' : 'Log in to join'}
-                        </div>
-                    `}
+                        ${rom.currentUser && rom.currentUser.id !== post.user_id ? `
+                            <button onclick="acceptLFG('${post.id}', '${post.user_id}', window.rom)" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded font-bold text-sm transition shadow-lg transform active:scale-95">
+                                Accept Match
+                            </button>
+                        ` : `
+                            <div class="w-full text-center text-gray-500 text-sm py-2 bg-gray-900/30 rounded border border-gray-700">
+                                ${rom.currentUser?.id === post.user_id ? 'Your Post' : 'Log in to join'}
+                            </div>
+                        `}
+                    </div>
                 </div>
             `;
         }).join('');
@@ -386,7 +430,6 @@ async function renderLFGList(rom) {
 
 /**
  * Helper function for the Home Page Live Ticker
- * Fetches recent LFG posts formatted for the scrolling marquee
  */
 export async function getRecentLFGForTicker(rom) {
     try {
