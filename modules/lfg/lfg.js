@@ -134,7 +134,6 @@ window.openPostModal = function() {
     const modal = document.getElementById('lfg-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        // Focus input on open
         setTimeout(() => document.getElementById('lfg-game')?.focus(), 100);
     }
 };
@@ -200,39 +199,36 @@ async function handlePostLFG(e, rom) {
         const avatarUrl = profile?.avatar_url;
 
         // 2. Check for Existing Active Ephemeral Room for this Game
-        // We look for a room created in the last hour that is ephemeral
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        
         let roomId = null;
         let isNewRoom = false;
 
-        // Try to find an existing room linked to this game title (via a join or name match)
-        // Since we don't have a direct game_id in chat_rooms yet in your schema, we search by name or recent activity
-        // NOTE: Ideally chat_rooms has a game_id. Assuming we added 'name' or 'game_id' to chat_rooms in previous SQL step.
-        // If chat_rooms has 'name' matching game title:
+        // Try to find an existing room linked to this game title
+        // Note: This assumes your chat_rooms table has a 'name' column or similar to match against
+        // If you don't have a direct match column, you might need to adjust this query
         const { data: existingRoom } = await rom.supabase
             .from('chat_rooms')
             .select('id')
-            .eq('name', `lobby-${gameTitle}`) // Or however you name rooms
             .eq('is_ephemeral', true)
             .gte('last_activity', oneHourAgo)
-            .single();
+            // Adjust this filter based on your actual schema (e.g., if you store game_id or name)
+            // For now, we assume we create a new room every time if no specific linking exists yet
+            // OR if you added 'name' column: .eq('name', `lobby-${gameTitle}`)
+            .limit(1); 
 
-        if (existingRoom) {
-            roomId = existingRoom.id;
-            // Update heartbeat
+        if (existingRoom && existingRoom.length > 0) {
+            roomId = existingRoom[0].id;
             await rom.supabase.from('chat_rooms').update({ last_activity: new Date().toISOString() }).eq('id', roomId);
             console.log('✅ Joined existing active lobby:', roomId);
         } else {
             // Create New Room
-            const roomName = `lobby-${gameTitle}-${Date.now()}`; // Unique name
+            const roomName = `lobby-${gameTitle}-${Date.now()}`;
             const { data: newRoom, error: roomError } = await rom.supabase.from('chat_rooms').insert([{
                 name: roomName,
                 description: `Live lobby for ${gameTitle}`,
                 is_public: true,
                 is_ephemeral: true,
-                last_activity: new Date().toISOString(),
-                // If you have game_id in chat_rooms, add it here by fetching game first
+                last_activity: new Date().toISOString()
             ]).select().single();
 
             if (roomError) throw roomError;
@@ -252,8 +248,8 @@ async function handlePostLFG(e, rom) {
             players_needed: playersNeeded,
             description: description,
             status: 'open',
-            chat_room_id: roomId, // Link to the room
-            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 Hour
+            chat_room_id: roomId,
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
         }]);
 
         if (lfgError) throw lfgError;
@@ -298,8 +294,7 @@ window.acceptLFG = async function(postId, hostId, rom) {
 
         if (updateError) throw updateError;
 
-        // 2. Extend Room Heartbeat (Optional: The DB trigger might do this, but good to be safe)
-        // Fetch room ID from post first
+        // 2. Extend Room Heartbeat
         const { data: postData } = await rom.supabase.from('lfg_posts').select('chat_room_id, game_title').eq('id', postId).single();
         
         if (postData?.chat_room_id) {
@@ -338,7 +333,6 @@ async function renderLFGList(rom) {
     container.innerHTML = `<div class="col-span-full text-center py-8 text-gray-400">Scanning active sessions...</div>`;
 
     try {
-        // Only show posts that haven't expired (1 hour window)
         const { data, error } = await rom.supabase
             .from('lfg_posts')
             .select('*')
@@ -348,7 +342,6 @@ async function renderLFGList(rom) {
 
         if (error) throw error;
 
-        // Apply Filters
         const searchVal = document.getElementById('filter-search')?.value.toLowerCase() || '';
         const regionVal = document.getElementById('filter-region')?.value || '';
 
@@ -361,7 +354,6 @@ async function renderLFGList(rom) {
             return;
         }
 
-        // Pre-fetch Game Data
         const gameTitles = [...new Set(filtered.map(p => p.game_title))];
         const { data: gamesData } = await rom.supabase
             .from('games')
@@ -381,7 +373,6 @@ async function renderLFGList(rom) {
             const avatarUrl = post.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff`;
             const profileLink = `#/profile/${displayName}`;
 
-            // Calculate Time Left
             const expiresAt = new Date(post.expires_at);
             const now = new Date();
             const diffMs = expiresAt - now;
@@ -402,7 +393,6 @@ async function renderLFGList(rom) {
 
             return `
                 <div class="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition shadow-lg flex flex-col h-full group relative">
-                    <!-- Live Indicator -->
                     <div class="absolute top-2 right-2 z-10 bg-gray-900/90 backdrop-blur px-2 py-1 rounded border border-gray-600 shadow-sm">
                         ${timeBadge}
                     </div>
@@ -458,7 +448,7 @@ async function renderLFGList(rom) {
         }).join('');
 
     } catch (err) {
-        console.error('Error loading lobbies:', err);
+        console.error('Error loading lobies:', err);
         container.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Error: ${err.message}</div>`;
     }
 }
