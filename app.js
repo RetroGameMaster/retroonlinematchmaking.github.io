@@ -16,6 +16,8 @@ const modules = {
     'live-lobbies': () => import('./modules/live-lobbies/live-lobbies.js'),
     'lfg-scheduler': () => import('./modules/lfg-scheduler/lfg-scheduler.js'),
     'guides': () => import('./modules/guides/guides.js'),
+    'lfg': () => import('./modules/lfg/lfg.js'),
+    'tournaments': () => import('./modules/tournaments/tournaments.js'),
 };
 
 // Fallback content
@@ -28,6 +30,8 @@ const fallbackContent = {
     'profile': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">👤 Your Profile</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div></div>`,
     'submit-game': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">➕ Submit Game</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading submission form...</p></div></div>`,
     'search-users': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">🔍 Find Users</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading user search...</p></div></div>`
+    'lfg': `<div class="max-w-6xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">📅 Looking For Group</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading LFG board...</p></div></div>`,
+    'tournaments': `<div class="max-w-6xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">🏆 Community Tournaments</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading tournament list...</p></div></div>`
 };
 
 // ============================================================================
