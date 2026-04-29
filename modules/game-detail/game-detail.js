@@ -78,12 +78,12 @@ export default async function initGameDetail(rom, identifier) {
 async function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
 
-    // 0. CHECK FOR LINKED GUIDES (Fixed Query using game_guides junction table)
+    // 0. CHECK FOR LINKED GUIDES (Supports Multiple Guides)
     let guideButtonHTML = '';
     try {
         console.log('🔍 [GUIDE CHECK] Starting lookup for game ID:', game.id);
 
-        // Step A: Get linked guide IDs from the junction table
+        // Step A: Get ALL linked guide IDs from the junction table
         const { data: links, error: linkError } = await rom.supabase
             .from('game_guides')
             .select('guide_id')
@@ -97,32 +97,44 @@ async function renderGame(game, container, rom) {
             console.log('✅ [GUIDE CHECK] Found links:', links);
             const guideIds = links.map(l => l.guide_id);
             
-            // Step B: Fetch the actual guide details using those IDs
+            // Step B: Fetch ALL linked guide details (REMOVED .limit(1))
             const { data: guides, error: guideError } = await rom.supabase
                 .from('guides')
                 .select('id, title, slug')
                 .in('id', guideIds)
-                .eq('is_approved', true)
-                .limit(1);
+                .eq('is_approved', true); 
+                // No limit here - fetches all approved linked guides
 
             if (guideError) {
                 console.error('❌ [GUIDE CHECK] Error fetching guide details:', guideError.message);
             } else if (!guides || guides.length === 0) {
                 console.log('ℹ️ [GUIDE CHECK] No approved guides found for these IDs.');
             } else {
-                console.log('🎉 [GUIDE CHECK] SUCCESS! Found guide:', guides[0].title);
-                const guide = guides[0];
-                const guideLink = `#/guide/${guide.slug || guide.id}`;
+                console.log(`🎉 [GUIDE CHECK] SUCCESS! Found ${guides.length} guides:`, guides);
                 
-                // Create the button HTML
-                guideButtonHTML = `
-                    <div class="mb-6 p-4 bg-purple-900/20 border border-purple-500/50 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-                        <a href="${guideLink}" class="flex items-center justify-center gap-3 w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded transition shadow-lg transform hover:-translate-y-0.5">
-                            <span class="text-xl">📖</span>
-                            <span>Read Setup Guide: "${escapeHtml(guide.title)}"</span>
-                            <span class="ml-auto">→</span>
+                // Step C: Generate a button for EVERY guide found
+                let buttonsHtml = '';
+                guides.forEach(guide => {
+                    const guideLink = `#/guide/${guide.slug || guide.id}`;
+                    buttonsHtml += `
+                        <a href="${guideLink}" class="flex items-center justify-between gap-3 w-full py-3 mb-3 last:mb-0 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded transition shadow-lg transform hover:-translate-y-0.5 border border-purple-400">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl bg-purple-800/50 p-2 rounded">📖</span>
+                                <span class="text-left">${escapeHtml(guide.title)}</span>
+                            </div>
+                            <span class="ml-auto text-purple-200">Read Guide →</span>
                         </a>
-                        <p class="text-center text-xs text-purple-300 mt-2">Official community guide for getting started</p>
+                    `;
+                });
+
+                // Step D: Wrap all buttons in a container
+                guideButtonHTML = `
+                    <div class="mb-6 p-5 bg-purple-900/20 border border-purple-500/50 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                        <h4 class="text-sm font-bold text-purple-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <span>📚</span> Official Setup Guides & Wikis
+                        </h4>
+                        ${buttonsHtml}
+                        <p class="text-center text-xs text-purple-300 mt-4 opacity-75">Select a guide above to get started</p>
                     </div>
                 `;
             }
