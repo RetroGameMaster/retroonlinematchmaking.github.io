@@ -1,4 +1,4 @@
-// modules/home/home.js - ENHANCED WITH DYNAMIC CONTENT
+// modules/home/home.js - ENHANCED WITH DYNAMIC CONTENT & LFG TICKER
 import { supabase } from '../../lib/supabase.js';
 import { fetchGlobalLobbies } from '../../lib/lobby-aggregator.js';
 
@@ -19,23 +19,22 @@ export default function initModule(rom) {
   // 4. Load Dynamic Content
   loadSiteSettings();
   loadFeaturedGame();       // Random Pick
-  loadGameOfTheWeek();      // NEW: Curated/Trending Game
+  loadGameOfTheWeek();      // Curated/Trending Game
   loadOnlineUsers();
   loadRecentActivity();
-  loadCommunitySpotlight(); // NEW: Featured User
+  loadCommunitySpotlight(); // Featured User
+  loadLFGTicker(rom);       // NEW: Load LFG into ticker
   
   // 5. Start Realtime Listeners
-  startRealtimeFeed();
+  startRealtimeFeed(rom);
 }
 
 // ============================================================================
 // 0. SEO INJECTION (Critical for Ranking)
 // ============================================================================
 function injectSEOMeta() {
-  // Update Title
   document.title = "Retro Online Matchmaking | Play Classic Games Online";
   
-  // Update Meta Description
   let metaDesc = document.querySelector('meta[name="description"]');
   if (!metaDesc) {
     metaDesc = document.createElement('meta');
@@ -44,7 +43,6 @@ function injectSEOMeta() {
   }
   metaDesc.content = "Connect with retro gaming communities. Play SOCOM II, Twisted Metal, Warhawk, and more with modern matchmaking. Join lobbies, track achievements, and find friends today.";
 
-  // Add JSON-LD Structured Data for the Organization/Site
   const scriptId = 'home-schema-jsonld';
   if (!document.getElementById(scriptId)) {
     const script = document.createElement('script');
@@ -169,7 +167,7 @@ function renderHomeLayout() {
         <!-- LEFT COLUMN (Content) -->
         <div class="lg:col-span-2 space-y-8">
           
-          <!-- Game of the Week (NEW PRIORITY) -->
+          <!-- Game of the Week -->
           <div class="ambient-card bg-gradient-to-br from-purple-900/40 to-gray-800 rounded-xl overflow-hidden border border-purple-500/40 shadow-lg shadow-purple-900/20 flex flex-col relative group">
             <div class="absolute top-0 right-0 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-10 shadow-lg">
               🏆 GAME OF THE WEEK
@@ -221,7 +219,7 @@ function renderHomeLayout() {
             <div id="online-users-list" class="p-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
           </div>
 
-          <!-- Community Spotlight (NEW) -->
+          <!-- Community Spotlight -->
           <div class="ambient-card bg-gray-800 rounded-xl border border-yellow-500/30 shadow-lg shadow-yellow-900/10 overflow-hidden">
             <div class="bg-gradient-to-r from-yellow-900/40 to-gray-900/50 p-4 border-b border-yellow-500/30">
               <h3 class="font-bold text-yellow-300 flex items-center gap-2">
@@ -264,7 +262,7 @@ function renderHomeLayout() {
         </div>
       </div>
 
-      <!-- SEO Text Block (Hidden visually but readable by bots if needed, or styled subtly) -->
+      <!-- SEO Text Block -->
       <div class="mt-12 pt-8 border-t border-gray-800 text-gray-500 text-sm leading-relaxed">
         <h2 class="text-gray-400 font-bold mb-2 text-lg">About Retro Online Matchmaking</h2>
         <p class="mb-4">
@@ -291,7 +289,6 @@ function renderHomeLayout() {
 
 async function loadStats() {
   try {
-    // Parallel requests for speed
     const [gamesRes, usersRes] = await Promise.all([
       supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
       supabase.from('profiles').select('*', { count: 'exact', head: true })
@@ -300,11 +297,8 @@ async function loadStats() {
     const gameCount = gamesRes.count || 0;
     const userCount = usersRes.count || 0;
 
-    // Animate numbers
     animateValue("stat-games", 0, gameCount, 1500);
     animateValue("stat-users", 0, userCount, 1500);
-    
-    // Online count is handled by loadOnlineUsers, but we can set initial here if needed
   } catch (error) {
     console.error('Stats error:', error);
   }
@@ -392,13 +386,11 @@ async function loadFeaturedGame() {
   }
 }
 
-// NEW: Game of the Week Logic
 async function loadGameOfTheWeek() {
   const container = document.getElementById('gotw-content');
   if (!container) return;
 
   try {
-    // Logic: Pick the most recently approved game that has a cover image and high rating (or just random from top 10)
     const { data: games, error } = await supabase
       .from('games')
       .select('*')
@@ -412,7 +404,6 @@ async function loadGameOfTheWeek() {
       return;
     }
 
-    // Pick random from top 5 to rotate slightly
     const selected = games[Math.floor(Math.random() * games.length)];
     renderGameCard(selected, container, null, true);
 
@@ -502,14 +493,11 @@ async function loadOnlineUsers() {
   }
 }
 
-// NEW: Community Spotlight
 async function loadCommunitySpotlight() {
   const container = document.getElementById('spotlight-content');
   if (!container) return;
 
   try {
-    // Pick a random active user (has a bio or submitted a game)
-    // Simple version: Random user with a username
     const { count, error: countErr } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).not('username', 'is', null);
     
     if (countErr || count === 0) {
@@ -595,32 +583,76 @@ async function loadRecentActivity() {
   }
 }
 
-// ============================================================================
-// 4. REALTIME LIVE FEED
-// ============================================================================
-function startRealtimeFeed() {
-  // Initial Stats Load
-  loadStats();
-
+// NEW: LFG Ticker Loader
+async function loadLFGTicker(rom) {
   const tickerEl = document.getElementById('ticker-content');
   const tickerDup = document.getElementById('ticker-content-dup');
   if (!tickerEl) return;
 
+  try {
+    const { data, error } = await rom.supabase
+      .from('lfg_posts')
+      .select('game_title, posted_username, region')
+      .eq('status', 'open')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error || !data || data.length === 0) {
+      // Fallback if no LFG posts
+      return; 
+    }
+
+    const messages = data.map(post => 
+      `📡 ${post.posted_username} is looking for players in ${post.game_title} (${post.region})`
+    );
+
+    // Update the global messages array in startRealtimeFeed if needed, 
+    // but for now we just set the initial state here.
+    // The realtime listener will handle updates.
+    if(messages.length > 0) {
+        tickerEl.textContent = messages[0];
+        if(tickerDup) tickerDup.textContent = messages[0];
+        
+        // Store messages on the element for the interval to use
+        tickerEl.dataset.messages = JSON.stringify(messages);
+        tickerEl.dataset.msgIndex = "0";
+    }
+
+  } catch (err) {
+    console.error('Error loading LFG ticker:', err);
+  }
+}
+
+// ============================================================================
+// 4. REALTIME LIVE FEED
+// ============================================================================
+function startRealtimeFeed(rom) {
+  loadStats();
+
+  const tickerEl = document.getElementById('ticker-content');
+  const tickerDup = document.getElementById('ticker-content-dup');
+  
+  // Default messages if no LFG posts exist yet
   let messages = ["Welcome to ROM!", "Check out the Game of the Week!", "Join the Discord!", "Listen to Vivi_Gaming Radio!"];
   let msgIndex = 0;
+
+  // Check if LFG loaded messages
+  if(tickerEl && tickerEl.dataset.messages) {
+      messages = JSON.parse(tickerEl.dataset.messages);
+  }
   
   const updateTicker = () => {
+    if(!tickerEl) return;
     const nextMsg = messages[msgIndex];
     msgIndex = (msgIndex + 1) % messages.length;
     
-    // Fade out
     tickerEl.style.opacity = '0';
     if(tickerDup) tickerDup.style.opacity = '0';
     
     setTimeout(() => {
       tickerEl.textContent = nextMsg;
       if(tickerDup) tickerDup.textContent = nextMsg;
-      // Fade in
       tickerEl.style.opacity = '1';
       if(tickerDup) tickerDup.style.opacity = '1';
     }, 500);
@@ -636,7 +668,7 @@ function startRealtimeFeed() {
       flashTicker(`🎮 New Game: ${payload.new.title}`);
       loadFeaturedGame();
       loadRecentActivity();
-      loadStats(); // Update game count
+      loadStats();
     }
   });
 
@@ -645,12 +677,26 @@ function startRealtimeFeed() {
       flashTicker(`👤 New Member: ${payload.new.username}`);
       loadOnlineUsers();
       loadRecentActivity();
-      loadStats(); // Update user count
+      loadStats();
     } else if (payload.eventType === 'UPDATE') {
       loadOnlineUsers();
-      loadStats(); // Update online count
+      loadStats();
     }
   });
+
+  // NEW: Listen for LFG Posts
+  if(rom && rom.supabase) {
+      realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lfg_posts' }, (payload) => {
+        const post = payload.new;
+        if(post.status === 'open') {
+            const msg = `📡 ${post.posted_username} is looking for players in ${post.game_title} (${post.region})`;
+            flashTicker(msg);
+            // Add to rotation
+            messages.unshift(msg);
+            if(messages.length > 10) messages.pop(); // Keep list manageable
+        }
+      });
+  }
 
   realtimeChannel.subscribe((status) => {
     if (status === 'SUBSCRIBED') console.log('✅ REALTIME SUBSCRIBED');
