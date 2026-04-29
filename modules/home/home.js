@@ -1,8 +1,9 @@
-// modules/home/home.js - ENHANCED WITH LFG TICKER
+// modules/home/home.js - ENHANCED WITH LFG & TOURNAMENT TICKER
 import { supabase } from '../../lib/supabase.js';
+import { getRecentTournamentsForTicker } from '../tournaments/tournaments.js';
 
 let realtimeChannel = null;
-let lfgMessages = []; // Store LFG messages separately
+let dynamicMessages = []; // Stores combined LFG and Tournament messages
 let standardMessages = [
   "Welcome to ROM! 🎮", 
   "Check out the Game of the Week! 🏆", 
@@ -32,7 +33,7 @@ export default function initModule(rom) {
   loadCommunitySpotlight();
   
   // 5. Start Realtime Listeners & Ticker
-  refreshLFGTicker(rom); // Initial Load of LFG
+  refreshDynamicTicker(rom); // Initial Load of LFG + Tournaments
   startRealtimeFeed(rom);
 }
 
@@ -56,7 +57,7 @@ function injectSEOMeta() {
     script.id = scriptId;
     script.type = 'application/ld+json';
     script.text = JSON.stringify({
-      "@context": "https://schema.org",
+      "@context": "https://schema.org ",
       "@type": "WebSite",
       "name": "Retro Online Matchmaking",
       "url": window.location.origin,
@@ -344,7 +345,7 @@ async function loadSiteSettings() {
     const iframeEl = document.getElementById('clip-iframe');
     
     if (titleEl) titleEl.innerHTML = `<span class="text-2xl">🎬</span> ${settings.clip_title || 'ROM Community Highlights'}`;
-    if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
+    if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/ ${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     
     ['discord', 'patreon'].forEach(key => {
       const el = document.getElementById(`${key}-link`);
@@ -479,7 +480,7 @@ async function loadOnlineUsers() {
 
     listEl.innerHTML = users.map(user => {
       const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
-      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      const avatar = user.avatar_url || ` https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
       
       return `
         <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
@@ -523,7 +524,7 @@ async function loadCommunitySpotlight() {
     if (error || !user) return;
 
     const link = `#/profile/${user.username}`;
-    const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=FBBF24&color=000`;
+    const avatar = user.avatar_url || ` https://ui-avatars.com/api/?name=${user.username}&background=FBBF24&color=000`;
 
     container.innerHTML = `
       <a href="${link}" class="group block">
@@ -591,13 +592,14 @@ async function loadRecentActivity() {
 }
 
 // ============================================================================
-// 4. REALTIME LIVE FEED & LFG TICKER
+// 4. REALTIME LIVE FEED & DYNAMIC TICKER (LFG + TOURNAMENTS)
 // ============================================================================
 
-// Fetch LFG posts and update the global message queue
-async function refreshLFGTicker(rom) {
+// Fetch LFG posts and Tournaments, then merge them into the global message queue
+async function refreshDynamicTicker(rom) {
   try {
-    const { data, error } = await rom.supabase
+    // 1. Fetch LFG
+    const { data: lfgData, error: lfgError } = await rom.supabase
       .from('lfg_posts')
       .select('posted_username, game_title, region')
       .eq('status', 'open')
@@ -605,20 +607,36 @@ async function refreshLFGTicker(rom) {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    if (error) throw error;
+    // 2. Fetch Tournaments (using the helper we created)
+    const tourneyData = await getRecentTournamentsForTicker(rom);
 
-    if (data && data.length > 0) {
-      // Create LFG messages
-      lfgMessages = data.map(post => 
-        `📡 <strong>${post.posted_username}</strong> is looking for players in <strong>${post.game_title}</strong> (${post.region})`
-      );
-      console.log(`✅ Loaded ${lfgMessages.length} LFG messages into ticker`);
+    if (lfgError) throw lfgError;
+
+    const newMessages = [];
+
+    // Process LFG
+    if (lfgData && lfgData.length > 0) {
+      lfgData.forEach(post => {
+        newMessages.push(`📡 <strong>${post.posted_username}</strong> is looking for players in <strong>${post.game_title}</strong> (${post.region})`);
+      });
+    }
+
+    // Process Tournaments
+    if (tourneyData && tourneyData.length > 0) {
+      tourneyData.forEach(t => {
+        newMessages.push(t.text);
+      });
+    }
+
+    if (newMessages.length > 0) {
+      dynamicMessages = newMessages;
+      console.log(`✅ Loaded ${dynamicMessages.length} dynamic messages (LFG + Tours) into ticker`);
     } else {
-      lfgMessages = [];
-      console.log('ℹ️ No active LFG posts for ticker');
+      dynamicMessages = [];
+      console.log('ℹ️ No active LFG or Tournament posts for ticker');
     }
   } catch (err) {
-    console.error('Error loading LFG ticker:', err);
+    console.error('Error loading dynamic ticker:', err);
   }
 }
 
@@ -631,16 +649,16 @@ function startRealtimeFeed(rom) {
   if (!tickerEl) return;
 
   let msgIndex = 0;
-  let currentPool = [];
 
   const getNextMessage = () => {
-    // Prioritize LFG messages if they exist, otherwise use standard
-    if (lfgMessages.length > 0) {
-      // Mix LFG and standard: 70% chance of LFG if available
+    // Prioritize dynamic messages (LFG/Tournaments) if they exist
+    if (dynamicMessages.length > 0) {
+      // 70% chance to show a dynamic message if available
       if (Math.random() > 0.3) {
-        return lfgMessages[Math.floor(Math.random() * lfgMessages.length)];
+        return dynamicMessages[Math.floor(Math.random() * dynamicMessages.length)];
       }
     }
+    // Fallback to standard messages
     return standardMessages[msgIndex++ % standardMessages.length];
   };
   
@@ -662,7 +680,7 @@ function startRealtimeFeed(rom) {
   
   // Start loop
   updateTicker();
-  setInterval(updateTicker, 6000); // Slightly slower to allow reading
+  setInterval(updateTicker, 6000); 
 
   // Subscribe to Realtime Changes
   realtimeChannel = supabase.channel('live-feed');
@@ -685,24 +703,37 @@ function startRealtimeFeed(rom) {
     loadStats();
   });
 
-  // Listen for NEW LFG Posts (Critical Fix)
+  // Listen for NEW LFG Posts
   realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lfg_posts' }, (payload) => {
     const post = payload.new;
     if (post.status === 'open') {
       const newMsg = `📡 <strong>${post.posted_username}</strong> is looking for players in <strong>${post.game_title}</strong> (${post.region})`;
-      
-      // Add to top of LFG queue
-      lfgMessages.unshift(newMsg);
-      if (lfgMessages.length > 10) lfgMessages.pop(); // Keep queue manageable
-      
-      flashTicker(newMsg); // Immediate display
-      console.log('🚀 New LFG post detected in realtime');
+      dynamicMessages.unshift(newMsg);
+      if (dynamicMessages.length > 10) dynamicMessages.pop(); 
+      flashTicker(newMsg);
+      console.log('🚀 New LFG post detected');
     }
   });
 
-  // Listen for LFG Expirations/Updates (Refresh list)
+  // Listen for NEW Tournaments
+  realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tournaments' }, (payload) => {
+    const tour = payload.new;
+    if (tour.status === 'open') {
+      const newMsg = `🏆 <strong>${tour.organizer_username}</strong> is hosting a <strong>${tour.game_title}</strong> tournament: ${tour.title}`;
+      dynamicMessages.unshift(newMsg);
+      if (dynamicMessages.length > 10) dynamicMessages.pop();
+      flashTicker(newMsg);
+      console.log('🚀 New Tournament detected');
+    }
+  });
+
+  // Listen for Updates (Refresh list if something changes/expires)
   realtimeChannel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'lfg_posts' }, () => {
-    refreshLFGTicker(rom);
+    refreshDynamicTicker(rom);
+  });
+  
+  realtimeChannel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments' }, () => {
+    refreshDynamicTicker(rom);
   });
 
   realtimeChannel.subscribe((status) => {
