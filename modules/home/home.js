@@ -345,7 +345,7 @@ async function loadSiteSettings() {
     const iframeEl = document.getElementById('clip-iframe');
     
     if (titleEl) titleEl.innerHTML = `<span class="text-2xl">🎬</span> ${settings.clip_title || 'ROM Community Highlights'}`;
-    if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/ ${cleanId}?rel=0&modestbranding=1&autoplay=0`;
+    if (iframeEl) iframeEl.src = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1&autoplay=0`;
     
     ['discord', 'patreon'].forEach(key => {
       const el = document.getElementById(`${key}-link`);
