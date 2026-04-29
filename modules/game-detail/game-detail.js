@@ -1,10 +1,5 @@
 // modules/game-detail/game-detail.js 
 
-// ===== GLOBAL STATE FOR CHAT & HEARTBEAT (Declared Once) =====
-let chatChannel = null;
-let heartbeatInterval = null;
-let currentRoomId = null;
-
 // ===== HELPER: Convert YouTube URLs to Embed Format =====
 function getEmbedUrl(url) {
     if (!url) return '';
@@ -27,12 +22,14 @@ function getEmbedUrl(url) {
     return url;
 }
 
+// ===== GLOBAL STATE FOR CHAT =====
+let chatChannel = null;
+let heartbeatInterval = null;
+let currentRoomId = null;
+
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
     console.log('🎮 Loading game for slug:', identifier);
-
-    // Cleanup previous session if navigating from another game page
-    cleanupChatSession();
 
     if (!rom.supabase) {
         console.error('❌ No Supabase client');
@@ -85,27 +82,13 @@ export default async function initGameDetail(rom, identifier) {
     }
 }
 
-// ===== CLEANUP HELPER =====
-function cleanupChatSession() {
-    if (chatChannel) {
-        rom.supabase.removeChannel(chatChannel);
-        chatChannel = null;
-    }
-    if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
-    }
-    currentRoomId = null;
-}
-
 // ===== RENDER GAME FUNCTION =====
 async function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
 
-    // ... [GUIDE CHECK LOGIC - UNCHANGED] ...
-    let guideButtonHTML = ''; 
+    // 0. CHECK FOR LINKED GUIDES
+    let guideButtonHTML = '';
     try {
-        console.log('🔍 [GUIDE CHECK] Starting lookup for game ID:', game.id);
         const { data: links, error: linkError } = await rom.supabase
             .from('game_guides')
             .select('guide_id')
@@ -404,11 +387,18 @@ async function renderGame(game, container, rom) {
     }
 }
 
-// ===== 🚀 LIVE SESSION LOGIC =====
+// ===== 🚀 NEW: LIVE SESSION LOGIC =====
 
 async function initLiveSessionPanel(rom, game) {
     const container = document.getElementById('live-session-container');
     if (!container) return;
+
+    // Cleanup previous session if any
+    if (chatChannel) {
+        rom.supabase.removeChannel(chatChannel);
+        chatChannel = null;
+    }
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
 
     // Check for existing active room
     const { data: room } = await rom.supabase
@@ -459,7 +449,6 @@ function renderStartSessionButton(container, rom, game) {
 
 async function createSession(rom, game) {
     const btn = document.getElementById('btn-start-session');
-    if(!btn) return;
     btn.disabled = true;
     btn.textContent = 'Creating Room...';
 
@@ -509,8 +498,12 @@ async function createSession(rom, game) {
 }
 
 function renderActiveSession(container, room, rom, game) {
-    // Stop any existing heartbeat
+    // Stop any existing heartbeat/listeners
     if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (chatChannel) {
+        rom.supabase.removeChannel(chatChannel);
+        chatChannel = null;
+    }
 
     container.classList.remove('hidden');
     container.innerHTML = `
@@ -535,32 +528,47 @@ function renderActiveSession(container, room, rom, game) {
                 <button id="close-stream" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition">Close Stream</button>
             </div>
 
-            <!-- Chat Interface -->
-            <div class="flex flex-col h-96 bg-gray-900/50">
-                <!-- Messages Area -->
-                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                    <div class="text-center text-gray-500 text-sm py-4">Loading messages...</div>
-                </div>
-
-                <!-- Input Area -->
-                <div class="p-3 bg-gray-800 border-t border-gray-700">
-                    <form id="chat-form" class="flex gap-2">
-                        <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none" autocomplete="off">
-                        <button type="submit" id="btn-send-chat" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold disabled:opacity-50">Send</button>
-                    </form>
-                </div>
+            <!-- Chat Messages Area -->
+            <div id="chat-messages" class="h-64 overflow-y-auto p-4 space-y-3 bg-gray-900/50 scroll-smooth custom-scrollbar">
+                <div class="text-center text-gray-500 text-sm py-4">Loading messages...</div>
             </div>
 
-            <!-- Stream Controls (Below Chat) -->
-            <div class="p-4 bg-gray-800/50 border-t border-gray-700 flex gap-2">
-                <input type="text" id="stream-url-input" placeholder="Paste Twitch/YouTube stream link to go live..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none">
-                <button id="btn-go-live" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm font-bold">Go Live</button>
+            <!-- Controls -->
+            <div class="p-4 bg-gray-800/50 border-t border-gray-700 flex flex-col gap-2">
+                <!-- Stream Input -->
+                <div class="flex gap-2">
+                    <input type="text" id="stream-url-input" placeholder="Paste Twitch/YouTube stream link..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none">
+                    <button id="btn-go-live" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm font-bold whitespace-nowrap">Go Live</button>
+                </div>
+                <!-- Chat Input -->
+                <form id="chat-form" class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none" autocomplete="off">
+                    <button type="submit" id="btn-send" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold whitespace-nowrap">Send</button>
+                </form>
             </div>
         </div>
     `;
 
-    // Initialize Chat Logic
-    initChatLogic(rom, room.id);
+    // Load initial messages
+    loadChatMessages(rom, room.id);
+
+    // Setup Realtime listener
+    chatChannel = rom.supabase.channel(`room:${room.id}`);
+    
+    chatChannel
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'chat_messages',
+            filter: `room_id=eq.${room.id}`
+        }, (payload) => {
+            appendMessageToDOM(payload.new, rom.currentUser?.id);
+        })
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Joined chat channel:', room.id);
+            }
+        });
 
     // Stream Logic
     const btnGoLive = document.getElementById('btn-go-live');
@@ -591,77 +599,56 @@ function renderActiveSession(container, room, rom, game) {
         streamFrame.src = getEmbedUrl(room.stream_url);
         streamArea.classList.remove('hidden');
     }
-}
 
-function initChatLogic(rom, roomId) {
-    const messagesContainer = document.getElementById('chat-messages');
+    // Chat Form Logic
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('btn-send-chat');
+    const sendBtn = document.getElementById('btn-send');
 
-    if (!messagesContainer || !chatForm || !chatInput) return;
-
-    // 1. Load Recent Messages
-    loadMessages(rom, roomId, messagesContainer);
-
-    // 2. Subscribe to Realtime Updates
-    if (chatChannel) {
-        rom.supabase.removeChannel(chatChannel);
-    }
-
-    chatChannel = rom.supabase.channel(`chat:${roomId}`);
-    
-    chatChannel.on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'chat_messages', 
-        filter: `room_id=eq.${roomId}` 
-    }, (payload) => {
-        appendMessage(messagesContainer, payload.new);
-    });
-
-    chatChannel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-            console.log('✅ Joined chat channel:', roomId);
-        }
-    });
-
-    // 3. Handle Send
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const text = chatInput.value.trim();
-        if (!text || !rom.currentUser) return;
+        const message = chatInput.value.trim();
+        if (!message || !rom.currentUser) return;
 
-        // Optimistic UI: Disable button
         sendBtn.disabled = true;
         sendBtn.textContent = '...';
 
         try {
-            const { error } = await rom.supabase.from('chat_messages').insert([{
-                room_id: roomId,
-                user_id: rom.currentUser.id,
-                username: rom.currentUser.user_metadata?.username || 'Anonymous',
-                avatar_url: rom.currentUser.user_metadata?.avatar_url,
-                message: text
-            }]);
+            // Fetch fresh profile data for avatar/username
+            const { data: profile } = await rom.supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', rom.currentUser.id)
+                .single();
 
-            if (error) throw error;
+            const username = profile?.username || rom.currentUser.email.split('@')[0];
+            const avatarUrl = profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
+
+            await rom.supabase.from('chat_messages').insert([{
+                room_id: room.id,
+                user_id: rom.currentUser.id,
+                username: username,
+                avatar_url: avatarUrl,
+                message: message
+            }]);
 
             chatInput.value = '';
         } catch (err) {
-            console.error('Error sending message:', err);
-            alert('Failed to send: ' + err.message);
+            console.error('Failed to send:', err);
+            alert('Failed to send message: ' + err.message);
         } finally {
             sendBtn.disabled = false;
             sendBtn.textContent = 'Send';
-            chatInput.focus();
         }
     });
 }
 
-async function loadMessages(rom, roomId, container) {
+async function loadChatMessages(rom, roomId) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+
     try {
-        const { data, error } = await rom.supabase
+        const { data: messages, error } = await rom.supabase
             .from('chat_messages')
             .select('*')
             .eq('room_id', roomId)
@@ -671,40 +658,53 @@ async function loadMessages(rom, roomId, container) {
         if (error) throw error;
 
         container.innerHTML = '';
-        if (!data || data.length === 0) {
+        if (!messages || messages.length === 0) {
             container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No messages yet. Say hi!</div>';
             return;
         }
 
-        data.forEach(msg => appendMessage(container, msg));
+        messages.forEach(msg => appendMessageToDOM(msg, rom.currentUser?.id));
+        
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+
     } catch (err) {
         console.error('Error loading messages:', err);
         container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">Failed to load chat.</div>';
     }
 }
 
-function appendMessage(container, msg) {
-    const isMe = msg.user_id === rom.currentUser?.id;
+function appendMessageToDOM(msg, currentUserId) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+
+    const isMe = msg.user_id === currentUserId;
+    const avatarUrl = msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.username || 'User')}&background=06b6d4&color=fff`;
+    const profileLink = `#/profile/${msg.username || 'user'}`;
+    
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const messageEl = document.createElement('div');
+    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in`;
     
-    const div = document.createElement('div');
-    div.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`;
-    
-    div.innerHTML = `
-        <img src="${msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.username)}&background=06b6d4&color=fff`}" 
-             class="w-8 h-8 rounded-full border border-gray-600 object-cover">
-        <div class="max-w-[70%]">
-            <div class="flex items-baseline gap-2 ${isMe ? 'flex-row-reverse' : ''}">
-                <span class="text-xs font-bold ${isMe ? 'text-cyan-400' : 'text-purple-400'}">${escapeHtml(msg.username)}</span>
+    messageEl.innerHTML = `
+        <a href="${profileLink}" class="flex-shrink-0 group/avatar" title="View ${escapeHtml(msg.username)}'s Profile">
+            <img src="${avatarUrl}" alt="${escapeHtml(msg.username)}" class="w-8 h-8 rounded-full border border-gray-600 group-hover/avatar:border-cyan-400 transition shadow-sm">
+        </a>
+        <div class="flex flex-col max-w-[80%] ${isMe ? 'items-end' : 'items-start'}">
+            <div class="flex items-baseline gap-2 mb-1">
+                <a href="${profileLink}" class="text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:underline transition">
+                    ${escapeHtml(msg.username)}
+                </a>
                 <span class="text-[10px] text-gray-500">${time}</span>
             </div>
-            <div class="bg-gray-800 text-gray-200 text-sm p-2 rounded-lg ${isMe ? 'bg-cyan-900/30 border border-cyan-800/50' : 'border border-gray-700'}">
+            <div class="bg-gray-800 text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-sm ${isMe ? 'bg-cyan-900/40 text-cyan-100 rounded-br-none' : 'rounded-bl-none'}">
                 ${escapeHtml(msg.message)}
             </div>
         </div>
     `;
-    
-    container.appendChild(div);
+
+    container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
 }
 
