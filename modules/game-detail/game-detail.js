@@ -78,39 +78,45 @@ export default async function initGameDetail(rom, identifier) {
 async function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
 
-   // 0. CHECK FOR LINKED GUIDES (Fixed to use game_guides junction table)
+    // 0. CHECK FOR LINKED GUIDES (Fixed Query using game_guides junction table)
     let guideButtonHTML = '';
     try {
-        // Query the junction table 'game_guides' and join with 'guides'
-        const { data: linkedGuides, error: guideError } = await rom.supabase
+        // First, get linked guide IDs from the junction table
+        const {  links, error: linkError } = await rom.supabase
             .from('game_guides')
-            .select(`
-                guide_id,
-                guides (
-                    id,
-                    title,
-                    slug
-                )
-            `)
-            .eq('game_id', game.id)
-            .eq('guides.is_approved', true)
-            .limit(1);
+            .select('guide_id')
+            .eq('game_id', game.id);
 
-        if (!guideError && linkedGuides && linkedGuides.length > 0) {
-            // Extract the first valid guide from the nested response
-            const guideData = linkedGuides[0].guides;
+        if (!linkError && links && links.length > 0) {
+            const guideIds = links.map(l => l.guide_id);
             
-            if (guideData) {
-                const guideLink = `#/guide/${guideData.slug || guideData.id}`;
+            // Then, fetch the actual guide details
+            const {  guides, error: guideError } = await rom.supabase
+                .from('guides')
+                .select('id, title, slug')
+                .in('id', guideIds)
+                .eq('is_approved', true)
+                .limit(1);
+
+            if (!guideError && guides && guides.length > 0) {
+                const guide = guides[0];
+                const guideLink = `#/guide/${guide.slug || guide.id}`;
+                
+                // Create the button HTML to be inserted into the Connection section
                 guideButtonHTML = `
-                    <a href="${guideLink}" class="block w-full text-center py-3 mt-4 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 text-purple-200 font-bold rounded-lg transition shadow-[0_0_15px_rgba(168,85,247,0.3)] animate-pulse">
-                        📖 Read Setup Guide & Wiki
-                    </a>
+                    <div class="mb-6 p-4 bg-purple-900/20 border border-purple-500/50 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                        <a href="${guideLink}" class="flex items-center justify-center gap-3 w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded transition shadow-lg transform hover:-translate-y-0.5">
+                            <span class="text-xl">📖</span>
+                            <span>Read Setup Guide & Wiki: "${escapeHtml(guide.title)}"</span>
+                            <span class="ml-auto">→</span>
+                        </a>
+                        <p class="text-center text-xs text-purple-300 mt-2">Official community guide for getting started</p>
+                    </div>
                 `;
             }
         }
     } catch (e) {
-        console.error('Error checking for linked guides:', e);
+        console.error('Error checking for guides', e);
     }
 
     // 1. SEO: Update Meta Tags & Schema
@@ -163,7 +169,7 @@ async function renderGame(game, container, rom) {
         }
     }
 
-    // 3. Prepare Rating Section HTML (Includes Guide Button)
+    // 3. Prepare Rating Section HTML (Guide button removed from here)
     const ratingHTML = `
         <div class="mb-8 p-6 bg-gray-800/90 backdrop-blur-md rounded-xl border border-yellow-500/30 shadow-xl">
             <div class="flex items-center justify-between mb-4">
@@ -188,8 +194,6 @@ async function renderGame(game, container, rom) {
                     <p id="rating-status-text" class="text-xs text-gray-400 mt-2 h-4"></p>
                 </div>
             `}
-            
-            ${guideButtonHTML}
         </div>
     `;
 
@@ -212,7 +216,7 @@ async function renderGame(game, container, rom) {
         </div>
     `;
 
-    // 5. Prepare Metadata Panel (Semantic DL for SEO)
+    // 5. Prepare Metadata Panel
     const hasMetadata = game.developer || game.publisher || game.genre || game.release_date || (game.features && game.features.length > 0);
     const metadataHTML = hasMetadata ? `
         <div class="bg-gray-800/90 backdrop-blur-md rounded-xl border border-cyan-500/30 p-6 mb-8 shadow-xl">
@@ -272,9 +276,13 @@ async function renderGame(game, container, rom) {
         connectionDetails.push({ name: game.connection_method || 'General Connection', instructions: game.server_details || 'See description.', type: 'other' });
     }
 
-    const connectionHTML = connectionDetails.length > 0 ? `
+    // 7. Connection HTML (Now includes the Guide Button at the top!)
+    const connectionHTML = connectionDetails.length > 0 || guideButtonHTML ? `
         <div class="bg-gray-800/90 backdrop-blur-md rounded-xl border border-purple-500/30 p-6 mb-8 shadow-xl">
             <h3 class="text-xl font-bold text-purple-400 mb-4 border-b border-gray-700 pb-2 drop-shadow-md">🔌 How to Connect</h3>
+            
+            ${guideButtonHTML}
+            
             <div class="space-y-6">
                 ${connectionDetails.map((method, idx) => `
                     <div class="bg-gray-900/60 rounded-lg p-4 border border-gray-700 shadow-lg">
@@ -295,7 +303,7 @@ async function renderGame(game, container, rom) {
         </div>
     ` : '';
 
-    // 7. Main Layout Construction
+    // 8. Main Layout Construction
     container.innerHTML = `
         <div class="max-w-7xl mx-auto p-4 relative z-10">
             <a href="#/games" class="text-cyan-400 hover:text-cyan-300 hover:underline mb-4 inline-block flex items-center gap-2 font-bold drop-shadow-md transition">
@@ -491,7 +499,7 @@ async function checkAndRenderPlayingState(game, userId, rom) {
     const container = document.getElementById('playing-action-container');
     if (!container) return;
     try {
-        const { data: profile, error } = await rom.supabase
+        const {  profile, error } = await rom.supabase
             .from('profiles')
             .select('currently_playing')
             .eq('id', userId)
@@ -546,7 +554,7 @@ async function handleTogglePlaying(game, userId, rom, isCurrentlyPlaying) {
     btn.disabled = true;
     btn.innerHTML = `<span class="animate-spin mr-2">⟳</span> Updating...`;
     try {
-        const { data: profile } = await rom.supabase.from('profiles').select('currently_playing').eq('id', userId).single();
+        const {  profile } = await rom.supabase.from('profiles').select('currently_playing').eq('id', userId).single();
         let currentGames = [];
         if (profile?.currently_playing) {
             try {
@@ -585,7 +593,7 @@ async function loadAchievements(rom, gameId) {
     const container = document.getElementById('achievements-container');
     if (!container) return;
     try {
-        const { data: achievements, error: aError } = await rom.supabase
+        const {  achievements, error: aError } = await rom.supabase
             .from('achievements')
             .select('*')
             .eq('game_id', gameId)
@@ -595,7 +603,7 @@ async function loadAchievements(rom, gameId) {
             return;
         }
         const achievementIds = achievements.map(a => a.id);
-        const { data: unlocks } = await rom.supabase
+        const {  unlocks } = await rom.supabase
             .from('user_achievements')
             .select('user_id, achievement_id')
             .in('achievement_id', achievementIds);
