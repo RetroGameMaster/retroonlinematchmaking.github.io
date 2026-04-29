@@ -198,15 +198,28 @@ async function handlePostLFG(e, rom) {
         const username = profile?.username || rom.currentUser.email.split('@')[0];
         const avatarUrl = profile?.avatar_url;
 
-        // 2. Check for Existing Active Ephemeral Room for this Game
+        // 2. CRITICAL FIX: Fetch the Game ID first
+        const { data: gameData } = await rom.supabase
+            .from('games')
+            .select('id')
+            .eq('title', gameTitle)
+            .single();
+
+        if (!gameData) {
+            throw new Error(`Game "${gameTitle}" not found in database. Please select from the dropdown.`);
+        }
+        const gameId = gameData.id;
+
+        // 3. Check for Existing Active Ephemeral Room for THIS SPECIFIC GAME
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
         let roomId = null;
         let isNewRoom = false;
 
-        // Try to find an existing room linked to this game title
+        // Search for a room linked to this game_id
         const { data: existingRoom } = await rom.supabase
             .from('chat_rooms')
             .select('id')
+            .eq('game_id', gameId) // Filter by specific game
             .eq('is_ephemeral', true)
             .gte('last_activity', oneHourAgo)
             .limit(1); 
@@ -214,16 +227,16 @@ async function handlePostLFG(e, rom) {
         if (existingRoom && existingRoom.length > 0) {
             roomId = existingRoom[0].id;
             await rom.supabase.from('chat_rooms').update({ last_activity: new Date().toISOString() }).eq('id', roomId);
-            console.log('✅ Joined existing active lobby:', roomId);
+            console.log('✅ Joined existing active lobby for', gameTitle, ':', roomId);
         } else {
-            // Create New Room
-            const roomName = `lobby-${gameTitle}-${Date.now()}`;
+            // Create New Room WITH game_id
+            const roomName = `lobby-${gameId}-${Date.now()}`;
             
-            // FIXED SYNTAX BELOW: Ensured all parentheses are closed correctly
             const { data: newRoom, error: roomError } = await rom.supabase
                 .from('chat_rooms')
                 .insert([{
                     name: roomName,
+                    game_id: gameId, // SAVE THE GAME ID HERE
                     description: `Live lobby for ${gameTitle}`,
                     is_public: true,
                     is_ephemeral: true,
@@ -235,10 +248,10 @@ async function handlePostLFG(e, rom) {
             if (roomError) throw roomError;
             roomId = newRoom.id;
             isNewRoom = true;
-            console.log('🆕 Created new lobby:', roomId);
+            console.log('🆕 Created new lobby for', gameTitle, ':', roomId);
         }
 
-        // 3. Create the LFG Post linked to this Room
+        // 4. Create the LFG Post linked to this Room
         const { error: lfgError } = await rom.supabase.from('lfg_posts').insert([{
             user_id: rom.currentUser.id,
             posted_username: username,
@@ -371,7 +384,7 @@ async function renderLFGList(rom) {
             const gameLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(post.game_title)}`;
             
             const displayName = post.posted_username || 'Anonymous';
-            const avatarUrl = post.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff`;
+            const avatarUrl = post.avatar_url || ` https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff`;
             const profileLink = `#/profile/${displayName}`;
 
             const expiresAt = new Date(post.expires_at);
