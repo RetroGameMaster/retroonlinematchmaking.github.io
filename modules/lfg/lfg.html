@@ -2,9 +2,10 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-4xl font-bold text-white mb-2">📡 Live LFG Board</h1>
-            <p class="text-gray-400">Find players for retro games right now. Posts expire after 24h.</p>
+            <p class="text-gray-400">Find players for retro games. Posts expire after 24h.</p>
         </div>
-        <button id="btn-new-lfg" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition flex items-center gap-2">
+        <!-- Button visibility handled by JS based on login status -->
+        <button id="btn-new-lfg" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition flex items-center gap-2 hidden">
             <span>➕</span> Post Request
         </button>
     </div>
@@ -24,7 +25,6 @@
 
     <!-- Grid -->
     <div id="lfg-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Cards injected here -->
         <div class="col-span-full text-center py-12 text-gray-500">Loading posts...</div>
     </div>
 </div>
@@ -32,14 +32,22 @@
 <!-- Modal for New Post -->
 <div id="lfg-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-gray-800 rounded-xl border border-gray-600 w-full max-w-md p-6 relative">
-        <button id="close-lfg-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+        <button id="close-lfg-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
         <h2 class="text-2xl font-bold text-white mb-4">📡 Post LFG Request</h2>
+        
         <form id="lfg-form" class="space-y-4">
+            <!-- Game Autocomplete Field -->
             <div>
-                <label class="block text-sm text-gray-300 mb-1">Game *</label>
-                <input type="text" id="lfg-game" list="game-list" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
-                <datalist id="game-list"></datalist>
+                <label class="block text-sm text-gray-300 mb-1">Game Title *</label>
+                <input type="text" id="lfg-game" list="game-suggestions" required 
+                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 focus:outline-none"
+                    placeholder="Start typing to search games...">
+                <datalist id="game-suggestions">
+                    <!-- Options injected by JS -->
+                </datalist>
+                <p class="text-xs text-gray-500 mt-1">Select a game from the dropdown to ensure it links correctly.</p>
             </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Region *</label>
@@ -57,15 +65,33 @@
                     <input type="text" id="lfg-platform" placeholder="e.g. PS2, Dreamcast" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
                 </div>
             </div>
-            <div>
-                <label class="block text-sm text-gray-300 mb-1">What are you looking for? *</label>
-                <textarea id="lfg-desc" rows="3" required placeholder="e.g. Need 1 more player for ranked matches tonight at 8pm EST." class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"></textarea>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Scheduled Time *</label>
+                    <input type="datetime-local" id="lfg-time" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Time Zone *</label>
+                    <select id="lfg-timezone" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern (ET)</option>
+                        <option value="America/Chicago">Central (CT)</option>
+                        <option value="America/Denver">Mountain (MT)</option>
+                        <option value="America/Los_Angeles">Pacific (PT)</option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="Europe/Paris">Paris (CET)</option>
+                        <option value="Asia/Tokyo">Tokyo (JST)</option>
+                        <option value="Australia/Sydney">Sydney (AEST)</option>
+                    </select>
+                </div>
             </div>
+
             <div>
-                <label class="block text-sm text-gray-300 mb-1">Contact Info (Discord/Link) *</label>
-                <input type="text" id="lfg-contact" required placeholder="e.g. User#1234 or discord.gg/myserver" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
-                <p class="text-xs text-gray-500 mt-1">This is how people will reach you.</p>
+                <label class="block text-sm text-gray-300 mb-1">Description / Rules</label>
+                <textarea id="lfg-desc" rows="3" placeholder="e.g. Need 1 more player, ranked matches only..." class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"></textarea>
             </div>
+
             <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg">Post Request</button>
         </form>
     </div>
