@@ -92,9 +92,10 @@ async function loadActiveLobbies(rom) {
     // 1. Fetch Active Ephemeral Rooms (Active within last 60 mins)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     
+    // Select game_id to link to the correct page
     let { data: rooms, error } = await rom.supabase
       .from('chat_rooms')
-      .select('*')
+      .select('*, games(slug, title)') // Join with games table to get slug
       .eq('is_ephemeral', true)
       .gte('last_activity', oneHourAgo)
       .order('created_at', { ascending: false });
@@ -106,13 +107,16 @@ async function loadActiveLobbies(rom) {
     const sortVal = document.getElementById('filter-sort')?.value || 'newest';
 
     if (searchVal) {
-      rooms = rooms.filter(r => r.name && r.name.toLowerCase().includes(searchVal));
+      rooms = rooms.filter(r => {
+        const gameTitle = r.games?.title || r.name || '';
+        return gameTitle.toLowerCase().includes(searchVal);
+      });
     }
 
     if (sortVal === 'oldest') {
       rooms.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     } else {
-      rooms.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      rooms.sort((a, b) => new Date(b.created_at) - new Date(b.created_at));
     }
 
     // 3. Update UI
@@ -128,7 +132,6 @@ async function loadActiveLobbies(rom) {
     emptyState.classList.add('hidden');
 
     // 4. Render Cards
-    // We map the room name back to a game slug if possible, or just use the name
     container.innerHTML = rooms.map(room => {
       const timeDiff = Date.now() - new Date(room.last_activity).getTime();
       const minsAgo = Math.floor(timeDiff / 60000);
@@ -147,13 +150,12 @@ async function loadActiveLobbies(rom) {
         statusColor = 'text-yellow-400';
       }
 
-      // Try to extract game name from room name (e.g., "Midnight Club 3 Live Lobby")
-      // Or use the game_id if you have it linked properly
-      const displayName = room.name.replace('Live Lobby', '').replace('lobby-', '').trim() || 'Unknown Game';
+      // Use the joined game data for display and linking
+      const gameSlug = room.games?.slug;
+      const displayName = room.games?.title || room.name.replace('Live Lobby', '').replace('lobby-', '').trim() || 'Unknown Game';
       
-      // If you have game_id linked, you could fetch the slug here. 
-      // For now, we link to the generic games search or the room itself
-      const joinLink = `#/game/${encodeURIComponent(displayName)}`; // Ideally this links to the specific game page where chat opens
+      // FIXED: Link directly to the game slug if available, otherwise fallback to search
+      const joinLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(displayName)}`;
 
       return `
         <a href="${joinLink}" class="group block bg-gray-800/60 backdrop-blur hover:bg-gray-800 rounded-xl border border-gray-700 hover:border-green-500/50 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transform hover:-translate-y-1">
