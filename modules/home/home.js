@@ -1,13 +1,20 @@
-// modules/home/home.js - ENHANCED WITH DYNAMIC CONTENT & LFG TICKER
+// modules/home/home.js - ENHANCED WITH LFG TICKER
 import { supabase } from '../../lib/supabase.js';
-import { fetchGlobalLobbies } from '../../lib/lobby-aggregator.js';
 
 let realtimeChannel = null;
+let lfgMessages = []; // Store LFG messages separately
+let standardMessages = [
+  "Welcome to ROM! 🎮", 
+  "Check out the Game of the Week! 🏆", 
+  "Join the Discord for chat! 💬", 
+  "Listen to Vivi_Gaming Radio! 📻",
+  "Submit your favorite retro game! ➕"
+];
 
 export default function initModule(rom) {
   console.log('🏠 Homepage initialized');
   
-  // 1. Inject SEO Meta Tags immediately
+  // 1. Inject SEO Meta Tags
   injectSEOMeta();
   
   // 2. Render Layout
@@ -18,19 +25,19 @@ export default function initModule(rom) {
   
   // 4. Load Dynamic Content
   loadSiteSettings();
-  loadFeaturedGame();       // Random Pick
-  loadGameOfTheWeek();      // Curated/Trending Game
+  loadFeaturedGame();
+  loadGameOfTheWeek();
   loadOnlineUsers();
   loadRecentActivity();
-  loadCommunitySpotlight(); // Featured User
-  loadLFGTicker(rom);       // NEW: Load LFG into ticker
+  loadCommunitySpotlight();
   
-  // 5. Start Realtime Listeners
+  // 5. Start Realtime Listeners & Ticker
+  refreshLFGTicker(rom); // Initial Load of LFG
   startRealtimeFeed(rom);
 }
 
 // ============================================================================
-// 0. SEO INJECTION (Critical for Ranking)
+// 0. SEO INJECTION
 // ============================================================================
 function injectSEOMeta() {
   document.title = "Retro Online Matchmaking | Play Classic Games Online";
@@ -105,7 +112,7 @@ function initAmbientEffects() {
 }
 
 // ============================================================================
-// 2. RENDER LAYOUT (ENHANCED)
+// 2. RENDER LAYOUT
 // ============================================================================
 function renderHomeLayout() {
   const appContent = document.getElementById('app-content');
@@ -119,15 +126,15 @@ function renderHomeLayout() {
         <div class="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-gray-900 to-transparent z-10"></div>
         <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-gray-900 to-transparent z-10"></div>
         <div class="whitespace-nowrap animate-marquee flex items-center gap-8 px-4">
-          <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+          <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2 shrink-0">
             <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Live Feed
           </span>
-          <span id="ticker-content" class="text-gray-300 text-sm font-mono">Waiting for activity...</span>
+          <span id="ticker-content" class="text-gray-300 text-sm font-mono shrink-0">Loading feed...</span>
           <!-- Duplicate for seamless loop -->
-          <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+          <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2 shrink-0">
             <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Live Feed
           </span>
-          <span id="ticker-content-dup" class="text-gray-300 text-sm font-mono">Waiting for activity...</span>
+          <span id="ticker-content-dup" class="text-gray-300 text-sm font-mono shrink-0">Loading feed...</span>
         </div>
       </div>
 
@@ -164,7 +171,7 @@ function renderHomeLayout() {
       <!-- Main Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- LEFT COLUMN (Content) -->
+        <!-- LEFT COLUMN -->
         <div class="lg:col-span-2 space-y-8">
           
           <!-- Game of the Week -->
@@ -204,7 +211,7 @@ function renderHomeLayout() {
           </div>
         </div>
 
-        <!-- RIGHT COLUMN (Sidebar) -->
+        <!-- RIGHT COLUMN -->
         <div class="space-y-6">
           
           <!-- Who's Online -->
@@ -583,120 +590,120 @@ async function loadRecentActivity() {
   }
 }
 
-// NEW: LFG Ticker Loader
-async function loadLFGTicker(rom) {
-  const tickerEl = document.getElementById('ticker-content');
-  const tickerDup = document.getElementById('ticker-content-dup');
-  if (!tickerEl) return;
+// ============================================================================
+// 4. REALTIME LIVE FEED & LFG TICKER
+// ============================================================================
 
+// Fetch LFG posts and update the global message queue
+async function refreshLFGTicker(rom) {
   try {
     const { data, error } = await rom.supabase
       .from('lfg_posts')
-      .select('game_title, posted_username, region')
+      .select('posted_username, game_title, region')
       .eq('status', 'open')
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(5);
 
-    if (error || !data || data.length === 0) {
-      // Fallback if no LFG posts
-      return; 
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      // Create LFG messages
+      lfgMessages = data.map(post => 
+        `📡 <strong>${post.posted_username}</strong> is looking for players in <strong>${post.game_title}</strong> (${post.region})`
+      );
+      console.log(`✅ Loaded ${lfgMessages.length} LFG messages into ticker`);
+    } else {
+      lfgMessages = [];
+      console.log('ℹ️ No active LFG posts for ticker');
     }
-
-    const messages = data.map(post => 
-      `📡 ${post.posted_username} is looking for players in ${post.game_title} (${post.region})`
-    );
-
-    // Update the global messages array in startRealtimeFeed if needed, 
-    // but for now we just set the initial state here.
-    // The realtime listener will handle updates.
-    if(messages.length > 0) {
-        tickerEl.textContent = messages[0];
-        if(tickerDup) tickerDup.textContent = messages[0];
-        
-        // Store messages on the element for the interval to use
-        tickerEl.dataset.messages = JSON.stringify(messages);
-        tickerEl.dataset.msgIndex = "0";
-    }
-
   } catch (err) {
     console.error('Error loading LFG ticker:', err);
   }
 }
 
-// ============================================================================
-// 4. REALTIME LIVE FEED
-// ============================================================================
 function startRealtimeFeed(rom) {
+  // Initial Stats Load
   loadStats();
 
   const tickerEl = document.getElementById('ticker-content');
   const tickerDup = document.getElementById('ticker-content-dup');
-  
-  // Default messages if no LFG posts exist yet
-  let messages = ["Welcome to ROM!", "Check out the Game of the Week!", "Join the Discord!", "Listen to Vivi_Gaming Radio!"];
-  let msgIndex = 0;
+  if (!tickerEl) return;
 
-  // Check if LFG loaded messages
-  if(tickerEl && tickerEl.dataset.messages) {
-      messages = JSON.parse(tickerEl.dataset.messages);
-  }
+  let msgIndex = 0;
+  let currentPool = [];
+
+  const getNextMessage = () => {
+    // Prioritize LFG messages if they exist, otherwise use standard
+    if (lfgMessages.length > 0) {
+      // Mix LFG and standard: 70% chance of LFG if available
+      if (Math.random() > 0.3) {
+        return lfgMessages[Math.floor(Math.random() * lfgMessages.length)];
+      }
+    }
+    return standardMessages[msgIndex++ % standardMessages.length];
+  };
   
   const updateTicker = () => {
-    if(!tickerEl) return;
-    const nextMsg = messages[msgIndex];
-    msgIndex = (msgIndex + 1) % messages.length;
+    const nextMsg = getNextMessage();
     
+    // Fade out
     tickerEl.style.opacity = '0';
     if(tickerDup) tickerDup.style.opacity = '0';
     
     setTimeout(() => {
-      tickerEl.textContent = nextMsg;
-      if(tickerDup) tickerDup.textContent = nextMsg;
+      tickerEl.innerHTML = nextMsg;
+      if(tickerDup) tickerDup.innerHTML = nextMsg;
+      // Fade in
       tickerEl.style.opacity = '1';
       if(tickerDup) tickerDup.style.opacity = '1';
     }, 500);
   };
   
+  // Start loop
   updateTicker();
-  setInterval(updateTicker, 5000);
+  setInterval(updateTicker, 6000); // Slightly slower to allow reading
 
+  // Subscribe to Realtime Changes
   realtimeChannel = supabase.channel('live-feed');
 
-  realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, (payload) => {
-    if (payload.eventType === 'INSERT' || (payload.eventType === 'UPDATE' && payload.new.status === 'approved')) {
-      flashTicker(`🎮 New Game: ${payload.new.title}`);
+  // Listen for New Games
+  realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'games' }, (payload) => {
+    if (payload.new.status === 'approved') {
+      flashTicker(`🎮 New Game Added: ${payload.new.title}`);
       loadFeaturedGame();
       loadRecentActivity();
       loadStats();
     }
   });
 
-  realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
-    if (payload.eventType === 'INSERT') {
-      flashTicker(`👤 New Member: ${payload.new.username}`);
-      loadOnlineUsers();
-      loadRecentActivity();
-      loadStats();
-    } else if (payload.eventType === 'UPDATE') {
-      loadOnlineUsers();
-      loadStats();
+  // Listen for New Users
+  realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, (payload) => {
+    flashTicker(`👤 New Member: ${payload.new.username}`);
+    loadOnlineUsers();
+    loadRecentActivity();
+    loadStats();
+  });
+
+  // Listen for NEW LFG Posts (Critical Fix)
+  realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lfg_posts' }, (payload) => {
+    const post = payload.new;
+    if (post.status === 'open') {
+      const newMsg = `📡 <strong>${post.posted_username}</strong> is looking for players in <strong>${post.game_title}</strong> (${post.region})`;
+      
+      // Add to top of LFG queue
+      lfgMessages.unshift(newMsg);
+      if (lfgMessages.length > 10) lfgMessages.pop(); // Keep queue manageable
+      
+      flashTicker(newMsg); // Immediate display
+      console.log('🚀 New LFG post detected in realtime');
     }
   });
 
-  // NEW: Listen for LFG Posts
-  if(rom && rom.supabase) {
-      realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lfg_posts' }, (payload) => {
-        const post = payload.new;
-        if(post.status === 'open') {
-            const msg = `📡 ${post.posted_username} is looking for players in ${post.game_title} (${post.region})`;
-            flashTicker(msg);
-            // Add to rotation
-            messages.unshift(msg);
-            if(messages.length > 10) messages.pop(); // Keep list manageable
-        }
-      });
-  }
+  // Listen for LFG Expirations/Updates (Refresh list)
+  realtimeChannel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'lfg_posts' }, () => {
+    refreshLFGTicker(rom);
+  });
 
   realtimeChannel.subscribe((status) => {
     if (status === 'SUBSCRIBED') console.log('✅ REALTIME SUBSCRIBED');
@@ -708,21 +715,23 @@ function flashTicker(text) {
   const tickerDup = document.getElementById('ticker-content-dup');
   if (!tickerEl) return;
 
-  tickerEl.parentElement.classList.add('shadow-[0_0_20px_rgba(34,211,238,0.6)]');
-  tickerEl.classList.add('text-cyan-200');
+  // Visual Flash Effect
+  tickerEl.parentElement.classList.add('shadow-[0_0_20px_rgba(34,211,238,0.6)]', 'border-cyan-400');
+  tickerEl.classList.add('text-cyan-200', 'font-bold');
   
   setTimeout(() => {
-    tickerEl.parentElement.classList.remove('shadow-[0_0_20px_rgba(34,211,238,0.6)]');
-    tickerEl.classList.remove('text-cyan-200');
-  }, 1000);
+    tickerEl.parentElement.classList.remove('shadow-[0_0_20px_rgba(34,211,238,0.6)]', 'border-cyan-400');
+    tickerEl.classList.remove('text-cyan-200', 'font-bold');
+  }, 2000);
 
+  // Text Update with Fade
   tickerEl.style.transition = 'opacity 0.3s';
   tickerEl.style.opacity = '0';
   if(tickerDup) tickerDup.style.opacity = '0';
   
   setTimeout(() => {
-    tickerEl.textContent = text;
-    if(tickerDup) tickerDup.textContent = text;
+    tickerEl.innerHTML = text;
+    if(tickerDup) tickerDup.innerHTML = text;
     tickerEl.style.opacity = '1';
     if(tickerDup) tickerDup.style.opacity = '1';
   }, 300);
