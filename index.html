@@ -969,7 +969,32 @@
                 Loading auth...
             </div>
         </div>
+<!-- Notification Bell (Only visible if logged in) -->
+<div id="nav-notification-container" class="relative hidden">
+    <button id="btn-notifications" class="relative p-2 text-gray-400 hover:text-white transition focus:outline-none">
+        <!-- Bell Icon -->
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+        </svg>
+        <!-- Red Badge -->
+        <span id="notif-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full hidden">0</span>
+    </button>
 
+    <!-- Dropdown Menu -->
+    <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 overflow-hidden">
+        <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-900">
+            <h3 class="text-sm font-bold text-white">Notifications</h3>
+            <button id="mark-read-btn" class="text-xs text-cyan-400 hover:text-cyan-300">Mark all read</button>
+        </div>
+        <div id="notif-list" class="max-h-96 overflow-y-auto">
+            <!-- Items injected here -->
+            <div class="p-4 text-center text-gray-500 text-sm">No new notifications</div>
+        </div>
+        <div class="p-2 border-t border-gray-700 text-center">
+            <a href="#/profile" class="text-xs text-gray-400 hover:text-white">View All Activity</a>
+        </div>
+    </div>
+</div>
         <!-- Random Quote Bar -->
         <div id="retro-quote-bar" class="hidden mt-4 bg-black/40 border border-cyan-900/50 rounded-lg p-3 flex items-center gap-4 backdrop-blur-sm transition-all duration-500 opacity-0 transform translate-y-2">
             <div id="quote-sprite-container" class="flex-shrink-0 w-12 h-12 bg-gray-900 rounded-full border-2 border-cyan-500 overflow-hidden flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
