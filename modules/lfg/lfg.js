@@ -204,47 +204,36 @@ async function handlePostLFG(e, rom) {
         let isNewRoom = false;
 
         // Try to find an existing room linked to this game title
-        // We look for any ephemeral room active in the last hour
-        // NOTE: If you have a specific 'game_id' or 'name' column in chat_rooms, use it here for better matching
-        const { data: existingRooms, error: roomFetchError } = await rom.supabase
+        const { data: existingRoom } = await rom.supabase
             .from('chat_rooms')
             .select('id')
             .eq('is_ephemeral', true)
             .gte('last_activity', oneHourAgo)
             .limit(1); 
 
-        if (roomFetchError) {
-            console.warn('Could not fetch existing rooms, creating new one:', roomFetchError);
-        } else if (existingRooms && existingRooms.length > 0) {
-            roomId = existingRooms[0].id;
+        if (existingRoom && existingRoom.length > 0) {
+            roomId = existingRoom[0].id;
             await rom.supabase.from('chat_rooms').update({ last_activity: new Date().toISOString() }).eq('id', roomId);
             console.log('✅ Joined existing active lobby:', roomId);
-        } 
-
-        // If no room found or error occurred, create a new one
-        if (!roomId) {
+        } else {
+            // Create New Room
             const roomName = `lobby-${gameTitle}-${Date.now()}`;
             
-            // CRITICAL FIX: Precise destructuring syntax
-            const insertResponse = await rom.supabase.from('chat_rooms').insert([{
-                name: roomName,
-                description: `Live lobby for ${gameTitle}`,
-                is_public: true,
-                is_ephemeral: true,
-                last_activity: new Date().toISOString()
-            ]).select();
+            // FIXED SYNTAX BELOW: Ensured all parentheses are closed correctly
+            const { data: newRoom, error: roomError } = await rom.supabase
+                .from('chat_rooms')
+                .insert([{
+                    name: roomName,
+                    description: `Live lobby for ${gameTitle}`,
+                    is_public: true,
+                    is_ephemeral: true,
+                    last_activity: new Date().toISOString()
+                }])
+                .select()
+                .single();
 
-            if (insertResponse.error) {
-                throw insertResponse.error;
-            }
-            
-            // Ensure we have data before accessing
-            if (!insertResponse.data || insertResponse.data.length === 0) {
-                throw new Error('No data returned from room creation');
-            }
-
-            const newRoomData = insertResponse.data[0];
-            roomId = newRoomData.id;
+            if (roomError) throw roomError;
+            roomId = newRoom.id;
             isNewRoom = true;
             console.log('🆕 Created new lobby:', roomId);
         }
