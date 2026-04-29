@@ -1,0 +1,72 @@
+<div class="max-w-6xl mx-auto p-4">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-white mb-2">📡 Live LFG Board</h1>
+            <p class="text-gray-400">Find players for retro games right now. Posts expire after 24h.</p>
+        </div>
+        <button id="btn-new-lfg" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition flex items-center gap-2">
+            <span>➕</span> Post Request
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-6 flex flex-wrap gap-4">
+        <select id="filter-region" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2">
+            <option value="">All Regions</option>
+            <option value="NA">North America</option>
+            <option value="EU">Europe</option>
+            <option value="SA">South America</option>
+            <option value="ASIA">Asia</option>
+            <option value="OCE">Oceania</option>
+        </select>
+        <input type="text" id="filter-search" placeholder="Search games..." class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 flex-1">
+    </div>
+
+    <!-- Grid -->
+    <div id="lfg-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Cards injected here -->
+        <div class="col-span-full text-center py-12 text-gray-500">Loading posts...</div>
+    </div>
+</div>
+
+<!-- Modal for New Post -->
+<div id="lfg-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-gray-800 rounded-xl border border-gray-600 w-full max-w-md p-6 relative">
+        <button id="close-lfg-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+        <h2 class="text-2xl font-bold text-white mb-4">📡 Post LFG Request</h2>
+        <form id="lfg-form" class="space-y-4">
+            <div>
+                <label class="block text-sm text-gray-300 mb-1">Game *</label>
+                <input type="text" id="lfg-game" list="game-list" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                <datalist id="game-list"></datalist>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Region *</label>
+                    <select id="lfg-region" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                        <option value="NA">North America</option>
+                        <option value="EU">Europe</option>
+                        <option value="SA">South America</option>
+                        <option value="ASIA">Asia</option>
+                        <option value="OCE">Oceania</option>
+                        <option value="Global">Global</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Platform</label>
+                    <input type="text" id="lfg-platform" placeholder="e.g. PS2, Dreamcast" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-300 mb-1">What are you looking for? *</label>
+                <textarea id="lfg-desc" rows="3" required placeholder="e.g. Need 1 more player for ranked matches tonight at 8pm EST." class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-300 mb-1">Contact Info (Discord/Link) *</label>
+                <input type="text" id="lfg-contact" required placeholder="e.g. User#1234 or discord.gg/myserver" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                <p class="text-xs text-gray-500 mt-1">This is how people will reach you.</p>
+            </div>
+            <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg">Post Request</button>
+        </form>
+    </div>
+</div>
