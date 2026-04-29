@@ -82,11 +82,50 @@ async function renderGame(game, container, rom) {
     const currentUser = rom.currentUser;
 
     // ... [GUIDE CHECK LOGIC REMAINS EXACTLY THE SAME] ...
-    // (Skipping guide logic for brevity, keep your existing block here)
     let guideButtonHTML = ''; 
-    // ... (Paste your existing guide check code here unchanged) ...
-    // For the sake of the solution, I will assume your existing guide code runs here.
-    // In the actual file, keep your full guide block.
+    try {
+        console.log('🔍 [GUIDE CHECK] Starting lookup for game ID:', game.id);
+        const { data: links, error: linkError } = await rom.supabase
+            .from('game_guides')
+            .select('guide_id')
+            .eq('game_id', game.id);
+
+        if (!linkError && links && links.length > 0) {
+            const guideIds = links.map(l => l.guide_id);
+            const { data: guides, error: guideError } = await rom.supabase
+                .from('guides')
+                .select('id, title, slug')
+                .in('id', guideIds)
+                .eq('is_approved', true);
+
+            if (!guideError && guides && guides.length > 0) {
+                let buttonsHtml = '';
+                guides.forEach(guide => {
+                    const guideLink = `#/guide/${guide.slug || guide.id}`;
+                    buttonsHtml += `
+                        <a href="${guideLink}" class="flex items-center justify-between gap-3 w-full py-3 mb-3 last:mb-0 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded transition shadow-lg transform hover:-translate-y-0.5 border border-purple-400">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl bg-purple-800/50 p-2 rounded">📖</span>
+                                <span class="text-left">${escapeHtml(guide.title)}</span>
+                            </div>
+                            <span class="ml-auto text-purple-200">Read Guide →</span>
+                        </a>
+                    `;
+                });
+                guideButtonHTML = `
+                    <div class="mb-6 p-5 bg-purple-900/20 border border-purple-500/50 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                        <h4 class="text-sm font-bold text-purple-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <span>📚</span> Official Setup Guides & Wikis
+                        </h4>
+                        ${buttonsHtml}
+                        <p class="text-center text-xs text-purple-300 mt-4 opacity-75">Select a guide above to get started</p>
+                    </div>
+                `;
+            }
+        }
+    } catch (e) {
+        console.error('💥 [GUIDE CHECK] Critical error:', e);
+    }
 
     // 1. SEO: Update Meta Tags & Schema
     updateMetaTags(game);
@@ -350,6 +389,7 @@ async function renderGame(game, container, rom) {
 
 let heartbeatInterval = null;
 let currentRoomId = null;
+let chatChannel = null;
 
 async function initLiveSessionPanel(rom, game) {
     const container = document.getElementById('live-session-container');
@@ -370,6 +410,7 @@ async function initLiveSessionPanel(rom, game) {
         currentRoomId = room.id;
         renderActiveSession(container, room, rom, game);
         startHeartbeat(rom, room.id);
+        joinChatRoom(rom, room.id);
     } else {
         renderStartSessionButton(container, rom, game);
     }
@@ -424,15 +465,14 @@ async function createSession(rom, game) {
 
         if (roomError) throw roomError;
 
-        // 2. Create Initial LFG Post (Optional, but good for visibility)
-        // This links the LFG system to the room creation
+        // 2. Create Initial LFG Post
         await rom.supabase.from('lfg_posts').insert([{
             user_id: rom.currentUser.id,
             posted_username: rom.currentUser.user_metadata?.username || 'Player',
             game_title: game.title,
             region: 'Global',
             status: 'open',
-            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 Hour
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
             description: `Joined the live chat for ${game.title}! Come hang out.`
         }]);
 
@@ -442,8 +482,9 @@ async function createSession(rom, game) {
         const container = document.getElementById('live-session-container');
         renderActiveSession(container, room, rom, game);
         
-        // 4. Start Heartbeat
+        // 4. Start Heartbeat & Join Chat
         startHeartbeat(rom, room.id);
+        joinChatRoom(rom, room.id);
 
     } catch (err) {
         console.error('Error creating session:', err);
@@ -454,7 +495,6 @@ async function createSession(rom, game) {
 }
 
 function renderActiveSession(container, room, rom, game) {
-    // Stop any existing heartbeat
     if (heartbeatInterval) clearInterval(heartbeatInterval);
 
     container.classList.remove('hidden');
@@ -480,10 +520,23 @@ function renderActiveSession(container, room, rom, game) {
                 <button id="close-stream" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition">Close Stream</button>
             </div>
 
-            <!-- Chat Placeholder (In a real implementation, you'd embed your existing chat module here) -->
-            <div class="p-4 h-64 bg-gray-900/50 flex items-center justify-center text-gray-400">
-                <p>Chat Interface Loaded for Room: ${room.id}</p>
-                <!-- TODO: Inject your existing chat-room-init logic here targeting this room ID -->
+            <!-- REAL CHAT INTERFACE -->
+            <div class="flex flex-col h-96 bg-gray-900/50">
+                <!-- Messages Area -->
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                    <div class="text-center text-gray-500 text-xs my-2">Welcome to the live lobby! Be respectful.</div>
+                    <!-- Messages injected here -->
+                </div>
+                
+                <!-- Input Area -->
+                <div class="p-3 bg-gray-800/80 border-t border-gray-700 flex gap-2">
+                    <input type="text" id="chat-input" 
+                        class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none"
+                        placeholder="Type a message..." autocomplete="off">
+                    <button id="chat-send" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold transition">
+                        Send
+                    </button>
+                </div>
             </div>
 
             <!-- Controls -->
@@ -509,7 +562,6 @@ function renderActiveSession(container, room, rom, game) {
         streamFrame.src = embedUrl;
         streamArea.classList.remove('hidden');
         
-        // Save to DB so others see it
         rom.supabase.from('chat_rooms').update({ stream_url: url }).eq('id', room.id);
     });
 
@@ -519,18 +571,101 @@ function renderActiveSession(container, room, rom, game) {
         rom.supabase.from('chat_rooms').update({ stream_url: null }).eq('id', room.id);
     });
 
-    // Load existing stream if present
     if (room.stream_url) {
         input.value = room.stream_url;
         streamFrame.src = getEmbedUrl(room.stream_url);
         streamArea.classList.remove('hidden');
     }
+
+    // Chat Logic
+    setupChatListeners(rom, room.id);
+}
+
+function joinChatRoom(rom, roomId) {
+    if (chatChannel) rom.supabase.removeChannel(chatChannel);
+
+    chatChannel = rom.supabase.channel(`chat:${roomId}`);
+
+    chatChannel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, payload => {
+            appendMessage(payload.new);
+        })
+        .subscribe();
+}
+
+function setupChatListeners(rom, roomId) {
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send');
+    const messagesContainer = document.getElementById('chat-messages');
+
+    const sendMessage = async () => {
+        const text = input.value.trim();
+        if (!text || !rom.currentUser) return;
+
+        try {
+            await rom.supabase.from('chat_messages').insert([{
+                room_id: roomId,
+                user_id: rom.currentUser.id,
+                username: rom.currentUser.user_metadata?.username || 'Anonymous',
+                message: text
+            }]);
+            input.value = '';
+            // Scroll to bottom
+            setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 50);
+        } catch (err) {
+            console.error('Error sending message:', err);
+        }
+    };
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    // Load recent messages
+    loadRecentMessages(rom, roomId);
+}
+
+async function loadRecentMessages(rom, roomId) {
+    const { data: messages } = await rom.supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+    if (messages) {
+        const container = document.getElementById('chat-messages');
+        if (container) {
+            messages.forEach(msg => appendMessage(msg));
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+}
+
+function appendMessage(msg) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 text-sm';
+    
+    const isMe = msg.user_id === window.rom?.currentUser?.id;
+    
+    div.innerHTML = `
+        <div class="font-bold text-cyan-400 min-w-[80px] truncate">${escapeHtml(msg.username)}</div>
+        <div class="flex-1 break-words ${isMe ? 'text-white' : 'text-gray-300'}">${escapeHtml(msg.message)}</div>
+    `;
+    
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }
 
 function startHeartbeat(rom, roomId) {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     
-    // Ping every 5 minutes
     heartbeatInterval = setInterval(async () => {
         console.log('❤️ Sending heartbeat for room:', roomId);
         await rom.supabase
@@ -567,7 +702,7 @@ function updateMetaTags(game) {
 // ===== SEO: INJECT SCHEMA MARKUP (JSON-LD) =====
 function injectSchemaMarkup(game) {
     const schema = {
-        "@context": "https://schema.org ",
+        "@context": "https://schema.org",
         "@type": "VideoGame",
         "name": game.title,
         "description": game.description,
