@@ -4,7 +4,7 @@ export default async function initLFG(rom) {
     const content = document.getElementById('app-content');
     if (!content) return;
 
-    // 1. Render HTML (Updated for Live Lobbies)
+    // 1. Render HTML
     content.innerHTML = `
         <div class="max-w-7xl mx-auto p-4">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -38,12 +38,12 @@ export default async function initLFG(rom) {
             </div>
         </div>
 
-        <!-- Modal (Responsive & Updated Fields) -->
+        <!-- Modal -->
         <div id="lfg-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-gray-800 rounded-xl border border-gray-600 w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto shadow-2xl">
                 <button id="close-lfg-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl z-10">&times;</button>
                 <h2 class="text-2xl font-bold text-white mb-2">🚀 Start Live Lobby</h2>
-                <p class="text-sm text-gray-400 mb-6">This creates a temporary chat room for 1 hour. Players can join via the game page.</p>
+                <p class="text-sm text-gray-400 mb-6">This will create a temporary chat room for 1 hour. Other players can join instantly via the game page.</p>
                 
                 <form id="lfg-form" class="space-y-4">
                     <div>
@@ -204,34 +204,47 @@ async function handlePostLFG(e, rom) {
         let isNewRoom = false;
 
         // Try to find an existing room linked to this game title
-        // NOTE: This assumes your chat_rooms table has a 'name' column or similar to match against
-        // If you don't have a direct match column, you might need to adjust this query
-        // For now, we assume we create a new room every time if no specific linking exists yet
-        // OR if you added 'name' column: .eq('name', `lobby-${gameTitle}`)
-        const { data: existingRoom } = await rom.supabase
+        // We look for any ephemeral room active in the last hour
+        // NOTE: If you have a specific 'game_id' or 'name' column in chat_rooms, use it here for better matching
+        const { data: existingRooms, error: roomFetchError } = await rom.supabase
             .from('chat_rooms')
             .select('id')
             .eq('is_ephemeral', true)
             .gte('last_activity', oneHourAgo)
             .limit(1); 
 
-        if (existingRoom && existingRoom.length > 0) {
-            roomId = existingRoom[0].id;
+        if (roomFetchError) {
+            console.warn('Could not fetch existing rooms, creating new one:', roomFetchError);
+        } else if (existingRooms && existingRooms.length > 0) {
+            roomId = existingRooms[0].id;
             await rom.supabase.from('chat_rooms').update({ last_activity: new Date().toISOString() }).eq('id', roomId);
             console.log('✅ Joined existing active lobby:', roomId);
-        } else {
-            // Create New Room
+        } 
+
+        // If no room found or error occurred, create a new one
+        if (!roomId) {
             const roomName = `lobby-${gameTitle}-${Date.now()}`;
-            const { data: newRoom, error: roomError } = await rom.supabase.from('chat_rooms').insert([{
+            
+            // CRITICAL FIX: Precise destructuring syntax
+            const insertResponse = await rom.supabase.from('chat_rooms').insert([{
                 name: roomName,
                 description: `Live lobby for ${gameTitle}`,
                 is_public: true,
                 is_ephemeral: true,
                 last_activity: new Date().toISOString()
-            ]).select().single();
+            ]).select();
 
-            if (roomError) throw roomError;
-            roomId = newRoom.id;
+            if (insertResponse.error) {
+                throw insertResponse.error;
+            }
+            
+            // Ensure we have data before accessing
+            if (!insertResponse.data || insertResponse.data.length === 0) {
+                throw new Error('No data returned from room creation');
+            }
+
+            const newRoomData = insertResponse.data[0];
+            roomId = newRoomData.id;
             isNewRoom = true;
             console.log('🆕 Created new lobby:', roomId);
         }
@@ -248,7 +261,7 @@ async function handlePostLFG(e, rom) {
             description: description,
             status: 'open',
             chat_room_id: roomId,
-            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 Hour Expiry
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
         }]);
 
         if (lfgError) throw lfgError;
