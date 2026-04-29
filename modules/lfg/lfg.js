@@ -4,7 +4,7 @@ export default async function initLFG(rom) {
     const content = document.getElementById('app-content');
     if (!content) return;
 
-    // 1. Render HTML (Using the structure from your HTML file for consistency)
+    // 1. Render HTML
     content.innerHTML = `
         <div class="max-w-6xl mx-auto p-4">
             <div class="flex justify-between items-center mb-8">
@@ -107,19 +107,25 @@ export default async function initLFG(rom) {
 
     // 2. Initialize Logic
     if (rom.currentUser) {
-        document.getElementById('btn-new-lfg').addEventListener('click', openPostModal);
-        document.getElementById('close-lfg-modal').addEventListener('click', closePostModal);
+        const btn = document.getElementById('btn-new-lfg');
+        if(btn) btn.addEventListener('click', openPostModal);
+        
+        const closeBtn = document.getElementById('close-lfg-modal');
+        if(closeBtn) closeBtn.addEventListener('click', closePostModal);
         
         const form = document.getElementById('lfg-form');
-        form.addEventListener('submit', (e) => handlePostLFG(e, rom));
+        if(form) form.addEventListener('submit', (e) => handlePostLFG(e, rom));
 
         // Load game suggestions for autocomplete
         await loadGameSuggestions(rom);
     }
 
     // Setup Filters
-    document.getElementById('filter-search').addEventListener('input', () => renderLFGList(rom));
-    document.getElementById('filter-region').addEventListener('change', () => renderLFGList(rom));
+    const searchInput = document.getElementById('filter-search');
+    const regionFilter = document.getElementById('filter-region');
+    
+    if(searchInput) searchInput.addEventListener('input', () => renderLFGList(rom));
+    if(regionFilter) regionFilter.addEventListener('change', () => renderLFGList(rom));
 
     // Initial Load
     await renderLFGList(rom);
@@ -135,7 +141,8 @@ window.openPostModal = function() {
 window.closePostModal = function() {
     const modal = document.getElementById('lfg-modal');
     if (modal) modal.classList.add('hidden');
-    document.getElementById('lfg-form').reset();
+    const form = document.getElementById('lfg-form');
+    if(form) form.reset();
 };
 
 async function loadGameSuggestions(rom) {
@@ -143,12 +150,11 @@ async function loadGameSuggestions(rom) {
     if (!datalist) return;
 
     try {
-        // Fetch all games (or limit to popular ones if DB is huge)
         const { data, error } = await rom.supabase
             .from('games')
             .select('title')
             .order('title', { ascending: true })
-            .limit(100); // Limit to 100 for performance, adjust as needed
+            .limit(100);
 
         if (error) throw error;
 
@@ -159,7 +165,6 @@ async function loadGameSuggestions(rom) {
         }
     } catch (err) {
         console.error('Error loading game suggestions:', err);
-        // Fallback or silent fail
     }
 }
 
@@ -184,10 +189,14 @@ async function handlePostLFG(e, rom) {
     btn.textContent = 'Posting...';
 
     try {
+        // Get username from profiles table or fallback to email
+        const username = rom.currentUser.user_metadata?.username || rom.currentUser.email.split('@')[0];
+        const avatarUrl = rom.currentUser.user_metadata?.avatar_url || null;
+
         const { error } = await rom.supabase.from('lfg_posts').insert([{
             user_id: rom.currentUser.id,
-            username: rom.currentUser.user_metadata?.username || rom.currentUser.email.split('@')[0],
-            avatar_url: rom.currentUser.user_metadata?.avatar_url || null,
+            posted_username: username, // Fixed column name
+            avatar_url: avatarUrl,
             game_title: game,
             platform: platform,
             region: region,
@@ -226,25 +235,31 @@ window.acceptLFG = async function(postId, hostId, rom) {
     if (!confirm('Accept this match request? The host will be notified.')) return;
 
     try {
+        const accepterUsername = rom.currentUser.user_metadata?.username || rom.currentUser.email.split('@')[0];
+
         // Update Post
         const { error: updateError } = await rom.supabase
             .from('lfg_posts')
             .update({ 
                 status: 'full', 
                 accepted_by: rom.currentUser.id,
-                accepted_username: rom.currentUser.user_metadata?.username || rom.currentUser.email.split('@')[0]
+                accepted_username: accepterUsername
             })
             .eq('id', postId);
 
         if (updateError) throw updateError;
 
         // Create Alert
+        // We fetch the game title again to be safe in the message
+        const { data: postData } = await rom.supabase.from('lfg_posts').select('game_title').eq('id', postId).single();
+        const gameTitle = postData ? postData.game_title : 'a game';
+
         const { error: alertError } = await rom.supabase.from('alerts').insert([{
             user_id: hostId,
             type: 'lfg_accepted',
             title: 'LFG Request Accepted!',
-            message: `Your LFG post for ${escapeHtml(document.getElementById(`game-title-${postId}`)?.textContent || 'a game')} was accepted!`,
-            link: '#/lfg',
+            message: `Your LFG post for ${escapeHtml(gameTitle)} was accepted by ${accepterUsername}!`,
+            link_url: '#/lfg',
             is_read: false
         }]);
 
@@ -276,11 +291,11 @@ async function renderLFGList(rom) {
         if (error) throw error;
 
         // Apply Filters
-        const searchVal = document.getElementById('filter-search').value.toLowerCase();
-        const regionVal = document.getElementById('filter-region').value;
+        const searchVal = document.getElementById('filter-search')?.value.toLowerCase() || '';
+        const regionVal = document.getElementById('filter-region')?.value || '';
 
         let filtered = data || [];
-        if (searchVal) filtered = filtered.filter(p => p.game_title.toLowerCase().includes(searchVal));
+        if (searchVal) filtered = filtered.filter(p => p.game_title && p.game_title.toLowerCase().includes(searchVal));
         if (regionVal) filtered = filtered.filter(p => p.region === regionVal);
 
         if (filtered.length === 0) {
@@ -289,20 +304,26 @@ async function renderLFGList(rom) {
         }
 
         container.innerHTML = filtered.map(post => {
-            const dateObj = new Date(post.scheduled_time);
-            const dateStr = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            // Handle potential null scheduled_time
+            let dateStr = 'TBD';
+            let timeStr = '';
+            if (post.scheduled_time) {
+                const dateObj = new Date(post.scheduled_time);
+                dateStr = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            }
             
-            // Use real avatar or fallback
-            const avatarUrl = post.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.username)}&background=06b6d4&color=fff`;
+            // Use posted_username from schema
+            const displayName = post.posted_username || 'Anonymous';
+            const avatarUrl = post.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff`;
 
             return `
                 <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-lg flex flex-col h-full">
                     <div class="flex items-start gap-3 mb-3">
-                        <img src="${avatarUrl}" alt="${post.username}" class="w-10 h-10 rounded-full border border-cyan-500">
+                        <img src="${avatarUrl}" alt="${displayName}" class="w-10 h-10 rounded-full border border-cyan-500">
                         <div class="flex-1">
                             <h3 id="game-title-${post.id}" class="text-lg font-bold text-white leading-tight">${escapeHtml(post.game_title)}</h3>
-                            <div class="text-xs text-gray-400 mt-1">Posted by ${escapeHtml(post.username)}</div>
+                            <div class="text-xs text-gray-400 mt-1">Posted by ${escapeHtml(displayName)}</div>
                         </div>
                     </div>
                     
@@ -313,7 +334,7 @@ async function renderLFGList(rom) {
 
                     <div class="bg-gray-900/50 p-3 rounded mb-4 flex-1">
                         <div class="text-cyan-400 text-sm font-bold mb-1 flex items-center gap-2">
-                            <span>🕒</span> ${dateStr} @ ${timeStr} <span class="text-gray-500 font-normal">(${post.timezone})</span>
+                            <span>🕒</span> ${dateStr} ${timeStr ? '@ ' + timeStr : ''} <span class="text-gray-500 font-normal">(${post.timezone || 'UTC'})</span>
                         </div>
                         ${post.description ? `<p class="text-gray-400 text-sm line-clamp-3">${escapeHtml(post.description)}</p>` : ''}
                     </div>
