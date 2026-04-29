@@ -97,7 +97,59 @@ async function initializeApp() {
         showError('App Initialization Error', error.message);
     }
 }
+async function updateNotificationUI() {
+    const container = document.getElementById('nav-notification-container');
+    const badge = document.getElementById('notif-badge');
+    const dropdown = document.getElementById('notif-dropdown');
+    const list = document.getElementById('notif-list');
+    const user = window.rom?.currentUser;
 
+    if (!user || !container) {
+        if(container) container.classList.add('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+
+    // 1. Load Count
+    const { fetchUnreadCount } = await import('./lib/notifications.js');
+    const count = await fetchUnreadCount(user.id);
+    
+    if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+
+    // 2. Handle Dropdown Toggle
+    const btn = document.getElementById('btn-notifications');
+    btn.onclick = async (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+        if (!dropdown.classList.contains('hidden')) {
+            // Load recent items when opened
+            const { fetchRecentAlerts, renderNotificationItem } = await import('./lib/notifications.js');
+            const alerts = await fetchRecentAlerts(user.id);
+            list.innerHTML = alerts.length ? alerts.map(renderNotificationItem).join('') : '<div class="p-4 text-center text-gray-500 text-sm">No notifications</div>';
+        }
+    };
+
+    // 3. Mark All Read
+    const markBtn = document.getElementById('mark-read-btn');
+    markBtn.onclick = async (e) => {
+        e.preventDefault();
+        const { markAllAsRead } = await import('./lib/notifications.js');
+        await markAllAsRead(user.id);
+        dropdown.classList.add('hidden');
+        updateNotificationUI(); // Refresh badge
+    };
+
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) dropdown.classList.add('hidden');
+    });
+}
 // Handle hash changes
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
