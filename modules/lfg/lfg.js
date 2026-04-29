@@ -266,6 +266,8 @@ window.acceptLFG = async function(postId, hostId, rom) {
         if (alertError) throw alertError;
 
         alert('✅ You joined the match! Host notified.');
+        if (window.updateNotificationUI) window.updateNotificationUI(); 
+        
         await renderLFGList(rom);
 
     } catch (err) {
