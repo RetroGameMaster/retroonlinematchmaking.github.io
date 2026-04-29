@@ -34,7 +34,7 @@ export default async function initLFG(rom) {
 
             <!-- Grid -->
             <div id="lfg-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="col-span-full text-center py-12 text-gray-500">Scanning for active lobies...</div>
+                <div class="col-span-full text-center py-12 text-gray-500">Scanning for active lobbies...</div>
             </div>
         </div>
 
@@ -205,25 +205,21 @@ async function handlePostLFG(e, rom) {
 
         // Try to find an existing room linked to this game title
         // Note: This assumes your chat_rooms table has a 'name' column or similar to match against
-        // If you don't have a direct match column, you might need to adjust this query
-        const { data: existingRoom } = await rom.supabase
+        const { data: existingRooms } = await rom.supabase
             .from('chat_rooms')
             .select('id')
             .eq('is_ephemeral', true)
             .gte('last_activity', oneHourAgo)
-            // Adjust this filter based on your actual schema (e.g., if you store game_id or name)
-            // For now, we assume we create a new room every time if no specific linking exists yet
-            // OR if you added 'name' column: .eq('name', `lobby-${gameTitle}`)
             .limit(1); 
 
-        if (existingRoom && existingRoom.length > 0) {
-            roomId = existingRoom[0].id;
+        if (existingRooms && existingRooms.length > 0) {
+            roomId = existingRooms[0].id;
             await rom.supabase.from('chat_rooms').update({ last_activity: new Date().toISOString() }).eq('id', roomId);
             console.log('✅ Joined existing active lobby:', roomId);
         } else {
             // Create New Room
             const roomName = `lobby-${gameTitle}-${Date.now()}`;
-            const { data: newRoom, error: roomError } = await rom.supabase.from('chat_rooms').insert([{
+            const { data: newRoomData, error: roomError } = await rom.supabase.from('chat_rooms').insert([{
                 name: roomName,
                 description: `Live lobby for ${gameTitle}`,
                 is_public: true,
@@ -232,7 +228,7 @@ async function handlePostLFG(e, rom) {
             ]).select().single();
 
             if (roomError) throw roomError;
-            roomId = newRoom.id;
+            roomId = newRoomData.id;
             isNewRoom = true;
             console.log('🆕 Created new lobby:', roomId);
         }
@@ -350,7 +346,7 @@ async function renderLFGList(rom) {
         if (regionVal) filtered = filtered.filter(p => p.region === regionVal);
 
         if (filtered.length === 0) {
-            container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500">No active lobies found.<br><span class="text-sm">Be the first to start one!</span></div>`;
+            container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500">No active lobbies found.<br><span class="text-sm">Be the first to start one!</span></div>`;
             return;
         }
 
@@ -448,7 +444,7 @@ async function renderLFGList(rom) {
         }).join('');
 
     } catch (err) {
-        console.error('Error loading lobies:', err);
+        console.error('Error loading lobbies:', err);
         container.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Error: ${err.message}</div>`;
     }
 }
