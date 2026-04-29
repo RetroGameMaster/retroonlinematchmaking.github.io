@@ -84,7 +84,7 @@ export default async function initTournaments(rom) {
 
                     <div>
                         <label class="block text-sm text-gray-300 mb-1">Registration Link (External) *</label>
-                        <input type="url" id="tourney-link" required placeholder="https://challonge.com/..., https://discord.gg/..." 
+                        <input type="url" id="tourney-link" required placeholder="https://challonge.com/... , https://discord.gg/... " 
                             class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white break-all">
                         <p class="text-xs text-gray-500 mt-1">Users will see this link before clicking register.</p>
                     </div>
@@ -259,7 +259,7 @@ async function renderList(rom) {
             // Organizer Info
             const orgName = t.organizer_username || 'Unknown';
             const orgAvatar = t.organizer_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(orgName)}&background=8b5cf6&color=fff`;
-            const orgLink = `#/profile/${orgName}`; // Assuming username works for profile link
+            const orgLink = `#/profile/${orgName}`; 
 
             // Status Badge Color
             let statusColor = 'bg-gray-700 text-gray-300';
@@ -332,4 +332,32 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ============================================================================
+// HELPER FOR HOME PAGE TICKER
+// ============================================================================
+
+/**
+ * Fetches recent open tournaments formatted for the scrolling marquee
+ */
+export async function getRecentTournamentsForTicker(rom) {
+    try {
+        const { data, error } = await rom.supabase
+            .from('tournaments')
+            .select('title, game_title, organizer_username')
+            .eq('status', 'open')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (error || !data) return [];
+
+        return data.map(tour => ({
+            text: `🏆 <strong>${tour.organizer_username}</strong> is hosting a <strong>${tour.game_title}</strong> tournament: ${tour.title}`,
+            link: '#/tournaments'
+        }));
+    } catch (err) {
+        console.error('Error fetching tournaments for ticker:', err);
+        return [];
+    }
 }
