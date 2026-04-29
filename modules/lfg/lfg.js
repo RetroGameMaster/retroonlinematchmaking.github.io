@@ -1,64 +1,64 @@
 export default async function initLFG(rom) {
-    console.log('📡 Initializing Live LFG Module...');
+    console.log('📅 Initializing LFG Module...');
     
     const content = document.getElementById('app-content');
     if (!content) return;
 
     // 1. Render HTML
     content.innerHTML = `
-        <div class="max-w-7xl mx-auto p-4">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div class="max-w-6xl mx-auto p-4">
+            <div class="flex justify-between items-center mb-8">
                 <div>
-                    <h1 class="text-4xl font-bold text-white mb-2">📡 Live Lobbies</h1>
-                    <p class="text-gray-400">Start a live session or join an existing lobby. Rooms expire after 1 hour of inactivity.</p>
+                    <h1 class="text-4xl font-bold text-white mb-2">📡 Live LFG Board</h1>
+                    <p class="text-gray-400">Find players for retro games. Posts expire after 24h.</p>
                 </div>
                 ${rom.currentUser ? 
-                    '<button id="btn-new-lfg" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition flex items-center gap-2 whitespace-nowrap"><span>➕</span> Start Live Lobby</button>' : 
-                    '<button onclick="window.location.hash=\'#/auth\'" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-bold">Log In to Start</button>'
+                    '<button id="btn-new-lfg" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition flex items-center gap-2"><span>➕</span> Post Request</button>' : 
+                    '<button onclick="window.location.hash=\'#/auth\'" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-bold">Log In to Post</button>'
                 }
             </div>
 
             <!-- Filters -->
             <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-6 flex flex-wrap gap-4">
-                <select id="filter-region" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 min-w-[150px]">
+                <select id="filter-region" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2">
                     <option value="">All Regions</option>
                     <option value="NA">North America</option>
                     <option value="EU">Europe</option>
                     <option value="SA">South America</option>
                     <option value="ASIA">Asia</option>
                     <option value="OCE">Oceania</option>
-                    <option value="Global">Global</option>
                 </select>
-                <input type="text" id="filter-search" placeholder="Search games..." class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 flex-1 min-w-[200px]">
+                <input type="text" id="filter-search" placeholder="Search games..." class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 flex-1">
             </div>
 
             <!-- Grid -->
             <div id="lfg-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="col-span-full text-center py-12 text-gray-500">Scanning for active lobbies...</div>
+                <div class="col-span-full text-center py-12 text-gray-500">Loading posts...</div>
             </div>
         </div>
 
         <!-- Modal -->
         <div id="lfg-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="bg-gray-800 rounded-xl border border-gray-600 w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto shadow-2xl">
-                <button id="close-lfg-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl z-10">&times;</button>
-                <h2 class="text-2xl font-bold text-white mb-2">🚀 Start Live Lobby</h2>
-                <p class="text-sm text-gray-400 mb-6">This will create a temporary chat room for 1 hour. Other players can join instantly via the game page.</p>
+            <div class="bg-gray-800 rounded-xl border border-gray-600 w-full max-w-md p-6 relative">
+                <button id="close-lfg-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
+                <h2 class="text-2xl font-bold text-white mb-4">📡 Post LFG Request</h2>
                 
                 <form id="lfg-form" class="space-y-4">
                     <div>
                         <label class="block text-sm text-gray-300 mb-1">Game Title *</label>
                         <input type="text" id="lfg-game" list="game-suggestions" required 
-                            class="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition"
-                            placeholder="Type to search games...">
-                        <datalist id="game-suggestions"></datalist>
-                        <p class="text-xs text-gray-500 mt-1">Select from the list to link to the correct game page.</p>
+                            class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 focus:outline-none"
+                            placeholder="Start typing to search games...">
+                        <datalist id="game-suggestions">
+                            <!-- Options injected by JS -->
+                        </datalist>
+                        <p class="text-xs text-gray-500 mt-1">Select a game from the dropdown.</p>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm text-gray-300 mb-1">Region *</label>
-                            <select id="lfg-region" required class="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:border-cyan-500 focus:outline-none">
+                            <select id="lfg-region" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
                                 <option value="NA">North America</option>
                                 <option value="EU">Europe</option>
                                 <option value="SA">South America</option>
@@ -69,14 +69,14 @@ export default async function initLFG(rom) {
                         </div>
                         <div>
                             <label class="block text-sm text-gray-300 mb-1">Platform</label>
-                            <input type="text" id="lfg-platform" placeholder="e.g. PS2, Dreamcast" class="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:border-cyan-500 focus:outline-none">
+                            <input type="text" id="lfg-platform" placeholder="e.g. PS2, Dreamcast" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm text-gray-300 mb-1">Players Needed *</label>
-                            <select id="lfg-players" required class="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:border-cyan-500 focus:outline-none">
+                            <select id="lfg-players" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
                                 <option value="1">1 More Player</option>
                                 <option value="2">2 More Players</option>
                                 <option value="3">3 More Players</option>
@@ -84,21 +84,33 @@ export default async function initLFG(rom) {
                                 <option value="Full">Full Lobby (Spectate/Wait)</option>
                             </select>
                         </div>
-                        <div class="flex items-end pb-2">
-                             <div class="text-xs text-cyan-400 bg-cyan-900/20 p-2 rounded border border-cyan-800/50">
-                                ⏱️ Room expires in 1 hour
-                             </div>
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-1">Time Zone *</label>
+                            <select id="lfg-timezone" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
+                                <option value="UTC">UTC</option>
+                                <option value="America/New_York">Eastern (ET)</option>
+                                <option value="America/Chicago">Central (CT)</option>
+                                <option value="America/Denver">Mountain (MT)</option>
+                                <option value="America/Los_Angeles">Pacific (PT)</option>
+                                <option value="Europe/London">London (GMT)</option>
+                                <option value="Europe/Paris">Paris (CET)</option>
+                                <option value="Asia/Tokyo">Tokyo (JST)</option>
+                                <option value="Australia/Sydney">Sydney (AEST)</option>
+                            </select>
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-300 mb-1">Description / Rules</label>
-                        <textarea id="lfg-desc" rows="3" placeholder="e.g. Ranked matches only, mic required..." class="w-full bg-gray-900 border border-gray-600 rounded p-2.5 text-white focus:border-cyan-500 focus:outline-none"></textarea>
+                        <label class="block text-sm text-gray-300 mb-1">Scheduled Time *</label>
+                        <input type="datetime-local" id="lfg-time" required class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white">
                     </div>
 
-                    <button type="submit" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-lg shadow-lg transform transition hover:-translate-y-0.5">
-                        🚀 Launch Lobby
-                    </button>
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Description / Rules</label>
+                        <textarea id="lfg-desc" rows="3" placeholder="e.g. Need 1 more player..." class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg">Post Request</button>
                 </form>
             </div>
         </div>
@@ -115,6 +127,7 @@ export default async function initLFG(rom) {
         const form = document.getElementById('lfg-form');
         if(form) form.addEventListener('submit', (e) => handlePostLFG(e, rom));
 
+        // Load game suggestions for autocomplete
         await loadGameSuggestions(rom);
     }
 
@@ -125,6 +138,7 @@ export default async function initLFG(rom) {
     if(searchInput) searchInput.addEventListener('input', () => renderLFGList(rom));
     if(regionFilter) regionFilter.addEventListener('change', () => renderLFGList(rom));
 
+    // Initial Load
     await renderLFGList(rom);
 }
 
@@ -132,10 +146,7 @@ export default async function initLFG(rom) {
 
 window.openPostModal = function() {
     const modal = document.getElementById('lfg-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        setTimeout(() => document.getElementById('lfg-game')?.focus(), 100);
-    }
+    if (modal) modal.classList.remove('hidden');
 };
 
 window.closePostModal = function() {
@@ -154,7 +165,7 @@ async function loadGameSuggestions(rom) {
             .from('games')
             .select('title')
             .order('title', { ascending: true })
-            .limit(200);
+            .limit(100);
 
         if (error) throw error;
 
@@ -171,13 +182,15 @@ async function loadGameSuggestions(rom) {
 async function handlePostLFG(e, rom) {
     e.preventDefault();
 
-    const gameTitle = document.getElementById('lfg-game').value.trim();
+    const game = document.getElementById('lfg-game').value.trim();
     const region = document.getElementById('lfg-region').value;
     const platform = document.getElementById('lfg-platform').value.trim();
     const playersNeeded = document.getElementById('lfg-players').value;
+    const scheduledTime = document.getElementById('lfg-time').value;
+    const timezone = document.getElementById('lfg-timezone').value;
     const description = document.getElementById('lfg-desc').value.trim();
 
-    if (!gameTitle || !region || !playersNeeded) {
+    if (!game || !region || !scheduledTime || !timezone || !playersNeeded) {
         alert('Please fill in all required fields.');
         return;
     }
@@ -185,10 +198,10 @@ async function handlePostLFG(e, rom) {
     const btn = document.querySelector('#lfg-form button[type="submit"]');
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Launching Lobby...';
+    btn.textContent = 'Posting...';
 
     try {
-        // 1. Get User Profile
+        // Fetch fresh profile data
         const { data: profile } = await rom.supabase
             .from('profiles')
             .select('username, avatar_url')
@@ -198,64 +211,29 @@ async function handlePostLFG(e, rom) {
         const username = profile?.username || rom.currentUser.email.split('@')[0];
         const avatarUrl = profile?.avatar_url;
 
-        // 2. Check for Existing Active Ephemeral Room for this Game
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        let roomId = null;
-        let isNewRoom = false;
-
-        // Try to find an existing room linked to this game title
-        // Note: This assumes your chat_rooms table has a 'name' column or similar to match against
-        const { data: existingRooms } = await rom.supabase
-            .from('chat_rooms')
-            .select('id')
-            .eq('is_ephemeral', true)
-            .gte('last_activity', oneHourAgo)
-            .limit(1); 
-
-        if (existingRooms && existingRooms.length > 0) {
-            roomId = existingRooms[0].id;
-            await rom.supabase.from('chat_rooms').update({ last_activity: new Date().toISOString() }).eq('id', roomId);
-            console.log('✅ Joined existing active lobby:', roomId);
-        } else {
-            // Create New Room
-            const roomName = `lobby-${gameTitle}-${Date.now()}`;
-            const { data: newRoomData, error: roomError } = await rom.supabase.from('chat_rooms').insert([{
-                name: roomName,
-                description: `Live lobby for ${gameTitle}`,
-                is_public: true,
-                is_ephemeral: true,
-                last_activity: new Date().toISOString()
-            ]).select().single();
-
-            if (roomError) throw roomError;
-            roomId = newRoomData.id;
-            isNewRoom = true;
-            console.log('🆕 Created new lobby:', roomId);
-        }
-
-        // 3. Create the LFG Post linked to this Room
-        const { error: lfgError } = await rom.supabase.from('lfg_posts').insert([{
+        const { error } = await rom.supabase.from('lfg_posts').insert([{
             user_id: rom.currentUser.id,
             posted_username: username,
             avatar_url: avatarUrl,
-            game_title: gameTitle,
+            game_title: game,
             platform: platform,
             region: region,
             players_needed: playersNeeded,
+            scheduled_time: new Date(scheduledTime).toISOString(),
+            timezone: timezone,
             description: description,
             status: 'open',
-            chat_room_id: roomId,
-            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         }]);
 
-        if (lfgError) throw lfgError;
+        if (error) throw error;
 
-        alert(`✅ Lobby Live! Chat room ${isNewRoom ? 'created' : 'extended'} for 1 hour.`);
+        alert('✅ LFG Post created!');
         window.closePostModal();
         await renderLFGList(rom);
 
     } catch (err) {
-        console.error('Error launching lobby:', err);
+        console.error('Error posting LFG:', err);
         alert('❌ Error: ' + err.message);
     } finally {
         btn.disabled = false;
@@ -273,12 +251,12 @@ window.acceptLFG = async function(postId, hostId, rom) {
         return;
     }
 
-    if (!confirm('Join this lobby? This will extend the room timer by 1 hour.')) return;
+    if (!confirm('Accept this match request? The host will be notified.')) return;
 
     try {
         const accepterUsername = rom.currentUser.user_metadata?.username || rom.currentUser.email.split('@')[0];
 
-        // 1. Update Post
+        // Update Post
         const { error: updateError } = await rom.supabase
             .from('lfg_posts')
             .update({ 
@@ -290,34 +268,28 @@ window.acceptLFG = async function(postId, hostId, rom) {
 
         if (updateError) throw updateError;
 
-        // 2. Extend Room Heartbeat
-        const { data: postData } = await rom.supabase.from('lfg_posts').select('chat_room_id, game_title').eq('id', postId).single();
-        
-        if (postData?.chat_room_id) {
-            await rom.supabase.from('chat_rooms')
-                .update({ last_activity: new Date().toISOString() })
-                .eq('id', postData.chat_room_id);
-        }
+        // Create Alert
+        const { data: postData } = await rom.supabase.from('lfg_posts').select('game_title').eq('id', postId).single();
+        const gameTitle = postData ? postData.game_title : 'a game';
 
-        // 3. Create Alert
-        const gameTitle = postData?.game_title || 'a game';
-
-        await rom.supabase.from('alerts').insert([{
+        const { error: alertError } = await rom.supabase.from('alerts').insert([{
             user_id: hostId,
             type: 'lfg_accepted',
-            title: 'Lobby Joined!',
-            message: `${accepterUsername} joined your ${gameTitle} lobby!`,
+            title: 'LFG Request Accepted!',
+            message: `Your LFG post for ${escapeHtml(gameTitle)} was accepted by ${accepterUsername}!`,
             link_url: '#/lfg',
             is_read: false
         }]);
 
-        alert('✅ You joined the lobby! Host notified.');
+        if (alertError) throw alertError;
+
+        alert('✅ You joined the match! Host notified.');
         if (window.updateNotificationUI) window.updateNotificationUI(); 
         
         await renderLFGList(rom);
 
     } catch (err) {
-        console.error('Error joining lobby:', err);
+        console.error('Error accepting LFG:', err);
         alert('❌ Error: ' + err.message);
     }
 };
@@ -326,7 +298,7 @@ async function renderLFGList(rom) {
     const container = document.getElementById('lfg-grid');
     if (!container) return;
 
-    container.innerHTML = `<div class="col-span-full text-center py-8 text-gray-400">Scanning active sessions...</div>`;
+    container.innerHTML = `<div class="col-span-full text-center py-8 text-gray-400">Loading...</div>`;
 
     try {
         const { data, error } = await rom.supabase
@@ -338,6 +310,7 @@ async function renderLFGList(rom) {
 
         if (error) throw error;
 
+        // Apply Filters
         const searchVal = document.getElementById('filter-search')?.value.toLowerCase() || '';
         const regionVal = document.getElementById('filter-region')?.value || '';
 
@@ -346,10 +319,11 @@ async function renderLFGList(rom) {
         if (regionVal) filtered = filtered.filter(p => p.region === regionVal);
 
         if (filtered.length === 0) {
-            container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500">No active lobbies found.<br><span class="text-sm">Be the first to start one!</span></div>`;
+            container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500">No active posts found.</div>`;
             return;
         }
 
+        // Pre-fetch Game Data (Cover Art & Slug)
         const gameTitles = [...new Set(filtered.map(p => p.game_title))];
         const { data: gamesData } = await rom.supabase
             .from('games')
@@ -357,43 +331,41 @@ async function renderLFGList(rom) {
             .in('title', gameTitles);
         
         const gameMap = {};
-        if(gamesData) gamesData.forEach(g => gameMap[g.title] = g);
+        if(gamesData) {
+            gamesData.forEach(g => gameMap[g.title] = g);
+        }
 
         container.innerHTML = filtered.map(post => {
-            const gameData = gameMap[post.game_title] || {};
-            const coverUrl = gameData.cover_image_url || 'https://via.placeholder.com/150x200/1f2937/06b6d4?text=No+Cover';
-            const gameSlug = gameData.slug;
-            const gameLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(post.game_title)}`;
+            // Date Logic
+            let dateStr = 'TBD';
+            let timeStr = '';
+            if (post.scheduled_time) {
+                const dateObj = new Date(post.scheduled_time);
+                dateStr = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            }
             
+            // User Data
             const displayName = post.posted_username || 'Anonymous';
             const avatarUrl = post.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=06b6d4&color=fff`;
             const profileLink = `#/profile/${displayName}`;
 
-            const expiresAt = new Date(post.expires_at);
-            const now = new Date();
-            const diffMs = expiresAt - now;
-            const minsLeft = Math.floor(diffMs / 60000);
-            let timeBadge = '';
-            
-            if (minsLeft > 60) {
-                timeBadge = `<span class="text-green-400 text-xs font-bold">● Live</span>`;
-            } else if (minsLeft > 15) {
-                timeBadge = `<span class="text-yellow-400 text-xs font-bold">● Ending Soon</span>`;
-            } else {
-                timeBadge = `<span class="text-red-400 text-xs font-bold">● Expiring</span>`;
-            }
+            // Game Data
+            const gameData = gameMap[post.game_title] || {};
+            const coverUrl = gameData.cover_image_url || 'https://via.placeholder.com/150x200/1f2937/06b6d4?text=No+Cover';
+            const gameSlug = gameData.slug;
+            const gameLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(post.game_title)}`;
 
-            let playersBadgeColor = 'bg-blue-900/50 text-blue-300 border-blue-700';
+            // Players Badge Color
+            let playersBadgeColor = 'bg-blue-900 text-blue-300 border-blue-700';
             if(post.players_needed === 'Full') playersBadgeColor = 'bg-gray-700 text-gray-300 border-gray-500';
-            if(post.players_needed === '1') playersBadgeColor = 'bg-green-900/50 text-green-300 border-green-700';
+            if(post.players_needed === '1') playersBadgeColor = 'bg-green-900 text-green-300 border-green-700';
 
             return `
-                <div class="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition shadow-lg flex flex-col h-full group relative">
-                    <div class="absolute top-2 right-2 z-10 bg-gray-900/90 backdrop-blur px-2 py-1 rounded border border-gray-600 shadow-sm">
-                        ${timeBadge}
-                    </div>
-
+                <div class="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition shadow-lg flex flex-col h-full group">
+                    <!-- Top Section: Image + Info -->
                     <div class="flex p-4 gap-4 border-b border-gray-700 bg-gray-800/50">
+                        <!-- Game Cover -->
                         <a href="${gameLink}" class="flex-shrink-0 relative group/img">
                             <img src="${coverUrl}" alt="${post.game_title}" class="w-20 h-24 object-cover rounded border border-gray-600 group-hover/img:border-cyan-400 transition shadow-md">
                             <div class="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition rounded flex items-center justify-center">
@@ -401,12 +373,14 @@ async function renderLFGList(rom) {
                             </div>
                         </a>
                         
+                        <!-- User & Game Title -->
                         <div class="flex-1 min-w-0 flex flex-col justify-between">
                             <div>
                                 <a href="${gameLink}" class="text-lg font-bold text-white leading-tight hover:text-cyan-400 transition block truncate" title="View Game Page">
                                     ${escapeHtml(post.game_title)}
                                 </a>
                                 <div class="flex items-center gap-2 mt-2">
+                                    <!-- Clickable Avatar -->
                                     <a href="${profileLink}" class="flex items-center gap-2 hover:opacity-80 transition">
                                         <img src="${avatarUrl}" alt="${displayName}" class="w-6 h-6 rounded-full border border-cyan-500 object-cover">
                                         <span class="text-xs text-gray-400 hover:text-cyan-300 transition">${escapeHtml(displayName)}</span>
@@ -414,28 +388,33 @@ async function renderLFGList(rom) {
                                 </div>
                             </div>
                             
+                            <!-- Badges -->
                             <div class="flex flex-wrap gap-2 mt-2">
                                 <span class="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-600">${post.platform || 'Any'}</span>
                                 <span class="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-600">${post.region}</span>
                                 <span class="${playersBadgeColor} px-2 py-0.5 rounded text-[10px] font-bold border">
-                                    ${post.players_needed === 'Full' ? 'Full' : (post.players_needed == '1' ? 'Needs 1' : `Needs ${post.players_needed}`)}
+                                    ${post.players_needed === 'Full' ? 'Full Lobby' : (post.players_needed == '1' ? 'Needs 1' : `Needs ${post.players_needed}`)}
                                 </span>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Bottom Section: Details & Action -->
                     <div class="p-4 flex-1 flex flex-col justify-between bg-gray-800">
                         <div class="mb-4">
-                            ${post.description ? `<p class="text-gray-400 text-sm line-clamp-2">${escapeHtml(post.description)}</p>` : '<p class="text-gray-500 text-sm italic">No specific rules.</p>'}
+                            <div class="text-cyan-400 text-xs font-bold mb-2 flex items-center gap-2">
+                                <span>🕒</span> ${dateStr} ${timeStr ? '@ ' + timeStr : ''} <span class="text-gray-500 font-normal">(${post.timezone || 'UTC'})</span>
+                            </div>
+                            ${post.description ? `<p class="text-gray-400 text-sm line-clamp-3">${escapeHtml(post.description)}</p>` : ''}
                         </div>
 
                         ${rom.currentUser && rom.currentUser.id !== post.user_id ? `
-                            <button onclick="acceptLFG('${post.id}', '${post.user_id}', window.rom)" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded font-bold text-sm transition shadow-lg transform active:scale-95 flex items-center justify-center gap-2">
-                                <span>🎮</span> Join Lobby
+                            <button onclick="acceptLFG('${post.id}', '${post.user_id}', window.rom)" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded font-bold text-sm transition shadow-lg transform active:scale-95">
+                                Accept Match
                             </button>
                         ` : `
                             <div class="w-full text-center text-gray-500 text-sm py-2 bg-gray-900/30 rounded border border-gray-700">
-                                ${rom.currentUser?.id === post.user_id ? 'Your Active Lobby' : 'Log in to join'}
+                                ${rom.currentUser?.id === post.user_id ? 'Your Post' : 'Log in to join'}
                             </div>
                         `}
                     </div>
@@ -444,11 +423,14 @@ async function renderLFGList(rom) {
         }).join('');
 
     } catch (err) {
-        console.error('Error loading lobbies:', err);
+        console.error('Error loading LFG:', err);
         container.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Error: ${err.message}</div>`;
     }
 }
 
+/**
+ * Helper function for the Home Page Live Ticker
+ */
 export async function getRecentLFGForTicker(rom) {
     try {
         const { data, error } = await rom.supabase
@@ -462,7 +444,7 @@ export async function getRecentLFGForTicker(rom) {
         if (error || !data) return [];
 
         return data.map(post => ({
-            text: `📡 <strong>${post.posted_username}</strong> started a live lobby for <strong>${post.game_title}</strong> (${post.region})`,
+            text: `${post.posted_username} is looking for players in ${post.game_title} (${post.region})`,
             link: '#/lfg'
         }));
     } catch (err) {
