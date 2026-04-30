@@ -911,7 +911,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       if (error) alert('Error: ' + error.message);
       else { input.value = ''; loadWallComments(profile.id); }
     });
-  }
 
   // --- 4. Load Friends List ---
   loadFriends(profile.id);
