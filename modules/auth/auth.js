@@ -4,19 +4,17 @@ export async function initModule() {
     console.log('🔐 Auth module initialized');
     
     // 1. CRITICAL: Check for Auth Response (Verification/Reset) FIRST
-    await handleAuthResponse();
+    const handled = await handleAuthResponse();
 
     // 2. Initialize forms only after checking response
     initAuthForms();
     
-    // 3. Show login form by default (unless we just verified)
+    // 3. Show appropriate form
     // If handleAuthResponse didn't redirect or show a success state, show login
-    if (!document.getElementById('auth-message')?.classList.contains('hidden')) {
-        // Message is already shown by handler, maybe switch to login tab for them to proceed
-        showAuthForm('login');
-    } else {
+    if (!handled) {
         showAuthForm('login');
     }
+    // If handled (e.g., recovery), the handler already switched the view
 }
 
 async function handleAuthResponse() {
@@ -24,7 +22,7 @@ async function handleAuthResponse() {
     const hash = window.location.hash;
     
     if (!hash || !hash.includes('access_token')) {
-        return; // No auth response detected
+        return false; // No auth response detected
     }
 
     console.log('🔍 Detected auth response in URL:', hash);
@@ -56,9 +54,8 @@ async function handleAuthResponse() {
                 // Clean URL but stay on auth page to let them reset
                 window.history.replaceState(null, '', window.location.pathname + '#/auth');
                 
-                // Switch to a "New Password" form if you have one, or just alert them
-                // For now, we'll just show the message and let them login or we can build a reset form
-                alert("Please go to the 'Forgot Password' section again, or check your email for the specific reset link which should auto-fill.");
+                // Switch to the "New Password" form
+                showResetPasswordForm();
                 return true;
             }
         }
@@ -86,10 +83,13 @@ function initAuthForms() {
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
     document.getElementById('register-form')?.addEventListener('submit', handleRegister);
     document.getElementById('forgot-form')?.addEventListener('submit', handleForgotPassword);
+    
+    // NEW: Reset Password Form Submission
+    document.getElementById('reset-password-form')?.addEventListener('submit', handleResetPassword);
 }
 
 function showAuthForm(formType) {
-    // Update tabs
+    // Update tabs (Login, Register, Forgot)
     ['login', 'register', 'forgot'].forEach(type => {
         const tab = document.getElementById(`show-${type}`);
         const form = document.getElementById(`${type}-form`);
@@ -110,12 +110,38 @@ function showAuthForm(formType) {
             form.classList.toggle('hidden', type !== formType);
         }
     });
+
+    // Handle the special Reset Form (no tab for this one)
+    const resetForm = document.getElementById('reset-password-form');
+    if (resetForm) {
+        if (formType === 'reset') {
+            resetForm.classList.remove('hidden');
+            // Hide tabs when showing reset form
+            ['login', 'register', 'forgot'].forEach(t => {
+                const tTab = document.getElementById(`show-${t}`);
+                if(tTab) tTab.classList.add('hidden');
+            });
+        } else {
+            resetForm.classList.add('hidden');
+            // Show tabs again
+            ['login', 'register', 'forgot'].forEach(t => {
+                const tTab = document.getElementById(`show-${t}`);
+                if(tTab) tTab.classList.remove('hidden');
+            });
+        }
+    }
     
-    // Don't clear message if we just verified email
+    // Don't clear message if we just verified email or reset password
     const msgDiv = document.getElementById('auth-message');
-    if (!msgDiv?.innerText.includes('confirmed')) {
+    const safeText = msgDiv?.innerText || '';
+    if (!safeText.includes('confirmed') && !safeText.includes('reset')) {
         clearMessage();
     }
+}
+
+// NEW: Helper to show Reset Form specifically
+function showResetPasswordForm() {
+    showAuthForm('reset');
 }
 
 async function handleLogin(e) {
@@ -164,13 +190,14 @@ async function handleRegister(e) {
     e.preventDefault();
     
     const email = document.getElementById('register-email').value;
-    const username = document.getElementById('register-username').value.trim(); // NEW: Get Username
+    const usernameInput = document.getElementById('register-username');
+    const username = usernameInput ? usernameInput.value.trim() : email.split('@')[0]; // Fallback if input missing
     const password = document.getElementById('register-password').value;
     const confirmPassword = document.getElementById('register-confirm').value;
     const submitBtn = document.getElementById('register-submit');
     
     // Validate
-    if (!email || !password || !confirmPassword || !username) {
+    if (!email || !password || !confirmPassword) {
         showMessage('Please fill in all fields', 'error');
         return;
     }
@@ -247,7 +274,7 @@ async function handleRegister(e) {
                 'success'
             );
             
-            // Show resend button logic (same as before)
+            // Show resend button logic
             setTimeout(() => {
                 const messageDiv = document.getElementById('auth-message');
                 if (messageDiv) {
@@ -312,6 +339,48 @@ async function handleForgotPassword(e) {
     }
 }
 
+// NEW: Handle Actual Password Reset
+async function handleResetPassword(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById('reset-new-password').value;
+    const confirmPassword = document.getElementById('reset-confirm-password').value;
+    const submitBtn = document.getElementById('reset-submit');
+
+    if (!newPassword || !confirmPassword) {
+        showMessage('Please fill in all fields', 'error');
+        return;
+    }
+    if (newPassword.length < 6) {
+        showMessage('Password must be at least 6 characters', 'error');
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        showMessage('Passwords do not match', 'error');
+        return;
+    }
+
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Updating...';
+
+    try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+
+        showMessage('✅ Password updated! Logging you in...', 'success');
+        setTimeout(async () => {
+            await updateAuthUI();
+            window.location.hash = '#/home';
+        }, 2000);
+    } catch (error) {
+        console.error('Update error:', error);
+        showMessage(error.message || 'Failed to update password.', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
 function showMessage(text, type = 'info') {
     const messageDiv = document.getElementById('auth-message');
     if (!messageDiv) return;
@@ -334,3 +403,23 @@ function clearMessage() {
         messageDiv.textContent = '';
     }
 }
+
+// Resend confirmation email
+window.resendConfirmation = async function(email) {
+    try {
+        const { error } = await supabase.auth.resend({
+            type: 'signup',
+            email: email,
+            options: {
+                emailRedirectTo: `${window.location.origin}#/auth?verified=true`
+            }
+        });
+        
+        if (error) throw error;
+        
+        showMessage('Confirmation email resent! Check your inbox.', 'success');
+    } catch (error) {
+        console.error('Resend error:', error);
+        showMessage('Failed to resend confirmation email.', 'error');
+    }
+};
