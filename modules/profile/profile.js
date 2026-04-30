@@ -869,6 +869,42 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       const input = document.getElementById('new-wall-comment');
       const content = input.value.trim();
       if (!content) return;
+       const submitBtn = postBtn;
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Posting...';
+    submitBtn.disabled = true;
+
+    try {
+      // 1. Get current user's username
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', currentUser.id)
+        .single();
+
+      const username = userProfile?.username || currentUser.email.split('@')[0];
+
+      // 2. Insert with username included
+      const { error } = await supabase.from('profile_comments').insert({
+        target_user_id: profile.id,
+        author_id: currentUser.id,
+        author_username: username, // <--- Added this
+        content: content,
+        created_at: new Date().toISOString()
+      });
+
+      if (error) throw error;
+
+      input.value = '';
+      loadWallComments(profile.id); // Refresh wall
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    }
+  });
+}
       const { error } = await supabase.from('profile_comments').insert({
         target_user_id: profile.id, author_id: currentUser.id, content: content
       });
