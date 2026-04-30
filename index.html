@@ -969,31 +969,45 @@
                 Loading auth...
             </div>
         </div>
-<!-- Notification Bell (Only visible if logged in) -->
-<div id="nav-notification-container" class="relative hidden">
-    <button id="btn-notifications" class="relative p-2 text-gray-400 hover:text-white transition focus:outline-none">
-        <!-- Bell Icon -->
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-        </svg>
-        <!-- Red Badge -->
-        <span id="notif-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full hidden">0</span>
-    </button>
+<!-- Notification Bell Container -->
+<div class="relative mr-4 flex items-center">
+  <!-- Bell Button -->
+  <button id="nav-notif-bell" class="text-gray-400 hover:text-white transition relative focus:outline-none p-2 rounded-full hover:bg-gray-800">
+    <!-- Bell Icon SVG -->
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+    </svg>
+    
+    <!-- Red Badge (Hidden by default via JS) -->
+    <span id="notif-badge" class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden shadow-lg animate-pulse border-2 border-gray-900">
+      0
+    </span>
+  </button>
 
-    <!-- Dropdown Menu -->
-    <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 overflow-hidden">
-        <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-900">
-            <h3 class="text-sm font-bold text-white">Notifications</h3>
-            <button id="mark-read-btn" class="text-xs text-cyan-400 hover:text-cyan-300">Mark all read</button>
-        </div>
-        <div id="notif-list" class="max-h-96 overflow-y-auto">
-            <!-- Items injected here -->
-            <div class="p-4 text-center text-gray-500 text-sm">No new notifications</div>
-        </div>
-        <div class="p-2 border-t border-gray-700 text-center">
-            <a href="#/profile" class="text-xs text-gray-400 hover:text-white">View All Activity</a>
-        </div>
+  <!-- Dropdown Preview Panel (Hidden by default) -->
+  <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl z-50 overflow-hidden transform origin-top-right transition-all">
+    <!-- Header -->
+    <div class="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-900">
+      <h3 class="font-bold text-white text-sm">Notifications</h3>
+      <button id="mark-all-read" class="text-xs text-cyan-400 hover:text-cyan-300 font-medium">Mark all read</button>
     </div>
+    
+    <!-- List Container -->
+    <div id="notif-list" class="max-h-96 overflow-y-auto custom-scrollbar">
+      <!-- Items will be injected here by JS -->
+      <div class="p-4 text-center text-gray-500 text-sm">
+        <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500 mb-2"></div>
+        <p>Loading...</p>
+      </div>
+    </div>
+    
+    <!-- Footer Link -->
+    <div class="p-2 border-t border-gray-700 text-center bg-gray-900/50">
+      <a href="#/messages" class="block w-full text-xs text-cyan-400 hover:text-cyan-300 font-bold py-1">
+        View All Direct Messages →
+      </a>
+    </div>
+  </div>
 </div>
         <!-- Random Quote Bar -->
         <div id="retro-quote-bar" class="hidden mt-4 bg-black/40 border border-cyan-900/50 rounded-lg p-3 flex items-center gap-4 backdrop-blur-sm transition-all duration-500 opacity-0 transform translate-y-2">
