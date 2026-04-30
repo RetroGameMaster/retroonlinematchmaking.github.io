@@ -879,7 +879,33 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
   // --- 4. Load Friends List ---
   loadFriends(profile.id);
+  // --- 4.5. Direct Message Button Logic ---
+  if (!isOwnProfile && currentUser) {
+    const dmContainer = document.getElementById('dm-action-container');
+    
+    // If the container doesn't exist in HTML yet, create it dynamically above the friend button
+    // Or better, let's inject it right before the friend-action-container in the DOM
+    const friendContainer = document.getElementById('friend-action-container');
+    
+    if (friendContainer && !document.getElementById('btn-send-dm')) {
+      const dmBtn = document.createElement('button');
+      dmBtn.id = 'btn-send-dm';
+      dmBtn.className = 'w-full bg-cyan-700 hover:bg-cyan-600 text-white py-2 rounded text-sm font-bold transition-colors mb-2 flex items-center justify-center gap-2 shadow-lg';
+      dmBtn.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+        </svg>
+        Send Message
+      `;
+      
+      dmBtn.addEventListener('click', () => {
+        window.location.hash = `#/messages?user=${profile.id}`;
+      });
 
+      // Insert before the friend button
+      friendContainer.parentNode.insertBefore(dmBtn, friendContainer);
+    }
+  }
   // --- 5. Smart Friend Button Logic ---
   if (!isOwnProfile && currentUser) {
     loadFriendButtonState(profile.id, currentUser.id);
