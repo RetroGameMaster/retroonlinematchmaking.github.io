@@ -509,6 +509,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
 
   // 3. Prepare Avatar Styles (Rest of original logic)
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
+  const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
   container.innerHTML = `
     <div class="ra-profile-wrapper">
