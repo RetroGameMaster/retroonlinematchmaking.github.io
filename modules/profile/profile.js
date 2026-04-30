@@ -622,6 +622,11 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           <div class="ra-modal-content">
             <h2>Edit Profile Settings</h2>
             <form id="profile-form">
+             <label>Username (Unique)</label>
+  <div class="flex flex-col gap-1 mb-4">
+    <input type="text" name="username" class="ra-input w-full" value="${profile.username || ''}" placeholder="Enter new username">
+    <span class="text-xs text-yellow-500">⚠️ Changing this updates your profile URL and all chat history instantly.</span>
+  </div>
               <label>Bio</label>
               <textarea name="bio" class="ra-input" rows="3">${profile.bio || ''}</textarea>
 
@@ -709,12 +714,14 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       const bgType = formData.get('bg_type');
       let finalAvatarUrl = profile.avatar_url;
 
+      // 1. Handle Avatar Upload
       const avatarInput = document.getElementById('avatar_file_input');
       if (avatarInput && avatarInput.files.length > 0) {
         const file = avatarInput.files[0];
         const fileName = `${profile.id}/avatar_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
         const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.textContent = 'Uploading...';
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Uploading Avatar...';
         submitBtn.disabled = true;
 
         try {
@@ -724,18 +731,20 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
           finalAvatarUrl = publicUrl;
         } catch (err) {
           alert('Avatar upload failed: ' + err.message);
-          submitBtn.textContent = 'Save Changes';
+          submitBtn.textContent = originalText;
           submitBtn.disabled = false;
           return;
         }
       }
 
+      // 2. Handle Background Upload
       const fileInput = document.getElementById('bg_file_input');
       if (bgType === 'image' && fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
         const fileName = `${profile.id}/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
         const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.textContent = 'Uploading...';
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Uploading Background...';
         submitBtn.disabled = true;
 
         try {
@@ -744,25 +753,51 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
           const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
           finalBgValue = publicUrl;
         } catch (err) {
-          alert('Upload failed: ' + err.message);
-          submitBtn.textContent = 'Save Changes';
+          alert('Background upload failed: ' + err.message);
+          submitBtn.textContent = originalText;
           submitBtn.disabled = false;
           return;
         }
       }
 
+      // 3. Prepare Updates Object (INCLUDING USERNAME)
       const updates = {
         bio: formData.get('bio'),
         signature_text: formData.get('signature_text'),
         signature_custom_css: formData.get('signature_custom_css'),
         avatar_custom_css: formData.get('avatar_custom_css'),
         avatar_url: finalAvatarUrl,
+        username: formData.get('username')?.trim(), // Capture new username
         custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
       };
 
-      const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
-      if (error) alert('Error: ' + error.message);
-      else { alert('Saved!'); location.reload(); }
+      // 4. Send to Database
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.textContent = 'Saving...';
+      submitBtn.disabled = true;
+
+      try {
+        const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
+        
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('That username is already taken! Please choose another.');
+          }
+          throw error;
+        }
+
+        alert('✅ Profile updated successfully! Your new username is active everywhere.');
+        
+        // Close Modal & Reload to reflect changes in UI and Live Activity
+        document.getElementById('edit-modal').style.display = 'none';
+        location.reload(); 
+
+      } catch (err) {
+        console.error('Update error:', err);
+        alert('❌ Error: ' + err.message);
+        submitBtn.textContent = 'Save Changes';
+        submitBtn.disabled = false;
+      }
     });
   }
 
