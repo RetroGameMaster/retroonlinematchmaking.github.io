@@ -1,72 +1,73 @@
 import { supabase, updateAuthUI } from '../../lib/supabase.js';
 
-export async function initModule(rom) {
+export async function initModule() {
     console.log('🔐 Auth module initialized');
     
-    // 1. Check for Email Verification or Password Reset Links FIRST
-    // This runs before rendering forms to catch redirects from email
-    await handleEmailLinks(rom);
+    // 1. CRITICAL: Check for Auth Response (Verification/Reset) FIRST
+    await handleAuthResponse();
 
-    // 2. Initialize forms only if we aren't in the middle of a redirect flow
+    // 2. Initialize forms only after checking response
     initAuthForms();
     
-    // 3. Show login form by default (unless handleEmailLinks changed the view)
+    // 3. Show login form by default (unless we just verified)
+    // If handleAuthResponse didn't redirect or show a success state, show login
     if (!document.getElementById('auth-message')?.classList.contains('hidden')) {
-        // If we showed a success message, keep forms hidden or show login after delay
-        setTimeout(() => showAuthForm('login'), 2000);
+        // Message is already shown by handler, maybe switch to login tab for them to proceed
+        showAuthForm('login');
     } else {
         showAuthForm('login');
     }
 }
 
-// --- NEW: Handle Email Verification & Recovery Links ---
-async function handleEmailLinks(rom) {
+async function handleAuthResponse() {
+    // Supabase puts tokens in the hash fragment: #/auth?access_token=...&type=email
     const hash = window.location.hash;
-    const queryParams = new URLSearchParams(hash.split('?')[1]);
+    
+    if (!hash || !hash.includes('access_token')) {
+        return; // No auth response detected
+    }
 
-    // Check for Supabase Auth Tokens (type=signup, type=recovery, etc.)
-    const type = queryParams.get('type');
-    const token = queryParams.get('token');
+    console.log('🔍 Detected auth response in URL:', hash);
 
-    if (type && token) {
-        console.log(`🔗 Detected auth link: ${type}`);
-        
-        try {
-            // Exchange the token for a session
-            const { data, error } = await supabase.auth.getSession();
-            
-            // If session isn't active yet, Supabase usually handles the exchange automatically 
-            // upon page load if the URL contains the params, but we force a check here.
-            // Actually, the best way is to call getUser which validates the token in the URL
-            const { data: userData, error: userError } = await supabase.auth.getUser();
+    try {
+        // This tells Supabase to parse the hash and set the session
+        const { data, error } = await supabase.auth.getSession();
 
-            if (userError) throw userError;
+        if (error) throw error;
 
-            if (type === 'signup' || type === 'email') {
-                showMessage('✅ Email verified successfully! Logging you in...', 'success');
-                await updateAuthUI();
+        if (data.session) {
+            // Determine what happened based on the 'type' param in the hash
+            const urlParams = new URLSearchParams(hash.split('?')[1]);
+            const type = urlParams.get('type');
+
+            if (type === 'email') {
+                showMessage('✅ Email confirmed successfully! You are now logged in.', 'success');
                 // Clean URL
-                window.history.replaceState({}, document.title, window.location.pathname + '#/auth');
+                window.history.replaceState(null, '', window.location.pathname + '#/auth');
+                
+                // Redirect to home after short delay
                 setTimeout(() => {
                     window.location.hash = '#/home';
                 }, 2000);
-            } else if (type === 'recovery') {
-                showMessage('🔑 Reset link verified! Please enter your new password below.', 'success');
-                // Switch to a "New Password" form logic if you had one, 
-                // but for now we just let them know they are logged in and can reset in profile
-                // OR redirect to a specific reset view if you have one.
-                // For now, we'll just log them in so they can change it in settings.
-                await updateAuthUI();
-                window.history.replaceState({}, document.title, window.location.pathname + '#/auth');
-                setTimeout(() => {
-                    window.location.hash = '#/profile'; // Send to profile to update pass
-                }, 2000);
+                return true;
+            } 
+            else if (type === 'recovery') {
+                showMessage('✅ Password reset link verified. Please enter your new password below.', 'success');
+                // Clean URL but stay on auth page to let them reset
+                window.history.replaceState(null, '', window.location.pathname + '#/auth');
+                
+                // Switch to a "New Password" form if you have one, or just alert them
+                // For now, we'll just show the message and let them login or we can build a reset form
+                alert("Please go to the 'Forgot Password' section again, or check your email for the specific reset link which should auto-fill.");
+                return true;
             }
-        } catch (error) {
-            console.error('Error processing auth link:', error);
-            showMessage('❌ Link expired or invalid. Please try signing up again.', 'error');
         }
+    } catch (error) {
+        console.error('Error processing auth response:', error);
+        showMessage('❌ Verification failed: ' + error.message, 'error');
     }
+    
+    return false;
 }
 
 function initAuthForms() {
@@ -110,9 +111,9 @@ function showAuthForm(formType) {
         }
     });
     
-    // Don't clear message if we are in a success state from URL handling
+    // Don't clear message if we just verified email
     const msgDiv = document.getElementById('auth-message');
-    if (!msgDiv?.textContent.includes('✅') && !msgDiv?.textContent.includes('🔑')) {
+    if (!msgDiv?.innerText.includes('confirmed')) {
         clearMessage();
     }
 }
@@ -137,12 +138,7 @@ async function handleLogin(e) {
     try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         
-        if (error) {
-            if (error.message.includes('Email not confirmed')) {
-                throw new Error('Please verify your email first. Check your inbox!');
-            }
-            throw error;
-        }
+        if (error) throw error;
         
         showMessage(`Welcome back!`, 'success');
         setTimeout(async () => {
@@ -151,7 +147,12 @@ async function handleLogin(e) {
         }, 1000);
         
     } catch (error) {
-        showMessage(error.message || 'Login failed.', 'error');
+        console.error('Login error:', error);
+        if (error.message.includes('Email not confirmed')) {
+            showMessage('Please verify your email first. Check your inbox!', 'error');
+        } else {
+            showMessage(error.message || 'Login failed.', 'error');
+        }
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -192,23 +193,25 @@ async function handleRegister(e) {
             email,
             password,
             options: {
-                data: { username: email.split('@')[0] },
-                // Ensure this matches your Site URL in Supabase Dashboard
-                emailRedirectTo: `${window.location.origin}/#/auth` 
+                emailRedirectTo: `${window.location.origin}/#/auth`, // Crucial: Point to auth page
+                data: {
+                    username: email.split('@')[0]
+                }
             }
         });
         
         if (error) throw error;
         
-        if (data.user?.identities?.length === 0) {
-            throw new Error('Email already registered. Try logging in.');
+        if (data.user && !data.session) {
+            showMessage('✅ Account created! Please check your email to verify your address.', 'success');
+            // Show resend button logic here if needed
+        } else {
+            showMessage('✅ Account created and verified! Redirecting...', 'success');
+            setTimeout(() => window.location.hash = '#/home', 1500);
         }
         
-        showMessage('✅ Account created! Please check your email to verify.', 'success');
-        
-        // Optional: Show resend button logic here if needed
-        
     } catch (error) {
+        console.error('Registration error:', error);
         showMessage(error.message || 'Registration failed.', 'error');
     } finally {
         submitBtn.disabled = false;
@@ -235,16 +238,17 @@ async function handleForgotPassword(e) {
     
     try {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/#/auth`, // Crucial: Must point back to auth module
+            redirectTo: `${window.location.origin}/#/auth`, // Crucial: Point to auth page
         });
         
         if (error) throw error;
         
-        showMessage('📧 Reset link sent! Check your email.', 'success');
+        showMessage('✅ Reset link sent! Check your email.', 'success');
         setTimeout(() => showAuthForm('login'), 3000);
         
     } catch (error) {
-        showMessage(error.message || 'Failed to send reset email.', 'error');
+        console.error('Reset error:', error);
+        showMessage(error.message || 'Failed to send reset link.', 'error');
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -261,10 +265,9 @@ function showMessage(text, type = 'info') {
     
     if (type === 'error') { bgColor = 'bg-red-900'; textColor = 'text-red-200'; }
     else if (type === 'success') { bgColor = 'bg-green-900'; textColor = 'text-green-200'; }
-    else if (type === 'info') { bgColor = 'bg-cyan-900'; textColor = 'text-cyan-200'; }
     
     messageDiv.innerHTML = text;
-    messageDiv.className = `${bgColor} ${textColor} p-3 rounded text-center`;
+    messageDiv.className = `${bgColor} ${textColor} p-3 rounded text-center transition-all duration-300`;
     messageDiv.classList.remove('hidden');
 }
 
@@ -275,8 +278,3 @@ function clearMessage() {
         messageDiv.textContent = '';
     }
 }
-
-// Helper for template if needed
-window.resendConfirmation = async function(email) {
-    // Implementation similar to before
-};
