@@ -84,6 +84,7 @@ async function initializeApp() {
                 console.log('❌ No user logged in');
             }
             await updateAuthUI();
+            await initNotifications();
             renderRandomQuote();
         });
         
