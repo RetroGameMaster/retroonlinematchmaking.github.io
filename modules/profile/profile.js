@@ -497,9 +497,9 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     left: '0',
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)', // Darker overlay for profiles
+    backgroundColor: 'rgba(0, 0, 0, 0.45)', // Darker overlay for profiles
     zIndex: '-1',
-    backdropFilter: 'blur(8px)', // Nice blur effect
+    backdropFilter: 'blur(4px)', // Nice blur effect
     pointerEvents: 'none'
   });
 
