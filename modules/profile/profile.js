@@ -449,9 +449,66 @@ function getGameLink(game) {
 // ============================================================================
 
 function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin, currentUser) {
-  const bgStyle = getBackgroundCSS(profile.custom_background);
+  // 1. CLEANUP: Remove any existing dynamic backgrounds from previous pages
+  document.getElementById('dynamic-profile-bg')?.remove();
+  document.getElementById('profile-bg-overlay')?.remove();
+
+  // 2. INJECT FULL-SCREEN BACKGROUND (Like Game Detail Page)
+  const bg = profile.custom_background;
+  let bgValue = '#111827'; // Default
+  let bgType = 'color';
+  
+  if (bg && bg.type) {
+    bgType = bg.type;
+    bgValue = bg.value;
+  }
+
+  const bgEl = document.createElement('div');
+  bgEl.id = 'dynamic-profile-bg';
+  
+  // Apply styles based on type
+  if (bgType === 'image') {
+    bgEl.style.backgroundImage = `url('${bgValue}')`;
+    bgEl.style.backgroundSize = 'cover';
+    bgEl.style.backgroundPosition = 'center';
+  } else if (bgType === 'gradient') {
+    bgEl.style.backgroundImage = bgValue;
+  } else {
+    bgEl.style.backgroundColor = bgValue;
+  }
+
+  // Fixed positioning to cover entire viewport
+  Object.assign(bgEl.style, {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    zIndex: '-2',
+    backgroundAttachment: 'fixed'
+  });
+
+  // Create Overlay for readability
+  const overlayEl = document.createElement('div');
+  overlayEl.id = 'profile-bg-overlay';
+  Object.assign(overlayEl.style, {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)', // Darker overlay for profiles
+    zIndex: '-1',
+    backdropFilter: 'blur(8px)', // Nice blur effect
+    pointerEvents: 'none'
+  });
+
+  // Inject into DOM
+  document.body.insertBefore(bgEl, document.body.firstChild);
+  document.body.insertBefore(overlayEl, document.body.firstChild);
+
+  // 3. Prepare Avatar Styles (Rest of original logic)
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
-  const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
   container.innerHTML = `
     <div class="ra-profile-wrapper" style="${bgStyle}">
@@ -1256,3 +1313,17 @@ async function loadFriends(userId) {
     </div>`;
   }).join('');
 }
+// ============================================================================
+// CLEANUP ON NAVIGATION
+// ============================================================================
+// Remove dynamic background when leaving the profile module
+const observer = new MutationObserver(() => {
+  const hash = window.location.hash;
+  // If hash changes to anything other than a profile, remove bg
+  if (!hash.startsWith('#/profile/')) {
+    document.getElementById('dynamic-profile-bg')?.remove();
+    document.getElementById('profile-bg-overlay')?.remove();
+  }
+});
+
+observer.observe(document.body, { attributes: false, childList: true, subtree: false });
