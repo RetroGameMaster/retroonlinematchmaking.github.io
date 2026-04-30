@@ -164,12 +164,24 @@ async function handleRegister(e) {
     e.preventDefault();
     
     const email = document.getElementById('register-email').value;
+    const username = document.getElementById('register-username').value.trim(); // NEW: Get Username
     const password = document.getElementById('register-password').value;
     const confirmPassword = document.getElementById('register-confirm').value;
     const submitBtn = document.getElementById('register-submit');
     
-    if (!email || !password || !confirmPassword) {
+    // Validate
+    if (!email || !password || !confirmPassword || !username) {
         showMessage('Please fill in all fields', 'error');
+        return;
+    }
+
+    // Username Validation
+    if (username.length < 3) {
+        showMessage('Username must be at least 3 characters', 'error');
+        return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        showMessage('Username can only contain letters, numbers, and underscores', 'error');
         return;
     }
     
@@ -183,36 +195,80 @@ async function handleRegister(e) {
         return;
     }
     
+    // Disable button and show loading
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Creating account...';
     submitBtn.classList.add('opacity-50');
     
     try {
+        console.log('Attempting registration for:', email, 'with username:', username);
+        
+        // Register with Supabase - PASSING USERNAME IN METADATA
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                emailRedirectTo: `${window.location.origin}/#/auth`, // Crucial: Point to auth page
                 data: {
-                    username: email.split('@')[0]
-                }
+                    username: username, // Send chosen username
+                    created_at: new Date().toISOString()
+                },
+                emailRedirectTo: `${window.location.origin}#/auth?verified=true`
             }
         });
         
-        if (error) throw error;
+        if (error) {
+            if (error.message.includes('already registered')) {
+                throw new Error('Email already registered. Try logging in instead.');
+            } else if (error.message.includes('weak password')) {
+                throw new Error('Password is too weak.');
+            } else {
+                throw error;
+            }
+        }
         
-        if (data.user && !data.session) {
-            showMessage('✅ Account created! Please check your email to verify your address.', 'success');
-            // Show resend button logic here if needed
+        // Check if email confirmation is required
+        if (data.user?.identities?.length === 0) {
+            showMessage('Email already registered. Try logging in instead.', 'error');
+            return;
+        }
+        
+        console.log('Registration successful:', data);
+        
+        if (data.user?.confirmed_at) {
+            showMessage('Account created successfully! Redirecting...', 'success');
+            setTimeout(async () => {
+                await updateAuthUI();
+                window.location.hash = '#/home';
+            }, 2000);
         } else {
-            showMessage('✅ Account created and verified! Redirecting...', 'success');
-            setTimeout(() => window.location.hash = '#/home', 1500);
+            showMessage(
+                'Account created! Please check your email to confirm your address.',
+                'success'
+            );
+            
+            // Show resend button logic (same as before)
+            setTimeout(() => {
+                const messageDiv = document.getElementById('auth-message');
+                if (messageDiv) {
+                    messageDiv.innerHTML += `
+                        <button onclick="resendConfirmation('${email}')" 
+                                class="mt-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white py-1 px-3 rounded">
+                            Resend confirmation email
+                        </button>
+                    `;
+                }
+            }, 500);
         }
         
     } catch (error) {
         console.error('Registration error:', error);
-        showMessage(error.message || 'Registration failed.', 'error');
+        // Handle Unique Username Error from DB Trigger if it bubbles up
+        if (error.code === '23505' || error.message.includes('unique')) {
+            showMessage('That username is already taken! Please try another.', 'error');
+        } else {
+            showMessage(error.message || 'Registration failed.', 'error');
+        }
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
