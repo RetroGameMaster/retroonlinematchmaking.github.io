@@ -518,7 +518,7 @@ function renderActiveSession(container, room, rom, game) {
                     <h3 class="text-lg font-bold text-white">Live Lobby: ${escapeHtml(game.title)}</h3>
                 </div>
                 <div class="text-xs text-cyan-300 font-mono">
-                    Room expires in 1h of silence
+                    Welcome to the live chat lobby. Enjoy and have fun! 
                 </div>
             </div>
 
