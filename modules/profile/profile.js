@@ -511,7 +511,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
 
   container.innerHTML = `
-    <div class="ra-profile-wrapper" style="${bgStyle}">
+    <div class="ra-profile-wrapper">
       <div class="ra-header">
         <div class="ra-header-overlay"></div>
         <div class="ra-header-content">
