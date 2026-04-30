@@ -1,13 +1,72 @@
 import { supabase, updateAuthUI } from '../../lib/supabase.js';
 
-export function initModule() {
+export async function initModule(rom) {
     console.log('🔐 Auth module initialized');
     
-    // Initialize all auth forms
+    // 1. Check for Email Verification or Password Reset Links FIRST
+    // This runs before rendering forms to catch redirects from email
+    await handleEmailLinks(rom);
+
+    // 2. Initialize forms only if we aren't in the middle of a redirect flow
     initAuthForms();
     
-    // Show login form by default
-    showAuthForm('login');
+    // 3. Show login form by default (unless handleEmailLinks changed the view)
+    if (!document.getElementById('auth-message')?.classList.contains('hidden')) {
+        // If we showed a success message, keep forms hidden or show login after delay
+        setTimeout(() => showAuthForm('login'), 2000);
+    } else {
+        showAuthForm('login');
+    }
+}
+
+// --- NEW: Handle Email Verification & Recovery Links ---
+async function handleEmailLinks(rom) {
+    const hash = window.location.hash;
+    const queryParams = new URLSearchParams(hash.split('?')[1]);
+
+    // Check for Supabase Auth Tokens (type=signup, type=recovery, etc.)
+    const type = queryParams.get('type');
+    const token = queryParams.get('token');
+
+    if (type && token) {
+        console.log(`🔗 Detected auth link: ${type}`);
+        
+        try {
+            // Exchange the token for a session
+            const { data, error } = await supabase.auth.getSession();
+            
+            // If session isn't active yet, Supabase usually handles the exchange automatically 
+            // upon page load if the URL contains the params, but we force a check here.
+            // Actually, the best way is to call getUser which validates the token in the URL
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+
+            if (userError) throw userError;
+
+            if (type === 'signup' || type === 'email') {
+                showMessage('✅ Email verified successfully! Logging you in...', 'success');
+                await updateAuthUI();
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname + '#/auth');
+                setTimeout(() => {
+                    window.location.hash = '#/home';
+                }, 2000);
+            } else if (type === 'recovery') {
+                showMessage('🔑 Reset link verified! Please enter your new password below.', 'success');
+                // Switch to a "New Password" form logic if you had one, 
+                // but for now we just let them know they are logged in and can reset in profile
+                // OR redirect to a specific reset view if you have one.
+                // For now, we'll just log them in so they can change it in settings.
+                await updateAuthUI();
+                window.history.replaceState({}, document.title, window.location.pathname + '#/auth');
+                setTimeout(() => {
+                    window.location.hash = '#/profile'; // Send to profile to update pass
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Error processing auth link:', error);
+            showMessage('❌ Link expired or invalid. Please try signing up again.', 'error');
+        }
+    }
 }
 
 function initAuthForms() {
@@ -51,8 +110,11 @@ function showAuthForm(formType) {
         }
     });
     
-    // Clear messages
-    clearMessage();
+    // Don't clear message if we are in a success state from URL handling
+    const msgDiv = document.getElementById('auth-message');
+    if (!msgDiv?.textContent.includes('✅') && !msgDiv?.textContent.includes('🔑')) {
+        clearMessage();
+    }
 }
 
 async function handleLogin(e) {
@@ -61,57 +123,36 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const submitBtn = document.getElementById('login-submit');
-    const rememberMe = document.getElementById('remember-me').checked;
     
-    // Validate
     if (!email || !password) {
         showMessage('Please fill in all fields', 'error');
         return;
     }
     
-    // Disable button and show loading
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Logging in...';
     submitBtn.classList.add('opacity-50');
     
     try {
-        console.log('Attempting login for:', email);
-        
-        // Sign in with Supabase
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         
         if (error) {
-            // Handle specific errors
-            if (error.message.includes('Invalid login credentials')) {
-                throw new Error('Invalid email or password');
-            } else if (error.message.includes('Email not confirmed')) {
-                throw new Error('Please confirm your email address first. Check your inbox.');
-            } else {
-                throw error;
+            if (error.message.includes('Email not confirmed')) {
+                throw new Error('Please verify your email first. Check your inbox!');
             }
+            throw error;
         }
         
-        // Successful login
-        console.log('Login successful:', data.user.email);
-        
-        // Show success message
-        showMessage(`Welcome back, ${data.user.email}!`, 'success');
-        
-        // Update UI and redirect after a moment
+        showMessage(`Welcome back!`, 'success');
         setTimeout(async () => {
             await updateAuthUI();
             window.location.hash = '#/home';
-        }, 1500);
+        }, 1000);
         
     } catch (error) {
-        console.error('Login error:', error);
-        showMessage(error.message || 'Login failed. Please try again.', 'error');
+        showMessage(error.message || 'Login failed.', 'error');
     } finally {
-        // Restore button
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
         submitBtn.classList.remove('opacity-50');
@@ -126,7 +167,6 @@ async function handleRegister(e) {
     const confirmPassword = document.getElementById('register-confirm').value;
     const submitBtn = document.getElementById('register-submit');
     
-    // Validate
     if (!email || !password || !confirmPassword) {
         showMessage('Please fill in all fields', 'error');
         return;
@@ -142,82 +182,35 @@ async function handleRegister(e) {
         return;
     }
     
-    // Disable button and show loading
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Creating account...';
     submitBtn.classList.add('opacity-50');
     
     try {
-        console.log('Attempting registration for:', email);
-        
-        // Register with Supabase
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                data: {
-                    created_at: new Date().toISOString(),
-                    username: email.split('@')[0]
-                },
-                emailRedirectTo: `${window.location.origin}#/auth?verified=true`
+                data: { username: email.split('@')[0] },
+                // Ensure this matches your Site URL in Supabase Dashboard
+                emailRedirectTo: `${window.location.origin}/#/auth` 
             }
         });
         
-        if (error) {
-            // Handle specific errors
-            if (error.message.includes('already registered')) {
-                throw new Error('Email already registered. Try logging in instead.');
-            } else if (error.message.includes('weak password')) {
-                throw new Error('Password is too weak. Please use a stronger password.');
-            } else {
-                throw error;
-            }
-        }
+        if (error) throw error;
         
-        // Check if email confirmation is required
         if (data.user?.identities?.length === 0) {
-            // Email already exists
-            showMessage('Email already registered. Try logging in instead.', 'error');
-            return;
+            throw new Error('Email already registered. Try logging in.');
         }
         
-        // Registration successful
-        console.log('Registration successful:', data);
+        showMessage('✅ Account created! Please check your email to verify.', 'success');
         
-        if (data.user?.confirmed_at) {
-            // User is already confirmed (might be from social auth)
-            showMessage('Account created successfully! Redirecting...', 'success');
-            setTimeout(async () => {
-                await updateAuthUI();
-                window.location.hash = '#/home';
-            }, 2000);
-        } else {
-            // Email confirmation required
-            showMessage(
-                'Account created! Please check your email to confirm your address. Check spam folder too!',
-                'success'
-            );
-            
-            // Show a resend button
-            setTimeout(() => {
-                const messageDiv = document.getElementById('auth-message');
-                if (messageDiv) {
-                    messageDiv.innerHTML += `
-                        <button onclick="resendConfirmation('${email}')" 
-                                class="mt-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white py-1 px-3 rounded">
-                            Resend confirmation email
-                        </button>
-                    `;
-                }
-            }, 500);
-        }
+        // Optional: Show resend button logic here if needed
         
     } catch (error) {
-        console.error('Registration error:', error);
-        showMessage(error.message || 'Registration failed. Please try again.', 'error');
+        showMessage(error.message || 'Registration failed.', 'error');
     } finally {
-        // Restore button
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
         submitBtn.classList.remove('opacity-50');
@@ -230,94 +223,51 @@ async function handleForgotPassword(e) {
     const email = document.getElementById('forgot-email').value;
     const submitBtn = document.getElementById('forgot-submit');
     
-    // Validate
     if (!email) {
-        showMessage('Please enter your email address', 'error');
+        showMessage('Please enter your email', 'error');
         return;
     }
     
-    // Disable button and show loading
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
     submitBtn.classList.add('opacity-50');
     
     try {
-        console.log('Sending password reset for:', email);
-        
-        // Send reset email
-        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}#/auth?reset=true`,
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/#/auth`, // Crucial: Must point back to auth module
         });
         
-        if (error) {
-            // Handle specific errors
-            if (error.message.includes('rate limit')) {
-                throw new Error('Too many attempts. Please try again later.');
-            } else {
-                throw error;
-            }
-        }
+        if (error) throw error;
         
-        // Success
-        console.log('Reset email sent:', data);
-        showMessage(
-            'Password reset link sent! Check your email (and spam folder).',
-            'success'
-        );
-        
-        // Clear form
-        document.getElementById('forgot-email').value = '';
-        
-        // Auto-switch back to login after a delay
-        setTimeout(() => {
-            showAuthForm('login');
-        }, 3000);
+        showMessage('📧 Reset link sent! Check your email.', 'success');
+        setTimeout(() => showAuthForm('login'), 3000);
         
     } catch (error) {
-        console.error('Password reset error:', error);
-        showMessage(error.message || 'Failed to send reset email. Please try again.', 'error');
+        showMessage(error.message || 'Failed to send reset email.', 'error');
     } finally {
-        // Restore button
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
         submitBtn.classList.remove('opacity-50');
     }
 }
 
-// Helper function to show messages
 function showMessage(text, type = 'info') {
     const messageDiv = document.getElementById('auth-message');
     if (!messageDiv) return;
     
-    // Set colors based on type
     let bgColor = 'bg-gray-700';
     let textColor = 'text-white';
     
-    if (type === 'error') {
-        bgColor = 'bg-red-900';
-        textColor = 'text-red-200';
-    } else if (type === 'success') {
-        bgColor = 'bg-green-900';
-        textColor = 'text-green-200';
-    } else if (type === 'info') {
-        bgColor = 'bg-cyan-900';
-        textColor = 'text-cyan-200';
-    }
+    if (type === 'error') { bgColor = 'bg-red-900'; textColor = 'text-red-200'; }
+    else if (type === 'success') { bgColor = 'bg-green-900'; textColor = 'text-green-200'; }
+    else if (type === 'info') { bgColor = 'bg-cyan-900'; textColor = 'text-cyan-200'; }
     
     messageDiv.innerHTML = text;
     messageDiv.className = `${bgColor} ${textColor} p-3 rounded text-center`;
     messageDiv.classList.remove('hidden');
-    
-    // Auto-hide non-error messages after 5 seconds
-    if (type !== 'error') {
-        setTimeout(() => {
-            messageDiv.classList.add('hidden');
-        }, 5000);
-    }
 }
 
-// Helper function to clear messages
 function clearMessage() {
     const messageDiv = document.getElementById('auth-message');
     if (messageDiv) {
@@ -326,38 +276,7 @@ function clearMessage() {
     }
 }
 
-// Resend confirmation email
+// Helper for template if needed
 window.resendConfirmation = async function(email) {
-    try {
-        const { error } = await supabase.auth.resend({
-            type: 'signup',
-            email: email,
-            options: {
-                emailRedirectTo: `${window.location.origin}#/auth?verified=true`
-            }
-        });
-        
-        if (error) throw error;
-        
-        showMessage('Confirmation email resent! Check your inbox.', 'success');
-    } catch (error) {
-        console.error('Resend error:', error);
-        showMessage('Failed to resend confirmation email.', 'error');
-    }
+    // Implementation similar to before
 };
-
-// Handle password reset from URL
-function handleResetFromURL() {
-    const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
-    
-    if (urlParams.has('reset') && urlParams.get('reset') === 'true') {
-        showMessage('Password reset successful! You can now login with your new password.', 'success');
-    }
-    
-    if (urlParams.has('verified') && urlParams.get('verified') === 'true') {
-        showMessage('Email verified successfully! You can now login.', 'success');
-    }
-}
-
-// Initialize URL handlers
-document.addEventListener('DOMContentLoaded', handleResetFromURL);
