@@ -643,7 +643,16 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
               <div class="text-sm text-gray-500 py-2">Loading friends...</div>
             </div>
-            
+            <div id="dm-button-container" class="mt-3">
+      <!-- Button will be injected by JS -->
+      <div class="text-center text-gray-400 text-sm py-2">Checking messaging...</div>
+    </div>
+
+    <div id="friend-action-container" class="mt-3">
+      <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
+    </div>
+  ` : ''}
+</div>
             ${!isOwnProfile ? `
               <div id="friend-action-container" class="mt-3">
                 <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
