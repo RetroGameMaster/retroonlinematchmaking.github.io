@@ -7,7 +7,7 @@
         </div>
         
         <!-- Auth Tabs -->
-        <div class="flex mb-6 rounded-lg overflow-hidden border border-gray-700">
+        <div class="flex mb-6 rounded-lg overflow-hidden border border-gray-700" id="auth-tabs-container">
             <button id="show-login" class="auth-tab auth-tab-active flex-1 py-3 text-white font-semibold">
                 Login
             </button>
@@ -72,17 +72,14 @@
                            class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
                            placeholder="you@example.com" required>
                 </div>
-                <div class="mb-4">
-    <label class="block text-gray-300 text-sm font-bold mb-2" for="register-username">
-        Choose Username
-    </label>
-    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-cyan-500" 
-           id="register-username" 
-           type="text" 
-           placeholder="e.g. RetroGamer99" 
-           required>
-    <p class="text-xs text-gray-500 mt-1">Letters, numbers, and underscores only.</p>
-</div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2 text-sm">Username</label>
+                    <input type="text" id="register-username" 
+                           class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                           placeholder="RetroGamer99" required>
+                    <p class="text-xs text-gray-500 mt-1">Letters, numbers, and underscores only.</p>
+                </div>
                 
                 <div>
                     <label class="block text-gray-300 mb-2 text-sm">Password</label>
@@ -151,6 +148,38 @@
                 </div>
             </div>
         </form>
+
+        <!-- NEW: Set New Password Form (Hidden by default, shown via Email Link) -->
+        <form id="reset-password-form" class="auth-form hidden">
+            <div class="space-y-4">
+                <div class="text-center mb-4">
+                    <div class="text-4xl mb-2">🔑</div>
+                    <h3 class="text-xl font-bold text-white">Set New Password</h3>
+                    <p class="text-gray-300 text-sm mt-2">
+                        Enter your new password below.
+                    </p>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2 text-sm">New Password</label>
+                    <input type="password" id="reset-new-password" 
+                           class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                           placeholder="••••••••" minlength="6" required>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-300 mb-2 text-sm">Confirm New Password</label>
+                    <input type="password" id="reset-confirm-password" 
+                           class="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none"
+                           placeholder="••••••••" minlength="6" required>
+                </div>
+                
+                <button type="submit" id="reset-submit" 
+                        class="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded transition">
+                    Update Password
+                </button>
+            </div>
+        </form>
         
         <!-- Demo Credentials -->
         <div class="mt-8 pt-6 border-t border-gray-700">
@@ -203,13 +232,22 @@
     // Fill demo credentials
     window.fillDemoCredentials = function(email, password) {
         // Show login form
-        showAuthForm('login');
+        if(typeof showAuthForm === 'function') {
+            showAuthForm('login');
+        } else {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('forgot-form').classList.add('hidden');
+            document.getElementById('reset-password-form').classList.add('hidden');
+        }
         
         // Fill credentials
         document.getElementById('login-email').value = email;
         document.getElementById('login-password').value = password;
         
-        // Show message
-        showMessage(`Demo credentials filled: ${email}`, 'info');
+        // Show message if function exists
+        if(typeof showMessage === 'function') {
+            showMessage(`Demo credentials filled: ${email}`, 'info');
+        }
     };
 </script>
