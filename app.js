@@ -1,4 +1,5 @@
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
+import { initNotifications } from './lib/notifications.js';
 import { getRandomQuote } from './lib/quote-machine.js';
 
 let currentModule = null;
