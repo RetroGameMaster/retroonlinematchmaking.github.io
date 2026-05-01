@@ -1,4 +1,4 @@
-// modules/search-users/search-users.js - FIXED VERSION WITH NO EMAIL DISPLAY
+// modules/search-users/search-users.js - FULLY FIXED
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
 let currentUser = null;
@@ -111,7 +111,10 @@ function setupEventListeners() {
             document.getElementById('search-no-results').classList.add('hidden');
             
             searchTimeout = setTimeout(() => {
-                searchUsers(query);
+                // Get currently active filter
+                const activeBtn = document.querySelector('.filter-btn.active');
+                const filter = activeBtn ? activeBtn.dataset.filter : 'all';
+                searchUsers(query, filter);
             }, 500);
         } else if (query.length === 0) {
             clearSearchResults();
@@ -130,6 +133,7 @@ function setupEventListeners() {
     // Filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+            // Update UI classes
             document.querySelectorAll('.filter-btn').forEach(b => {
                 b.classList.remove('active', 'bg-cyan-600', 'text-white');
                 b.classList.add('bg-gray-700', 'text-gray-300');
@@ -139,8 +143,15 @@ function setupEventListeners() {
             btn.classList.remove('bg-gray-700', 'text-gray-300');
             
             const query = searchInput.value.trim();
+            
+            // If there is text, search with new filter. 
+            // If empty, we still want to trigger the filter (e.g. show ALL online users)
             if (query.length >= 2) {
                 searchUsers(query, btn.dataset.filter);
+            } else if (query.length === 0) {
+                // Trigger search with empty query to apply filter to broad list
+                document.getElementById('search-loading').classList.remove('hidden');
+                searchUsers('', btn.dataset.filter);
             }
         });
     });
@@ -150,107 +161,171 @@ async function searchUsers(query, filter = 'all') {
     try {
         console.log(`Searching for: "${query}" with filter: ${filter}`);
         
-        // Verify currentUser exists with valid id
         if (!currentUser || !currentUser.id) {
-            console.error('Current user not available or missing id:', currentUser);
+            console.error('Current user not available');
             showSearchError('Please log in to search users');
             return;
         }
         
-        // Start with base query that excludes current user
+        let users = [];
+        let friendMap = {};
+
+        // --- SPECIAL HANDLING FOR "SAME GAME" (Client-side filtering needed) ---
+        if (filter === 'same-game') {
+            await handleSameGameSearch(query);
+            return;
+        }
+
+        // --- STANDARD SEARCH LOGIC ---
         let supabaseQuery = supabase
             .from('profiles')
             .select('*')
-            .neq('id', currentUser.id)
-            .or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`);
+            .neq('id', currentUser.id);
         
-        // Apply additional filters
-        switch (filter) {
-            case 'same-console':
-                try {
-                    const { data: userProfile } = await supabase
-                        .from('profiles')
-                        .select('favorite_console')
-                        .eq('id', currentUser.id)
-                        .single();
-                    
-                    if (userProfile?.favorite_console) {
-                        supabaseQuery = supabaseQuery
-                            .eq('favorite_console', userProfile.favorite_console);
-                    }
-                } catch (error) {
-                    console.log('Error getting user console preference:', error);
-                }
-                break;
+        // Apply Text Search
+        if (query && query.length > 0) {
+            supabaseQuery = supabaseQuery.or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`);
         }
         
-        // Add limit and execute
-        supabaseQuery = supabaseQuery.limit(20);
+        // Apply Specific Filters
+        if (filter === 'online') {
+            supabaseQuery = supabaseQuery.eq('is_online', true);
+        } 
+        else if (filter === 'same-console') {
+            const { data: userProfile } = await supabase
+                .from('profiles')
+                .select('favorite_console')
+                .eq('id', currentUser.id)
+                .single();
+            
+            if (userProfile?.favorite_console) {
+                supabaseQuery = supabaseQuery.eq('favorite_console', userProfile.favorite_console);
+            } else {
+                // User has no console set, so no matches possible
+                displaySearchResults([], {});
+                return;
+            }
+        }
         
-        const { data: users, error } = await supabaseQuery;
+        supabaseQuery = supabaseQuery.limit(50);
+        
+        const { data, error } = await supabaseQuery;
         
         if (error) {
             console.error('Supabase query error:', error);
-            
-            // Fallback: Try without the neq filter if it fails
+            // Fallback for neq errors
             if (error.message.includes('undefined') || error.code === '400') {
-                console.log('Trying fallback query without neq filter');
-                const { data: fallbackUsers, error: fallbackError } = await supabase
+                const { data: fallbackData } = await supabase
                     .from('profiles')
                     .select('*')
                     .or(`username.ilike.%${query}%,email.ilike.%${query}%,favorite_console.ilike.%${query}%,bio.ilike.%${query}%`)
-                    .limit(20);
+                    .limit(50);
                 
-                if (fallbackError) {
-                    throw fallbackError;
-                }
-                
-                // Filter out current user manually
-                const filteredUsers = fallbackUsers?.filter(user => user.id !== currentUser.id) || [];
-                displaySearchResults(filteredUsers, {});
-                return;
+                users = fallbackData ? fallbackData.filter(u => u.id !== currentUser.id) : [];
+            } else {
+                throw error;
             }
-            
-            throw error;
+        } else {
+            users = data || [];
         }
         
-        console.log(`Found ${users?.length || 0} users`);
+        // Load Friends Map
+        friendMap = await getFriendMap();
         
-        // Get friend relationships
-        let friendMap = {};
-        try {
-            const { data: friendships } = await supabase
-                .from('friends')
-                .select('friend_id, status')
-                .eq('user_id', currentUser.id);
-            
-            if (friendships) {
-                friendships.forEach(f => {
-                    friendMap[f.friend_id] = f.status;
-                });
-            }
-        } catch (friendError) {
-            console.error('Error loading friendships:', friendError);
-        }
-        
-        displaySearchResults(users || [], friendMap);
+        displaySearchResults(users, friendMap);
         
     } catch (error) {
         console.error('Error searching users:', error);
-        showSearchError('Error searching users. Please try again.');
+        showSearchError('Error searching users: ' + error.message);
     } finally {
         const loadingEl = document.getElementById('search-loading');
         if (loadingEl) loadingEl.classList.add('hidden');
     }
 }
 
+// Helper: Handle "Same Game" Logic
+async function handleSameGameSearch(query) {
+    // 1. Get My Games
+    const { data: myProfile } = await supabase
+        .from('profiles')
+        .select('currently_playing')
+        .eq('id', currentUser.id)
+        .single();
+    
+    let myGames = [];
+    if (myProfile?.currently_playing) {
+        try {
+            myGames = typeof myProfile.currently_playing === 'string' 
+                ? JSON.parse(myProfile.currently_playing) 
+                : myProfile.currently_playing;
+        } catch(e) { myGames = []; }
+    }
+    
+    if (myGames.length === 0) {
+        displaySearchResults([], {});
+        document.getElementById('search-no-results').querySelector('p').textContent = "You aren't playing any games yet! Add some on a game page.";
+        document.getElementById('search-no-results').classList.remove('hidden');
+        return;
+    }
+
+    // 2. Fetch Candidates (Broad search first)
+    let candidateQuery = supabase.from('profiles').select('*').neq('id', currentUser.id);
+    if (query && query.length > 0) {
+        candidateQuery = candidateQuery.or(`username.ilike.%${query}%,bio.ilike.%${query}%`);
+    }
+    candidateQuery = candidateQuery.limit(100); // Check more users for game matches
+
+    const { data: candidates, error } = await candidateQuery;
+    if (error) throw error;
+
+    // 3. Client-Side Filter for Game Overlap
+    const matchedUsers = candidates.filter(user => {
+        if (!user.currently_playing) return false;
+        let userGames = [];
+        try {
+            userGames = typeof user.currently_playing === 'string' 
+                ? JSON.parse(user.currently_playing) 
+                : user.currently_playing;
+        } catch(e) { return false; }
+
+        // Check overlap
+        return myGames.some(myGame => {
+            const myTitle = (typeof myGame === 'object' ? myGame.title : myGame).toLowerCase();
+            return userGames.some(uGame => {
+                const uTitle = (typeof uGame === 'object' ? uGame.title : uGame).toLowerCase();
+                return myTitle === uTitle;
+            });
+        });
+    });
+
+    const friendMap = await getFriendMap();
+    displaySearchResults(matchedUsers, friendMap);
+}
+
+async function getFriendMap() {
+    const map = {};
+    try {
+        const { data: friendships } = await supabase
+            .from('friends')
+            .select('friend_id, status')
+            .eq('user_id', currentUser.id);
+        
+        if (friendships) {
+            friendships.forEach(f => map[f.friend_id] = f.status);
+        }
+    } catch (e) { console.error('Friend map error', e); }
+    return map;
+}
+
 function displaySearchResults(users, friendMap) {
     const container = document.getElementById('search-results-container');
-    
     if (!container) return;
     
     if (users.length === 0) {
-        document.getElementById('search-no-results').classList.remove('hidden');
+        const noRes = document.getElementById('search-no-results');
+        noRes.classList.remove('hidden');
+        // Reset text just in case
+        noRes.querySelector('p').textContent = "No users found";
         container.innerHTML = '';
         return;
     }
@@ -258,13 +333,9 @@ function displaySearchResults(users, friendMap) {
     document.getElementById('search-no-results').classList.add('hidden');
     
     container.innerHTML = users.map(user => {
-        const firstLetter = (user.username || user.email).charAt(0).toUpperCase();
+        const firstLetter = (user.username || user.email || 'U').charAt(0).toUpperCase();
         const friendStatus = friendMap[user.id];
         
-        // Check if this is the current user's own profile
-        const isOwnProfile = currentUser && user.id === currentUser.id;
-        
-        // Determine button text based on friend status
         let buttonHtml = '';
         if (friendStatus === 'accepted') {
             buttonHtml = `
@@ -309,13 +380,16 @@ function displaySearchResults(users, friendMap) {
             `;
         }
         
+        // Use is_online for the dot if available, fallback to status
+        const isOnline = user.is_online === true || user.status === 'online';
+
         return `
             <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-between hover:border-cyan-500 transition search-result-card">
                 <a href="#/profile/${user.id}" 
                    class="flex items-center gap-4 flex-1"
                    onclick="event.stopPropagation()">
                     <div class="relative">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center overflow-hidden">
                             ${user.avatar_url ? `
                                 <img src="${user.avatar_url}" 
                                      alt="${user.username}" 
@@ -326,7 +400,7 @@ function displaySearchResults(users, friendMap) {
                                 </span>
                             `}
                         </div>
-                        <div class="absolute -bottom-1 -right-1 w-3 h-3 ${user.status === 'online' ? 'bg-green-500' : 'bg-gray-600'} rounded-full border-2 border-gray-800"></div>
+                        <div class="absolute -bottom-1 -right-1 w-3 h-3 ${isOnline ? 'bg-green-500' : 'bg-gray-600'} rounded-full border-2 border-gray-800"></div>
                     </div>
                     
                     <div class="flex-1">
@@ -417,7 +491,6 @@ window.sendFriendRequestFromSearch = async function(userId, buttonElement) {
             throw error;
         }
         
-        // Update button state
         const parentDiv = buttonElement.closest('.search-result-card');
         const buttonsDiv = parentDiv.querySelector('div:last-child');
         buttonsDiv.innerHTML = `
@@ -448,7 +521,6 @@ window.cancelFriendRequestFromSearch = async function(userId, buttonElement) {
         
         if (error) throw error;
         
-        // Update UI
         const parentDiv = buttonElement.closest('.search-result-card');
         const buttonsDiv = parentDiv.querySelector('div:last-child');
         buttonsDiv.innerHTML = `
@@ -482,7 +554,6 @@ window.removeFriendFromSearch = async function(userId, buttonElement) {
         
         if (error) throw error;
         
-        // Update UI
         const parentDiv = buttonElement.closest('.search-result-card');
         const buttonsDiv = parentDiv.querySelector('div:last-child');
         buttonsDiv.innerHTML = `
@@ -518,7 +589,6 @@ window.unblockUserFromSearch = async function(userId, buttonElement) {
         
         if (error) throw error;
         
-        // Update UI
         const parentDiv = buttonElement.closest('.search-result-card');
         const buttonsDiv = parentDiv.querySelector('div:last-child');
         buttonsDiv.innerHTML = `
