@@ -866,7 +866,8 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         signature_custom_css: formData.get('signature_custom_css'),
         avatar_custom_css: formData.get('avatar_custom_css'),
         avatar_url: finalAvatarUrl,
-        username: formData.get('username')?.trim(), // Capture new username
+        username: formData.get('username')?.trim(), 
+        favorite_console: formData.get('favorite_console'),
         custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
       };
 
