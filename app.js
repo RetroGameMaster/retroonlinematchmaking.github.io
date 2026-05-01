@@ -212,6 +212,59 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         }
         return; 
     }
+    if (hash === 'games' || hash.startsWith('games?')) {
+        const moduleName = 'games';
+        let params = {};
+
+        // Extract query parameters (?filter=...&value=...)
+        if (hash.includes('?')) {
+            const queryString = hash.split('?')[1];
+            const urlParams = new URLSearchParams(queryString);
+            if (urlParams.has('filter')) params.filter = urlParams.get('filter');
+            if (urlParams.has('value')) params.value = urlParams.get('value');
+        }
+
+        console.log('🎮 Loading games module...', params);
+
+        const appContent = document.getElementById('app-content');
+        if (!appContent) return;
+        appContent.innerHTML = '';
+
+        try {
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (!response.ok) throw new Error('HTML not found');
+            
+            const html = await response.text();
+            appContent.innerHTML = html;
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+        } catch (e) {
+            console.error('Failed to load Games HTML:', e);
+            appContent.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading library.</div>';
+            return;
+        }
+
+        try {
+            if (modules[moduleName]) {
+                const module = await modules[moduleName]();
+                const rom = {
+                    supabase: window.supabase,
+                    currentUser: window.rom?.currentUser || null,
+                    loadModule: loadModule,
+                    navigateTo: (m) => window.location.hash = `#/${m}`
+                };
+
+                if (module.default && typeof module.default === 'function') {
+                    await module.default(rom, params);
+                }
+                currentModule = module;
+                console.log(`✅ Module ${moduleName} initialized`);
+            }
+        } catch (moduleError) {
+            console.error(`Module JS error for ${moduleName}:`, moduleError);
+        }
+        return; 
+    }
     // Check for game detail page
     if (hash.startsWith('game/')) {
         if (hash.includes('/discuss')) {
