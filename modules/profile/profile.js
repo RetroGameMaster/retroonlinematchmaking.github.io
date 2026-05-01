@@ -872,34 +872,53 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       if (!content) return alert("Please type a message first.");
       if (!currentUser) return alert("You must be logged in.");
 
-      // 1. Fetch Author Username (The person posting)
-      const {  authorProfile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', currentUser.id)
-        .single();
+      // Disable button to prevent double posts
+      postBtn.disabled = true;
+      postBtn.textContent = 'Posting...';
 
-      // 2. Fetch Target Username (The profile owner)
-      // We use the 'profile' object already available in this function scope
-      const targetUsername = profile.username || 'UnknownUser';
+      try {
+        // 1. Explicitly fetch Target Username (The Profile Owner)
+        // We do this again to ensure we have it, even if 'profile' var is stale
+        const { data: targetData, error: targetErr } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', profile.id)
+          .single();
 
-      const authorUsername = authorProfile?.username || currentUser.email.split('@')[0];
+        if (targetErr || !targetData) throw new Error("Could not find profile owner.");
+        const targetUsername = targetData.username;
 
-      // 3. Insert with ALL required fields
-      const { error } = await supabase.from('profile_comments').insert({
-        target_user_id: profile.id,
-        target_username: targetUsername, 
-        author_id: currentUser.id,
-        author_username: authorUsername, 
-        content: content
-      });
+        // 2. Explicitly fetch Author Username (The Person Posting)
+        const { data: authorData, error: authorErr } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', currentUser.id)
+          .single();
 
-      if (error) {
-        console.error('Wall post error:', error);
-        alert('Error: ' + error.message);
-      } else {
+        const authorUsername = authorData?.username || currentUser.email.split('@')[0];
+
+        // 3. Insert with ALL required fields
+        const { error: insertErr } = await supabase.from('profile_comments').insert({
+          target_user_id: profile.id,
+          target_username: targetUsername,      
+          author_id: currentUser.id,
+          author_username: authorUsername,      
+          content: content
+        });
+
+        if (insertErr) throw insertErr;
+
+        // Success
         input.value = '';
         loadWallComments(profile.id);
+
+      } catch (err) {
+        console.error("Wall Post Failed:", err);
+        alert('Failed to post: ' + err.message);
+      } finally {
+        // Re-enable button
+        postBtn.disabled = false;
+        postBtn.textContent = 'Post Shout';
       }
     });
   }
