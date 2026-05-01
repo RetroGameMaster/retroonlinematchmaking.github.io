@@ -868,12 +868,34 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     postBtn.addEventListener('click', async () => {
       const input = document.getElementById('new-wall-comment');
       const content = input.value.trim();
-      if (!content) return;
+      
+      if (!content) return alert("Please type a message first.");
+      if (!currentUser) return alert("You must be logged in.");
+
+      // 1. Fetch the current user's username from profiles table
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', currentUser.id)
+        .single();
+
+      const usernameToUse = userProfile?.username || currentUser.email.split('@')[0];
+
+      // 2. Insert with BOTH author_id AND author_username
       const { error } = await supabase.from('profile_comments').insert({
-        target_user_id: profile.id, author_id: currentUser.id, content: content
+        target_user_id: profile.id,
+        author_id: currentUser.id,
+        author_username: usernameToUse, // ✅ This fixes the null constraint error
+        content: content
       });
-      if (error) alert('Error: ' + error.message);
-      else { input.value = ''; loadWallComments(profile.id); }
+
+      if (error) {
+        console.error('Wall post error:', error);
+        alert('Error: ' + error.message);
+      } else {
+        input.value = '';
+        loadWallComments(profile.id);
+      }
     });
   }
 
