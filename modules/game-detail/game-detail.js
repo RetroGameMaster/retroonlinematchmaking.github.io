@@ -229,44 +229,50 @@ async function renderGame(game, container, rom) {
     `;
 
     // 5. Prepare Metadata Panel
-    const hasMetadata = game.developer || game.publisher || game.genre || game.release_date || (game.features && game.features.length > 0);
+   const hasMetadata = game.developer || game.publisher || game.genre || game.release_date || (game.features && game.features.length > 0);
+    
+    // Helper to create hub links
+    const makeHubLink = (type, value, label) => {
+        if (!value) return '';
+        const encodedValue = encodeURIComponent(value);
+        return `
+            <a href="#/games?filter=${type}&value=${encodedValue}" class="group flex items-center justify-between bg-gray-700/50 hover:bg-cyan-900/40 border border-gray-600 hover:border-cyan-500 rounded-lg p-3 transition-all duration-200">
+                <div>
+                    <span class="text-xs text-gray-400 uppercase tracking-wider font-bold block mb-1">${label}</span>
+                    <span class="text-white font-bold text-base group-hover:text-cyan-300">${escapeHtml(value)}</span>
+                </div>
+                <svg class="w-5 h-5 text-gray-500 group-hover:text-cyan-400 transform group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </a>
+        `;
+    };
+
+    // Format Date for Month/Year Hub
+    let releaseDateHub = '';
+    if (game.release_date) {
+        const dateObj = new Date(game.release_date);
+        const monthYear = dateObj.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        const rawMonthYear = `${dateObj.getMonth() + 1}-${dateObj.getFullYear()}`; // Format for filtering logic if needed
+        releaseDateHub = makeHubLink('release_month_year', monthYear, 'Released');
+    }
+
     const metadataHTML = hasMetadata ? `
         <div class="bg-gray-800/90 backdrop-blur-md rounded-xl border border-cyan-500/30 p-6 mb-8 shadow-xl">
-            <h3 class="text-xl font-bold text-cyan-400 mb-4 border-b border-gray-700 pb-2 drop-shadow-md">📋 Game Information</h3>
-            <dl class="grid grid-cols-1 gap-4 text-sm">
-                ${game.developer ? `
-                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <dt class="text-gray-300 font-medium">Developer</dt>
-                        <dd class="text-white font-bold drop-shadow-md">${escapeHtml(game.developer)}</dd>
-                    </div>
-                ` : ''}
-                ${game.publisher ? `
-                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <dt class="text-gray-300 font-medium">Publisher</dt>
-                        <dd class="text-white font-bold drop-shadow-md">${escapeHtml(game.publisher)}</dd>
-                    </div>
-                ` : ''}
-                ${game.genre ? `
-                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <dt class="text-gray-300 font-medium">Genre</dt>
-                        <dd class="text-white font-bold drop-shadow-md">${escapeHtml(game.genre)}</dd>
-                    </div>
-                ` : ''}
-                ${game.release_date ? `
-                    <div class="flex justify-between border-b border-gray-700/50 pb-2">
-                        <dt class="text-gray-300 font-medium">Released</dt>
-                        <dd class="text-white font-bold drop-shadow-md">${new Date(game.release_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</dd>
-                    </div>
-                ` : ''}
+            <h3 class="text-xl font-bold text-cyan-400 mb-4 border-b border-gray-700 pb-2 drop-shadow-md">📋 Game Information Hubs</h3>
+            <div class="space-y-3">
+                ${game.developer ? makeHubLink('developer', game.developer, 'Developer') : ''}
+                ${game.publisher ? makeHubLink('publisher', game.publisher, 'Publisher') : ''}
+                ${game.genre ? makeHubLink('genre', game.genre, 'Genre') : ''}
+                ${releaseDateHub}
+                
                 ${game.features && game.features.length > 0 ? `
                     <div class="pt-2">
                         <dt class="text-gray-300 font-medium block mb-2">Features</dt>
                         <dd class="flex flex-wrap gap-2">
-                            ${game.features.map(f => `<span class="bg-cyan-900/60 text-cyan-200 px-2 py-1 rounded text-xs border border-cyan-700 font-bold drop-shadow-md">${escapeHtml(f)}</span>`).join('')}
+                            ${game.features.map(f => `<span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs border border-gray-600">${escapeHtml(f)}</span>`).join('')}
                         </dd>
                     </div>
                 ` : ''}
-            </dl>
+            </div>
         </div>
     ` : '';
     const forumButtonHTML = `
