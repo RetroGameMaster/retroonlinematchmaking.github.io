@@ -16,7 +16,7 @@ export default async function initModule(rom, params) {
 
   const targetUserId = params?.user || null;
 
-  // 1. Wait for HTML to be fully rendered before doing anything
+  
   await waitForDOMReady();
 
   // 2. Attach Listeners (Now guaranteed to find elements)
