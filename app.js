@@ -156,8 +156,8 @@ async function updateNotificationUI() {
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
- if (hash.startsWith('messages')) {
-        const moduleName = 'messages'; // Assumes folder is modules/messages/
+if (hash.startsWith('messages')) {
+        const moduleName = 'messages'; 
         let params = {};
         
         // Extract query parameters (?user=...)
@@ -171,24 +171,26 @@ async function handleHashChange() {
 
         console.log('📦 Loading module: messages with params', params);
         
-        // 1. Load HTML manually
         const appContent = document.getElementById('app-content');
-        if (appContent) {
-            appContent.innerHTML = ''; // Clear first
-            try {
-                const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
-                if (response.ok) {
-                    const html = await response.text();
-                    appContent.innerHTML = html;
-                } else {
-                    appContent.innerHTML = '<div class="text-center text-red-400 mt-10">Error loading messages interface.</div>';
-                    return;
-                }
-            } catch (e) {
-                console.error('Failed to load HTML:', e);
-                appContent.innerHTML = '<div class="text-center text-red-400 mt-10">Failed to load template.</div>';
-                return;
-            }
+        if (!appContent) return;
+
+        // 1. Load HTML manually
+        appContent.innerHTML = ''; // Clear first
+        
+        try {
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (!response.ok) throw new Error('HTML not found');
+            
+            const html = await response.text();
+            appContent.innerHTML = html; // Insert HTML
+            
+            // CRITICAL: Wait a tick for the browser to parse the HTML into the DOM tree
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+        } catch (e) {
+            console.error('Failed to load HTML:', e);
+            appContent.innerHTML = '<div class="text-center text-red-400 mt-10">Failed to load template.</div>';
+            return;
         }
 
         // 2. Load JS and pass params
@@ -211,7 +213,7 @@ async function handleHashChange() {
         } catch (moduleError) {
             console.error(`Module JS error for ${moduleName}:`, moduleError);
         }
-        return;
+        return; 
     }
     // Check for game detail page
     if (hash.startsWith('game/')) {
