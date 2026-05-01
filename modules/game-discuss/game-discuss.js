@@ -9,15 +9,31 @@ export default async function initModule(rom, params) {
   
   currentGameSlug = params.slug;
   
-  // FIX 1: Added 'data:' key
+  // 1. Get User
   const { data: { user } } = await supabase.auth.getUser();
   currentUser = user;
 
   const container = document.getElementById('app-content');
   if (!container) return;
 
-  // 1. Fetch Game Details to get ID and Title
-  // FIX 2: Added 'data:' key
+  // 2. LOAD THE HTML FILE MANUALLY
+  // Since the router bypassed loadModule(), we must fetch the HTML ourselves
+  try {
+    const response = await fetch('./modules/game-discuss/game-discuss.html');
+    if (response.ok) {
+      const html = await response.text();
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading discussion interface.</div>';
+      return;
+    }
+  } catch (e) {
+    console.error('Failed to load HTML:', e);
+    container.innerHTML = '<div class="text-red-400 text-center mt-10">Failed to load template.</div>';
+    return;
+  }
+
+  // 3. Fetch Game Details to get ID and Title
   const { data: game, error } = await supabase
     .from('games')
     .select('id, title')
@@ -32,12 +48,12 @@ export default async function initModule(rom, params) {
   currentGameId = game.id;
   document.title = `${game.title} - Community | ROM`;
   
-  setTimeout(() => {
-    const titleEl = document.getElementById('discuss-game-title');
-    if(titleEl) titleEl.textContent = game.title;
-    loadDiscussions('all');
-    attachListeners();
-  }, 100);
+  // 4. Now that HTML is in DOM, we can safely access elements
+  const titleEl = document.getElementById('discuss-game-title');
+  if(titleEl) titleEl.textContent = game.title;
+  
+  loadDiscussions('all');
+  attachListeners();
 }
 
 function attachListeners() {
@@ -76,11 +92,14 @@ function attachListeners() {
       const category = document.getElementById('post-category').value;
       const content = document.getElementById('post-content').value;
 
+      // Fallback username if profile not fetched
+      const username = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+
       const { error } = await supabase.from('game_discussions').insert([{
         game_id: currentGameId,
         user_id: currentUser.id,
-        username: currentUser.email.split('@')[0], 
-        avatar_url: null,
+        username: username, 
+        avatar_url: null, // You can fetch this from profiles if needed
         category,
         title,
         content
@@ -107,10 +126,10 @@ async function loadDiscussions(category) {
     query = query.eq('category', category);
   }
 
-  // FIX 3: Added 'data:' key
   const { data: posts, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
+    console.error('Error loading posts:', error);
     listEl.innerHTML = '<div class="text-red-400 text-center">Error loading posts.</div>';
     return;
   }
@@ -142,7 +161,7 @@ async function loadDiscussions(category) {
         <div class="flex items-center justify-between border-t border-gray-700 pt-3">
           <div class="flex items-center gap-2">
             <img src="${post.avatar_url || 'https://ui-avatars.com/api/?name=' + post.username}" class="w-6 h-6 rounded-full">
-            <span class="text-xs text-gray-400 font-bold">${post.username}</span>
+            <span class="text-xs text-gray-400 font-bold">${escapeHtml(post.username)}</span>
           </div>
           <button class="text-xs text-purple-400 hover:text-purple-300 font-bold">Read More →</button>
         </div>
