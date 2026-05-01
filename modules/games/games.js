@@ -107,7 +107,7 @@ async function initGamesModule(rom) {
 
     // --- NEW: Handle Hub Clicks (Developer, Publisher, etc) ---
     window.handleHubClick = function(type, value) {
-        if (!value) return;
+        if (!value || value === 'Unknown' || value === 'N/A') return;
         
         console.log(`🔗 Hub Clicked: ${type} = ${value}`);
         
@@ -122,7 +122,6 @@ async function initGamesModule(rom) {
         if (searchInput) searchInput.value = '';
 
         // Reuse applyFilters logic but inject our specific filter
-        // We'll manually trigger a filtered load
         loadGamesByField(type, value);
         
         // Scroll to top
@@ -159,7 +158,13 @@ async function initGamesModule(rom) {
                 header = document.createElement('div');
                 header.id = 'hub-header';
                 header.className = 'mb-6 text-center animate-fade-in';
-                gamesList.insertBefore(header, gamesList.firstChild);
+                // Insert before the grid, but after any potential loading spinner
+                const grid = document.getElementById('gamesGrid');
+                if(grid) {
+                    gamesList.insertBefore(header, grid);
+                } else {
+                    gamesList.insertBefore(header, gamesList.firstChild);
+                }
             }
             header.innerHTML = `
                 <h2 class="text-2xl font-bold text-cyan-400">
@@ -322,7 +327,9 @@ async function initGamesModule(rom) {
         setTimeout(() => {
             document.querySelectorAll('.game-card').forEach(card => {
                 card.addEventListener('click', function(e) {
-                    if (e.target.closest('.favorite-btn') || e.target.classList.contains('favorite-btn') || 
+                    // Prevent navigation if clicking favorite or hub tags
+                    if (e.target.closest('.favorite-btn') || 
+                        e.target.classList.contains('favorite-btn') || 
                         e.target.closest('.hub-tag')) {
                         return;
                     }
@@ -351,16 +358,19 @@ async function initGamesModule(rom) {
             `<span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">${platform}</span>`
         ).join('');
         
-        const approvedDate = game.approved_at ? new Date(game.approved_at).toLocaleDateString() : 'N/A';
-        
         // Helper for Hub Tags
         const createHubTag = (type, value, icon) => {
-            if (!value) return '';
-            return `<button onclick="event.stopPropagation(); window.handleHubClick('${type}', '${escapeHtml(value)}')" 
-                         class="hub-tag inline-flex items-center gap-1 bg-gray-700 hover:bg-cyan-700 text-gray-300 hover:text-white text-xs px-2 py-1 rounded transition mr-2 mb-2 border border-gray-600 hover:border-cyan-500">
+            if (!value || value === 'Unknown' || value === 'N/A') return '';
+            // Escape single quotes for onclick handlers
+            const safeValue = escapeHtml(value).replace(/'/g, "\\'");
+            return `<button onclick="event.stopPropagation(); window.handleHubClick('${type}', '${safeValue}')" 
+                         class="hub-tag inline-flex items-center gap-1 bg-gray-700 hover:bg-cyan-700 text-gray-300 hover:text-white text-xs px-2 py-1 rounded transition mr-2 mb-2 border border-gray-600 hover:border-cyan-500 cursor-pointer">
                          <span>${icon}</span> ${escapeHtml(value)}
                     </button>`;
         };
+
+        const yearVal = game.year || 'Unknown';
+        const safeYear = escapeHtml(yearVal).replace(/'/g, "\\'");
 
         return `
             <div class="game-card bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all duration-300 cursor-pointer flex flex-col"
@@ -385,9 +395,9 @@ async function initGamesModule(rom) {
                 <div class="p-4 flex flex-col flex-grow">
                     <div class="flex justify-between items-start mb-2">
                         <h3 class="text-xl font-bold text-cyan-300 truncate flex-grow">${escapeHtml(game.title || 'Untitled')}</h3>
-                        <button onclick="event.stopPropagation(); window.handleHubClick('year', '${game.year || 'Unknown'}')" 
-                                class="hub-tag ml-2 bg-gray-700 hover:bg-cyan-700 text-gray-300 hover:text-white text-xs px-2 py-1 rounded transition border border-gray-600 shrink-0">
-                            ${game.year || 'N/A'}
+                        <button onclick="event.stopPropagation(); window.handleHubClick('year', '${safeYear}')" 
+                                class="hub-tag ml-2 bg-gray-700 hover:bg-cyan-700 text-gray-300 hover:text-white text-xs px-2 py-1 rounded transition border border-gray-600 shrink-0 cursor-pointer">
+                            ${yearVal}
                         </button>
                     </div>
                     
@@ -481,8 +491,9 @@ async function initGamesModule(rom) {
     
     function escapeHtml(text) {
         if (!text) return '';
-        // Escape single quotes for onclick handlers
-        return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 
