@@ -685,6 +685,47 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     <input type="text" name="username" class="ra-input w-full" value="${profile.username || ''}" placeholder="Enter new username">
     <span class="text-xs text-yellow-500">⚠️ Changing this updates your profile URL and all chat history instantly.</span>
   </div>
+  <label>Favorite Console</label>
+<select name="favorite_console" class="ra-input w-full mb-4">
+  <option value="">Select a system...</option>
+  <option value="3D0 Interactive Multiplayer" ${profile.favorite_console === '3D0 Interactive Multiplayer' ? 'selected' : ''}>3D0 Interactive Multiplayer</option>
+  <option value="Arcade" ${profile.favorite_console === 'Arcade' ? 'selected' : ''}>Arcade</option>
+  <option value="Gameboy Color" ${profile.favorite_console === 'Gameboy Color' ? 'selected' : ''}>Gameboy Color</option>
+  <option value="Gameboy Advance" ${profile.favorite_console === 'Gameboy Advance' ? 'selected' : ''}>Gameboy Advance</option>
+  <option value="GameCube" ${profile.favorite_console === 'GameCube' ? 'selected' : ''}>GameCube</option>
+  <option value="Nintendo Entertainment System" ${profile.favorite_console === 'Nintendo Entertainment System' ? 'selected' : ''}>Nintendo Entertainment System</option>
+  <option value="Nintendo Gameboy" ${profile.favorite_console === 'Nintendo Gameboy' ? 'selected' : ''}>Nintendo Gameboy</option>
+  <option value="Nintendo 64" ${profile.favorite_console === 'Nintendo 64' ? 'selected' : ''}>Nintendo 64</option>
+  <option value="Nintendo DS" ${profile.favorite_console === 'Nintendo DS' ? 'selected' : ''}>Nintendo DS</option>
+  <option value="Nintendo 3DS" ${profile.favorite_console === 'Nintendo 3DS' ? 'selected' : ''}>Nintendo 3DS</option>
+  <option value="Nintendo Virtual Boy" ${profile.favorite_console === 'Nintendo Virtual Boy' ? 'selected' : ''}>Nintendo Virtual Boy</option>
+  <option value="PC" ${profile.favorite_console === 'PC' ? 'selected' : ''}>PC</option>
+  <option value="PlayStation 1" ${profile.favorite_console === 'PlayStation 1' ? 'selected' : ''}>PlayStation 1</option>
+  <option value="PlayStation 2" ${profile.favorite_console === 'PlayStation 2' ? 'selected' : ''}>PlayStation 2</option>
+  <option value="PlayStation 3" ${profile.favorite_console === 'PlayStation 3' ? 'selected' : ''}>PlayStation 3</option>
+  <option value="PlayStation 4" ${profile.favorite_console === 'PlayStation 4' ? 'selected' : ''}>PlayStation 4</option>
+  <option value="PlayStation 5" ${profile.favorite_console === 'PlayStation 5' ? 'selected' : ''}>PlayStation 5</option>
+  <option value="Playstation Portable" ${profile.favorite_console === 'Playstation Portable' ? 'selected' : ''}>Playstation Portable</option>
+  <option value="PlayStation Vita" ${profile.favorite_console === 'PlayStation Vita' ? 'selected' : ''}>PlayStation Vita</option>
+  <option value="Neo Geo AES" ${profile.favorite_console === 'Neo Geo AES' ? 'selected' : ''}>Neo Geo AES</option>
+  <option value="Neo Geo CD" ${profile.favorite_console === 'Neo Geo CD' ? 'selected' : ''}>Neo Geo CD</option>
+  <option value="Sega SG-1000" ${profile.favorite_console === 'Sega SG-1000' ? 'selected' : ''}>Sega SG-1000</option>
+  <option value="Sega Mark III" ${profile.favorite_console === 'Sega Mark III' ? 'selected' : ''}>Sega Mark III</option>
+  <option value="Sega Genesis/MD" ${profile.favorite_console === 'Sega Genesis/MD' ? 'selected' : ''}>Sega Genesis/MD</option>
+  <option value="Sega 32X" ${profile.favorite_console === 'Sega 32X' ? 'selected' : ''}>Sega 32X</option>
+  <option value="Sega CD" ${profile.favorite_console === 'Sega CD' ? 'selected' : ''}>Sega CD</option>
+  <option value="Sega Gamegear" ${profile.favorite_console === 'Sega Gamegear' ? 'selected' : ''}>Sega Gamegear</option>
+  <option value="Sega Saturn" ${profile.favorite_console === 'Sega Saturn' ? 'selected' : ''}>Sega Saturn</option>
+  <option value="Sega Dreamcast" ${profile.favorite_console === 'Sega Dreamcast' ? 'selected' : ''}>Sega Dreamcast</option>
+  <option value="Super Nintendo Entertainment System" ${profile.favorite_console === 'Super Nintendo Entertainment System' ? 'selected' : ''}>Super Nintendo Entertainment System</option>
+  <option value="Nintendo Switch" ${profile.favorite_console === 'Nintendo Switch' ? 'selected' : ''}>Nintendo Switch</option>
+  <option value="TurboGrafx16/CD" ${profile.favorite_console === 'TurboGrafx16/CD' ? 'selected' : ''}>TurboGrafx16/CD</option>
+  <option value="Wii" ${profile.favorite_console === 'Wii' ? 'selected' : ''}>Wii</option>
+  <option value="Wii U" ${profile.favorite_console === 'Wii U' ? 'selected' : ''}>Wii U</option>
+  <option value="Xbox" ${profile.favorite_console === 'Xbox' ? 'selected' : ''}>Xbox</option>
+  <option value="Xbox 360" ${profile.favorite_console === 'Xbox 360' ? 'selected' : ''}>Xbox 360</option>
+  <option value="Other" ${profile.favorite_console === 'Other' ? 'selected' : ''}>Other</option>
+</select>
               <label>Bio</label>
               <textarea name="bio" class="ra-input" rows="3">${profile.bio || ''}</textarea>
 
