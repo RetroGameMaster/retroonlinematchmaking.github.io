@@ -159,12 +159,20 @@ async function handleHashChange() {
 
     // Check for game detail page
     if (hash.startsWith('game/')) {
+        if (hash.includes('/discuss')) {
+            const parts = hash.split('/');
+            const slug = parts[1]; // e.g., "mario-64" from "game/mario-64/discuss"
+            
+            console.log('📦 Loading module: game-discuss');
+            const module = await import('./modules/game-discuss/game-discuss.js');
+            module.default(rom, { slug });
+            return; 
+        }
         const identifier = hash.split('/')[1];
         console.log('Loading game detail for:', identifier);
         await loadGameDetail(identifier);
         return;
     }
-
     // Check for guide detail page
     if (hash.startsWith('guide/')) {
         const slug = hash.split('/')[1];
