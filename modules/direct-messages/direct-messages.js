@@ -4,6 +4,22 @@ let currentUserId = null;
 let activeChatUserId = null;
 let dmChannel = null;
 
+// Helper: Wait for an element to exist in the DOM
+const waitForElement = (id) => {
+  return new Promise((resolve) => {
+    if (document.getElementById(id)) {
+      return resolve(document.getElementById(id));
+    }
+    const observer = new MutationObserver(() => {
+      if (document.getElementById(id)) {
+        observer.disconnect();
+        resolve(document.getElementById(id));
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+};
+
 export default async function initModule(rom, params) {
   console.log('💬 Direct Messages module initialized');
   
@@ -15,82 +31,67 @@ export default async function initModule(rom, params) {
   currentUserId = user.id;
 
   const targetUserId = params?.user || null;
+  const container = document.getElementById('app-content');
 
-  // 1. Wait for HTML to be fully rendered before doing anything
-  await waitForDOMReady();
+  // --- CRITICAL FIX: Wait for HTML to be rendered ---
+  console.log('⏳ Waiting for DM HTML to render...');
+  try {
+    // Wait for the contact list (guaranteed to be in your HTML)
+    await waitForElement('dm-contact-list');
+    console.log('✅ DM HTML detected! Proceeding...');
+  } catch (e) {
+    console.error('❌ Timeout waiting for DM HTML. Did the fetch fail?', e);
+    container.innerHTML = '<div class="text-red-400">Error loading interface. Refresh page.</div>';
+    return;
+  }
 
-  // 2. Attach Listeners (Now guaranteed to find elements)
+  // Now it is safe to attach listeners
   attachEventListeners();
 
-  // 3. Load Data
+  // Load Data
   await loadContactList();
   
   if (targetUserId) {
+    // Wait slightly for list to render before opening chat
     setTimeout(() => openChat(targetUserId), 300);
   }
 }
 
-// Helper: Waits until the main list element exists in the DOM
-function waitForDOMReady() {
-  return new Promise((resolve) => {
-    const checkExist = setInterval(() => {
-      const listEl = document.getElementById('dm-contact-list');
-      const btnNew = document.getElementById('btn-new-dm');
-      const modal = document.getElementById('new-dm-modal');
-      
-      // We need at least the list and the button to exist
-      if (listEl && btnNew && modal) {
-        clearInterval(checkExist);
-        console.log('✅ DOM Elements Found! Initializing...');
-        resolve();
-      }
-    }, 100);
-    
-    // Timeout safety
-    setTimeout(() => {
-      clearInterval(checkExist);
-      console.warn('⚠️ DOM Wait Timeout. Some elements might be missing.');
-      resolve();
-    }, 3000);
-  });
-}
-
 function attachEventListeners() {
-  console.log('🔌 Attaching Event Listeners...');
+  console.log('🔧 Attaching Event Listeners...');
 
-  // --- A. "New Conversation" Button ---
-  const btnNew = document.getElementById('btn-new-dm'); 
+  // 1. New Message Button
+  const btnNew = document.getElementById('btn-new-dm');
   const modal = document.getElementById('new-dm-modal');
-  const btnCancel = document.getElementById('cancel-new-dm');
-  const formNew = document.getElementById('new-dm-form');
-
-  if (btnNew && modal) {
-    // Remove old listeners by cloning to prevent duplicates if re-initialized
+  
+  if (btnNew) {
+    // Remove old listeners by cloning to prevent duplicates
     const newBtn = btnNew.cloneNode(true);
     btnNew.parentNode.replaceChild(newBtn, btnNew);
-
+    
     newBtn.addEventListener('click', () => {
-      console.log('✅ [CLICK] New DM Button Clicked!');
-      modal.classList.remove('hidden');
-      const input = document.getElementById('new-dm-username');
-      if(input) setTimeout(() => input.focus(), 100);
+      console.log('🖱️ New Button Clicked!');
+      if (modal) {
+        modal.classList.remove('hidden');
+        const input = document.getElementById('new-dm-username');
+        if(input) setTimeout(() => input.focus(), 100);
+      } else {
+        console.error('Modal element not found!');
+      }
     });
     console.log('✅ Listener attached to #btn-new-dm');
   } else {
-    console.error('❌ Missing Elements for New DM:', { 
-      btnFound: !!btnNew, 
-      modalFound: !!modal 
-    });
+    console.error('❌ Could not find #btn-new-dm in DOM');
   }
 
-  // Cancel Button
+  // 2. Cancel Button
+  const btnCancel = document.getElementById('cancel-new-dm');
   if (btnCancel && modal) {
-    btnCancel.addEventListener('click', () => {
-      modal.classList.add('hidden');
-    });
+    btnCancel.addEventListener('click', () => modal.classList.add('hidden'));
   }
 
-  // New Chat Form Submit
+  // 3. New Conversation Form
+  const formNew = document.getElementById('new-dm-form');
   if (formNew && modal) {
     formNew.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -106,7 +107,7 @@ function attachEventListeners() {
         .single();
 
       if (error || !profile) {
-        alert('User not found. Please check the spelling.');
+        alert('User not found. Please check spelling.');
         return;
       }
 
@@ -121,7 +122,7 @@ function attachEventListeners() {
     });
   }
 
-  // --- B. Chat Input Send Logic ---
+  // 4. Chat Send Form
   const formSend = document.getElementById('dm-send-form');
   if (formSend) {
     const newForm = formSend.cloneNode(true);
@@ -135,14 +136,11 @@ function attachEventListeners() {
       if (!content || !activeChatUserId) return;
 
       try {
-        const { error } = await supabase.from('direct_messages').insert([{
+        await supabase.from('direct_messages').insert([{
           sender_id: currentUserId,
           receiver_id: activeChatUserId,
           content: content
         }]);
-
-        if (error) throw error;
-
         input.value = '';
         loadMessages(activeChatUserId); 
       } catch (err) {
@@ -154,10 +152,7 @@ function attachEventListeners() {
 
 async function loadContactList() {
   const listEl = document.getElementById('dm-contact-list');
-  if (!listEl) {
-    console.error('❌ Contact list element not found!');
-    return;
-  }
+  if (!listEl) return;
 
   const { data: sentMsgs } = await supabase
     .from('direct_messages')
@@ -190,16 +185,7 @@ async function loadContactList() {
       <div class="text-center py-8">
         <div class="text-4xl mb-2">💬</div>
         <p class="text-gray-400 text-sm">No conversations yet.</p>
-        <button id="empty-state-new-btn" class="mt-4 text-cyan-400 hover:text-cyan-300 text-xs font-bold underline">Start one now</button>
       </div>`;
-    
-    const emptyBtn = document.getElementById('empty-state-new-btn');
-    if(emptyBtn) {
-        emptyBtn.addEventListener('click', () => {
-            const modal = document.getElementById('new-dm-modal');
-            if(modal) modal.classList.remove('hidden');
-        });
-    }
     return;
   }
 
@@ -310,7 +296,6 @@ function renderMessages(messages) {
 
 function setupDMListener(partnerId) {
   if (dmChannel) supabase.removeChannel(dmChannel);
-
   dmChannel = supabase.channel(`dm:${currentUserId}:${partnerId}`);
 
   dmChannel
