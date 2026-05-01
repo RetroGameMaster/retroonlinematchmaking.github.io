@@ -359,11 +359,13 @@ async function renderGame(game, container, rom) {
                 <div class="lg:w-2/3">
                     <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">${escapeHtml(game.title)}</h1>
                     
-                    <div class="flex gap-2 mb-6 flex-wrap">
+                     <div class="flex gap-2 mb-6 flex-wrap">
                         <span class="bg-cyan-900/60 text-cyan-200 border border-cyan-600 px-3 py-1 rounded text-sm font-bold shadow-md">${escapeHtml(game.console)}</span>
                         ${game.year ? `<span class="bg-gray-800/80 text-gray-200 border border-gray-600 px-3 py-1 rounded text-sm font-bold shadow-md">${game.year}</span>` : ''}
                     </div>
-                    ${forumButtonHTML}`
+                    
+                    ${forumButtonHTML}
+
                     <div class="prose prose-invert max-w-none mb-8 bg-gray-900/40 p-6 rounded-xl border border-gray-700/50 backdrop-blur-sm">
                         <p class="text-gray-200 text-lg leading-relaxed whitespace-pre-line font-medium drop-shadow-md">${escapeHtml(game.description || 'No description available.')}</p>
                     </div>
