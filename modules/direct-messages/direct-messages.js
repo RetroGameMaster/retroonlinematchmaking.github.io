@@ -14,57 +14,57 @@ export default async function initModule(rom, params) {
   }
   currentUserId = user.id;
 
-  // Check if a specific user was selected via URL (?user=UUID)
   const targetUserId = params?.user || null;
 
-  // 1. Render Layout (HTML is already in DOM from app.js fetch)
-  // We just need to ensure it's visible
   const container = document.getElementById('app-content');
   if(container && container.innerHTML.trim() === '') {
-      // Fallback if HTML failed to load
       container.innerHTML = '<div class="text-center text-red-400">Error loading interface. Refresh page.</div>';
       return;
   }
 
-  // 2. Attach ALL Event Listeners (New Chat, Send, Close Modal, etc.)
-  attachEventListeners();
+  // FIX: Wait 100ms to ensure HTML is fully painted before attaching listeners
+  setTimeout(() => {
+    attachEventListeners();
+  }, 100);
 
-  // 3. Load Contact List
   await loadContactList();
   
-  // 4. Open specific chat if URL param exists
   if (targetUserId) {
-    // Small delay to ensure list is rendered
     setTimeout(() => openChat(targetUserId), 300);
   }
 }
 
 function attachEventListeners() {
-  // --- A. "New Conversation" Button Logic ---
-  // FIX: Changed ID from 'btn-new-conversation' to 'btn-new-dm' to match your HTML
+  console.log('🔍 Attempting to attach listeners...');
+
+  // 1. Get Elements
   const btnNew = document.getElementById('btn-new-dm'); 
   const modal = document.getElementById('new-dm-modal');
   const btnCancel = document.getElementById('cancel-new-dm');
   const formNew = document.getElementById('new-dm-form');
 
+  // Debug: Log if elements are missing
+  if (!btnNew) console.error('❌ Button #btn-new-dm NOT found in DOM!');
+  if (!modal) console.error('❌ Modal #new-dm-modal NOT found in DOM!');
+
+  // 2. Attach "New" Button Click
   if (btnNew && modal) {
     btnNew.addEventListener('click', () => {
-      console.log('✅ Opening New DM Modal');
+      console.log('✅ BUTTON CLICKED! Opening modal...');
       modal.classList.remove('hidden');
-      // Focus input
       const input = document.getElementById('new-dm-username');
       if(input) setTimeout(() => input.focus(), 100);
     });
-  } else {
-    console.warn('⚠️ Button or Modal not found:', { btn: !!btnNew, modal: !!modal });
   }
 
+  // 3. Attach Cancel Click
   if (btnCancel && modal) {
     btnCancel.addEventListener('click', () => {
       modal.classList.add('hidden');
     });
   }
 
+  // 4. Attach Form Submit
   if (formNew && modal) {
     formNew.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -73,7 +73,6 @@ function attachEventListeners() {
       
       if (!username) return alert('Please enter a username');
 
-      // Find user by username
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('id')
@@ -90,17 +89,15 @@ function attachEventListeners() {
         return;
       }
 
-      // Close modal and open chat
       modal.classList.add('hidden');
-      usernameInput.value = ''; // Reset
+      usernameInput.value = ''; 
       await openChat(profile.id);
     });
   }
 
-  // --- B. Chat Input Send Logic ---
+  // 5. Attach Send Message Form (Clone to remove old listeners)
   const formSend = document.getElementById('dm-send-form');
   if (formSend) {
-    // Remove old listeners by cloning (safety measure)
     const newForm = formSend.cloneNode(true);
     formSend.parentNode.replaceChild(newForm, formSend);
 
@@ -110,12 +107,6 @@ function attachEventListeners() {
       const content = input.value.trim();
       
       if (!content || !activeChatUserId) return;
-
-      const btn = document.getElementById('btn-send-msg');
-      if(btn) {
-          btn.disabled = true;
-          btn.textContent = '...';
-      }
 
       try {
         const { error } = await supabase.from('direct_messages').insert([{
@@ -130,11 +121,6 @@ function attachEventListeners() {
         loadMessages(activeChatUserId); 
       } catch (err) {
         alert('Failed to send: ' + err.message);
-      } finally {
-        if(btn) {
-            btn.disabled = false;
-            btn.textContent = 'Send';
-        }
       }
     });
   }
@@ -144,7 +130,6 @@ async function loadContactList() {
   const listEl = document.getElementById('dm-contact-list');
   if (!listEl) return;
 
-  // Fetch unique users who have exchanged messages with current user
   const { data: sentMsgs } = await supabase
     .from('direct_messages')
     .select('receiver_id, created_at')
@@ -179,7 +164,6 @@ async function loadContactList() {
         <button id="empty-state-new-btn" class="mt-4 text-cyan-400 hover:text-cyan-300 text-xs font-bold underline">Start one now</button>
       </div>`;
     
-    // Attach listener to the empty state button too
     const emptyBtn = document.getElementById('empty-state-new-btn');
     if(emptyBtn) {
         emptyBtn.addEventListener('click', () => {
@@ -214,7 +198,6 @@ async function loadContactList() {
   `).join('');
 }
 
-// Expose function to window for HTML onclick
 window.openDM = async function(userId) {
   await openChat(userId);
 };
@@ -222,7 +205,6 @@ window.openDM = async function(userId) {
 async function openChat(userId) {
   activeChatUserId = userId;
   
-  // UI Updates
   const emptyState = document.getElementById('dm-empty-state');
   const header = document.getElementById('dm-chat-header');
   const msgContainer = document.getElementById('dm-messages-container');
@@ -233,7 +215,6 @@ async function openChat(userId) {
   if(msgContainer) msgContainer.classList.remove('hidden');
   if(inputArea) inputArea.classList.remove('hidden');
 
-  // Load Partner Info
   const { data: profile } = await supabase
     .from('profiles')
     .select('username, avatar_url')
@@ -247,10 +228,7 @@ async function openChat(userId) {
     if(imgEl) imgEl.src = profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`;
   }
 
-  // Load Messages
   await loadMessages(userId);
-
-  // Setup Realtime Listener
   setupDMListener(userId);
 }
 
@@ -298,7 +276,6 @@ function renderMessages(messages) {
     `;
   }).join('');
 
-  // Scroll to bottom
   container.scrollTop = container.scrollHeight;
 }
 
