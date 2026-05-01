@@ -16,17 +16,13 @@ export default async function initModule(rom, params) {
 
   const targetUserId = params?.user || null;
 
-  const container = document.getElementById('app-content');
-  if(container && container.innerHTML.trim() === '') {
-      container.innerHTML = '<div class="text-center text-red-400">Error loading interface. Refresh page.</div>';
-      return;
-  }
+  // 1. Wait for HTML to be fully rendered before doing anything
+  await waitForDOMReady();
 
-  // FIX: Wait 100ms to ensure HTML is fully painted before attaching listeners
-  setTimeout(() => {
-    attachEventListeners();
-  }, 100);
+  // 2. Attach Listeners (Now guaranteed to find elements)
+  attachEventListeners();
 
+  // 3. Load Data
   await loadContactList();
   
   if (targetUserId) {
@@ -34,37 +30,67 @@ export default async function initModule(rom, params) {
   }
 }
 
-function attachEventListeners() {
-  console.log('🔍 Attempting to attach listeners...');
+// Helper: Waits until the main list element exists in the DOM
+function waitForDOMReady() {
+  return new Promise((resolve) => {
+    const checkExist = setInterval(() => {
+      const listEl = document.getElementById('dm-contact-list');
+      const btnNew = document.getElementById('btn-new-dm');
+      const modal = document.getElementById('new-dm-modal');
+      
+      // We need at least the list and the button to exist
+      if (listEl && btnNew && modal) {
+        clearInterval(checkExist);
+        console.log('✅ DOM Elements Found! Initializing...');
+        resolve();
+      }
+    }, 100);
+    
+    // Timeout safety
+    setTimeout(() => {
+      clearInterval(checkExist);
+      console.warn('⚠️ DOM Wait Timeout. Some elements might be missing.');
+      resolve();
+    }, 3000);
+  });
+}
 
-  // 1. Get Elements
+function attachEventListeners() {
+  console.log('🔌 Attaching Event Listeners...');
+
+  // --- A. "New Conversation" Button ---
   const btnNew = document.getElementById('btn-new-dm'); 
   const modal = document.getElementById('new-dm-modal');
   const btnCancel = document.getElementById('cancel-new-dm');
   const formNew = document.getElementById('new-dm-form');
 
-  // Debug: Log if elements are missing
-  if (!btnNew) console.error('❌ Button #btn-new-dm NOT found in DOM!');
-  if (!modal) console.error('❌ Modal #new-dm-modal NOT found in DOM!');
-
-  // 2. Attach "New" Button Click
   if (btnNew && modal) {
-    btnNew.addEventListener('click', () => {
-      console.log('✅ BUTTON CLICKED! Opening modal...');
+    // Remove old listeners by cloning to prevent duplicates if re-initialized
+    const newBtn = btnNew.cloneNode(true);
+    btnNew.parentNode.replaceChild(newBtn, btnNew);
+
+    newBtn.addEventListener('click', () => {
+      console.log('✅ [CLICK] New DM Button Clicked!');
       modal.classList.remove('hidden');
       const input = document.getElementById('new-dm-username');
       if(input) setTimeout(() => input.focus(), 100);
     });
+    console.log('✅ Listener attached to #btn-new-dm');
+  } else {
+    console.error('❌ Missing Elements for New DM:', { 
+      btnFound: !!btnNew, 
+      modalFound: !!modal 
+    });
   }
 
-  // 3. Attach Cancel Click
+  // Cancel Button
   if (btnCancel && modal) {
     btnCancel.addEventListener('click', () => {
       modal.classList.add('hidden');
     });
   }
 
-  // 4. Attach Form Submit
+  // New Chat Form Submit
   if (formNew && modal) {
     formNew.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -90,12 +116,12 @@ function attachEventListeners() {
       }
 
       modal.classList.add('hidden');
-      usernameInput.value = ''; 
+      usernameInput.value = '';
       await openChat(profile.id);
     });
   }
 
-  // 5. Attach Send Message Form (Clone to remove old listeners)
+  // --- B. Chat Input Send Logic ---
   const formSend = document.getElementById('dm-send-form');
   if (formSend) {
     const newForm = formSend.cloneNode(true);
@@ -128,7 +154,10 @@ function attachEventListeners() {
 
 async function loadContactList() {
   const listEl = document.getElementById('dm-contact-list');
-  if (!listEl) return;
+  if (!listEl) {
+    console.error('❌ Contact list element not found!');
+    return;
+  }
 
   const { data: sentMsgs } = await supabase
     .from('direct_messages')
