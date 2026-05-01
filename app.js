@@ -156,7 +156,62 @@ async function updateNotificationUI() {
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
+if (hash.startsWith('direct-messages')) {
+        const moduleName = 'direct-messages'; 
+        let params = {};
+        
+        // Extract Query Parameters (?user=...)
+        if (hash.includes('?')) {
+            const queryString = hash.split('?')[1];
+            const urlParams = new URLSearchParams(queryString);
+            if (urlParams.has('user')) {
+                params.user = urlParams.get('user');
+            }
+        }
 
+        console.log('💬 Loading Direct Messages module...', params);
+        
+        const appContent = document.getElementById('app-content');
+        if (!appContent) return;
+        appContent.innerHTML = ''; // Clear content
+
+        // Load HTML (Clean filename, no query params)
+        try {
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (!response.ok) throw new Error('HTML not found');
+            
+            const html = await response.text();
+            appContent.innerHTML = html;
+            
+            // Wait for DOM to paint
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+        } catch (e) {
+            console.error('Failed to load DM HTML:', e);
+            appContent.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading messages.</div>';
+            return;
+        }
+
+        // Load JS and Initialize
+        try {
+            const module = await import(`./modules/${moduleName}/${moduleName}.js`);
+            
+            const rom = {
+                supabase: window.supabase,
+                currentUser: window.rom?.currentUser || null,
+                loadModule: loadModule,
+                navigateTo: (m) => window.location.hash = `#/${m}`
+            };
+
+            if (module.default && typeof module.default === 'function') {
+                await module.default(rom, params);
+            }
+            console.log('✅ Direct Messages initialized');
+        } catch (err) {
+            console.error('❌ DM JS Error:', err);
+        }
+        return; 
+    }
     // Check for game detail page
     if (hash.startsWith('game/')) {
         if (hash.includes('/discuss')) {
