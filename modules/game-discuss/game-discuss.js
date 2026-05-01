@@ -11,16 +11,14 @@ export default async function initModule(rom, params) {
   
   currentGameSlug = params.slug;
   
-  // 1. Get User
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    currentUser = null;
-  } else {
-    currentUser = user;
+  // 1. Get User & Admin Status
+  const { data: { user } } = await supabase.auth.getUser();
+  currentUser = user;
+  if (user) {
     currentUserId = user.id;
-    // Check admin status (simple email check or fetch profile)
-    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
-    isAdmin = !!profile?.is_admin;
+    // Check if admin (simple email check or fetch profile)
+    const adminEmails = ['retrogamemasterra@gmail.com', 'admin@retroonlinematchmaking.com'];
+    isAdmin = adminEmails.includes(user.email);
   }
 
   const container = document.getElementById('app-content');
@@ -104,9 +102,9 @@ function attachListeners() {
 
       const { error } = await supabase.from('game_discussions').insert([{
         game_id: currentGameId,
-        user_id: currentUserId,
+        user_id: currentUser.id,
         username: username, 
-        avatar_url: null, // We will fetch this dynamically on load
+        avatar_url: null, 
         category,
         title,
         content
@@ -146,14 +144,20 @@ async function loadDiscussions(category) {
     return;
   }
 
-  // Fetch unique user profiles to get real avatars
-  const userIds = [...new Set(posts.map(p => p.user_id))];
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, username, avatar_url')
-    .in('id', userIds);
+  // Fetch Avatars for all authors in this list
+  const authorIds = [...new Set(posts.map(p => p.user_id))];
+  let profilesMap = new Map();
   
-  const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+  if (authorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', authorIds);
+    
+    if (profiles) {
+      profiles.forEach(p => profilesMap.set(p.id, p));
+    }
+  }
 
   listEl.innerHTML = posts.map(post => {
     const catColors = {
@@ -164,21 +168,22 @@ async function loadDiscussions(category) {
       bugs: 'bg-red-600'
     };
     
-    const authorProfile = profileMap.get(post.user_id);
-    const displayUsername = authorProfile?.username || post.username || 'Unknown';
-    const displayAvatar = authorProfile?.avatar_url || `https://ui-avatars.com/api/?name=${displayUsername}&background=random&color=fff`;
+    // Get Profile Data
+    const profile = profilesMap.get(post.user_id);
+    const displayUsername = profile?.username || post.username || 'Unknown';
+    const displayAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${displayUsername}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${displayUsername}`;
     
-    // Check if current user can delete
-    const canDelete = currentUser && (currentUser.id === post.user_id || isAdmin);
+    // Process Content: Convert Images/Links to HTML
+    const processedContent = processContentWithLinks(post.content);
+
+    // Delete Permission
+    const canDelete = (currentUser && post.user_id === currentUserId) || isAdmin;
     const deleteBtn = canDelete ? `
-      <button onclick="window.deletePost('${post.id}')" class="text-xs text-red-400 hover:text-red-300 font-bold ml-2">
-        🗑️ Delete
+      <button onclick="deletePost('${post.id}')" class="text-xs text-red-400 hover:text-red-300 font-bold ml-2">
+        Delete
       </button>
     ` : '';
-
-    // Process content for images and links
-    const processedContent = processContent(post.content);
 
     return `
       <div class="bg-gray-800/80 backdrop-blur border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition shadow-lg">
@@ -194,7 +199,7 @@ async function loadDiscussions(category) {
         
         <h3 class="text-xl font-bold text-white mb-2">${escapeHtml(post.title)}</h3>
         
-        <div class="text-gray-300 text-sm mb-4 whitespace-pre-wrap break-words prose prose-invert max-w-none">
+        <div class="text-gray-300 text-sm mb-4 whitespace-pre-wrap break-words leading-relaxed">
           ${processedContent}
         </div>
         
@@ -209,47 +214,42 @@ async function loadDiscussions(category) {
   }).join('');
 }
 
-// Helper: Convert URLs to Images/Links
-function processContent(text) {
+// NEW: Helper to process text into HTML with Images/Links
+function processContentWithLinks(text) {
   if (!text) return '';
   
-  let html = escapeHtml(text);
-
-  // 1. Image Regex (Direct links ending in .jpg, .png, .gif, .webp)
-  const imageRegex = /(https?:\/\/.*\.(?:jpg|jpeg|png|gif|webp))/gi;
-  html = html.replace(imageRegex, (match) => {
-    const isGif = match.toLowerCase().endsWith('.gif');
-    return `
-      <div class="my-3 relative group cursor-pointer" onclick="this.querySelector('img').classList.toggle('max-h-48'); this.querySelector('img').classList.toggle('h-auto');">
-        <img src="${match}" alt="User shared image" class="max-h-48 rounded-lg border border-gray-600 hover:border-cyan-400 transition object-contain bg-black/50">
-        <div class="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
-          ${isGif ? '🎞️ GIF' : '🖼️ Expand'}
+  // 1. Escape HTML first to prevent XSS
+  let safeText = escapeHtml(text);
+  
+  // 2. Regex to find URLs (http, https, ftp)
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  
+  return safeText.replace(urlRegex, (url) => {
+    // Check if it's an image
+    if (url.match(/\.(jpeg|jpg|gif|png|webp|bmp)(\?.*)?$/i)) {
+      return `
+        <div class="my-2">
+          <a href="${url}" target="_blank" rel="noopener noreferrer">
+            <img src="${url}" alt="User shared image" class="max-h-64 rounded-lg border border-gray-600 hover:border-cyan-400 transition object-contain bg-black/50 cursor-pointer">
+          </a>
         </div>
-      </div>
-    `;
+      `;
+    }
+    // Otherwise just a link
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline break-all">${url}</a>`;
   });
-
-  // 2. Link Regex (Standard URLs)
-  const linkRegex = /(https?:\/\/[^\s]+)/gi;
-  html = html.replace(linkRegex, (match) => {
-    // Don't double-process images
-    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(match)) return match; 
-    return `<a href="${match}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline break-all">${match}</a>`;
-  });
-
-  return html;
 }
 
-// Global Delete Function
+// Global function for delete button
 window.deletePost = async function(postId) {
   if(!confirm('Are you sure you want to delete this post?')) return;
   
   const { error } = await supabase.from('game_discussions').delete().eq('id', postId);
   
   if (error) {
-    alert('Failed to delete: ' + error.message);
+    alert('Error deleting: ' + error.message);
   } else {
-    loadDiscussions('all'); // Refresh list
+    loadDiscussions('all'); // Reload list
   }
 };
 
