@@ -156,11 +156,11 @@ async function updateNotificationUI() {
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
-if (hash.startsWith('direct-messages')) {
-        const moduleName = 'direct-messages'; 
+if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
+        const moduleName = 'direct-messages'; // Folder and File name
         let params = {};
-        
-        // Extract Query Parameters (?user=...)
+
+        // 1. Extract Query Parameters (?user=...)
         if (hash.includes('?')) {
             const queryString = hash.split('?')[1];
             const urlParams = new URLSearchParams(queryString);
@@ -170,12 +170,12 @@ if (hash.startsWith('direct-messages')) {
         }
 
         console.log('💬 Loading Direct Messages module...', params);
-        
+
         const appContent = document.getElementById('app-content');
         if (!appContent) return;
         appContent.innerHTML = ''; // Clear content
 
-        // Load HTML (Clean filename, no query params)
+        // 2. Load HTML (Clean filename, no query params)
         try {
             const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
             if (!response.ok) throw new Error('HTML not found');
@@ -192,7 +192,7 @@ if (hash.startsWith('direct-messages')) {
             return;
         }
 
-        // Load JS and Initialize
+        // 3. IMPORT JS Dynamically (Since it's not in the modules list)
         try {
             const module = await import(`./modules/${moduleName}/${moduleName}.js`);
             
