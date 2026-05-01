@@ -269,7 +269,26 @@ async function renderGame(game, container, rom) {
             </dl>
         </div>
     ` : '';
-
+const forumButtonHTML = `
+  <div class="mb-8 p-6 bg-gradient-to-r from-purple-900/80 to-indigo-900/80 backdrop-blur-md rounded-xl border border-purple-500/30 shadow-xl hover:border-purple-400 transition-colors cursor-pointer group" onclick="window.location.hash='#/game/${game.slug}/discuss'">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="p-3 bg-purple-600 rounded-lg group-hover:scale-110 transition-transform shadow-lg">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white drop-shadow-md">Community Hub</h3>
+          <p class="text-purple-200 text-xs">Discuss mods, textures, and find groups</p>
+        </div>
+      </div>
+      <svg class="w-5 h-5 text-purple-300 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+    </div>
+  </div>
+`;
     // 6. Video & Connection Details
     const videoHTML = game.video_url ? `
         <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-2xl relative" style="aspect-ratio: 16/9;">
