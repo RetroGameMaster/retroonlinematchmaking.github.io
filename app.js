@@ -19,6 +19,7 @@ const modules = {
     'guides': () => import('./modules/guides/guides.js'),
     'lfg': () => import('./modules/lfg/lfg.js'),
     'tournaments': () => import('./modules/tournaments/tournaments.js'),
+    'direct-messages': () => import('./modules/direct-messages/direct-messages.js'),
 };
 
 // Fallback content
@@ -156,6 +157,64 @@ async function updateNotificationUI() {
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
+    if (hash === 'direct-messages' || hash.startsWith('direct-messages?')) {
+        const moduleName = 'direct-messages';
+        let params = {};
+
+        // Extract query parameters (?user=...)
+        if (hash.includes('?')) {
+            const queryString = hash.split('?')[1];
+            const urlParams = new URLSearchParams(queryString);
+            if (urlParams.has('user')) {
+                params.user = urlParams.get('user');
+            }
+        }
+
+        console.log('💬 Loading Direct Messages module...', params);
+
+        const appContent = document.getElementById('app-content');
+        if (!appContent) return;
+        appContent.innerHTML = '';
+
+        try {
+            // 1. Load HTML
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (!response.ok) throw new Error('HTML template not found');
+            
+            const html = await response.text();
+            appContent.innerHTML = html;
+            
+            // CRITICAL: Wait for DOM to paint
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+        } catch (e) {
+            console.error('Failed to load DM HTML:', e);
+            appContent.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading Direct Messages.</div>';
+            return;
+        }
+
+        // 2. Load & Initialize JS
+        try {
+            if (modules[moduleName]) {
+                const module = await modules[moduleName]();
+                const rom = {
+                    supabase: window.supabase,
+                    currentUser: window.rom?.currentUser || null,
+                    loadModule: loadModule,
+                    navigateTo: (m) => window.location.hash = `#/${m}`
+                };
+
+                if (module.default && typeof module.default === 'function') {
+                    await module.default(rom, params);
+                }
+                currentModule = module;
+                console.log(`✅ Module ${moduleName} initialized`);
+            }
+        } catch (err) {
+            console.error('❌ DM JS Error:', err);
+        }
+        return; 
+    }
 if (hash.startsWith('messages')) {
         const moduleName = 'messages'; 
         let params = {};
