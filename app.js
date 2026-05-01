@@ -156,7 +156,63 @@ async function updateNotificationUI() {
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
+ if (hash.startsWith('messages')) {
+        const moduleName = 'messages'; // Assumes folder is modules/messages/
+        let params = {};
+        
+        // Extract query parameters (?user=...)
+        if (hash.includes('?')) {
+            const queryString = hash.split('?')[1];
+            const urlParams = new URLSearchParams(queryString);
+            if (urlParams.has('user')) {
+                params.user = urlParams.get('user');
+            }
+        }
 
+        console.log('📦 Loading module: messages with params', params);
+        
+        // 1. Load HTML manually
+        const appContent = document.getElementById('app-content');
+        if (appContent) {
+            appContent.innerHTML = ''; // Clear first
+            try {
+                const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+                if (response.ok) {
+                    const html = await response.text();
+                    appContent.innerHTML = html;
+                } else {
+                    appContent.innerHTML = '<div class="text-center text-red-400 mt-10">Error loading messages interface.</div>';
+                    return;
+                }
+            } catch (e) {
+                console.error('Failed to load HTML:', e);
+                appContent.innerHTML = '<div class="text-center text-red-400 mt-10">Failed to load template.</div>';
+                return;
+            }
+        }
+
+        // 2. Load JS and pass params
+        try {
+            if (modules[moduleName]) {
+                const module = await modules[moduleName]();
+                const rom = {
+                    supabase: window.supabase,
+                    currentUser: window.rom?.currentUser || null,
+                    loadModule: loadModule,
+                    navigateTo: (m) => window.location.hash = `#/${m}`
+                };
+
+                if (module.default && typeof module.default === 'function') {
+                    await module.default(rom, params);
+                }
+                currentModule = module;
+                console.log(`✅ Module ${moduleName} initialized`);
+            }
+        } catch (moduleError) {
+            console.error(`Module JS error for ${moduleName}:`, moduleError);
+        }
+        return;
+    }
     // Check for game detail page
     if (hash.startsWith('game/')) {
         if (hash.includes('/discuss')) {
@@ -230,59 +286,6 @@ async function handleHashChange() {
         await loadProfileDetail(providedSlug);
         return;
     }
-if (hash.startsWith('messages')) {
-        const moduleName = 'messages';
-        let params = {};
-        
-        // Extract query parameters (e.g., ?user=UUID)
-        if (hash.includes('?')) {
-            const queryString = hash.split('?')[1];
-            const urlParams = new URLSearchParams(queryString);
-            if (urlParams.has('user')) {
-                params.user = urlParams.get('user');
-            }
-        }
-
-        console.log('📦 Loading module:', moduleName, 'with params:', params);
-
-        // 1. Load HTML Manually
-        const appContent = document.getElementById('app-content');
-        if (appContent) {
-            try {
-                const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
-                if (response.ok) {
-                    const html = await response.text();
-                    appContent.innerHTML = html;
-                } else {
-                    appContent.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading messages interface.</div>';
-                    return;
-                }
-            } catch (e) {
-                console.error('Failed to load messages HTML:', e);
-                return;
-            }
-        }
-
-        // 2. Load JS and Pass Params
-        if (modules[moduleName]) {
-            try {
-                const module = await modules[moduleName]();
-                const rom = {
-                    supabase: window.supabase,
-                    currentUser: window.rom?.currentUser || null,
-                    loadModule: loadModule,
-                    navigateTo: (m) => window.location.hash = `#/${m}`
-                };
-
-                if (module.default && typeof module.default === 'function') {
-                    await module.default(rom, params); // Pass params here!
-                }
-                currentModule = module;
-                console.log(`✅ Module ${moduleName} initialized`);
-            } catch (err) {
-                console.error('Error loading messages JS:', err);
-            }
-        }
     // Heartbeat Logic
    let heartbeatInterval;
     async function startHeartbeat() {
