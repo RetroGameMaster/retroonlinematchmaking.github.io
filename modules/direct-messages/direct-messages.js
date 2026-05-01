@@ -41,19 +41,22 @@ export default async function initModule(rom, params) {
 
 function attachEventListeners() {
   // --- A. "New Conversation" Button Logic ---
-  const btnNew = document.getElementById('btn-new-conversation');
+  // FIX: Changed ID from 'btn-new-conversation' to 'btn-new-dm' to match your HTML
+  const btnNew = document.getElementById('btn-new-dm'); 
   const modal = document.getElementById('new-dm-modal');
   const btnCancel = document.getElementById('cancel-new-dm');
   const formNew = document.getElementById('new-dm-form');
 
   if (btnNew && modal) {
     btnNew.addEventListener('click', () => {
-      console.log('Opening New DM Modal');
+      console.log('✅ Opening New DM Modal');
       modal.classList.remove('hidden');
       // Focus input
       const input = document.getElementById('new-dm-username');
       if(input) setTimeout(() => input.focus(), 100);
     });
+  } else {
+    console.warn('⚠️ Button or Modal not found:', { btn: !!btnNew, modal: !!modal });
   }
 
   if (btnCancel && modal) {
@@ -95,7 +98,6 @@ function attachEventListeners() {
   }
 
   // --- B. Chat Input Send Logic ---
-  // We use delegation or direct selection after DOM is ready
   const formSend = document.getElementById('dm-send-form');
   if (formSend) {
     // Remove old listeners by cloning (safety measure)
@@ -125,7 +127,6 @@ function attachEventListeners() {
         if (error) throw error;
 
         input.value = '';
-        // Realtime will handle the display, but we force a reload just in case
         loadMessages(activeChatUserId); 
       } catch (err) {
         alert('Failed to send: ' + err.message);
