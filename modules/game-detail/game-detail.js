@@ -269,7 +269,7 @@ async function renderGame(game, container, rom) {
             </dl>
         </div>
     ` : '';
-const forumButtonHTML = `
+    const forumButtonHTML = `
   <div class="mb-8 p-6 bg-gradient-to-r from-purple-900/80 to-indigo-900/80 backdrop-blur-md rounded-xl border border-purple-500/30 shadow-xl hover:border-purple-400 transition-colors cursor-pointer group" onclick="window.location.hash='#/game/${game.slug}/discuss'">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
@@ -363,7 +363,7 @@ const forumButtonHTML = `
                         <span class="bg-cyan-900/60 text-cyan-200 border border-cyan-600 px-3 py-1 rounded text-sm font-bold shadow-md">${escapeHtml(game.console)}</span>
                         ${game.year ? `<span class="bg-gray-800/80 text-gray-200 border border-gray-600 px-3 py-1 rounded text-sm font-bold shadow-md">${game.year}</span>` : ''}
                     </div>
-                    
+                    ${forumButtonHTML}
                     <div class="prose prose-invert max-w-none mb-8 bg-gray-900/40 p-6 rounded-xl border border-gray-700/50 backdrop-blur-sm">
                         <p class="text-gray-200 text-lg leading-relaxed whitespace-pre-line font-medium drop-shadow-md">${escapeHtml(game.description || 'No description available.')}</p>
                     </div>
