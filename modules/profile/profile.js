@@ -872,20 +872,25 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       if (!content) return alert("Please type a message first.");
       if (!currentUser) return alert("You must be logged in.");
 
-      // 1. Fetch the current user's username from profiles table
-      const { data: userProfile } = await supabase
+      // 1. Fetch Author Username (The person posting)
+      const {  authorProfile } = await supabase
         .from('profiles')
         .select('username')
         .eq('id', currentUser.id)
         .single();
 
-      const usernameToUse = userProfile?.username || currentUser.email.split('@')[0];
+      // 2. Fetch Target Username (The profile owner)
+      // We use the 'profile' object already available in this function scope
+      const targetUsername = profile.username || 'UnknownUser';
 
-      // 2. Insert with BOTH author_id AND author_username
+      const authorUsername = authorProfile?.username || currentUser.email.split('@')[0];
+
+      // 3. Insert with ALL required fields
       const { error } = await supabase.from('profile_comments').insert({
         target_user_id: profile.id,
+        target_username: targetUsername, 
         author_id: currentUser.id,
-        author_username: usernameToUse, // ✅ This fixes the null constraint error
+        author_username: authorUsername, 
         content: content
       });
 
