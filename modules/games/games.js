@@ -1,11 +1,9 @@
-// modules/games/games.js - FIXED RE-INITIALIZATION & CONSOLE FILTER
+// modules/games/games.js
 let isInitialized = false;
 
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
     
-    // FIX: Check if the DOM element actually exists and has content.
-    // If the grid is missing (because we navigated away and back), we MUST re-initialize.
     const gamesList = document.getElementById('games-list');
     const hasGamesLoaded = gamesList && gamesList.querySelectorAll('.game-card').length > 0;
 
@@ -14,15 +12,13 @@ async function initGamesModule(rom) {
         return;
     }
     
-    // Reset flag if DOM was cleared, allowing re-initialization
     if (!hasGamesLoaded) {
         console.log('🔄 Games grid empty or missing, re-initializing...');
-        isInitialized = true; // Set to true immediately to prevent double calls during this load
+        isInitialized = true;
     } else {
         isInitialized = true;
     }
     
-    // Ensure we have supabase
     if (!rom.supabase) {
         console.error('❌ No Supabase client in rom object');
         if (window.supabase) {
@@ -33,14 +29,12 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Wait a moment for HTML to be fully loaded
     setTimeout(() => {
         initFilters();
         initSearch();
         loadGames();
     }, 100);
     
-    // Initialize filters
     function initFilters() {
         const filterBtn = document.getElementById('filterBtn');
         const filterPanel = document.getElementById('filterPanel');
@@ -48,18 +42,12 @@ async function initGamesModule(rom) {
         const clearFiltersBtn = document.getElementById('clearFilters');
         const resetViewBtn = document.getElementById('resetViewBtn');
         
-        // --- FIX: Add Console Dropdown Listener ---
         const consoleFilter = document.getElementById('console-filter');
         if (consoleFilter) {
             consoleFilter.addEventListener('change', () => {
-                applyFilters(); // Auto-apply when selection changes
+                applyFilters();
             });
         }
-        // ----------------------------------------
-        
-        console.log('Initializing filters...');
-        console.log('filterBtn:', !!filterBtn);
-        console.log('filterPanel:', !!filterPanel);
         
         if (filterBtn && filterPanel) {
             filterBtn.addEventListener('click', () => {
@@ -90,14 +78,9 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Initialize search
     function initSearch() {
         const searchInput = document.getElementById('game-search');
         const searchBtn = document.getElementById('searchBtn');
-        
-        console.log('Initializing search...');
-        console.log('searchInput:', !!searchInput);
-        console.log('searchBtn:', !!searchBtn);
         
         const performSearch = () => {
             const query = searchInput.value.trim();
@@ -110,15 +93,10 @@ async function initGamesModule(rom) {
         
         if (searchInput) {
             searchInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') {
-                    performSearch();
-                }
+                if (e.key === 'Enter') performSearch();
             });
-            // Also search on input change for instant results
             searchInput.addEventListener('input', () => {
-                if (searchInput.value.trim().length === 0) {
-                    loadGames();
-                }
+                if (searchInput.value.trim().length === 0) loadGames();
             });
         }
         
@@ -126,10 +104,86 @@ async function initGamesModule(rom) {
             searchBtn.addEventListener('click', performSearch);
         }
     }
+
+    // --- NEW: Handle Hub Clicks (Developer, Publisher, etc) ---
+    window.handleHubClick = function(type, value) {
+        if (!value) return;
+        
+        console.log(`🔗 Hub Clicked: ${type} = ${value}`);
+        
+        // Clear existing filters
+        const consoleFilter = document.getElementById('console-filter');
+        if (consoleFilter) consoleFilter.value = '';
+        
+        const sortOrder = document.getElementById('sortOrder');
+        if (sortOrder) sortOrder.value = 'title_asc'; // Default to A-Z for hubs
+        
+        const searchInput = document.getElementById('game-search');
+        if (searchInput) searchInput.value = '';
+
+        // Reuse applyFilters logic but inject our specific filter
+        // We'll manually trigger a filtered load
+        loadGamesByField(type, value);
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    async function loadGamesByField(field, value) {
+        showLoading(true);
+        try {
+            let query = rom.supabase
+                .from('games')
+                .select('*')
+                .eq('status', 'approved');
+
+            // Dynamic filter based on field
+            if (field === 'year') {
+                query = query.eq('year', value);
+            } else {
+                // Use ilike for text fields (developer, publisher, genre) to handle case sensitivity
+                query = query.ilike(field, `%${value}%`);
+            }
+
+            // Always sort A-Z for hubs
+            query = query.order('title', { ascending: true });
+
+            const { data: games, error } = await query;
+            
+            if (error) throw error;
+            
+            // Update UI to show what we are viewing
+            const gamesList = document.getElementById('games-list');
+            let header = document.getElementById('hub-header');
+            if (!header) {
+                header = document.createElement('div');
+                header.id = 'hub-header';
+                header.className = 'mb-6 text-center animate-fade-in';
+                gamesList.insertBefore(header, gamesList.firstChild);
+            }
+            header.innerHTML = `
+                <h2 class="text-2xl font-bold text-cyan-400">
+                    📂 ${value} <span class="text-gray-500 text-lg">(${games.length} games)</span>
+                </h2>
+                <button onclick="document.getElementById('hub-header').remove(); loadGames();" class="mt-2 text-sm text-gray-400 hover:text-white underline">Clear Filter</button>
+            `;
+
+            displayGames(games || []);
+        } catch (error) {
+            console.error('Error loading hub:', error);
+            showMessage('error', `Failed to load: ${error.message}`);
+        } finally {
+            showLoading(false);
+        }
+    }
     
-    // Load games
     async function loadGames() {
         console.log('🔄 Loading games...');
+        
+        // Remove hub header if going back to main list
+        const header = document.getElementById('hub-header');
+        if (header) header.remove();
+
         showLoading(true);
         
         try {
@@ -137,18 +191,11 @@ async function initGamesModule(rom) {
                 .from('games')
                 .select('*')
                 .eq('status', 'approved')
-                .order('approved_at', { ascending: false });
+                .order('title', { ascending: true }); // ✅ FORCE A-Z ORDER
             
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
             
-            console.log(`✅ Loaded ${games?.length || 0} games`);
-            
-            if (games && games.length > 0) {
-                console.log('📋 Sample game:', games[0].title);
-            }
-            
+            console.log(`✅ Loaded ${games?.length || 0} games (Sorted A-Z)`);
             displayGames(games || []);
             
         } catch (error) {
@@ -159,10 +206,11 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Search games
     async function searchGames(query) {
         showLoading(true);
-        
+        const header = document.getElementById('hub-header');
+        if (header) header.remove();
+
         try {
             const { data: games, error } = await rom.supabase
                 .from('games')
@@ -171,12 +219,8 @@ async function initGamesModule(rom) {
                 .or(`title.ilike.%${query}%,description.ilike.%${query}%,console.ilike.%${query}%`)
                 .order('title', { ascending: true });
             
-            if (error) {
-                throw error;
-            }
-            
+            if (error) throw error;
             displayGames(games || []);
-            
         } catch (error) {
             console.error('Error searching games:', error);
             showMessage('error', `Search failed: ${error.message}`);
@@ -185,55 +229,39 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Apply filters
     async function applyFilters() {
         showLoading(true);
-        
+        const header = document.getElementById('hub-header');
+        if (header) header.remove();
+
         try {
             let query = rom.supabase
                 .from('games')
                 .select('*')
                 .eq('status', 'approved');
             
-            // Console filter
             const consoleFilter = document.getElementById('console-filter');
             if (consoleFilter && consoleFilter.value) {
                 const selectedConsole = consoleFilter.value.trim();
-                
-                console.log(`🔍 Filtering by console: "${selectedConsole}"`);
-
                 query = query.ilike('console', `%${selectedConsole}%`);
             }
             
-            // Sort order
             const sortOrder = document.getElementById('sortOrder');
             if (sortOrder) {
                 switch(sortOrder.value) {
-                    case 'newest':
-                        query = query.order('approved_at', { ascending: false });
-                        break;
-                    case 'oldest':
-                        query = query.order('approved_at', { ascending: true });
-                        break;
-                    case 'title_asc':
-                        query = query.order('title', { ascending: true });
-                        break;
-                    case 'title_desc':
-                        query = query.order('title', { ascending: false });
-                        break;
-                    case 'most_players':
-                        query = query.order('players_max', { ascending: false });
-                        break;
-                    default:
-                        query = query.order('approved_at', { ascending: false });
+                    case 'newest': query = query.order('approved_at', { ascending: false }); break;
+                    case 'oldest': query = query.order('approved_at', { ascending: true }); break;
+                    case 'title_asc': query = query.order('title', { ascending: true }); break;
+                    case 'title_desc': query = query.order('title', { ascending: false }); break;
+                    case 'most_players': query = query.order('players_max', { ascending: false }); break;
+                    default: query = query.order('title', { ascending: true }); // Default to A-Z
                 }
+            } else {
+                query = query.order('title', { ascending: true }); // Ensure A-Z if no sort selected
             }
             
             const { data: games, error } = await query;
-            
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
             
             console.log(`✅ Filter result: ${games.length} games found`);
             displayGames(games || []);
@@ -246,34 +274,25 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Clear filters
     function clearFilters() {
         const consoleFilter = document.getElementById('console-filter');
         if (consoleFilter) consoleFilter.value = '';
         
         const sortOrder = document.getElementById('sortOrder');
-        if (sortOrder) sortOrder.value = 'newest';
+        if (sortOrder) sortOrder.value = 'title_asc';
         
         const searchInput = document.getElementById('game-search');
         if (searchInput) searchInput.value = '';
         
+        const header = document.getElementById('hub-header');
+        if (header) header.remove();
+        
         loadGames();
     }
     
-    // Display games in grid
     function displayGames(games) {
         const gamesList = document.getElementById('games-list');
-        const emptyState = document.getElementById('emptyState');
-        
-        console.log('🖥️ Displaying games...');
-        console.log('games-list element:', !!gamesList);
-        
-        if (!gamesList) {
-            console.error('❌ games-list element not found!');
-            showMessage('error', 'Container not found');
-            showLoading(false);
-            return;
-        }
+        if (!gamesList) return;
         
         if (games.length === 0) {
             gamesList.innerHTML = `
@@ -287,7 +306,6 @@ async function initGamesModule(rom) {
             return;
         }
         
-        // Create Grid Container inside games-list
         let gamesGrid = document.getElementById('gamesGrid');
         if (!gamesGrid) {
             gamesList.innerHTML = '<div id="gamesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"></div>';
@@ -301,13 +319,11 @@ async function initGamesModule(rom) {
             gamesGrid.innerHTML += gameCard;
         });
         
-        console.log(`✅ Added ${games.length} game cards to grid`);
-        
-        // Add click event listeners
         setTimeout(() => {
             document.querySelectorAll('.game-card').forEach(card => {
                 card.addEventListener('click', function(e) {
-                    if (e.target.closest('.favorite-btn') || e.target.classList.contains('favorite-btn')) {
+                    if (e.target.closest('.favorite-btn') || e.target.classList.contains('favorite-btn') || 
+                        e.target.closest('.hub-tag')) {
                         return;
                     }
                     
@@ -326,7 +342,6 @@ async function initGamesModule(rom) {
         showLoading(false);
     }
     
-    // Create game card HTML
     function createGameCard(game) {
         const rating = game.rating || 0;
         const views = game.views_count || 0;
@@ -338,11 +353,20 @@ async function initGamesModule(rom) {
         
         const approvedDate = game.approved_at ? new Date(game.approved_at).toLocaleDateString() : 'N/A';
         
+        // Helper for Hub Tags
+        const createHubTag = (type, value, icon) => {
+            if (!value) return '';
+            return `<button onclick="event.stopPropagation(); window.handleHubClick('${type}', '${escapeHtml(value)}')" 
+                         class="hub-tag inline-flex items-center gap-1 bg-gray-700 hover:bg-cyan-700 text-gray-300 hover:text-white text-xs px-2 py-1 rounded transition mr-2 mb-2 border border-gray-600 hover:border-cyan-500">
+                         <span>${icon}</span> ${escapeHtml(value)}
+                    </button>`;
+        };
+
         return `
-            <div class="game-card bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all duration-300 cursor-pointer"
+            <div class="game-card bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all duration-300 cursor-pointer flex flex-col"
                  data-game-id="${game.id}"
                  data-game-slug="${game.slug || ''}">
-                <div class="relative">
+                <div class="relative shrink-0">
                     <div class="h-48 bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center">
                         ${game.cover_image_url ? 
                             `<img src="${game.cover_image_url}" alt="${escapeHtml(game.title)}" class="w-full h-full object-cover">` :
@@ -358,15 +382,16 @@ async function initGamesModule(rom) {
                     </div>
                 </div>
                 
-                <div class="p-4">
+                <div class="p-4 flex flex-col flex-grow">
                     <div class="flex justify-between items-start mb-2">
-                        <h3 class="text-xl font-bold text-cyan-300 truncate">${escapeHtml(game.title || 'Untitled')}</h3>
-                        <span class="bg-cyan-900/50 text-cyan-300 text-sm px-2 py-1 rounded">
+                        <h3 class="text-xl font-bold text-cyan-300 truncate flex-grow">${escapeHtml(game.title || 'Untitled')}</h3>
+                        <button onclick="event.stopPropagation(); window.handleHubClick('year', '${game.year || 'Unknown'}')" 
+                                class="hub-tag ml-2 bg-gray-700 hover:bg-cyan-700 text-gray-300 hover:text-white text-xs px-2 py-1 rounded transition border border-gray-600 shrink-0">
                             ${game.year || 'N/A'}
-                        </span>
+                        </button>
                     </div>
                     
-                    <p class="text-gray-400 text-sm mb-3 line-clamp-2">
+                    <p class="text-gray-400 text-sm mb-3 line-clamp-2 flex-grow">
                         ${escapeHtml(game.description || 'No description available')}
                     </p>
                     
@@ -374,17 +399,20 @@ async function initGamesModule(rom) {
                         ${platformBadges}
                     </div>
                     
-                    <div class="flex items-center justify-between text-sm text-gray-400 mb-3">
+                    <!-- NEW: Info Hubs -->
+                    <div class="mt-auto pt-3 border-t border-gray-700">
+                        <div class="flex flex-wrap gap-1">
+                            ${createHubTag('developer', game.developer, '🛠️')}
+                            ${createHubTag('publisher', game.publisher, '🏢')}
+                            ${createHubTag('genre', game.genre, '🏷️')}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-sm text-gray-400 mt-3 mb-2">
                         <div class="flex items-center gap-1">
                             <span>👥 ${game.players_min || 1}-${game.players_max || 1}</span>
                         </div>
-                        <div class="text-xs text-gray-500">
-                            ${approvedDate}
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between text-sm text-gray-400 mb-4">
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3">
                             <div class="flex items-center gap-1">
                                 <span class="text-yellow-400">★</span>
                                 <span>${rating.toFixed(1)}</span>
@@ -395,20 +423,11 @@ async function initGamesModule(rom) {
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="mt-2 text-center">
-                        <button class="view-game-btn bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-4 rounded transition w-full"
-                                data-game-id="${game.id}"
-                                data-game-slug="${game.slug || ''}">
-                            View Details
-                        </button>
-                    </div>
                 </div>
             </div>
         `;
     }
     
-    // Show loading state
     function showLoading(show) {
         const gamesList = document.getElementById('games-list');
         if (!gamesList) return;
@@ -432,10 +451,8 @@ async function initGamesModule(rom) {
         }
     }
     
-    // Show message
     function showMessage(type, text) {
         console.log(`💬 ${type.toUpperCase()}: ${text}`);
-        
         let messageContainer = document.getElementById('gamesMessage');
         if (!messageContainer) {
             messageContainer = document.createElement('div');
@@ -445,16 +462,13 @@ async function initGamesModule(rom) {
         }
         
         const messageId = 'msg-' + Date.now();
-        const bgColor = type === 'error' ? 'bg-red-600' : 
-                       type === 'success' ? 'bg-green-600' : 'bg-blue-600';
+        const bgColor = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-blue-600';
         
         messageContainer.innerHTML += `
             <div id="${messageId}" class="${bgColor} text-white p-4 rounded-lg shadow-lg mb-2 animate-fade-in">
                 <div class="flex justify-between items-center">
                     <span>${text}</span>
-                    <button onclick="document.getElementById('${messageId}').remove()" class="ml-4 text-white hover:text-gray-200">
-                        ✕
-                    </button>
+                    <button onclick="document.getElementById('${messageId}').remove()" class="ml-4 text-white hover:text-gray-200">✕</button>
                 </div>
             </div>
         `;
@@ -467,9 +481,8 @@ async function initGamesModule(rom) {
     
     function escapeHtml(text) {
         if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        // Escape single quotes for onclick handlers
+        return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 }
 
