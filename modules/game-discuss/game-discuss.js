@@ -8,14 +8,17 @@ export default async function initModule(rom, params) {
   console.log('💬 Game Discuss module initialized for:', params.slug);
   
   currentGameSlug = params.slug;
-  const {  { user } } = await supabase.auth.getUser();
+  
+  // FIX 1: Added 'data:' key
+  const { data: { user } } = await supabase.auth.getUser();
   currentUser = user;
 
   const container = document.getElementById('app-content');
   if (!container) return;
 
   // 1. Fetch Game Details to get ID and Title
-  const {  game, error } = await supabase
+  // FIX 2: Added 'data:' key
+  const { data: game, error } = await supabase
     .from('games')
     .select('id, title')
     .eq('slug', currentGameSlug)
@@ -30,7 +33,8 @@ export default async function initModule(rom, params) {
   document.title = `${game.title} - Community | ROM`;
   
   setTimeout(() => {
-    document.getElementById('discuss-game-title').textContent = game.title;
+    const titleEl = document.getElementById('discuss-game-title');
+    if(titleEl) titleEl.textContent = game.title;
     loadDiscussions('all');
     attachListeners();
   }, 100);
@@ -58,10 +62,12 @@ function attachListeners() {
 
   if (btnNew) btnNew.addEventListener('click', () => {
     if (!currentUser) return alert('Please log in to post.');
-    modal.classList.remove('hidden');
+    if(modal) modal.classList.remove('hidden');
   });
 
-  if (btnCancel) btnCancel.addEventListener('click', () => modal.classList.add('hidden'));
+  if (btnCancel) btnCancel.addEventListener('click', () => {
+    if(modal) modal.classList.add('hidden');
+  });
 
   if (form) {
     form.addEventListener('submit', async (e) => {
@@ -73,8 +79,8 @@ function attachListeners() {
       const { error } = await supabase.from('game_discussions').insert([{
         game_id: currentGameId,
         user_id: currentUser.id,
-        username: currentUser.email.split('@')[0], // Or fetch from profile
-        avatar_url: null, // Fetch from profile if needed
+        username: currentUser.email.split('@')[0], 
+        avatar_url: null,
         category,
         title,
         content
@@ -83,7 +89,7 @@ function attachListeners() {
       if (error) {
         alert('Error posting: ' + error.message);
       } else {
-        modal.classList.add('hidden');
+        if(modal) modal.classList.add('hidden');
         form.reset();
         loadDiscussions('all');
       }
@@ -101,7 +107,8 @@ async function loadDiscussions(category) {
     query = query.eq('category', category);
   }
 
-  const {  posts, error } = await query.order('created_at', { ascending: false });
+  // FIX 3: Added 'data:' key
+  const { data: posts, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
     listEl.innerHTML = '<div class="text-red-400 text-center">Error loading posts.</div>';
