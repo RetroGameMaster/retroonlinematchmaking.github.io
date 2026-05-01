@@ -161,10 +161,19 @@ async function handleHashChange() {
     if (hash.startsWith('game/')) {
         if (hash.includes('/discuss')) {
             const parts = hash.split('/');
-            const slug = parts[1]; // e.g., "mario-64" from "game/mario-64/discuss"
+            const slug = parts[1]; 
             
             console.log('📦 Loading module: game-discuss');
             const module = await import('./modules/game-discuss/game-discuss.js');
+            
+            // FIX: Define rom here or use window.rom
+            const rom = {
+                supabase: window.supabase,
+                currentUser: window.rom?.currentUser || null,
+                loadModule: loadModule,
+                navigateTo: (m) => window.location.hash = `#/${m}`
+            };
+
             module.default(rom, { slug });
             return; 
         }
@@ -223,9 +232,11 @@ async function handleHashChange() {
     }
 
     // Heartbeat Logic
-    let heartbeatInterval;
+   let heartbeatInterval;
     async function startHeartbeat() {
-        if (!rom.currentUser) return;
+        // FIX: Use window.rom instead of rom
+        if (!window.rom?.currentUser) return; 
+        
         const updatePresence = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
@@ -239,8 +250,15 @@ async function handleHashChange() {
     function stopHeartbeat() { if (heartbeatInterval) clearInterval(heartbeatInterval); }
     
     supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN') { rom.currentUser = session.user; startHeartbeat(); } 
-        else if (event === 'SIGNED_OUT') { rom.currentUser = null; stopHeartbeat(); }
+        // FIX: Update window.rom
+        if (event === 'SIGNED_IN') { 
+            window.rom.currentUser = session.user; 
+            startHeartbeat(); 
+        } 
+        else if (event === 'SIGNED_OUT') { 
+            window.rom.currentUser = null; 
+            stopHeartbeat(); 
+        }
     });
 
     cleanupGameBackgrounds();
