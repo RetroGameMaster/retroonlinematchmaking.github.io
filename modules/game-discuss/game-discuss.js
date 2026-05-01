@@ -11,14 +11,16 @@ export default async function initModule(rom, params) {
   
   currentGameSlug = params.slug;
   
-  // 1. Get User & Admin Status
-  const { data: { user } } = await supabase.auth.getUser();
-  currentUser = user;
-  if (user) {
+  // 1. Get User
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    currentUser = null;
+  } else {
+    currentUser = user;
     currentUserId = user.id;
-    // Simple admin check (update with your actual admin logic)
-    const adminEmails = ['retrogamemasterra@gmail.com', 'admin@retroonlinematchmaking.com'];
-    isAdmin = adminEmails.includes(user.email);
+    // Check admin status (simple email check or fetch profile)
+    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
+    isAdmin = !!profile?.is_admin;
   }
 
   const container = document.getElementById('app-content');
@@ -104,7 +106,7 @@ function attachListeners() {
         game_id: currentGameId,
         user_id: currentUserId,
         username: username, 
-        avatar_url: null, 
+        avatar_url: null, // We will fetch this dynamically on load
         category,
         title,
         content
@@ -144,20 +146,14 @@ async function loadDiscussions(category) {
     return;
   }
 
-  // Collect unique user IDs to fetch profiles (for avatars)
-  const userIds = [...new Set(posts.map(p => p.user_id).filter(Boolean))];
-  let profilesMap = new Map();
-
-  if (userIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, username, avatar_url')
-      .in('id', userIds);
-    
-    if (profiles) {
-      profiles.forEach(p => profilesMap.set(p.id, p));
-    }
-  }
+  // Fetch unique user profiles to get real avatars
+  const userIds = [...new Set(posts.map(p => p.user_id))];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', userIds);
+  
+  const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
   listEl.innerHTML = posts.map(post => {
     const catColors = {
@@ -167,77 +163,99 @@ async function loadDiscussions(category) {
       lfg: 'bg-cyan-600',
       bugs: 'bg-red-600'
     };
-
-    // Get Profile Data
-    const profile = profilesMap.get(post.user_id);
-    const displayUsername = profile?.username || post.username || 'Unknown';
-    const displayAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUsername)}&background=6b21a8&color=fff`;
+    
+    const authorProfile = profileMap.get(post.user_id);
+    const displayUsername = authorProfile?.username || post.username || 'Unknown';
+    const displayAvatar = authorProfile?.avatar_url || `https://ui-avatars.com/api/?name=${displayUsername}&background=random&color=fff`;
     const profileLink = `#/profile/${displayUsername}`;
     
-    // Check Delete Permission
-    const canDelete = currentUser && (currentUserId === post.user_id || isAdmin);
+    // Check if current user can delete
+    const canDelete = currentUser && (currentUser.id === post.user_id || isAdmin);
     const deleteBtn = canDelete ? `
-      <button onclick="deletePost('${post.id}')" class="text-xs text-red-400 hover:text-red-300 font-bold ml-2">
+      <button onclick="window.deletePost('${post.id}')" class="text-xs text-red-400 hover:text-red-300 font-bold ml-2">
         🗑️ Delete
       </button>
     ` : '';
 
-    // Process Content for Links
-    const processedContent = linkifyHtml(escapeHtml(post.content));
+    // Process content for images and links
+    const processedContent = processContent(post.content);
 
     return `
-      <div class="bg-gray-800/80 backdrop-blur border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition shadow-lg relative">
-        ${deleteBtn}
+      <div class="bg-gray-800/80 backdrop-blur border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition shadow-lg">
         <div class="flex justify-between items-start mb-2">
           <span class="${catColors[post.category] || 'bg-gray-600'} text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
             ${post.category}
           </span>
-          <span class="text-xs text-gray-500">${new Date(post.created_at).toLocaleDateString()}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-500">${new Date(post.created_at).toLocaleDateString()}</span>
+            ${deleteBtn}
+          </div>
         </div>
+        
         <h3 class="text-xl font-bold text-white mb-2">${escapeHtml(post.title)}</h3>
-        <div class="text-gray-300 text-sm mb-4 whitespace-pre-wrap break-words leading-relaxed">
+        
+        <div class="text-gray-300 text-sm mb-4 whitespace-pre-wrap break-words prose prose-invert max-w-none">
           ${processedContent}
         </div>
+        
         <div class="flex items-center justify-between border-t border-gray-700 pt-3">
-          <a href="${profileLink}" class="flex items-center gap-2 group hover:bg-gray-700/50 p-1 rounded transition">
+          <a href="${profileLink}" class="flex items-center gap-2 hover:opacity-80 transition">
             <img src="${displayAvatar}" class="w-6 h-6 rounded-full border border-gray-600">
-            <span class="text-xs text-cyan-400 font-bold group-hover:underline">${displayUsername}</span>
+            <span class="text-xs text-cyan-400 font-bold hover:underline">${escapeHtml(displayUsername)}</span>
           </a>
-          <!-- Optional: Add a "Read More" if you implement single post view later -->
         </div>
       </div>
     `;
   }).join('');
 }
 
-// Helper: Convert URLs to clickable links
-function linkifyHtml(text) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text.replace(urlRegex, function(url) {
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline break-all">${url}</a>`;
+// Helper: Convert URLs to Images/Links
+function processContent(text) {
+  if (!text) return '';
+  
+  let html = escapeHtml(text);
+
+  // 1. Image Regex (Direct links ending in .jpg, .png, .gif, .webp)
+  const imageRegex = /(https?:\/\/.*\.(?:jpg|jpeg|png|gif|webp))/gi;
+  html = html.replace(imageRegex, (match) => {
+    const isGif = match.toLowerCase().endsWith('.gif');
+    return `
+      <div class="my-3 relative group cursor-pointer" onclick="this.querySelector('img').classList.toggle('max-h-48'); this.querySelector('img').classList.toggle('h-auto');">
+        <img src="${match}" alt="User shared image" class="max-h-48 rounded-lg border border-gray-600 hover:border-cyan-400 transition object-contain bg-black/50">
+        <div class="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
+          ${isGif ? '🎞️ GIF' : '🖼️ Expand'}
+        </div>
+      </div>
+    `;
   });
+
+  // 2. Link Regex (Standard URLs)
+  const linkRegex = /(https?:\/\/[^\s]+)/gi;
+  html = html.replace(linkRegex, (match) => {
+    // Don't double-process images
+    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(match)) return match; 
+    return `<a href="${match}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline break-all">${match}</a>`;
+  });
+
+  return html;
 }
 
-// Helper: Escape HTML to prevent XSS
+// Global Delete Function
+window.deletePost = async function(postId) {
+  if(!confirm('Are you sure you want to delete this post?')) return;
+  
+  const { error } = await supabase.from('game_discussions').delete().eq('id', postId);
+  
+  if (error) {
+    alert('Failed to delete: ' + error.message);
+  } else {
+    loadDiscussions('all'); // Refresh list
+  }
+};
+
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
-
-// Global function for delete button
-window.deletePost = async function(postId) {
-  if(!confirm('Are you sure you want to delete this post?')) return;
-
-  const { error } = await supabase
-    .from('game_discussions')
-    .delete()
-    .eq('id', postId);
-
-  if (error) {
-    alert('Error deleting: ' + error.message);
-  } else {
-    loadDiscussions('all'); // Reload list
-  }
-};
