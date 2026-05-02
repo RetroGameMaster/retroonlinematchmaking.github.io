@@ -886,12 +886,16 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
           throw error;
         }
 
-        alert('✅ Profile updated successfully! Your new username is active everywhere.');
+        alert('✅ Profile updated successfully! Refreshing to show changes...');
         
-        // Close Modal & Reload to reflect changes in UI and Live Activity
+        // Close Modal
         document.getElementById('edit-modal').style.display = 'none';
-        location.reload(); 
-
+        
+        // FORCE RELOAD: This fetches the fresh data from DB and re-renders the whole page
+        // We use a small timeout to allow the alert to dismiss first
+        setTimeout(() => {
+            window.location.reload();
+        }, 500);
       } catch (err) {
         console.error('Update error:', err);
         alert('❌ Error: ' + err.message);
