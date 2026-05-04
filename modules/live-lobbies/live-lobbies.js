@@ -91,7 +91,7 @@ async function loadActiveLobbies(rom) {
   try {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     
-    // UPDATED QUERY: Join games (for cover/bg) and profiles (for host gamercard)
+    // STEP 1: Fetch Rooms + Game Data ONLY (Removed profiles join to avoid FK error)
     let { data: rooms, error } = await rom.supabase
       .from('chat_rooms')
       .select(`
@@ -102,16 +102,6 @@ async function loadActiveLobbies(rom) {
           cover_image_url, 
           background_image_url, 
           background_video_url
-        ),
-        host_profile:profiles!chat_rooms_created_by_fkey (
-          id,
-          username,
-          avatar_url,
-          motto,
-          xp_total,
-          gamercard_bg_type,
-          gamercard_bg_value,
-          rank:user_ranks (name, color)
         )
       `)
       .eq('is_ephemeral', true)
@@ -119,6 +109,33 @@ async function loadActiveLobbies(rom) {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+
+    // STEP 2: Fetch Host Profiles Separately
+    let hostProfilesMap = new Map();
+    if (rooms && rooms.length > 0) {
+      // Collect unique user IDs
+      const hostIds = [...new Set(rooms.map(r => r.created_by).filter(Boolean))];
+      
+      if (hostIds.length > 0) {
+        const { data: profiles, error: profileError } = await rom.supabase
+          .from('profiles')
+          .select(`
+            id,
+            username,
+            avatar_url,
+            motto,
+            xp_total,
+            gamercard_bg_type,
+            gamercard_bg_value,
+            rank:user_ranks (name, color)
+          `)
+          .in('id', hostIds);
+        
+        if (!profileError && profiles) {
+          profiles.forEach(p => hostProfilesMap.set(p.id, p));
+        }
+      }
+    }
 
     // Apply Client-Side Filters
     const searchVal = document.getElementById('filter-search')?.value.toLowerCase() || '';
@@ -169,7 +186,8 @@ async function loadActiveLobbies(rom) {
       }
 
       const game = room.games || {};
-      const host = room.host_profile || {};
+      // Get host data from our manual map
+      const host = hostProfilesMap.get(room.created_by) || {};
       
       const gameSlug = game.slug;
       const displayName = game.title || room.name.replace('Live Lobby', '').trim() || 'Unknown Game';
@@ -180,7 +198,6 @@ async function loadActiveLobbies(rom) {
       if (game.background_image_url) {
         bgImageStyle = `background-image: url('${game.background_image_url}'); background-size: cover; background-position: center;`;
       } else if (game.cover_image_url) {
-        // Fallback to cover if no dedicated background
         bgImageStyle = `background-image: url('${game.cover_image_url}'); background-size: cover; background-position: center;`;
       } else {
         bgImageStyle = `background: linear-gradient(135deg, #064e3b 0%, #111827 100%);`;
