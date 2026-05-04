@@ -814,7 +814,7 @@ async function appendMessageToDOM(msg, currentUserId) {
     const gcBgType = profileData?.gamercard_bg_type || 'color';
     const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
 
-    // 3. Construct Gamercard HTML
+        // 3. Construct Gamercard HTML
     // We build the background style dynamically based on the fetched type
     let bgStyle = `background-color: ${gcBgValue};`;
     if (gcBgType === 'image') {
@@ -823,12 +823,23 @@ async function appendMessageToDOM(msg, currentUserId) {
         bgStyle = `background-image: ${gcBgValue};`;
     }
 
+    // 🆕 CHECK FOR WRITER STATUS
+    // We check if the user has published any articles (stats.articles_published > 0)
+    const articleCount = profileData?.stats?.articles_published || 0;
+    const isWriter = articleCount > 0;
+    
+    const writerBadgeHtml = isWriter ? `
+        <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
+              style="background:#ec489940; color:#ec4899; border:1px solid #ec4899; text-shadow: 0 1px 2px black; backdrop-filter: blur(2px); display:flex; align-items:center; gap:2px;">
+            ✒️ Writer
+        </span>
+    ` : '';
+
     const gamercardHtml = `
         <a href="${profileLink}" class="group block flex-shrink-0 w-[240px] hover:scale-[1.02] transition-transform duration-200 z-10">
             <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
                 
-                <!-- ✅ UPDATED: Background Layer (Increased Opacity from 0.20 to 0.60) -->
-                <!-- This makes the image/gradient much more visible -->
+                <!-- Background Layer -->
                 <div class="absolute inset-0" style="
                     ${bgStyle} 
                     opacity: 0.6; 
@@ -836,24 +847,30 @@ async function appendMessageToDOM(msg, currentUserId) {
                     transition: opacity 0.3s ease;
                 "></div>
 
-                <!-- ✅ UPDATED: Gradient Overlay (Made lighter to let background show through) -->
-                <!-- Changed from black/60 to black/30 for better visibility -->
+                <!-- Gradient Overlay -->
                 <div class="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
                 
-                <!-- Content (Z-index kept high to stay on top) -->
+                <!-- Content -->
                 <div class="relative z-10 p-2 flex items-center gap-2">
                     <img src="${avatarUrl}" alt="${username}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-md">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1 mb-0.5">
                             <span class="text-xs font-bold text-white truncate drop-shadow-md">${escapeHtml(username)}</span>
                         </div>
+                        
+                        <!-- Rank Badge -->
                         ${rankName ? `
                             <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
                                   style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor}; text-shadow: 0 1px 2px black; backdrop-filter: blur(2px);">
                                 ${escapeHtml(rankName)}
                             </span>
                         ` : ''}
+
+                        <!-- 🆕 Writer Badge (Shows if user has published articles) -->
+                        ${writerBadgeHtml}
+
                         ${motto ? `<p class="text-[9px] text-gray-200 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
+                        
                         <!-- Mini XP Bar -->
                         <div class="h-1 w-full bg-gray-900/60 rounded-full mt-1 overflow-hidden backdrop-blur-sm">
                             <div class="h-full bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" style="width: ${Math.min(100, (xpTotal % 1000) / 10)}%"></div>
