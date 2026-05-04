@@ -124,7 +124,7 @@ function setupListeners(rom) {
         if (error) throw error;
 
         // Get Public URL
-        const {  { publicUrl } } = supabase.storage.from('article-uploads').getPublicUrl(fileName);
+        const { publicUrl } = supabase.storage.from('article-uploads').getPublicUrl(fileName);
 
         // Insert into Editor
         editor.chain().focus().setImage({ src: publicUrl }).run();
