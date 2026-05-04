@@ -378,19 +378,15 @@ async function loadModuleWithParams(moduleName, params) {
                     .single();
                 if (profileData && profileData.username) {
                     window.location.hash = `#/profile/${profileData.username}`;
-                    return;
                 } else {
                     window.location.hash = '#/home';
-                    return;
                 }
             } catch (err) {
                 console.error('Error fetching profile for redirect:', err);
                 window.location.hash = '#/home';
-                return;
             }
         }
         await loadProfileDetail(providedSlug);
-        return;
     }
 
     // Heartbeat Logic
