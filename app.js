@@ -369,68 +369,54 @@ if (hash === 'write') {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
     
-    appContent.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor & Scripts...</p></div>`;
+    appContent.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor Scripts...</p></div>`;
 
-    // 1. Define Scripts
+    // ✅ USE THESE SPECIFIC STANDALONE BUILDS
     const scripts = [
-        { src: 'https://unpkg.com/@tiptap/core@2.0.3/dist/index.umd.js', global: 'TiptapCore' },
-        { src: 'https://unpkg.com/@tiptap/starter-kit@2.0.3/dist/index.umd.js', global: 'StarterKit' },
-        { src: 'https://unpkg.com/@tiptap/extension-image@2.0.3/dist/index.umd.js', global: 'ExtensionImage' },
-        { src: 'https://unpkg.com/@tiptap/extension-link@2.0.3/dist/index.umd.js', global: 'ExtensionLink' }
+        'https://unpkg.com/@tiptap/core@2.0.3/dist/index.umd.js',
+        'https://unpkg.com/@tiptap/starter-kit@2.0.3/dist/index.umd.js',
+        'https://unpkg.com/@tiptap/extension-image@2.0.3/dist/index.umd.js',
+        'https://unpkg.com/@tiptap/extension-link@2.0.3/dist/index.umd.js'
     ];
 
-    // 2. Helper to load script
     const loadScript = (src) => {
         return new Promise((resolve, reject) => {
+            // Skip if already exists
             if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
             const script = document.createElement('script');
             script.src = src;
-            script.onload = resolve;
+            script.onload = () => { console.log(`✅ Loaded: ${src}`); resolve(); };
             script.onerror = reject;
             document.head.appendChild(script);
         });
     };
 
     try {
-        // Load all scripts
-        for (const s of scripts) { await loadScript(s.src); }
+        // Load sequentially
+        for (const src of scripts) { await loadScript(src); }
         
-        // 3. CRITICAL: Normalize Global Names (The Missing Prerequisite)
-        // The CDN might expose them as 'window.Core', 'window.StarterKit', etc.
-        // We force them into the specific names your write.js expects.
-        
-        // Fix Core
-        if (!window.TiptapCore) {
-            window.TiptapCore = window.tiptapCore || window.Core || window.Tiptap;
-        }
-        // Fix StarterKit
-        if (!window.TiptapStarterKit) {
-            window.TiptapStarterKit = window.starterKit || window.StarterKit || window['@tiptap/starter-kit'];
-        }
-        // Fix Image
-        if (!window.TiptapExtensionImage) {
-            window.TiptapExtensionImage = window.extensionImage || window.Image || window['@tiptap/extension-image'];
-        }
-        // Fix Link
-        if (!window.TiptapExtensionLink) {
-            window.TiptapExtensionLink = window.extensionLink || window.Link || window['@tiptap/extension-link'];
-        }
+        // ⏳ Wait slightly for global attachment
+        await new Promise(r => setTimeout(r, 500));
 
-        console.log('✅ Scripts Loaded & Normalized:', { 
-            core: !!window.TiptapCore, 
-            kit: !!window.TiptapStarterKit 
+        // 🔍 DEBUG: Log what actually loaded
+        console.log('🔍 Global Check:', {
+            hasCore: !!window.TiptapCore,
+            hasStarterKit: !!window.TiptapStarterKit,
+            windowKeys: Object.keys(window).filter(k => k.includes('tiptap') || k.includes('Tiptap'))
         });
 
-        // Small delay to ensure globals attach
-        await new Promise(r => setTimeout(r, 300));
+        // Fallback mapping if standard names failed
+        if (!window.TiptapCore && window.tiptapCore) window.TiptapCore = window.tiptapCore;
+        if (!window.TiptapStarterKit && window.StarterKit) window.TiptapStarterKit = window.StarterKit;
+        if (!window.TiptapExtensionImage && window.ImageExtension) window.TiptapExtensionImage = { Image: window.ImageExtension };
+        if (!window.TiptapExtensionLink && window.LinkExtension) window.TiptapExtensionLink = { Link: window.LinkExtension };
 
-        // 4. Fetch HTML (Ensure write.html has NO <script> tags inside it)
+        // Fetch HTML
         const response = await fetch('./modules/articles/write.html');
         if (!response.ok) throw new Error('HTML not found');
-        const html = await response.text();
-        appContent.innerHTML = html;
+        appContent.innerHTML = await response.text();
 
-        // 5. Run Module
+        // Run Module
         const module = await import('./modules/articles/write.js');
         const rom = {
             supabase: window.supabase,
@@ -442,12 +428,11 @@ if (hash === 'write') {
         if (module.default) await module.default(rom);
         
     } catch (err) {
-        console.error('Error loading Write module:', err);
+        console.error('❌ Write Module Error:', err);
         appContent.innerHTML = `<div class="text-red-400 text-center mt-10">Error: ${err.message}</div>`;
     }
     return;
 }
-
     // Heartbeat Logic
    let heartbeatInterval;
     async function startHeartbeat() {
