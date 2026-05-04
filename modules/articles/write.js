@@ -207,4 +207,3 @@ function setupListeners(rom) {
         publishBtn.textContent = '🚀 Publish Article (+50 XP)';
       }
     });
-  }
