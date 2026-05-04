@@ -779,56 +779,39 @@ async function appendMessageToDOM(msg, currentUserId) {
     const isMe = msg.user_id === currentUserId;
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. FETCH FULL PROFILE DATA FOR THE MESSAGE AUTHOR
-    // We do this to get Rank, Motto, XP, and Gamercard BG settings
-    let profileData = null;
-    try {
-        const { data } = await supabase
-            .from('profiles')
-            .select(`
-                id, username, avatar_url, motto, xp_total, 
-                gamercard_bg_type, gamercard_bg_value,
-                rank:user_ranks (name, color)
-            `)
-            .eq('id', msg.user_id)
-            .single();
-        profileData = data;
-    } catch (err) {
-        console.warn("Could not fetch profile for chat message:", msg.user_id);
-        // Fallback to basic data if fetch fails
-        profileData = {
-            username: msg.username || 'Unknown',
-            avatar_url: msg.avatar_url,
-            rank: null,
-            motto: '',
-            xp_total: 0,
-            gamercard_bg_type: 'color',
-            gamercard_bg_value: '#1f2937'
-        };
-    }
+    // 1. PREPARE DATA (Use what's in the message, no DB fetches)
+    const username = msg.username || 'Unknown';
+    const avatarUrl = msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
+    const profileLink = `#/profile/${username}`;
 
-    // Ensure username exists for the link
-    const displayName = profileData?.username || msg.username || 'Unknown';
-    const profileLink = `#/profile/${displayName}`;
+    // Since chat_messages doesn't store rank/motto/xp yet, we use safe defaults 
+    // to prevent errors while still rendering the card structure.
+    const mockProfile = {
+        username: username,
+        avatar_url: avatarUrl,
+        motto: "", // Not stored in chat yet
+        xp_total: 0, // Not stored in chat yet
+        gamercard_bg_type: 'color',
+        gamercard_bg_value: '#1f2937',
+        rank: null // Not stored in chat yet
+    };
 
-    // 2. GENERATE THE GAMERCARD HTML
-    // We use your existing helper function 'createGamercardHTML'
-    // Pass 'true' to indicate this is for chat (hides motto/adjusts size if your helper supports it)
-    const gamercardHtml = createGamercardHTML(profileData, true);
+    // 2. GENERATE GAMERCARD HTML
+    // We call your existing helper. It will render the card with the data we have.
+    // If rank/motto are missing, the helper simply won't show them (which is safe).
+    const gamercardHtml = createGamercardHTML(mockProfile, true);
 
-    // 3. CREATE THE MESSAGE CONTAINER
+    // 3. CREATE CONTAINER
     const messageEl = document.createElement('div');
-    // Flex layout: Gamercard on left (or right if me), Message bubble next to it
     messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start`;
 
-    // 4. WRAP GAMERCARD IN CLICKABLE LINK
-    // This ensures the whole card is clickable to visit the profile
+    // 4. WRAP CARD IN LINK
     const cardWrapper = document.createElement('a');
     cardWrapper.href = profileLink;
     cardWrapper.className = "flex-shrink-0 hover:scale-105 transition-transform duration-200 block";
     cardWrapper.innerHTML = gamercardHtml;
 
-    // 5. CREATE THE MESSAGE BUBBLE
+    // 5. CREATE BUBBLE
     const bubbleHtml = `
         <div class="flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'} pt-1">
             <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
@@ -843,7 +826,7 @@ async function appendMessageToDOM(msg, currentUserId) {
     const bubbleWrapper = document.createElement('div');
     bubbleWrapper.innerHTML = bubbleHtml;
 
-    // 6. ASSEMBLE AND APPEND
+    // 6. ASSEMBLE
     messageEl.appendChild(cardWrapper);
     messageEl.appendChild(bubbleWrapper.firstElementChild);
     
