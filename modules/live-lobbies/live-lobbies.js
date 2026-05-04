@@ -91,8 +91,9 @@ async function loadActiveLobbies(rom) {
   try {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     
-    // STEP 1: Fetch Rooms + Game Data ONLY (Removed profiles join to avoid FK error)
-    let { data: rooms, error } = await rom.supabase
+    // STEP 1: Fetch Rooms + Try to Join Games
+    // Note: If 'games' returns null, we will fallback to manual fetch below
+    let {  rooms, error } = await rom.supabase
       .from('chat_rooms')
       .select(`
         *,
@@ -110,23 +111,55 @@ async function loadActiveLobbies(rom) {
 
     if (error) throw error;
 
-    // STEP 2: Fetch Host Profiles Separately
+    // STEP 2: Fallback Game Fetch (If automatic join failed)
+    let gamesMap = new Map();
+    if (rooms && rooms.length > 0) {
+      // Check if games data is missing (null) for any room
+      const needsGameFetch = rooms.some(r => !r.games);
+      
+      if (needsGameFetch) {
+        console.log('⚠️ Automatic game join failed/incomplete. Fetching games manually...');
+        // Extract game IDs or Titles to search for
+        // Since we might not have game_id in chat_rooms, we rely on matching titles from room.name
+        // OR if you HAVE game_id in chat_rooms, use that instead:
+        // const gameIds = [...new Set(rooms.map(r => r.game_id).filter(Boolean))];
+        
+        // For now, assuming we might need to search by title if ID isn't linked properly
+        // BUT ideally, your chat_rooms table SHOULD have a game_id column. 
+        // If it does, uncomment the line below and use .in('id', gameIds) on games table
+        
+        // Assuming chat_rooms has game_id column:
+        const gameIds = [...new Set(rooms.map(r => r.game_id).filter(Boolean))];
+        
+        if (gameIds.length > 0) {
+           const {  fetchedGames, error: gError } = await rom.supabase
+            .from('games')
+            .select('id, slug, title, cover_image_url, background_image_url, background_video_url')
+            .in('id', gameIds);
+            
+            if (!gError && fetchedGames) {
+              fetchedGames.forEach(g => gamesMap.set(g.id, g));
+            }
+        }
+      } else {
+        // If join worked, map them by ID for easy access
+        rooms.forEach(r => {
+          if (r.games && r.games.id) gamesMap.set(r.games.id, r.games);
+        });
+      }
+    }
+
+    // STEP 3: Fetch Host Profiles Separately (As before)
     let hostProfilesMap = new Map();
     if (rooms && rooms.length > 0) {
-      // Collect unique user IDs
       const hostIds = [...new Set(rooms.map(r => r.created_by).filter(Boolean))];
       
       if (hostIds.length > 0) {
-        const { data: profiles, error: profileError } = await rom.supabase
+        const {  profiles, error: profileError } = await rom.supabase
           .from('profiles')
           .select(`
-            id,
-            username,
-            avatar_url,
-            motto,
-            xp_total,
-            gamercard_bg_type,
-            gamercard_bg_value,
+            id, username, avatar_url, motto, xp_total,
+            gamercard_bg_type, gamercard_bg_value,
             rank:user_ranks (name, color)
           `)
           .in('id', hostIds);
@@ -143,7 +176,8 @@ async function loadActiveLobbies(rom) {
 
     if (searchVal) {
       rooms = rooms.filter(r => {
-        const gameTitle = r.games?.title || r.name || '';
+        const game = gamesMap.get(r.game_id) || r.games;
+        const gameTitle = game?.title || r.name || '';
         return gameTitle.toLowerCase().includes(searchVal);
       });
     }
@@ -185,12 +219,12 @@ async function loadActiveLobbies(rom) {
         statusColor = 'text-yellow-400';
       }
 
-      const game = room.games || {};
-      // Get host data from our manual map
-      const host = hostProfilesMap.get(room.created_by) || {};
+      // Get Game Data (Prioritize Map, then Join, then Fallback)
+      const game = gamesMap.get(room.game_id) || room.games || {};
       
+      // Fallback if no game found at all
+      const displayName = game.title || room.name.replace('Live Lobby', '').replace('lobby-', '').trim() || 'Unknown Game';
       const gameSlug = game.slug;
-      const displayName = game.title || room.name.replace('Live Lobby', '').trim() || 'Unknown Game';
       const joinLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(displayName)}`;
 
       // Determine Background Image
@@ -203,7 +237,8 @@ async function loadActiveLobbies(rom) {
         bgImageStyle = `background: linear-gradient(135deg, #064e3b 0%, #111827 100%);`;
       }
 
-      // Generate Host Gamercard HTML
+      // Get Host Data
+      const host = hostProfilesMap.get(room.created_by) || {};
       const hostUsername = host.username || 'Anonymous';
       const hostAvatar = host.avatar_url || `https://ui-avatars.com/api/?name=${hostUsername}&background=06b6d4&color=fff`;
       const hostRank = host.rank;
