@@ -340,8 +340,35 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         await loadProfileDetail(providedSlug);
         return;
     }
-    if (hash === 'articles') { await loadModule('articles'); return; }
-    if (hash === 'write') { await loadModule('write'); return; }
+    // Handle Articles List
+if (hash === 'articles' || hash.startsWith('articles?')) {
+    await loadModule('articles');
+    return;
+}
+
+// Handle Single Article View (Similar to game-detail)
+if (hash.startsWith('article/')) {
+    const articleId = hash.split('/')[1];
+    console.log('Loading article:', articleId);
+    
+    // Load HTML first
+    const appContent = document.getElementById('app-content');
+    const response = await fetch('./modules/articles/article.html');
+    const html = await response.text();
+    appContent.innerHTML = html;
+
+    // Then Load JS
+    const module = await import('./modules/articles/article.js');
+    const rom = getRomObject(); // Your existing helper
+    if (module.default) await module.default(rom, articleId);
+    return;
+}
+
+// Handle Write Page
+if (hash === 'write') {
+    await loadModule('write');
+    return;
+}
 
     // Heartbeat Logic
    let heartbeatInterval;
