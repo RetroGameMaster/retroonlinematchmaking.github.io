@@ -13,31 +13,51 @@ export default async function initWriteModule(rom) {
     return;
   }
 
-  // Render HTML (loaded via app.js usually, but ensuring structure exists)
+  // If HTML isn't loaded yet (fallback), load it
   if (!document.getElementById('editor-content')) {
     const response = await fetch('./modules/articles/write.html');
+    if (!response.ok) throw new Error('HTML not found');
     const html = await response.text();
     container.innerHTML = html;
   }
+
+  // ⚠️ CRITICAL: Wait for Tiptap Scripts to Load from HTML
+  await waitForTiptap();
 
   initEditor();
   setupListeners(rom);
 }
 
+// Helper: Wait for global Tiptap variables to exist
+function waitForTiptap() {
+  return new Promise((resolve, reject) => {
+    if (window.TiptapCore && window.TiptapStarterKit) {
+      resolve();
+      return;
+    }
+
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (window.TiptapCore && window.TiptapStarterKit) {
+        clearInterval(interval);
+        resolve();
+      } else if (attempts > 50) { // Timeout after ~5 seconds
+        clearInterval(interval);
+        reject(new Error('Tiptap failed to load. Check network tab.'));
+      }
+    }, 100);
+  });
+}
+
 function initEditor() {
-  const { StarterKit, Image, Link } = window.TiptapStarterKit || window.Tiptap; 
-  // Note: In browser global scope, Tiptap libraries attach to window. 
-  // Adjust based on how your bundler/loader handles the CDN scripts.
-  // If using pure CDN without bundler, access via window.TiptapCore, etc.
-  
-  // Fallback for direct CDN usage where globals are named differently
   const Core = window.TiptapCore; 
   const StarterKitExt = window.TiptapStarterKit;
   const ImageExt = window.TiptapExtensionImage;
   const LinkExt = window.TiptapExtensionLink;
 
   if (!Core) {
-    console.error("Tiptap not loaded. Check network tab.");
+    console.error("Tiptap not loaded.");
     document.getElementById('editor-content').innerHTML = "<p class='text-red-500'>Editor failed to load. Refresh page.</p>";
     return;
   }
@@ -75,96 +95,92 @@ function setupListeners(rom) {
   const uploadBtn = document.getElementById('btn-upload-image');
   const fileInput = document.getElementById('image-input');
   
-  uploadBtn.addEventListener('click', () => fileInput.click());
-  
-  fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  if(uploadBtn && fileInput) {
+      uploadBtn.addEventListener('click', () => fileInput.click());
+      
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-    const statusEl = document.getElementById('save-status');
-    statusEl.textContent = 'Uploading image...';
-    statusEl.className = 'text-xs text-yellow-400';
+        const statusEl = document.getElementById('save-status');
+        statusEl.textContent = 'Uploading image...';
+        statusEl.className = 'text-xs text-yellow-400';
 
-    try {
-      // Upload to Supabase Storage
-      const fileName = `${rom.currentUser.id}/${Date.now()}-${file.name.replace(/\s/g, '-')}`;
-      const { data, error } = await supabase.storage
-        .from('article-uploads')
-        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+        try {
+          const fileName = `${rom.currentUser.id}/${Date.now()}-${file.name.replace(/\s/g, '-')}`;
+          const { data, error } = await supabase.storage
+            .from('article-uploads')
+            .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
-      if (error) throw error;
+          if (error) throw error;
 
-      // Get Public URL
-      const { data: { publicUrl } } = supabase.storage.from('article-uploads').getPublicUrl(fileName);
+          const {  { publicUrl } } = supabase.storage.from('article-uploads').getPublicUrl(fileName);
+          editor.chain().focus().setImage({ src: publicUrl }).run();
+          
+          statusEl.textContent = 'Image inserted!';
+          statusEl.className = 'text-xs text-green-400';
+          setTimeout(() => statusEl.textContent = '', 2000);
 
-      // Insert into Editor
-      editor.chain().focus().setImage({ src: publicUrl }).run();
-      statusEl.textContent = 'Image inserted!';
-      statusEl.className = 'text-xs text-green-400';
-      setTimeout(() => statusEl.textContent = '', 2000);
-
-    } catch (err) {
-      console.error(err);
-      alert('Failed to upload image: ' + err.message);
-      statusEl.textContent = 'Upload failed.';
-      statusEl.className = 'text-xs text-red-400';
-    } finally {
-      fileInput.value = ''; // Reset input
-    }
-  });
+        } catch (err) {
+          console.error(err);
+          alert('Failed to upload image: ' + err.message);
+          statusEl.textContent = 'Upload failed.';
+          statusEl.className = 'text-xs text-red-400';
+        } finally {
+          fileInput.value = ''; 
+        }
+      });
+  }
 
   // Publish Button
   const publishBtn = document.getElementById('btn-publish');
-  publishBtn.addEventListener('click', async () => {
-    const title = document.getElementById('article-title').value.trim();
-    const categorySlug = document.getElementById('article-category').value;
-    const isMagazine = document.getElementById('is-magazine').checked;
-    const contentHtml = editor.getHTML();
+  if(publishBtn) {
+      publishBtn.addEventListener('click', async () => {
+        const title = document.getElementById('article-title').value.trim();
+        const categorySlug = document.getElementById('article-category').value;
+        const isMagazine = document.getElementById('is-magazine').checked;
+        const contentHtml = editor.getHTML();
 
-    if (!title) return alert('Please enter a title.');
-    if (!categorySlug) return alert('Please select a category.');
-    if (contentHtml.length < 20) return alert('Article is too short.');
+        if (!title) return alert('Please enter a title.');
+        if (!categorySlug) return alert('Please select a category.');
+        if (contentHtml.length < 20) return alert('Article is too short.');
 
-    publishBtn.disabled = true;
-    publishBtn.textContent = 'Publishing...';
+        publishBtn.disabled = true;
+        publishBtn.textContent = 'Publishing...';
 
-    try {
-      // 1. Insert Article
-      const { data: article, error: artError } = await supabase
-        .from('articles')
-        .insert([{
-          author_id: rom.currentUser.id,
-          title: title,
-          content_html: contentHtml,
-          category_slug: categorySlug,
-          is_magazine_issue: isMagazine,
-          status: 'published' // Or 'pending' if you want moderation
-        }])
-        .select()
-        .single();
+        try {
+          const {  article, error: artError } = await supabase
+            .from('articles')
+            .insert([{
+              author_id: rom.currentUser.id,
+              title: title,
+              content_html: contentHtml,
+              category_slug: categorySlug,
+              is_magazine_issue: isMagazine,
+              status: 'published'
+            }])
+            .select()
+            .single();
 
-      if (artError) throw artError;
+          if (artError) throw artError;
 
-      // 2. Award XP (Handled by DB Trigger usually, but explicit call ensures it)
-      // Assuming you have the RPC function 'award_xp' from previous steps
-      await supabase.rpc('award_xp', { 
-        user_uuid: rom.currentUser.id, 
-        amount: 50, 
-        reason: 'article_published' 
+          await supabase.rpc('award_xp', { 
+            user_uuid: rom.currentUser.id, 
+            amount: 50, 
+            reason: 'article_published' 
+          });
+
+          await supabase.rpc('increment_article_count', { user_uuid: rom.currentUser.id }); 
+
+          alert('🎉 Article Published! You earned 50 XP.');
+          window.location.hash = `#/article/${article.id}`;
+
+        } catch (err) {
+          console.error(err);
+          alert('Error publishing: ' + err.message);
+          publishBtn.disabled = false;
+          publishBtn.textContent = '🚀 Publish Article (+50 XP)';
+        }
       });
-
-      // 3. Update Profile Stats (Optional: Increment article count)
-      await supabase.rpc('increment_article_count', { user_uuid: rom.currentUser.id }); 
-      // Note: You may need to create this simple RPC or handle via JS update
-
-      alert('🎉 Article Published! You earned 50 XP.');
-      window.location.hash = `#/article/${article.id}`;
-
-    } catch (err) {
-      console.error(err);
-      alert('Error publishing: ' + err.message);
-      publishBtn.disabled = false;
-      publishBtn.textContent = '🚀 Publish Article (+50 XP)';
-    }
-  });
+  }
 }
