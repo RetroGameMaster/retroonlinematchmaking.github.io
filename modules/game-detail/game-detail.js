@@ -703,76 +703,97 @@ async function loadChatMessages(rom, roomId) {
     }
 }
 
-async function appendMessageToDOM(msg, currentUserId) {
+function appendMessageToDOM(msg, currentUserId) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
     const isMe = msg.user_id === currentUserId;
-    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // 1. Fetch Profile Data for Gamercard (Avatar, Rank, Motto, etc.)
+    // Note: In a high-traffic chat, you might want to cache this globally to avoid fetching every message
+    // For now, we construct the card from available data or fetch if needed. 
+    // Assuming 'msg' has basic info, we build the card. If you have rank/motto in 'msg', use them.
+    // If not, we use defaults or you can add a small fetch here. 
+    // OPTIMIZATION: Ideally, your chat_messages table should select profile data via RPC or join.
+    // For this fix, we will build the card using the data we have + defaults.
+    
+    const username = msg.username || 'Unknown';
+    const avatarUrl = msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
+    const profileLink = `#/profile/${username}`;
+    
+    // Mock Rank/Motto for chat if not present in message payload (Optional: Fetch real data if needed)
+    // If your realtime payload doesn't include rank/motto, we show basic info. 
+    // To get real rank, you'd need to join profiles in your realtime query or fetch here.
+    // For this fix, we assume basic display. If you have rank data in 'msg', insert it here.
+    const rankName = msg.rank_name || null; 
+    const rankColor = msg.rank_color || '#9ca3af';
+    const motto = msg.motto || null;
 
-    // Fetch full profile data for the Gamercard
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select(`
-            username,
-            avatar_url,
-            xp_total,
-            motto,
-            gamercard_bg_type,
-            gamercard_bg_value,
-            rank:user_ranks (name, color)
-        `)
-        .eq('id', msg.user_id)
-        .single();
+    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
 
+    // 2. Create Wrapper with Proper Spacing
     const messageEl = document.createElement('div');
-    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4`;
-
-    // Generate Gamercard
-    const gamercardHTML = createGamercardHTML(profile, true);
-
-    messageEl.innerHTML = `
-        ${gamercardHTML}
-        <div class="bg-gray-800 text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-sm ${isMe ? 'bg-cyan-900/40 text-cyan-100 rounded-bl-none' : 'rounded-br-none'} max-w-[70%] self-center">
-            ${escapeHtml(msg.message)}
-            <div class="text-[10px] text-gray-500 text-right mt-1">${time}</div>
-        </div>
-        ${isMe ? '</div>' : ''} 
-        <!-- Close wrapper if needed based on HTML structure above -->
+    // Added 'items-start' to prevent stretching, and specific gap
+    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4`; 
+    
+    // 3. Construct Gamercard HTML (Clickable & Distinct)
+    // Added 'flex-shrink-0' to prevent avatar cutoff
+    // Added 'z-10' and distinct background to separate from chat text
+    const gamercardHtml = `
+        <a href="${profileLink}" class="group block flex-shrink-0 w-[240px] hover:scale-[1.02] transition-transform duration-200 z-10">
+            <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
+                <!-- Background Layer (Darkened for contrast) -->
+                <div class="absolute inset-0 opacity-20" style="
+                    background: ${msg.gc_bg_type === 'image' ? `url('${msg.gc_bg_value}') center/cover` : 
+                               msg.gc_bg_type === 'gradient' ? msg.gc_bg_value : 
+                               (msg.gc_bg_value || '#1f2937')};
+                    filter: brightness(0.6);
+                "></div>
+                <!-- Gradient Overlay to ensure text readability -->
+                <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80"></div>
+                
+                <!-- Content Layer -->
+                <div class="relative z-10 p-2 flex items-center gap-2">
+                    <img src="${avatarUrl}" alt="${username}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-md">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1 mb-0.5">
+                            <span class="text-xs font-bold text-white truncate drop-shadow-md">${escapeHtml(username)}</span>
+                        </div>
+                        ${rankName ? `
+                            <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
+                                  style="background:${rankColor}30; color:${rankColor}; border:1px solid ${rankColor}; text-shadow: 0 1px 2px black;">
+                                ${escapeHtml(rankName)}
+                            </span>
+                        ` : ''}
+                        ${motto ? `<p class="text-[9px] text-gray-300 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
+                        <!-- XP Bar (Mini) -->
+                        <div class="h-1 w-full bg-gray-700 rounded-full mt-1 overflow-hidden">
+                            <div class="h-full bg-cyan-500 rounded-full" style="width: ${(msg.xp_total % 1000) / 10}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
     `;
-    
-    // Fix closing div structure for isMe vs not isMe if needed, but simpler approach:
-    // Just append the generated HTML string properly.
-    
-    // Revised Inner HTML for clarity:
-    /* 
-       Structure: [Gamercard] [MessageBubble]
-       If isMe: Flex-row-reverse handles visual order.
-    */
-   
-   // Re-building innerHTML cleanly:
-   const cardContainer = document.createElement('div');
-   cardContainer.innerHTML = gamercardHTML;
-   // Extract the actual gamercard div if wrapper added extra logic
-   const gcNode = cardContainer.firstElementChild; 
-   
-   // If createGamercardHTML returns a wrapper div, we might need to adjust. 
-   // Let's assume it returns the .gamercard div directly for simplicity in chat.
-   
-   messageEl.innerHTML = `
-      ${createGamercardHTML(profile, true).replace('<div class="chat-gamercard-wrapper">', '').replace('</div>', '')}
-      <div class="flex flex-col justify-center max-w-[70%]">
-        <div class="bg-gray-800 text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-sm ${isMe ? 'bg-cyan-900/40 text-cyan-100 rounded-bl-none' : 'rounded-br-none'}">
-            ${escapeHtml(msg.message)}
-        </div>
-        <span class="text-[10px] text-gray-500 mt-1 ${isMe ? 'text-right' : ''}">${time}</span>
-      </div>
-   `;
 
+    // 4. Construct Message Bubble
+    const bubbleHtml = `
+        <div class="flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'} pt-1">
+            <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
+                <span class="text-[10px] text-gray-500">${time}</span>
+            </div>
+            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-br-none' : 'rounded-bl-none'}">
+                ${escapeHtml(msg.message)}
+            </div>
+        </div>
+    `;
+
+    // 5. Assemble
+    messageEl.innerHTML = gamercardHtml + bubbleHtml;
+    
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
 }
-
 function startHeartbeat(rom, roomId) {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     
