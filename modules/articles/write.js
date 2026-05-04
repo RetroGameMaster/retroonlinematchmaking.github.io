@@ -27,7 +27,7 @@ export default async function initWriteModule(rom) {
     return;
   }
 
-  // If HTML isn't already there (in case app.js didn't load it), fetch it
+  // If HTML isn't already there, fetch it
   if (!document.getElementById('editor-content')) {
     container.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor...</p></div>`;
     
@@ -115,7 +115,6 @@ function setupListeners(rom) {
       }
 
       try {
-        // Upload to Supabase Storage
         const fileName = `${rom.currentUser.id}/${Date.now()}-${file.name.replace(/\s/g, '-')}`;
         const { data, error } = await supabase.storage
           .from('article-uploads')
@@ -123,10 +122,8 @@ function setupListeners(rom) {
 
         if (error) throw error;
 
-        // Get Public URL
         const { publicUrl } = supabase.storage.from('article-uploads').getPublicUrl(fileName);
 
-        // Insert into Editor
         editor.chain().focus().setImage({ src: publicUrl }).run();
         
         if (statusEl) {
@@ -143,7 +140,7 @@ function setupListeners(rom) {
           statusEl.className = 'text-xs text-red-400';
         }
       } finally {
-        fileInput.value = ''; // Reset input
+        fileInput.value = '';
       }
     });
   }
@@ -169,8 +166,7 @@ function setupListeners(rom) {
       publishBtn.textContent = 'Publishing...';
 
       try {
-        // 1. Insert Article
-        const {  article, error: artError } = await supabase
+        const { data: article, error: artError } = await supabase
           .from('articles')
           .insert([{
             author_id: rom.currentUser.id,
@@ -185,14 +181,12 @@ function setupListeners(rom) {
 
         if (artError) throw artError;
 
-        // 2. Award XP
         await supabase.rpc('award_xp', { 
           user_uuid: rom.currentUser.id, 
           amount: 50, 
           reason: 'article_published' 
         });
 
-        // 3. Update Profile Stats
         try {
           await supabase.rpc('increment_article_count', { user_uuid: rom.currentUser.id }); 
         } catch (e) { console.warn('Could not increment count', e); }
@@ -207,3 +201,5 @@ function setupListeners(rom) {
         publishBtn.textContent = '🚀 Publish Article (+50 XP)';
       }
     });
+  }
+}
