@@ -142,9 +142,17 @@ async function fetchProfileBySlug(slug) {
 }
 
 async function fetchProfileByUserId(id) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
+ const { data: targetUser, error } = await supabase
+  .from('profiles')
+  .select(`
+    *,
+    rank:user_ranks (
+      id,
+      name,
+      color,
+      description
+    )
+  `)
     .eq('id', id)
     .single();
   return error ? null : data;
@@ -523,16 +531,26 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'}"></div>
           </div>
 
-          <div class="ra-info">
-            <h1 class="ra-username">${profile.username}</h1>
-            ${profile.display_name ? `<div class="ra-display-name">${profile.display_name}</div>` : ''}
+         <div class="ra-info">
+  <h1 class="ra-username">${profile.username}</h1>
+  
+  <!-- NEW: Rank Badge -->
+  ${profile.rank ? `
+    <span class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold border shadow-lg" 
+          style="background-color: ${profile.rank.color}20; color: ${profile.rank.color}; border-color: ${profile.rank.color}">
+      👑 ${profile.rank.name}
+    </span>
+  ` : ''}
+
+  ${profile.display_name ? `<div class="ra-display-name">${profile.display_name}</div>` : ''}
+  ${profile.motto ? `<p class="text-gray-400 text-sm italic mt-1">"${escapeHtml(profile.motto)}"</p>` : ''}
             
             <div class="ra-stats-row">
               <div class="ra-stat">
-                <span class="ra-stat-icon">🎮</span>
-                <span class="ra-stat-val">${profile.stats?.games_approved || 0}</span>
-                <span class="ra-stat-label">Games</span>
-              </div>
+      <span class="ra-stat-icon">🎮</span>
+      <span class="ra-stat-val">${profile.stats?.games_approved || 0}</span>
+      <span class="ra-stat-label">Games</span>
+    </div>
               <div class="ra-stat">
                 <span class="ra-stat-icon">💬</span>
                 <span class="ra-stat-val">${profile.stats?.comments_made || 0}</span>
@@ -726,6 +744,26 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   <option value="Xbox 360" ${profile.favorite_console === 'Xbox 360' ? 'selected' : ''}>Xbox 360</option>
   <option value="Other" ${profile.favorite_console === 'Other' ? 'selected' : ''}>Other</option>
 </select>
+<hr class="border-gray-700 my-4">
+<h3 class="text-cyan-400 font-bold mb-2">🎮 Gamercard Settings</h3>
+
+<label>Gamer Motto / Signature</label>
+<input type="text" name="motto" class="ra-input w-full mb-4" value="${profile.motto || ''}" placeholder="Enter a short motto..." maxlength="100">
+
+<label>Gamercard Background Type</label>
+<select name="gc_bg_type" id="gc_bg_type" class="ra-input w-full mb-4">
+  <option value="color" ${profile.gamercard_bg_type === 'color' ? 'selected' : ''}>Solid Color</option>
+  <option value="image" ${profile.gamercard_bg_type === 'image' ? 'selected' : ''}>Uploaded Image / GIF</option>
+  <option value="gradient" ${profile.gamercard_bg_type === 'gradient' ? 'selected' : ''}>Gradient</option>
+</select>
+
+<div id="gc-upload-container" style="display: ${profile.gamercard_bg_type === 'image' ? 'block' : 'none'};" class="mb-4">
+  <label class="block text-sm text-cyan-400 mb-1">Upload Gamercard Background</label>
+  <input type="file" id="gc_file_input" accept="image/*" class="ra-input">
+</div>
+
+<label class="block mb-4">Background Value (Color Hex, Gradient CSS, or URL)</label>
+<input type="text" name="gc_bg_value" id="gc_bg_value" class="ra-input w-full" value="${profile.gamercard_bg_value || '#1f2937'}">
               <label>Bio</label>
               <textarea name="bio" class="ra-input" rows="3">${profile.bio || ''}</textarea>
 
@@ -804,6 +842,13 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       bgUploadContainer.style.display = e.target.value === 'image' ? 'block' : 'none';
     });
   }
+  const gcTypeSelect = document.getElementById('gc_bg_type');
+const gcUploadContainer = document.getElementById('gc-upload-container');
+if (gcTypeSelect && gcUploadContainer) {
+  gcTypeSelect.addEventListener('change', (e) => {
+    gcUploadContainer.style.display = e.target.value === 'image' ? 'block' : 'none';
+  });
+}
 
   if (form) {
     form.addEventListener('submit', async (e) => {
@@ -860,17 +905,48 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       }
 
       // 3. Prepare Updates Object (INCLUDING USERNAME)
-      const updates = {
-        bio: formData.get('bio'),
-        signature_text: formData.get('signature_text'),
-        signature_custom_css: formData.get('signature_custom_css'),
-        avatar_custom_css: formData.get('avatar_custom_css'),
-        avatar_url: finalAvatarUrl,
-        username: formData.get('username')?.trim(), 
-        favorite_console: formData.get('favorite_console'),
-        custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
-      };
+      let finalGcBgValue = formData.get('gc_bg_value');
+const gcFileType = formData.get('gc_bg_type');
 
+const gcFileInput = document.getElementById('gc_file_input');
+if (gcFileType === 'image' && gcFileInput && gcFileInput.files.length > 0) {
+   const file = gcFileInput.files[0];
+   const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+   // Reuse storage bucket 'user-backgrounds'
+   const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
+   if (!error) {
+     const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
+     finalGcBgValue = publicUrl;
+   }
+}
+
+const updates = {
+  bio: formData.get('bio'),
+  signature_text: formData.get('signature_text'),
+  signature_custom_css: formData.get('signature_custom_css'),
+  avatar_custom_css: formData.get('avatar_custom_css'),
+  avatar_url: finalAvatarUrl,
+  username: formData.get('username')?.trim(), 
+  favorite_console: formData.get('favorite_console'),
+  motto: formData.get('motto'),
+  gamercard_bg_type: gcFileType,
+  gamercard_bg_value: finalGcBgValue,
+  custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
+};
+let finalGcBgValue = formData.get('gc_bg_value');
+const gcFileType = formData.get('gc_bg_type');
+
+const gcFileInput = document.getElementById('gc_file_input');
+if (gcFileType === 'image' && gcFileInput && gcFileInput.files.length > 0) {
+   const file = gcFileInput.files[0];
+   const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+   // Reuse storage bucket 'user-backgrounds'
+   const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
+   if (!error) {
+     const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
+     finalGcBgValue = publicUrl;
+   }
+}
       // 4. Send to Database
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.textContent = 'Saving...';
