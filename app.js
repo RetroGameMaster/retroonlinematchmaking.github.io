@@ -72,7 +72,6 @@ const renderRandomQuote = () => {
 };
 
 // Initialize the app
-// Initialize the app
 async function initializeApp() {
     console.log('🚀 Initializing ROM app...');
     try {
@@ -91,13 +90,8 @@ async function initializeApp() {
         });
         
         await updateAuthUI();
-        
-        // ✅ CHANGE 1: Listen to popstate instead of hashchange
-        window.addEventListener('popstate', handlePathChange);
-        
-        // ✅ CHANGE 2: Trigger initial load
-        await handlePathChange();
-        
+        window.addEventListener('hashchange', handleHashChange);
+        await handleHashChange();
         console.log('✅ App initialized successfully');
         window.rom.authSubscription = subscription;
     } catch (error) {
@@ -159,171 +153,118 @@ async function updateNotificationUI() {
     });
 }
 // Handle hash changes
-// ✅ CHANGE: Renamed to handlePathChange to reflect clean URLs
-async function handlePathChange() {
-    // ✅ Get path without '#' and query params
-    let path = window.location.pathname.slice(1) || 'home';
-    
-    // Handle trailing slashes
-    if (path.endsWith('/')) path = path.slice(0, -1);
-    
-    // Split path and query
-    const [basePath, queryString] = path.split('?');
-    const hash = basePath; // Rename to hash for internal logic compatibility
-    
-    console.log('📍 Path changed to:', hash);
-
-    // --- DIRECT MESSAGES ---
-    if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
-        const moduleName = 'direct-messages';
+async function handleHashChange() {
+    const hash = window.location.hash.slice(2) || 'home';
+    console.log('Hash changed to:', hash);
+if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
+        const moduleName = 'direct-messages'; // Folder and File name
         let params = {};
-        if (queryString) {
-            const urlParams = new URLSearchParams(queryString);
-            if (urlParams.has('user')) params.user = urlParams.get('user');
-        }
-        console.log('💬 Loading Direct Messages module...', params);
-        await loadModuleWithParams(moduleName, params);
-        return;
-    }
 
-    // --- GAMES LIST ---
-    if (hash === 'games' || hash.startsWith('games')) {
+        // 1. Extract Query Parameters (?user=...)
+        if (hash.includes('?')) {
+            const queryString = hash.split('?')[1];
+            const urlParams = new URLSearchParams(queryString);
+            if (urlParams.has('user')) {
+                params.user = urlParams.get('user');
+            }
+        }
+
+        console.log('💬 Loading Direct Messages module...', params);
+
+        const appContent = document.getElementById('app-content');
+        if (!appContent) return;
+        appContent.innerHTML = ''; // Clear content
+
+        // 2. Load HTML (Clean filename, no query params)
+        try {
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (!response.ok) throw new Error('HTML not found');
+            
+            const html = await response.text();
+            appContent.innerHTML = html;
+            
+            // Wait for DOM to paint
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+        } catch (e) {
+            console.error('Failed to load DM HTML:', e);
+            appContent.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading messages.</div>';
+            return;
+        }
+
+        // 3. IMPORT JS Dynamically (Since it's not in the modules list)
+        try {
+            const module = await import(`./modules/${moduleName}/${moduleName}.js`);
+            
+            const rom = {
+                supabase: window.supabase,
+                currentUser: window.rom?.currentUser || null,
+                loadModule: loadModule,
+                navigateTo: (m) => window.location.hash = `#/${m}`
+            };
+
+            if (module.default && typeof module.default === 'function') {
+                await module.default(rom, params);
+            }
+            console.log('✅ Direct Messages initialized');
+        } catch (err) {
+            console.error('❌ DM JS Error:', err);
+        }
+        return; 
+    }
+    if (hash === 'games' || hash.startsWith('games?')) {
         const moduleName = 'games';
         let params = {};
-        if (queryString) {
+
+        // Extract query parameters (?filter=...&value=...)
+        if (hash.includes('?')) {
+            const queryString = hash.split('?')[1];
             const urlParams = new URLSearchParams(queryString);
             if (urlParams.has('filter')) params.filter = urlParams.get('filter');
             if (urlParams.has('value')) params.value = urlParams.get('value');
         }
+
         console.log('🎮 Loading games module...', params);
-        await loadModuleWithParams(moduleName, params);
-        return;
-    }
 
-    // --- GAME DETAIL & DISCUSS ---
-    if (hash.startsWith('game/')) {
-        if (hash.includes('/discuss')) {
-            const parts = hash.split('/');
-            const slug = parts[1]; 
-            console.log('📦 Loading module: game-discuss');
-            const module = await import('./modules/game-discuss/game-discuss.js');
-            const rom = getRomObject();
-            module.default(rom, { slug });
-            return; 
+        const appContent = document.getElementById('app-content');
+        if (!appContent) return;
+        appContent.innerHTML = '';
+
+        try {
+            const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
+            if (!response.ok) throw new Error('HTML not found');
+            
+            const html = await response.text();
+            appContent.innerHTML = html;
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+        } catch (e) {
+            console.error('Failed to load Games HTML:', e);
+            appContent.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading library.</div>';
+            return;
         }
-        const identifier = hash.split('/')[1];
-        console.log('Loading game detail for:', identifier);
-        await loadGameDetail(identifier);
-        return;
-    }
 
-    // --- GUIDE DETAIL ---
-    if (hash.startsWith('guide/')) {
-        const slug = hash.split('/')[1];
-        console.log('Loading guide detail for:', slug);
-        await loadGuideDetail(slug);
-        return;
-    }
+        try {
+            if (modules[moduleName]) {
+                const module = await modules[moduleName]();
+                const rom = {
+                    supabase: window.supabase,
+                    currentUser: window.rom?.currentUser || null,
+                    loadModule: loadModule,
+                    navigateTo: (m) => window.location.hash = `#/${m}`
+                };
 
-    // --- EDIT GAME ---
-    if (hash.startsWith('edit-game/')) {
-        const gameId = hash.split('/')[1];
-        console.log('Loading game edit for:', gameId);
-        await loadGameEdit(gameId);
-        return;
-    }
-
-    // --- PROFILE ---
-    if (hash === 'profile' || hash.startsWith('profile/')) {
-        const parts = hash.split('/');
-        const providedSlug = parts[1];
-        if (!providedSlug) {
-            const user = window.rom?.currentUser;
-            if (!user) {
-                // ✅ Use pushState instead of hash
-                window.history.pushState({}, '', '/auth');
-                await handlePathChange();
-                return;
-            }
-            try {
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('username')
-                    .eq('id', user.id)
-                    .single();
-                if (profileData && profileData.username) {
-                    window.history.pushState({}, '', `/profile/${profileData.username}`);
-                    await handlePathChange();
-                    return;
-                } else {
-                    window.history.pushState({}, '', '/home');
-                    await handlePathChange();
-                    return;
+                if (module.default && typeof module.default === 'function') {
+                    await module.default(rom, params);
                 }
-            } catch (err) {
-                console.error('Error fetching profile for redirect:', err);
-                window.history.pushState({}, '', '/home');
-                await handlePathChange();
-                return;
+                currentModule = module;
+                console.log(`✅ Module ${moduleName} initialized`);
             }
+        } catch (moduleError) {
+            console.error(`Module JS error for ${moduleName}:`, moduleError);
         }
-        await loadProfileDetail(providedSlug);
-        return;
+        return; 
     }
-
-    // --- HEARTBEAT & CLEANUP ---
-    cleanupGameBackgrounds();
-    
-    // ✅ Load standard module
-    await loadModule(hash);
-    renderRandomQuote(); 
-}
-
-// Helper to create ROM object consistently
-function getRomObject() {
-    return {
-        supabase: window.supabase,
-        currentUser: window.rom?.currentUser || null,
-        loadModule: loadModule,
-        navigateTo: (m) => {
-            window.history.pushState({}, '', `/${m}`);
-            handlePathChange();
-        }
-    };
-}
-
-// Helper to load modules with params
-async function loadModuleWithParams(moduleName, params) {
-    const appContent = document.getElementById('app-content');
-    if (!appContent) return;
-    appContent.innerHTML = ''; 
-
-    try {
-        const response = await fetch(`./modules/${moduleName}/${moduleName}.html`);
-        if (!response.ok) throw new Error('HTML not found');
-        const html = await response.text();
-        appContent.innerHTML = html;
-        await new Promise(resolve => setTimeout(resolve, 50)); 
-    } catch (e) {
-        console.error(`Failed to load ${moduleName} HTML:`, e);
-        appContent.innerHTML = '<div class="text-red-400 text-center mt-10">Error loading module.</div>';
-        return;
-    }
-
-    try {
-        if (modules[moduleName]) {
-            const module = await modules[moduleName]();
-            const rom = getRomObject();
-            if (module.default && typeof module.default === 'function') {
-                await module.default(rom, params);
-            }
-            currentModule = module;
-            console.log(`✅ Module ${moduleName} initialized`);
-        }
-    } catch (moduleError) {
-        console.error(`Module JS error for ${moduleName}:`, moduleError);
-    }
-}
     // Check for game detail page
     if (hash.startsWith('game/')) {
         if (hash.includes('/discuss')) {
@@ -341,17 +282,20 @@ async function loadModuleWithParams(moduleName, params) {
                 navigateTo: (m) => window.location.hash = `#/${m}`
             };
 
-            module.default(rom, { slug }); 
+            module.default(rom, { slug });
+            return; 
         }
         const identifier = hash.split('/')[1];
         console.log('Loading game detail for:', identifier);
         await loadGameDetail(identifier);
+        return;
     }
     // Check for guide detail page
     if (hash.startsWith('guide/')) {
         const slug = hash.split('/')[1];
         console.log('Loading guide detail for:', slug);
         await loadGuideDetail(slug);
+        return;
     }
 
     // Check for game edit page
@@ -359,6 +303,7 @@ async function loadModuleWithParams(moduleName, params) {
         const gameId = hash.split('/')[1];
         console.log('Loading game edit for:', gameId);
         await loadGameEdit(gameId);
+        return;
     }
 
     // Check for profile detail page
@@ -369,6 +314,7 @@ async function loadModuleWithParams(moduleName, params) {
             const user = window.rom?.currentUser;
             if (!user) {
                 window.location.hash = '#/auth';
+                return;
             }
             try {
                 const { data: profileData } = await supabase
@@ -378,15 +324,19 @@ async function loadModuleWithParams(moduleName, params) {
                     .single();
                 if (profileData && profileData.username) {
                     window.location.hash = `#/profile/${profileData.username}`;
+                    return;
                 } else {
                     window.location.hash = '#/home';
+                    return;
                 }
             } catch (err) {
                 console.error('Error fetching profile for redirect:', err);
                 window.location.hash = '#/home';
+                return;
             }
         }
         await loadProfileDetail(providedSlug);
+        return;
     }
 
     // Heartbeat Logic
@@ -422,6 +372,7 @@ async function loadModuleWithParams(moduleName, params) {
     cleanupGameBackgrounds();
     await loadModule(hash);
     renderRandomQuote(); 
+}
 
 // Load module function
 async function loadModule(moduleName) {
@@ -445,7 +396,12 @@ async function loadModule(moduleName) {
         try {
             if (modules[moduleName]) {
                 const module = await modules[moduleName]();
-                const rom = getRomObject(); // ✅ Use helper
+                const rom = {
+                    supabase: window.supabase,
+                    currentUser: window.rom?.currentUser || null,
+                    loadModule: loadModule,
+                    navigateTo: function(module) { window.location.hash = `#/${module}`; }
+                };
 
                 if (module.default && typeof module.default === 'function') await module.default(rom);
                 else if (module.initModule) await module.initModule(rom);
@@ -464,7 +420,6 @@ async function loadModule(moduleName) {
     }
 }
 
-
 async function loadGameDetail(identifier) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
@@ -479,7 +434,7 @@ async function loadGameDetail(identifier) {
             <div class="text-5xl mb-4">❌</div>
             <h3 class="text-2xl font-bold text-red-400 mb-2">Game Not Found</h3>
             <p class="text-gray-300 mb-6">The game you're looking for doesn't exist or has been removed.</p>
-            <button onclick="window.history.pushState({}, '', '/games'); handlePathChange();" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">Browse Games</button>
+            <button onclick="window.location.hash = '#/games'" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">Browse Games</button>
         </div>
     `;
 
@@ -554,7 +509,7 @@ async function loadGuideDetail(slug) {
                     <div class="text-6xl mb-4">📚</div>
                     <h1 class="text-3xl font-bold text-white mb-2">Guide Not Found</h1>
                     <p class="text-gray-400 mb-6">This guide doesn't exist or hasn't been approved yet.</p>
-                    <a href="/guides" onclick="event.preventDefault(); window.history.pushState({}, '', '/guides'); handlePathChange();" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">Back to Guides</a>
+                    <a href="#/guides" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg">Back to Guides</a>
                 </div>
             `;
             return;
@@ -564,7 +519,7 @@ async function loadGuideDetail(slug) {
         appContent.innerHTML = `
             <div class="max-w-4xl mx-auto p-4">
                 <div class="mb-6">
-                    <a href="/guides" onclick="event.preventDefault(); window.history.pushState({}, '', '/guides'); handlePathChange();" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-2">
+                    <a href="#/guides" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-2">
                         ← Back to Guides
                     </a>
                 </div>
@@ -870,7 +825,7 @@ function createGameEditForm(game, isAdmin) {
             </div>
             
             <div class="flex justify-end gap-3">
-                <button type="button" <button type="button" onclick="window.history.pushState({}, '', '/game/${game.slug || game.id}'); handlePathChange();" '" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors">Cancel</button>
+                <button type="button" onclick="window.location.hash = '#/game/${game.slug || game.id}'" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors">Cancel</button>
                 <button type="submit" id="saveBtn" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg transition-colors">Save Changes</button>
             </div>
         </form>
@@ -1076,10 +1031,7 @@ async function saveGameEdit(game) {
         if (error) throw error;
 
         showNotification('✅ Game updated successfully!', 'success');
-       setTimeout(() => { 
-    window.history.pushState({}, '', `/game/${game.slug || gameId}`); 
-    handlePathChange(); 
-}, 1500);
+        setTimeout(() => { window.location.hash = `#/game/${game.slug || gameId}`; }, 1500);
 
     } catch (error) {
         console.error('Error saving game edit:', error);
@@ -1093,7 +1045,6 @@ async function saveGameEdit(game) {
 async function loadProfileDetail(profileId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
-    
     console.log('👤 Loading profile for ID/Slug:', profileId); 
     appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div>`;
 
@@ -1104,25 +1055,18 @@ async function loadProfileDetail(profileId) {
         appContent.innerHTML = html;
 
         const module = await import('./modules/profile/profile.js');
-        
-        // ✅ FIX: Use history.pushState for clean URLs
         const rom = {
             supabase: window.supabase,
             currentUser: window.rom?.currentUser || null,
             loadModule: loadModule,
-            navigateTo: function(module) { 
-                window.history.pushState({}, '', `/${module}`); 
-                handlePathChange(); 
-            }
+            navigateTo: function(module) { window.location.hash = `#/${module}`; }
         };
-        
         const params = { slug: profileId };
 
         if (module.default && typeof module.default === 'function') await module.default(rom, params);
         else if (module.initModule) await module.initModule(rom, params);
         else if (module.default && module.default.initModule) await module.default.initModule(rom, params);
         else throw new Error('Profile module export structure not recognized');
-        
     } catch (error) {
         console.error('Error loading profile detail:', error);
         showError('Error loading profile', error.message);
@@ -1208,9 +1152,7 @@ window.rom = {
     currentUser: null,
     loadModule: loadModule,
     navigateTo: function(module) {
-        // ✅ FIX: Use pushState for clean URLs
-        window.history.pushState({}, '', `/${module}`);
-        handlePathChange();
+        window.location.hash = `#/${module}`;
     }
 };
 
