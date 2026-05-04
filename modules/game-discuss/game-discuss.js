@@ -189,7 +189,7 @@ async function loadDiscussions(category) {
   const listEl = document.getElementById('discussions-list');
   if (!listEl) return;
 
-  let query = supabase.from('game_discussions').select('*').eq('game_id', currentGameId);
+  let query = supabase.from('game_discussions').select('*').eq('game_id', currentGameId).is('parent_id', null);
   
   if (category !== 'all') {
     query = query.eq('category', category);
@@ -208,7 +208,7 @@ async function loadDiscussions(category) {
     return;
   }
 
-  // Fetch Avatars
+  // Fetch Avatars for Main Posts
   const authorIds = [...new Set(posts.map(p => p.user_id))];
   let profilesMap = new Map();
   
@@ -245,7 +245,7 @@ async function loadDiscussions(category) {
     ` : '';
 
     return `
-      <div class="bg-gray-800/80 backdrop-blur border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition shadow-lg">
+      <div class="bg-gray-800/80 backdrop-blur border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition shadow-lg mb-4">
         <div class="flex justify-between items-start mb-2">
           <span class="${catColors[post.category] || 'bg-gray-600'} text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
             ${post.category}
@@ -262,12 +262,97 @@ async function loadDiscussions(category) {
           ${processedContent}
         </div>
         
-        <div class="flex items-center justify-between border-t border-gray-700 pt-3">
+        <div class="flex items-center justify-between border-t border-gray-700 pt-3 mb-3">
           <a href="${profileLink}" class="flex items-center gap-2 hover:opacity-80 transition">
             <img src="${displayAvatar}" class="w-6 h-6 rounded-full border border-gray-600">
             <span class="text-xs text-cyan-400 font-bold hover:underline">${escapeHtml(displayUsername)}</span>
           </a>
+          ${currentUser ? `
+            <button onclick="toggleReplyForm('${post.id}')" class="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1">
+              💬 Reply
+            </button>
+          ` : ''}
         </div>
+
+        <!-- Reply Form -->
+        ${currentUser ? `
+          <div id="reply-form-${post.id}" class="hidden ml-8 mt-3 bg-gray-900/50 p-3 rounded-lg border border-gray-700">
+            <textarea id="reply-content-${post.id}" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white focus:border-cyan-500 outline-none" rows="2" placeholder="Write a reply..."></textarea>
+            <div class="flex gap-2 mt-2">
+              <button onclick="submitReply('${post.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs font-bold">Post Reply</button>
+              <button onclick="toggleReplyForm('${post.id}')" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs">Cancel</button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Replies List -->
+        <div id="replies-container-${post.id}" class="ml-8 mt-4 space-y-3 border-l-2 border-gray-700 pl-4">
+          <!-- Replies injected via JS -->
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Load Replies for each post
+  posts.forEach(async (post) => {
+    await loadReplies(post.id);
+  });
+}
+
+async function loadReplies(parentId) {
+  const container = document.getElementById(`replies-container-${parentId}`);
+  if (!container) return;
+
+  const { data: replies, error } = await supabase
+    .from('game_discussions')
+    .select('*')
+    .eq('parent_id', parentId)
+    .order('created_at', { ascending: true });
+
+  if (error || !replies || replies.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Fetch Avatars for Replies
+  const authorIds = [...new Set(replies.map(r => r.user_id))];
+  let profilesMap = new Map();
+  
+  if (authorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', authorIds);
+    
+    if (profiles) profiles.forEach(p => profilesMap.set(p.id, p));
+  }
+
+  container.innerHTML = replies.map(reply => {
+    const profile = profilesMap.get(reply.user_id);
+    const displayUsername = profile?.username || reply.username || 'Unknown';
+    const displayAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${displayUsername}&background=06b6d4&color=fff`;
+    const profileLink = `#/profile/${displayUsername}`;
+    const canDelete = (currentUser && reply.user_id === currentUserId) || isAdmin;
+
+    const deleteBtn = canDelete ? `
+      <button onclick="window.deletePost('${reply.id}')" class="text-[10px] text-red-400 hover:text-red-300 font-bold ml-2">
+        Delete
+      </button>
+    ` : '';
+
+    return `
+      <div class="bg-gray-800/30 p-3 rounded-lg text-sm relative group">
+        <div class="flex justify-between items-start mb-1">
+          <a href="${profileLink}" class="flex items-center gap-2 hover:opacity-80">
+            <img src="${displayAvatar}" class="w-5 h-5 rounded-full border border-gray-600">
+            <span class="text-xs font-bold text-cyan-400 hover:underline">${escapeHtml(displayUsername)}</span>
+          </a>
+          <div class="flex items-center">
+            <span class="text-[10px] text-gray-500">${new Date(reply.created_at).toLocaleDateString()}</span>
+            ${deleteBtn}
+          </div>
+        </div>
+        <p class="text-gray-300 text-xs whitespace-pre-wrap break-words">${escapeHtml(reply.content)}</p>
       </div>
     `;
   }).join('');
@@ -285,6 +370,45 @@ function processContentWithLinks(text) {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline break-all">${url}</a>`;
   });
 }
+
+// Global Functions for Replies
+window.toggleReplyForm = function(parentId) {
+  const form = document.getElementById(`reply-form-${parentId}`);
+  if (form) form.classList.toggle('hidden');
+};
+
+window.submitReply = async function(parentId) {
+  const contentInput = document.getElementById(`reply-content-${parentId}`);
+  const content = contentInput.value.trim();
+  
+  if (!content) return alert("Please write a reply.");
+  if (!currentUser) return alert("You must be logged in to reply.");
+
+  const username = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+
+  try {
+    const { error } = await supabase.from('game_discussions').insert([{
+      game_id: currentGameId,
+      user_id: currentUserId,
+      username: username,
+      avatar_url: null,
+      content: content,
+      parent_id: parentId,
+      category: 'general', // Default category for replies
+      title: 'Reply' // Placeholder title
+    }]);
+
+    if (error) throw error;
+
+    contentInput.value = '';
+    toggleReplyForm(parentId);
+    loadReplies(parentId); // Refresh just this reply list
+    
+  } catch (err) {
+    console.error("Error posting reply:", err);
+    alert("Failed to post reply: " + err.message);
+  }
+};
 
 window.deletePost = async function(postId) {
   if(!confirm('Are you sure you want to delete this post?')) return;
