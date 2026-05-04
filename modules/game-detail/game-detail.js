@@ -726,110 +726,89 @@ async function loadChatMessages(rom, roomId) {
         container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">Failed to load chat.</div>';
     }
 }
-function createGamercardHTML(profile, isChat = false) {
-  if (!profile) return '<div class="text-xs text-gray-500">Unknown User</div>';
-  
-  const name = profile.username || 'Anonymous';
-  const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${name}&background=06b6d4&color=fff`;
-  const rankName = profile.rank?.name || 'Player';
-  const rankColor = profile.rank?.color || '#9ca3af';
-  const motto = profile.motto || '';
-  
-  // Calculate XP Progress (Next rank logic simplified for display)
-  const xp = profile.xp_total || 0;
-  const nextRankXp = 500; // Simplified: In real app, calculate distance to next rank dynamically
-  const xpPercent = Math.min(100, (xp % 1000) / 10); // Visual filler for now
-
-  let bgStyle = `background-color: ${profile.gamercard_bg_value || '#1f2937'}`;
-  if (profile.gamercard_bg_type === 'image') {
-    bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center;`;
-  } else if (profile.gamercard_bg_type === 'gradient') {
-    bgStyle = `background-image: ${profile.gamercard_bg_value};`;
-  }
-
-  const wrapperClass = isChat ? 'chat-gamercard-wrapper' : '';
-  
-  return `
-    <div class="${wrapperClass}">
-      <div class="gamercard">
-        <div class="gc-bg" style="${bgStyle}"></div>
-        <div class="gc-content">
-          <img src="${avatar}" class="gc-avatar" alt="${name}">
-          <div class="gc-info">
-            <span class="gc-name">${escapeHtml(name)}</span>
-            <span class="gc-rank" style="background-color: ${rankColor}20; color: ${rankColor}; border: 1px solid ${rankColor}">
-              ${escapeHtml(rankName)}
-            </span>
-            ${!isChat && motto ? `<span class="gc-motto">${escapeHtml(motto)}</span>` : ''}
-            <div class="gc-xp-bar-container">
-              <div class="gc-xp-fill" style="width: ${xpPercent}%"></div>
-            </div>
-            <span class="gc-xp-text">${xp} XP</span>
-          </div>
-        </div>
-      </div>
-      ${isChat ? '<div class="chat-bubble-content">' : ''}
-    </div>
-  `;
-}
-async function appendMessageToDOM(msg, currentUserId) {
+function appendMessageToDOM(msg, currentUserId) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
     const isMe = msg.user_id === currentUserId;
-    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    // 1. PREPARE DATA (Use what's in the message, no DB fetches)
     const username = msg.username || 'Unknown';
     const avatarUrl = msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${username}`;
+    
+    // Data fetched from the updated query
+    const rankName = msg.rank_name; 
+    const rankColor = msg.rank_color || '#9ca3af';
+    const motto = msg.motto;
+    const xp = msg.xp_total || 0;
+    
+    // Gamercard Background Logic
+    let bgStyle = `background-color: ${msg.gc_bg_value || '#1f2937'}`;
+    if (msg.gc_bg_type === 'image') {
+        bgStyle = `background-image: url('${msg.gc_bg_value}'); background-size: cover; background-position: center;`;
+    } else if (msg.gc_bg_type === 'gradient') {
+        bgStyle = `background-image: ${msg.gc_bg_value};`;
+    }
 
-    // Since chat_messages doesn't store rank/motto/xp yet, we use safe defaults 
-    // to prevent errors while still rendering the card structure.
-    const mockProfile = {
-        username: username,
-        avatar_url: avatarUrl,
-        motto: "", // Not stored in chat yet
-        xp_total: 0, // Not stored in chat yet
-        gamercard_bg_type: 'color',
-        gamercard_bg_value: '#1f2937',
-        rank: null // Not stored in chat yet
-    };
+    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 2. GENERATE GAMERCARD HTML
-    // We call your existing helper. It will render the card with the data we have.
-    // If rank/motto are missing, the helper simply won't show them (which is safe).
-    const gamercardHtml = createGamercardHTML(mockProfile, true);
-
-    // 3. CREATE CONTAINER
     const messageEl = document.createElement('div');
-    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start`;
+    // Layout: Flex row, gap, reverse if me
+    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start`; 
+    
+    // 1. The Clickable Gamercard (Left/Right)
+    // Fixed width, flex-shrink-0 prevents squishing, z-10 keeps it on top
+    const gamercardHtml = `
+        <a href="${profileLink}" class="block flex-shrink-0 w-[240px] hover:scale-[1.02] transition-transform duration-200 z-10 group">
+            <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
+                <!-- Dynamic Background Layer -->
+                <div class="absolute inset-0 opacity-30" style="${bgStyle}"></div>
+                
+                <!-- Dark Overlay Gradient (CRITICAL for text readability) -->
+                <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-black/60 to-black/90"></div>
+                
+                <!-- Content Layer -->
+                <div class="relative z-10 p-2 flex items-center gap-2">
+                    <!-- Avatar: flex-shrink-0 prevents cutoff -->
+                    <img src="${avatarUrl}" alt="${username}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-md">
+                    
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1 mb-0.5">
+                            <span class="text-xs font-bold text-white truncate drop-shadow-md">${escapeHtml(username)}</span>
+                        </div>
+                        
+                        ${rankName ? `
+                            <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5 border shadow-sm" 
+                                  style="background:${rankColor}20; color:${rankColor}; border-color:${rankColor}; text-shadow: 0 1px 2px black;">
+                                ${escapeHtml(rankName)}
+                            </span>
+                        ` : '<span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5 bg-gray-700 text-gray-400 border border-gray-600">Player</span>'}
+                        
+                        ${motto ? `<p class="text-[9px] text-gray-300 italic truncate drop-shadow-md max-w-full">"${escapeHtml(motto)}"</p>` : ''}
+                        
+                        <!-- Mini XP Bar -->
+                        <div class="h-1 w-full bg-gray-700 rounded-full mt-1 overflow-hidden border border-gray-800">
+                            <div class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-[0_0_5px_rgba(6,182,212,0.8)]" 
+                                 style="width: ${Math.min(100, (xp % 1000) / 10)}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    `;
 
-    // 4. WRAP CARD IN LINK
-    const cardWrapper = document.createElement('a');
-    cardWrapper.href = profileLink;
-    cardWrapper.className = "flex-shrink-0 hover:scale-105 transition-transform duration-200 block";
-    cardWrapper.innerHTML = gamercardHtml;
-
-    // 5. CREATE BUBBLE
+    // 2. The Message Bubble
     const bubbleHtml = `
         <div class="flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'} pt-1">
             <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
-                <span class="text-[10px] text-gray-500">${time}</span>
+                <span class="text-[10px] text-gray-500 font-mono">${time}</span>
             </div>
-            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-br-none' : 'rounded-bl-none'}">
+            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 leading-relaxed ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-br-none' : 'rounded-bl-none'}">
                 ${escapeHtml(msg.message)}
             </div>
         </div>
     `;
 
-    const bubbleWrapper = document.createElement('div');
-    bubbleWrapper.innerHTML = bubbleHtml;
-
-    // 6. ASSEMBLE
-    messageEl.appendChild(cardWrapper);
-    messageEl.appendChild(bubbleWrapper.firstElementChild);
-    
+    messageEl.innerHTML = gamercardHtml + bubbleHtml;
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
 }
@@ -1121,7 +1100,52 @@ async function loadAchievements(rom, gameId) {
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load achievements.</p>`;
     }
 }
+function createGamercardHTML(profile, isChat = false) {
+  if (!profile) return '<div class="text-xs text-gray-500">Unknown User</div>';
+  
+  const name = profile.username || 'Anonymous';
+  const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${name}&background=06b6d4&color=fff`;
+  const rankName = profile.rank?.name || 'Player';
+  const rankColor = profile.rank?.color || '#9ca3af';
+  const motto = profile.motto || '';
+  
+  // Calculate XP Progress (Next rank logic simplified for display)
+  const xp = profile.xp_total || 0;
+  const nextRankXp = 500; // Simplified: In real app, calculate distance to next rank dynamically
+  const xpPercent = Math.min(100, (xp % 1000) / 10); // Visual filler for now
 
+  let bgStyle = `background-color: ${profile.gamercard_bg_value || '#1f2937'}`;
+  if (profile.gamercard_bg_type === 'image') {
+    bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center;`;
+  } else if (profile.gamercard_bg_type === 'gradient') {
+    bgStyle = `background-image: ${profile.gamercard_bg_value};`;
+  }
+
+  const wrapperClass = isChat ? 'chat-gamercard-wrapper' : '';
+  
+  return `
+    <div class="${wrapperClass}">
+      <div class="gamercard">
+        <div class="gc-bg" style="${bgStyle}"></div>
+        <div class="gc-content">
+          <img src="${avatar}" class="gc-avatar" alt="${name}">
+          <div class="gc-info">
+            <span class="gc-name">${escapeHtml(name)}</span>
+            <span class="gc-rank" style="background-color: ${rankColor}20; color: ${rankColor}; border: 1px solid ${rankColor}">
+              ${escapeHtml(rankName)}
+            </span>
+            ${!isChat && motto ? `<span class="gc-motto">${escapeHtml(motto)}</span>` : ''}
+            <div class="gc-xp-bar-container">
+              <div class="gc-xp-fill" style="width: ${xpPercent}%"></div>
+            </div>
+            <span class="gc-xp-text">${xp} XP</span>
+          </div>
+        </div>
+      </div>
+      ${isChat ? '<div class="chat-bubble-content">' : ''}
+    </div>
+  `;
+}
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
