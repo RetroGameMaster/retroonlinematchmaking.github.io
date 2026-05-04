@@ -880,7 +880,7 @@ function createGameEditForm(game, isAdmin) {
             </div>
             
             <div class="flex justify-end gap-3">
-                <button type="button" onclick="window.location.hash = '#/game/${game.slug || game.id}'" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors">Cancel</button>
+                <button type="button" <button type="button" onclick="window.history.pushState({}, '', '/game/${game.slug || game.id}'); handlePathChange();" '" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors">Cancel</button>
                 <button type="submit" id="saveBtn" class="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-lg transition-colors">Save Changes</button>
             </div>
         </form>
@@ -1086,7 +1086,10 @@ async function saveGameEdit(game) {
         if (error) throw error;
 
         showNotification('✅ Game updated successfully!', 'success');
-        setTimeout(() => { window.location.hash = `#/game/${game.slug || gameId}`; }, 1500);
+       setTimeout(() => { 
+    window.history.pushState({}, '', `/game/${game.slug || gameId}`); 
+    handlePathChange(); 
+}, 1500);
 
     } catch (error) {
         console.error('Error saving game edit:', error);
@@ -1100,6 +1103,7 @@ async function saveGameEdit(game) {
 async function loadProfileDetail(profileId) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
+    
     console.log('👤 Loading profile for ID/Slug:', profileId); 
     appContent.innerHTML = `<div class="text-center p-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div>`;
 
@@ -1110,18 +1114,25 @@ async function loadProfileDetail(profileId) {
         appContent.innerHTML = html;
 
         const module = await import('./modules/profile/profile.js');
+        
+        // ✅ FIX: Use history.pushState for clean URLs
         const rom = {
             supabase: window.supabase,
             currentUser: window.rom?.currentUser || null,
             loadModule: loadModule,
-            navigateTo: function(module) { window.location.hash = `#/${module}`; }
+            navigateTo: function(module) { 
+                window.history.pushState({}, '', `/${module}`); 
+                handlePathChange(); 
+            }
         };
+        
         const params = { slug: profileId };
 
         if (module.default && typeof module.default === 'function') await module.default(rom, params);
         else if (module.initModule) await module.initModule(rom, params);
         else if (module.default && module.default.initModule) await module.default.initModule(rom, params);
         else throw new Error('Profile module export structure not recognized');
+        
     } catch (error) {
         console.error('Error loading profile detail:', error);
         showError('Error loading profile', error.message);
@@ -1207,7 +1218,9 @@ window.rom = {
     currentUser: null,
     loadModule: loadModule,
     navigateTo: function(module) {
-        window.location.hash = `#/${module}`;
+        // ✅ FIX: Use pushState for clean URLs
+        window.history.pushState({}, '', `/${module}`);
+        handlePathChange();
     }
 };
 
