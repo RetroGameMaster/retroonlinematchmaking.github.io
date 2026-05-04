@@ -89,20 +89,38 @@ async function loadActiveLobbies(rom) {
   if (!container) return;
 
   try {
-    // 1. Fetch Active Ephemeral Rooms (Active within last 60 mins)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     
-    // Select game_id to link to the correct page
+    // UPDATED QUERY: Join games (for cover/bg) and profiles (for host gamercard)
     let { data: rooms, error } = await rom.supabase
       .from('chat_rooms')
-      .select('*, games(slug, title)') // Join with games table to get slug
+      .select(`
+        *,
+        games (
+          slug, 
+          title, 
+          cover_image_url, 
+          background_image_url, 
+          background_video_url
+        ),
+        host_profile:profiles!chat_rooms_created_by_fkey (
+          id,
+          username,
+          avatar_url,
+          motto,
+          xp_total,
+          gamercard_bg_type,
+          gamercard_bg_value,
+          rank:user_ranks (name, color)
+        )
+      `)
       .eq('is_ephemeral', true)
       .gte('last_activity', oneHourAgo)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    // 2. Apply Client-Side Filters
+    // Apply Client-Side Filters
     const searchVal = document.getElementById('filter-search')?.value.toLowerCase() || '';
     const sortVal = document.getElementById('filter-sort')?.value || 'newest';
 
@@ -116,10 +134,10 @@ async function loadActiveLobbies(rom) {
     if (sortVal === 'oldest') {
       rooms.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     } else {
-      rooms.sort((a, b) => new Date(b.created_at) - new Date(b.created_at));
+      rooms.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
-    // 3. Update UI
+    // Update UI
     if (countEl) countEl.textContent = rooms?.length || 0;
 
     if (!rooms || rooms.length === 0) {
@@ -131,7 +149,7 @@ async function loadActiveLobbies(rom) {
     container.classList.remove('hidden');
     emptyState.classList.add('hidden');
 
-    // 4. Render Cards
+    // Render Cards
     container.innerHTML = rooms.map(room => {
       const timeDiff = Date.now() - new Date(room.last_activity).getTime();
       const minsAgo = Math.floor(timeDiff / 60000);
@@ -150,49 +168,104 @@ async function loadActiveLobbies(rom) {
         statusColor = 'text-yellow-400';
       }
 
-      // Use the joined game data for display and linking
-      const gameSlug = room.games?.slug;
-      const displayName = room.games?.title || room.name.replace('Live Lobby', '').replace('lobby-', '').trim() || 'Unknown Game';
+      const game = room.games || {};
+      const host = room.host_profile || {};
       
-      // FIXED: Link directly to the game slug if available, otherwise fallback to search
+      const gameSlug = game.slug;
+      const displayName = game.title || room.name.replace('Live Lobby', '').trim() || 'Unknown Game';
       const joinLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(displayName)}`;
 
+      // Determine Background Image
+      let bgImageStyle = '';
+      if (game.background_image_url) {
+        bgImageStyle = `background-image: url('${game.background_image_url}'); background-size: cover; background-position: center;`;
+      } else if (game.cover_image_url) {
+        // Fallback to cover if no dedicated background
+        bgImageStyle = `background-image: url('${game.cover_image_url}'); background-size: cover; background-position: center;`;
+      } else {
+        bgImageStyle = `background: linear-gradient(135deg, #064e3b 0%, #111827 100%);`;
+      }
+
+      // Generate Host Gamercard HTML
+      const hostUsername = host.username || 'Anonymous';
+      const hostAvatar = host.avatar_url || `https://ui-avatars.com/api/?name=${hostUsername}&background=06b6d4&color=fff`;
+      const hostRank = host.rank;
+      const hostMotto = host.motto;
+      
+      let gcBgStyle = '';
+      if (host.gamercard_bg_type === 'image') {
+        gcBgStyle = `background-image: url('${host.gamercard_bg_value}'); background-size: cover;`;
+      } else if (host.gamercard_bg_type === 'gradient') {
+        gcBgStyle = `background-image: ${host.gamercard_bg_value};`;
+      } else {
+        gcBgStyle = `background-color: ${host.gamercard_bg_value || '#1f2937'};`;
+      }
+
+      const rankBadge = hostRank ? 
+        `<span class="text-[9px] px-1 py-0.5 rounded font-bold" style="background:${hostRank.color}30; color:${hostRank.color}; border:1px solid ${hostRank.color}">${escapeHtml(hostRank.name)}</span>` : 
+        `<span class="text-[9px] px-1 py-0.5 rounded font-bold bg-gray-700 text-gray-400">Player</span>`;
+
       return `
-        <a href="${joinLink}" class="group block bg-gray-800/60 backdrop-blur hover:bg-gray-800 rounded-xl border border-gray-700 hover:border-green-500/50 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transform hover:-translate-y-1">
-          <div class="p-6 relative">
-            <!-- Status Indicator -->
-            <div class="absolute top-4 right-4 ${statusColor} text-xs font-bold bg-gray-900/80 px-2 py-1 rounded border border-gray-600 backdrop-blur">
+        <a href="${joinLink}" class="group block bg-gray-800/60 backdrop-blur rounded-xl border border-gray-700 hover:border-green-500/50 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.15)] transform hover:-translate-y-1 flex flex-col h-full">
+          
+          <!-- Game Background Header -->
+          <div class="relative h-32 w-full overflow-hidden">
+            <div class="absolute inset-0 ${bgImageStyle} transition-transform duration-500 group-hover:scale-105"></div>
+            <!-- Overlay Gradient -->
+            <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent"></div>
+            
+            <!-- Status Badge -->
+            <div class="absolute top-3 right-3 ${statusColor} text-xs font-bold bg-gray-900/90 px-2 py-1 rounded border border-gray-600 backdrop-blur shadow-lg">
               ${statusBadge}
             </div>
 
-            <!-- Icon -->
-            <div class="w-12 h-12 bg-gradient-to-br from-green-900/50 to-gray-900 rounded-lg flex items-center justify-center mb-4 border border-green-500/30 group-hover:scale-110 transition-transform">
-              <span class="text-2xl">🎮</span>
+            <!-- Game Title Overlay -->
+            <div class="absolute bottom-3 left-4 right-4">
+              <h3 class="text-xl font-bold text-white drop-shadow-md line-clamp-1 group-hover:text-green-400 transition-colors">
+                ${escapeHtml(displayName)}
+              </h3>
+              ${room.stream_url ? '<span class="text-[10px] text-purple-300 font-bold bg-purple-900/80 px-1.5 py-0.5 rounded border border-purple-500/50 mt-1 inline-block">📺 Streaming</span>' : ''}
             </div>
+          </div>
 
-            <!-- Info -->
-            <h3 class="text-xl font-bold text-white mb-2 line-clamp-1 group-hover:text-green-400 transition-colors">
-              ${escapeHtml(displayName)}
-            </h3>
+          <!-- Content Body -->
+          <div class="p-4 flex-1 flex flex-col justify-between">
             
-            <div class="flex items-center gap-2 text-sm text-gray-400 mb-4">
-              <span>Hosted by:</span>
-              <span class="text-cyan-300 font-medium truncate">${room.created_by || 'Anonymous'}</span>
+            <!-- Host Gamercard Section -->
+            <div class="mb-4">
+              <p class="text-xs text-gray-500 mb-2 uppercase tracking-wider font-bold">Hosted By</p>
+              <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-600 shadow-md bg-gray-900">
+                <!-- Gamercard Background -->
+                <div class="absolute inset-0 opacity-40" style="${gcBgStyle} filter: brightness(0.7);"></div>
+                <!-- Overlay for readability -->
+                <div class="absolute inset-0 bg-gradient-to-r from-black/80 to-black/40"></div>
+                
+                <!-- Content -->
+                <div class="relative z-10 p-2 flex items-center gap-3">
+                  <img src="${hostAvatar}" alt="${hostUsername}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-sm">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1 mb-0.5">
+                      <span class="text-xs font-bold text-white truncate drop-shadow-md">${escapeHtml(hostUsername)}</span>
+                    </div>
+                    ${rankBadge}
+                    ${hostMotto ? `<p class="text-[9px] text-gray-300 italic truncate drop-shadow-md mt-0.5">"${escapeHtml(hostMotto)}"</p>` : ''}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- Meta -->
-            <div class="flex items-center justify-between text-xs text-gray-500 border-t border-gray-700 pt-4 mt-2">
-              <span>Room ID: ${room.id.slice(0,8)}...</span>
-              <span>Last active: ${minsAgo}m ago</span>
+            <!-- Meta Footer -->
+            <div class="flex items-center justify-between text-xs text-gray-500 border-t border-gray-700 pt-3 mt-auto">
+              <span>ID: ${room.id.slice(0,6)}...</span>
+              <span>${minsAgo}m ago</span>
             </div>
           </div>
           
-          <!-- Hover Action -->
-          <div class="bg-gray-900/50 px-6 py-3 border-t border-gray-700 flex justify-between items-center group-hover:bg-green-900/20 transition-colors">
-            <span class="text-green-400 text-sm font-bold flex items-center gap-2">
+          <!-- Hover Action Bar -->
+          <div class="bg-gray-900/80 px-4 py-2 border-t border-gray-700 flex justify-between items-center group-hover:bg-green-900/30 transition-colors">
+            <span class="text-green-400 text-xs font-bold flex items-center gap-1">
               Join Session <span>→</span>
             </span>
-            ${room.stream_url ? '<span class="text-purple-400 text-xs font-bold bg-purple-900/30 px-2 py-1 rounded border border-purple-500/30">📺 Streaming</span>' : ''}
           </div>
         </a>
       `;
@@ -209,12 +282,11 @@ function startRealtimeListener(rom) {
 
   realtimeChannel
     .on('postgres_changes', { 
-      event: '*', // Listen to Insert, Update, Delete
+      event: '*',
       schema: 'public', 
       table: 'chat_rooms',
       filter: 'is_ephemeral=eq.true'
     }, () => {
-      // Debounce slightly to prevent rapid flickering
       clearTimeout(window.lobbyRefreshTimeout);
       window.lobbyRefreshTimeout = setTimeout(() => {
         loadActiveLobbies(rom);
@@ -225,7 +297,6 @@ function startRealtimeListener(rom) {
   console.log('✅ Realtime listener started for live lobbies');
 }
 
-// Cleanup on unload
 window.addEventListener('beforeunload', () => {
   if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
