@@ -660,6 +660,8 @@ function renderActiveSession(container, room, rom, game) {
             }]);
 
             chatInput.value = '';
+            const xpAmount = currentRoomId ? 2 : 1;
+await supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
         } catch (err) {
             console.error('Failed to send:', err);
             alert('Failed to send message: ' + err.message);
@@ -701,35 +703,71 @@ async function loadChatMessages(rom, roomId) {
     }
 }
 
-function appendMessageToDOM(msg, currentUserId) {
+async function appendMessageToDOM(msg, currentUserId) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
     const isMe = msg.user_id === currentUserId;
-    const avatarUrl = msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.username || 'User')}&background=06b6d4&color=fff`;
-    const profileLink = `#/profile/${msg.username || 'user'}`;
-    
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    // Fetch full profile data for the Gamercard
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select(`
+            username,
+            avatar_url,
+            xp_total,
+            motto,
+            gamercard_bg_type,
+            gamercard_bg_value,
+            rank:user_ranks (name, color)
+        `)
+        .eq('id', msg.user_id)
+        .single();
+
     const messageEl = document.createElement('div');
-    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in`;
-    
+    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4`;
+
+    // Generate Gamercard
+    const gamercardHTML = createGamercardHTML(profile, true);
+
     messageEl.innerHTML = `
-        <a href="${profileLink}" class="flex-shrink-0 group/avatar" title="View ${escapeHtml(msg.username)}'s Profile">
-            <img src="${avatarUrl}" alt="${escapeHtml(msg.username)}" class="w-8 h-8 rounded-full border border-gray-600 group-hover/avatar:border-cyan-400 transition shadow-sm">
-        </a>
-        <div class="flex flex-col max-w-[80%] ${isMe ? 'items-end' : 'items-start'}">
-            <div class="flex items-baseline gap-2 mb-1">
-                <a href="${profileLink}" class="text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:underline transition">
-                    ${escapeHtml(msg.username)}
-                </a>
-                <span class="text-[10px] text-gray-500">${time}</span>
-            </div>
-            <div class="bg-gray-800 text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-sm ${isMe ? 'bg-cyan-900/40 text-cyan-100 rounded-br-none' : 'rounded-bl-none'}">
-                ${escapeHtml(msg.message)}
-            </div>
+        ${gamercardHTML}
+        <div class="bg-gray-800 text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-sm ${isMe ? 'bg-cyan-900/40 text-cyan-100 rounded-bl-none' : 'rounded-br-none'} max-w-[70%] self-center">
+            ${escapeHtml(msg.message)}
+            <div class="text-[10px] text-gray-500 text-right mt-1">${time}</div>
         </div>
+        ${isMe ? '</div>' : ''} 
+        <!-- Close wrapper if needed based on HTML structure above -->
     `;
+    
+    // Fix closing div structure for isMe vs not isMe if needed, but simpler approach:
+    // Just append the generated HTML string properly.
+    
+    // Revised Inner HTML for clarity:
+    /* 
+       Structure: [Gamercard] [MessageBubble]
+       If isMe: Flex-row-reverse handles visual order.
+    */
+   
+   // Re-building innerHTML cleanly:
+   const cardContainer = document.createElement('div');
+   cardContainer.innerHTML = gamercardHTML;
+   // Extract the actual gamercard div if wrapper added extra logic
+   const gcNode = cardContainer.firstElementChild; 
+   
+   // If createGamercardHTML returns a wrapper div, we might need to adjust. 
+   // Let's assume it returns the .gamercard div directly for simplicity in chat.
+   
+   messageEl.innerHTML = `
+      ${createGamercardHTML(profile, true).replace('<div class="chat-gamercard-wrapper">', '').replace('</div>', '')}
+      <div class="flex flex-col justify-center max-w-[70%]">
+        <div class="bg-gray-800 text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-sm ${isMe ? 'bg-cyan-900/40 text-cyan-100 rounded-bl-none' : 'rounded-br-none'}">
+            ${escapeHtml(msg.message)}
+        </div>
+        <span class="text-[10px] text-gray-500 mt-1 ${isMe ? 'text-right' : ''}">${time}</span>
+      </div>
+   `;
 
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
@@ -1023,7 +1061,52 @@ async function loadAchievements(rom, gameId) {
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load achievements.</p>`;
     }
 }
+function createGamercardHTML(profile, isChat = false) {
+  if (!profile) return '<div class="text-xs text-gray-500">Unknown User</div>';
+  
+  const name = profile.username || 'Anonymous';
+  const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${name}&background=06b6d4&color=fff`;
+  const rankName = profile.rank?.name || 'Player';
+  const rankColor = profile.rank?.color || '#9ca3af';
+  const motto = profile.motto || '';
+  
+  // Calculate XP Progress (Next rank logic simplified for display)
+  const xp = profile.xp_total || 0;
+  const nextRankXp = 500; // Simplified: In real app, calculate distance to next rank dynamically
+  const xpPercent = Math.min(100, (xp % 1000) / 10); // Visual filler for now
 
+  let bgStyle = `background-color: ${profile.gamercard_bg_value || '#1f2937'}`;
+  if (profile.gamercard_bg_type === 'image') {
+    bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center;`;
+  } else if (profile.gamercard_bg_type === 'gradient') {
+    bgStyle = `background-image: ${profile.gamercard_bg_value};`;
+  }
+
+  const wrapperClass = isChat ? 'chat-gamercard-wrapper' : '';
+  
+  return `
+    <div class="${wrapperClass}">
+      <div class="gamercard">
+        <div class="gc-bg" style="${bgStyle}"></div>
+        <div class="gc-content">
+          <img src="${avatar}" class="gc-avatar" alt="${name}">
+          <div class="gc-info">
+            <span class="gc-name">${escapeHtml(name)}</span>
+            <span class="gc-rank" style="background-color: ${rankColor}20; color: ${rankColor}; border: 1px solid ${rankColor}">
+              ${escapeHtml(rankName)}
+            </span>
+            ${!isChat && motto ? `<span class="gc-motto">${escapeHtml(motto)}</span>` : ''}
+            <div class="gc-xp-bar-container">
+              <div class="gc-xp-fill" style="width: ${xpPercent}%"></div>
+            </div>
+            <span class="gc-xp-text">${xp} XP</span>
+          </div>
+        </div>
+      </div>
+      ${isChat ? '<div class="chat-bubble-content">' : ''}
+    </div>
+  `;
+}
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
