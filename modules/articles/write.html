@@ -31,7 +31,7 @@
         <option value="magazine">📰 Magazine Submission</option>
       </select>
       
-      <!-- Magazine Toggle (Optional) -->
+      <!-- Magazine Toggle -->
       <label class="flex items-center gap-2 ml-auto cursor-pointer group">
         <input type="checkbox" id="is-magazine" class="hidden peer">
         <div class="w-10 h-6 bg-gray-700 rounded-full peer-checked:bg-purple-600 relative transition-colors">
@@ -60,7 +60,7 @@
       <input type="file" id="image-input" accept="image/*" class="hidden">
     </div>
 
-    <!-- Editor Area -->
+    <!-- CRITICAL: This div MUST be empty for Tiptap to work -->
     <div id="editor-content" class="prose prose-invert max-w-none p-6 min-h-[400px] focus:outline-none text-gray-300"></div>
 
     <!-- Footer / Publish -->
@@ -73,9 +73,8 @@
   </div>
 </div>
 
-<!-- Load Tiptap Core & Extensions from CDN -->
-<script src="https://unpkg.com/@tiptap/core@2.0.0/dist/index.umd.js"></script>
-<script src="https://unpkg.com/@tiptap/starter-kit@2.0.0/dist/index.umd.js"></script>
-<script src="https://unpkg.com/@tiptap/extension-image@2.0.0/dist/index.umd.js"></script>
-<script src="https://unpkg.com/@tiptap/extension-link@2.0.0/dist/index.umd.js"></script>
-</div>
+<!-- Load Tiptap Core & Extensions from CDN (Fixed URLs) -->
+<script src="https://unpkg.com/@tiptap/core@2.0.3/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/starter-kit@2.0.3/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/extension-image@2.0.3/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@tiptap/extension-link@2.0.3/dist/index.umd.js"></script>
