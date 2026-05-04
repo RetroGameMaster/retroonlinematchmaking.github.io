@@ -369,20 +369,68 @@ if (hash === 'write') {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
     
-    // 1. Show Loading
-    appContent.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor...</p></div>`;
+    appContent.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor & Scripts...</p></div>`;
+
+    // 1. Define Scripts
+    const scripts = [
+        { src: 'https://unpkg.com/@tiptap/core@2.0.3/dist/index.umd.js', global: 'TiptapCore' },
+        { src: 'https://unpkg.com/@tiptap/starter-kit@2.0.3/dist/index.umd.js', global: 'StarterKit' },
+        { src: 'https://unpkg.com/@tiptap/extension-image@2.0.3/dist/index.umd.js', global: 'ExtensionImage' },
+        { src: 'https://unpkg.com/@tiptap/extension-link@2.0.3/dist/index.umd.js', global: 'ExtensionLink' }
+    ];
+
+    // 2. Helper to load script
+    const loadScript = (src) => {
+        return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    };
 
     try {
-        // 2. Fetch HTML from the CORRECT path (modules/articles/)
+        // Load all scripts
+        for (const s of scripts) { await loadScript(s.src); }
+        
+        // 3. CRITICAL: Normalize Global Names (The Missing Prerequisite)
+        // The CDN might expose them as 'window.Core', 'window.StarterKit', etc.
+        // We force them into the specific names your write.js expects.
+        
+        // Fix Core
+        if (!window.TiptapCore) {
+            window.TiptapCore = window.tiptapCore || window.Core || window.Tiptap;
+        }
+        // Fix StarterKit
+        if (!window.TiptapStarterKit) {
+            window.TiptapStarterKit = window.starterKit || window.StarterKit || window['@tiptap/starter-kit'];
+        }
+        // Fix Image
+        if (!window.TiptapExtensionImage) {
+            window.TiptapExtensionImage = window.extensionImage || window.Image || window['@tiptap/extension-image'];
+        }
+        // Fix Link
+        if (!window.TiptapExtensionLink) {
+            window.TiptapExtensionLink = window.extensionLink || window.Link || window['@tiptap/extension-link'];
+        }
+
+        console.log('✅ Scripts Loaded & Normalized:', { 
+            core: !!window.TiptapCore, 
+            kit: !!window.TiptapStarterKit 
+        });
+
+        // Small delay to ensure globals attach
+        await new Promise(r => setTimeout(r, 300));
+
+        // 4. Fetch HTML (Ensure write.html has NO <script> tags inside it)
         const response = await fetch('./modules/articles/write.html');
-        if (!response.ok) throw new Error('HTML file not found');
+        if (!response.ok) throw new Error('HTML not found');
         const html = await response.text();
         appContent.innerHTML = html;
 
-        // 3. Wait briefly for DOM to settle
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        // 4. Import and Run JS
+        // 5. Run Module
         const module = await import('./modules/articles/write.js');
         const rom = {
             supabase: window.supabase,
@@ -395,7 +443,7 @@ if (hash === 'write') {
         
     } catch (err) {
         console.error('Error loading Write module:', err);
-        appContent.innerHTML = `<div class="text-red-400 text-center mt-10">Error loading editor: ${err.message}</div>`;
+        appContent.innerHTML = `<div class="text-red-400 text-center mt-10">Error: ${err.message}</div>`;
     }
     return;
 }
