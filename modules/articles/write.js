@@ -62,31 +62,30 @@ function initEditor() {
   const editorElement = document.querySelector('#editor-content');
   if (!editorElement) return;
 
-  // Ensure empty
-  editorElement.innerHTML = ''; 
-
-  // Try to find the libraries under various possible global names
-  const Core = window.TiptapCore || window.tiptapCore || window.Tiptap;
+  // ✅ FIX: Read from the exact keys found in your console log
+  const Core = window['@tiptap/core'];
   
-  // StarterKit is often exposed directly as 'StarterKit' or nested
-  let StarterKit = window.TiptapStarterKit || window.StarterKit;
-  if (StarterKit && StarterKit.StarterKit) StarterKit = StarterKit.StarterKit;
+  // StarterKit often exports an object containing 'StarterKit'
+  const StarterKitRaw = window['@tiptap/starter-kit'];
+  const StarterKit = StarterKitRaw ? (StarterKitRaw.StarterKit || StarterKitRaw) : null;
 
-  // Extensions
-  let ImageExt = window.TiptapExtensionImage || window.ImageExtension || window.Image;
-  if (ImageExt && ImageExt.Image) ImageExt = ImageExt.Image;
-  
-  let LinkExt = window.TiptapExtensionLink || window.LinkExtension || window.Link;
-  if (LinkExt && LinkExt.Link) LinkExt = LinkExt.Link;
+  // Extensions often export an object containing 'Image' or 'Link'
+  const ImageRaw = window['@tiptap/extension-image'];
+  const ImageExt = ImageRaw ? (ImageRaw.Image || ImageRaw) : null;
 
-  console.log('🛠️ Editor Config:', { Core, StarterKit, ImageExt, LinkExt });
+  const LinkRaw = window['@tiptap/extension-link'];
+  const LinkExt = LinkRaw ? (LinkRaw.Link || LinkRaw) : null;
+
+  console.log('🔍 Found Libraries:', { Core, StarterKit, ImageExt, LinkExt });
 
   if (!Core || !StarterKit) {
-    console.error("❌ CRITICAL: Tiptap Core or StarterKit not found on window object.");
-    console.log("Available keys:", Object.keys(window).filter(k => k.toLowerCase().includes('tip')));
-    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Check console for missing libs.</p>";
+    console.error("❌ CRITICAL: Tiptap Core or StarterKit not found");
+    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Refresh page.</p>";
     return;
   }
+
+  // Clear content before attaching
+  editorElement.innerHTML = '';
 
   try {
     editor = Core.Editor.create({
@@ -100,10 +99,9 @@ function initEditor() {
       editable: true,
       autofocus: true
     });
-    console.log('✅ Editor Created Successfully');
-  } catch (e) {
-    console.error('💥 Init Error:', e);
-    editorElement.innerHTML = `<p class='text-red-500'>Init Error: ${e.message}</p>`;
+    console.log('✅ Editor Initialized Successfully!');
+  } catch (err) {
+    console.error('💥 Init Error:', err);
   }
 }
 
