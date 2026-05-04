@@ -569,7 +569,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
       `}
 
-      <!-- Motto (No retromaster here) -->
+      <!-- Motto -->
       ${profile.motto ? `<p class="text-gray-300 text-sm italic mt-2 font-medium" style="text-shadow: 0 1px 2px black;">"${escapeHtml(profile.motto)}"</p>` : ''}
       
       <!-- Stats Row -->
@@ -581,10 +581,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         <div class="ra-stat" style="text-align: center;">
           <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">${profile.stats?.comments_made || 0}</div>
           <div style="font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Comments</div>
-        </div>
-        <div class="ra-stat" style="text-align: center;">
-          <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">${profile.stats?.total_points || 0}</div>
-          <div style="font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Points</div>
         </div>
         <!-- XP Stat -->
         <div class="ra-stat" style="text-align: center;">
