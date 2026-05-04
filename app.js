@@ -366,7 +366,37 @@ if (hash.startsWith('article/')) {
 
 // Handle Write Page
 if (hash === 'write') {
-    await loadModule('write');
+    const appContent = document.getElementById('app-content');
+    if (!appContent) return;
+    
+    // 1. Show Loading
+    appContent.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor...</p></div>`;
+
+    try {
+        // 2. Fetch HTML from the CORRECT path (modules/articles/)
+        const response = await fetch('./modules/articles/write.html');
+        if (!response.ok) throw new Error('HTML file not found');
+        const html = await response.text();
+        appContent.innerHTML = html;
+
+        // 3. Wait briefly for DOM to settle
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // 4. Import and Run JS
+        const module = await import('./modules/articles/write.js');
+        const rom = {
+            supabase: window.supabase,
+            currentUser: window.rom?.currentUser || null,
+            loadModule: loadModule,
+            navigateTo: (m) => window.location.hash = `#/${m}`
+        };
+        
+        if (module.default) await module.default(rom);
+        
+    } catch (err) {
+        console.error('Error loading Write module:', err);
+        appContent.innerHTML = `<div class="text-red-400 text-center mt-10">Error loading editor: ${err.message}</div>`;
+    }
     return;
 }
 
