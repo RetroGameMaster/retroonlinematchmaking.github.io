@@ -757,13 +757,6 @@ async function appendMessageToDOM(msg, currentUserId) {
         bgStyle = `background-image: ${gcBgValue};`;
     }
 
-    let bgStyle = `background-color: ${gcBgValue};`;
-    if (gcBgType === 'image') {
-        bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
-    } else if (gcBgType === 'gradient') {
-        bgStyle = `background-image: ${gcBgValue};`;
-    }
-
     const gamercardHtml = `
         <a href="${profileLink}" class="group block flex-shrink-0 w-[240px] hover:scale-[1.02] transition-transform duration-200 z-10">
             <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
