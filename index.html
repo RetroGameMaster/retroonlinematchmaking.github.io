@@ -929,6 +929,129 @@
             height: 40px;
             background: linear-gradient(135deg, #06b6d4, #8b5cf6);
         }
+        /* GAMERCARD STYLES */
+.gamercard {
+  display: flex;
+  flex-direction: column;
+  background: #111827;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  border: 1px solid #374151;
+  position: relative;
+  min-width: 280px;
+}
+
+.gc-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+  opacity: 0.4;
+  background-size: cover;
+  background-position: center;
+  transition: background-image 0.3s ease;
+}
+
+.gc-content {
+  position: relative;
+  z-index: 1;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: linear-gradient(to right, rgba(0,0,0,0.8), rgba(0,0,0,0.4));
+}
+
+.gc-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,0.2);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.gc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gc-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.gc-rank {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gc-motto {
+  font-size: 0.75rem;
+  color: #d1d5db;
+  font-style: italic;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.gc-xp-bar-container {
+  height: 6px;
+  background: rgba(0,0,0,0.6);
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gc-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #06b6d4, #3b82f6);
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+}
+
+.gc-xp-text {
+  font-size: 0.65rem;
+  color: #9ca3af;
+  margin-top: 2px;
+  text-align: right;
+  display: block;
+}
+
+/* Chat Specific Overrides for Gamercard */
+.chat-gamercard-wrapper {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.chat-gamercard-wrapper .gamercard {
+  min-width: 220px;
+  transform: scale(0.95);
+  transform-origin: top left;
+}
+.chat-gamercard-wrapper .gc-avatar {
+  width: 40px;
+  height: 40px;
+}
+.chat-gamercard-wrapper .gc-name { font-size: 0.8rem; }
+.chat-gamercard-wrapper .gc-rank { font-size: 0.6rem; }
+.chat-gamercard-wrapper .gc-motto { display: none; } /* Hide motto in chat to save space */
+.chat-gamercard-wrapper .gc-xp-bar-container { height: 4px; }
     </style>
 </head>
 <body class="bg-gray-900">
