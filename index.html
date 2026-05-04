@@ -1114,25 +1114,38 @@
   display: block;
 }
 
-/* Chat Specific Overrides for Gamercard */
-.chat-gamercard-wrapper {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
+/* Chat Specific Gamercard Overrides */
+.chat-gamercard {
+    width: 240px; /* Fixed width to prevent squishing */
+    background: #111827; /* Fallback dark bg */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.8);
+    border: 1px solid #374151;
 }
-.chat-gamercard-wrapper .gamercard {
-  min-width: 220px;
-  transform: scale(0.95);
-  transform-origin: top left;
+
+.chat-gamercard .gc-bg {
+    opacity: 0.3; /* Darker background */
+    filter: brightness(0.5); /* Ensure text pops */
 }
-.chat-gamercard-wrapper .gc-avatar {
-  width: 40px;
-  height: 40px;
+
+.chat-gamercard:hover {
+    border-color: #06b6d4; /* Cyan highlight on hover */
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
 }
-.chat-gamercard-wrapper .gc-name { font-size: 0.8rem; }
-.chat-gamercard-wrapper .gc-rank { font-size: 0.6rem; }
-.chat-gamercard-wrapper .gc-motto { display: none; } /* Hide motto in chat to save space */
-.chat-gamercard-wrapper .gc-xp-bar-container { height: 4px; }
+
+/* Prevent Avatar Cutoff */
+.chat-gamercard img {
+    object-fit: cover;
+    flex-shrink: 0; /* Critical: Stops image from shrinking */
+}
+
+/* Ensure Text Readability over Background */
+.chat-gamercard .gc-name, 
+.chat-gamercard .gc-rank, 
+.chat-gamercard .gc-motto {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    position: relative;
+    z-index: 20;
+}
     </style>
 </head>
 <body class="bg-gray-900">
