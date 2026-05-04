@@ -6,6 +6,16 @@ let currentUser = null;
 let currentUserId = null;
 let isAdmin = false;
 
+// Configuration for Reaction Types
+const REACTION_TYPES = [
+  { id: 'fire', icon: '🔥', label: 'Lit' },
+  { id: 'trophy', icon: '🏆', label: 'GG' },
+  { id: 'skull', icon: '💀', label: 'RIP' },
+  { id: 'heart', icon: '❤️', label: 'Love' },
+  { id: 'laugh', icon: '😂', label: 'LOL' },
+  { id: 'thinking', icon: '🤔', label: 'Hmm' }
+];
+
 // Helper: Escape HTML
 function escapeHtml(text) {
   if (!text) return '';
@@ -21,13 +31,8 @@ function renderGamercard(profile, isChat = false) {
   const rank = profile?.rank;
   const motto = profile?.motto;
   const xp = profile?.xp_total || 0;
-  
-  // Calculate Next Rank XP (Simple logic: find next rank in list or cap at max)
-  // For visual bar, we just use a % based on current rank min vs next rank min
-  // Simplified: Just show total XP for now or a generic bar
-  const xpPercent = Math.min(100, (xp / 5000) * 100); // Placeholder scale
+  const xpPercent = Math.min(100, (xp / 5000) * 100); 
 
-  // Background Logic
   let bgStyle = '';
   if (profile?.gamercard_bg_type === 'image') {
     bgStyle = `background-image: url('${profile.gamercard_bg_value}');`;
@@ -167,8 +172,8 @@ function attachListeners() {
       if (error) { alert('Error posting: ' + error.message); } 
       else {
         modal.classList.add('hidden'); form.reset();
-        // Award XP
-        await supabase.rpc('award_xp', { user_uuid: currentUserId, amount: 10, reason: 'forum_post' });
+        // Award XP for Post
+        if(currentUser) await supabase.rpc('award_xp', { user_uuid: currentUserId, amount: 10, reason: 'forum_post' });
         loadDiscussions('all');
       }
     });
@@ -191,21 +196,68 @@ async function loadDiscussions(category) {
   let profilesMap = new Map();
   
   if (authorIds.length > 0) {
-    // FIXED: Fetch all gamercard data + rank
     const { data: profiles } = await supabase
       .from('profiles')
-      .select(`
-        id, username, avatar_url, xp_total, motto, gamercard_bg_type, gamercard_bg_value,
-        rank:user_ranks (name, color)
-      `)
+      .select(`id, username, avatar_url, xp_total, motto, gamercard_bg_type, gamercard_bg_value, rank:user_ranks (name, color)`)
       .in('id', authorIds);
     if (profiles) profiles.forEach(p => profilesMap.set(p.id, p));
+  }
+
+  // Fetch Reactions for all posts in one go
+  const postIds = posts.map(p => p.id);
+  let reactionsMap = new Map(); // Map<postId, Array<reaction>>
+  let userReactionsSet = new Set(); // Set<"postId-reactionType">
+
+  if (postIds.length > 0 && currentUser) {
+    const { data: allReactions } = await supabase
+      .from('post_reactions')
+      .select('*')
+      .in('post_id', postIds);
+    
+    if (allReactions) {
+      allReactions.forEach(r => {
+        if (!reactionsMap.has(r.post_id)) reactionsMap.set(r.post_id, []);
+        reactionsMap.get(r.post_id).push(r);
+        if (r.user_id === currentUserId) {
+          userReactionsSet.add(`${r.post_id}-${r.reaction_type}`);
+        }
+      });
+    }
+  } else if (postIds.length > 0) {
+     // Public view (no user reactions to highlight)
+     const { data: allReactions } = await supabase.from('post_reactions').select('*').in('post_id', postIds);
+     if (allReactions) {
+        allReactions.forEach(r => {
+          if (!reactionsMap.has(r.post_id)) reactionsMap.set(r.post_id, []);
+          reactionsMap.get(r.post_id).push(r);
+        });
+     }
   }
 
   listEl.innerHTML = posts.map(post => {
     const profile = profilesMap.get(post.user_id);
     const canDelete = (currentUser && post.user_id === currentUserId) || isAdmin;
     const deleteBtn = canDelete ? `<button onclick="window.deletePost('${post.id}')" class="text-xs text-red-400 hover:text-red-300 font-bold ml-2">Delete</button>` : '';
+
+    // Generate Reaction Bar HTML
+    const postReactions = reactionsMap.get(post.id) || [];
+    const reactionCounts = {};
+    postReactions.forEach(r => {
+      reactionCounts[r.reaction_type] = (reactionCounts[r.reaction_type] || 0) + 1;
+    });
+
+    const reactionBarHtml = REACTION_TYPES.map(type => {
+      const count = reactionCounts[type.id] || 0;
+      const isActive = userReactionsSet.has(`${post.id}-${type.id}`);
+      return `
+        <button onclick="handleReaction('${post.id}', '${type.id}')" 
+                class="reaction-btn ${isActive ? 'active' : ''}" 
+                data-type="${type.id}">
+          <span class="reaction-icon">${type.icon}</span>
+          <span class="reaction-count">${count > 0 ? count : ''}</span>
+        </button>
+      `;
+    }).join('');
 
     return `
       <div class="bg-gray-800/80 backdrop-blur border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition shadow-lg mb-4">
@@ -223,7 +275,14 @@ async function loadDiscussions(category) {
           ${renderGamercard(profile)}
         </div>
 
-        <div class="flex justify-end mb-3">
+        <!-- Reaction Bar -->
+        ${currentUser ? `
+          <div class="reaction-bar">
+            ${reactionBarHtml}
+          </div>
+        ` : '<div class="text-xs text-gray-500 mt-2 italic">Log in to react</div>'}
+
+        <div class="flex justify-end mb-3 mt-2">
           ${currentUser ? `<button onclick="toggleReplyForm('${post.id}')" class="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1">💬 Reply</button>` : ''}
         </div>
 
@@ -244,6 +303,49 @@ async function loadDiscussions(category) {
 
   posts.forEach(async (post) => { await loadReplies(post.id); });
 }
+
+// Global Handler for Reactions
+window.handleReaction = async function(postId, reactionType) {
+  if (!currentUser) return alert("Please log in to react!");
+
+  const key = `${postId}-${reactionType}`;
+  // Optimistic UI Toggle could go here, but for simplicity we reload counts
+  
+  try {
+    // Check if already reacted
+    const { data: existing } = await supabase
+      .from('post_reactions')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('user_id', currentUserId)
+      .eq('reaction_type', reactionType)
+      .single();
+
+    if (existing) {
+      // Remove Reaction
+      await supabase.from('post_reactions').delete().eq('id', existing.id);
+    } else {
+      // Add Reaction
+      await supabase.from('post_reactions').insert({
+        post_id: postId,
+        user_id: currentUserId,
+        reaction_type: reactionType
+      });
+
+      // Award XP to Post Author (3 XP per unique reaction)
+      const { data: postData } = await supabase.from('game_discussions').select('user_id').eq('id', postId).single();
+      if (postData && postData.user_id !== currentUserId) {
+        await supabase.rpc('award_xp', { user_uuid: postData.user_id, amount: 3, reason: 'post_reaction' });
+      }
+    }
+    
+    // Reload discussions to update counts and active states
+    loadDiscussions('all'); 
+  } catch (err) {
+    console.error("Reaction error:", err);
+    alert("Failed to react");
+  }
+};
 
 async function loadReplies(parentId) {
   const container = document.getElementById(`replies-container-${parentId}`);
@@ -323,6 +425,7 @@ window.submitReply = async function(parentId) {
     
     contentInput.value = '';
     toggleReplyForm(parentId);
+    // Award XP for Reply
     await supabase.rpc('award_xp', { user_uuid: currentUserId, amount: 5, reason: 'forum_reply' });
     loadReplies(parentId);
   } catch (err) {
