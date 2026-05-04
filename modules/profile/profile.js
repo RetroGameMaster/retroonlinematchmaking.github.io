@@ -142,20 +142,22 @@ async function fetchProfileBySlug(slug) {
 }
 
 async function fetchProfileByUserId(id) {
- const { data: targetUser, error } = await supabase
-  .from('profiles')
-  .select(`
-    *,
-    rank:user_ranks (
-      id,
-      name,
-      color,
-      description
-    )
-  `)
+  const { data: targetUser, error } = await supabase
+    .from('profiles')
+    .select(`
+      *,
+      rank:user_ranks (
+        id,
+        name,
+        color,
+        description
+      )
+    `)
     .eq('id', id)
     .single();
-  return error ? null : data;
+    
+  // FIX: Return targetUser, not data
+  return error ? null : targetUser;
 }
 
 // --- fetchWallComments ---
@@ -521,9 +523,20 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
 
   container.innerHTML = `
     <div class="ra-profile-wrapper">
-      <div class="ra-header">
-        <div class="ra-header-overlay"></div>
-        <div class="ra-header-content">
+      <div class="ra-header" style="position: relative; overflow: hidden; border-radius: 12px;">
+  <!-- Gamercard Dynamic Background -->
+  ${profile.gamercard_bg_type === 'image' && profile.gamercard_bg_value ? `
+    <div style="position: absolute; inset: 0; background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; opacity: 0.25; z-index: 0; transition: transform 0.5s ease;" class="gamercard-bg-animate"></div>
+  ` : ''}
+  ${profile.gamercard_bg_type === 'gradient' && profile.gamercard_bg_value ? `
+    <div style="position: absolute; inset: 0; background-image: ${profile.gamercard_bg_value}; opacity: 0.25; z-index: 0;"></div>
+  ` : ''}
+  ${profile.gamercard_bg_type === 'color' && profile.gamercard_bg_value ? `
+    <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; opacity: 0.15; z-index: 0;"></div>
+  ` : ''}
+  
+  <div class="ra-header-overlay" style="position: relative; z-index: 1;"></div>
+  <div class="ra-header-content" style="position: relative; z-index: 2;">
           <div class="ra-avatar-container" style="${avatarStyle}">
             <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
                  alt="${profile.username}" 
@@ -941,27 +954,32 @@ const updates = {
   username: formData.get('username')?.trim(), 
   favorite_console: formData.get('favorite_console'),
   motto: formData.get('motto'),
-  gamercard_bg_type: gcFileType,
-  gamercard_bg_value: finalGcBgValue,
+  gamercard_bg_type: formData.get('gc_bg_type'),
+  gamercard_bg_value: formData.get('gc_bg_value'), // Temporary value, overwritten below if file exists
   custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
 };
-  
+
+// Handle Gamercard Background File Upload
 if (formData.get('gc_bg_type') === 'image') {
   const gcFileInput = document.getElementById('gc_file_input');
   if (gcFileInput && gcFileInput.files.length > 0) {
     const file = gcFileInput.files[0];
     const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+    
     try {
       const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
       if (error) throw error;
+      
       const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
-      updates.gamercard_bg_value = publicUrl;
+      updates.gamercard_bg_value = publicUrl; // Overwrite temporary value
     } catch (err) {
       alert('Gamercard BG upload failed: ' + err.message);
-      return; 
+      submitBtn.textContent = 'Save Changes';
+      submitBtn.disabled = false;
+      return;
     }
   }
-}  
+}
       // 4. Send to Database
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.textContent = 'Saving...';
