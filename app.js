@@ -422,7 +422,6 @@ async function loadModuleWithParams(moduleName, params) {
     cleanupGameBackgrounds();
     await loadModule(hash);
     renderRandomQuote(); 
-}
 
 // Load module function
 async function loadModule(moduleName) {
