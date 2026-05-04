@@ -30,7 +30,6 @@ export default async function initModule(rom, params) {
       const html = await response.text();
       container.innerHTML = html;
       
-      // CRITICAL FIX: Wait for next tick to ensure DOM is painted
       setTimeout(() => {
         initPageLogic();
       }, 50);
@@ -46,11 +45,9 @@ export default async function initModule(rom, params) {
   }
 }
 
-// Split logic into a separate function to ensure it runs after DOM load
 async function initPageLogic() {
   console.log('🔧 Initializing page logic...');
 
-  // Fetch Game Details
   const { data: game, error } = await supabase
     .from('games')
     .select('id, title')
@@ -68,10 +65,7 @@ async function initPageLogic() {
   const titleEl = document.getElementById('discuss-game-title');
   if(titleEl) titleEl.textContent = game.title;
   
-  // Load Data
   await loadDiscussions('all');
-  
-  // Attach Listeners
   attachListeners();
 }
 
@@ -92,20 +86,17 @@ function attachListeners() {
         loadDiscussions(e.target.dataset.cat);
       });
     });
-    console.log('✅ Tabs attached');
   }
 
-  // 2. New Post Button (Direct Inline Override for Safety)
+  // 2. New Post Button
   const btnNew = document.getElementById('btn-new-post');
   const modal = document.getElementById('new-post-modal');
   
   if (btnNew) {
-    // Remove old listeners to prevent duplicates
     const newBtn = btnNew.cloneNode(true);
     btnNew.parentNode.replaceChild(newBtn, btnNew);
     
     newBtn.addEventListener('click', () => {
-      console.log('🖱️ New Post button clicked!');
       if (!currentUser) {
         alert('Please log in to post.');
         window.location.hash = '#/auth';
@@ -113,33 +104,20 @@ function attachListeners() {
       }
       if (modal) {
         modal.classList.remove('hidden');
-        console.log('🟢 Modal opened');
-        // Focus title input
         setTimeout(() => {
           const titleInput = document.getElementById('post-title');
           if(titleInput) titleInput.focus();
         }, 100);
-      } else {
-        console.error('❌ Modal element not found!');
       }
     });
-    console.log('✅ New Post button attached');
-  } else {
-    console.error('❌ btn-new-post element not found!');
   }
 
   // 3. Cancel Button
   const btnCancel = document.getElementById('cancel-post');
   if (btnCancel && modal) {
-    btnCancel.addEventListener('click', () => {
-      modal.classList.add('hidden');
-    });
-    
-    // Close on outside click
+    btnCancel.addEventListener('click', () => modal.classList.add('hidden'));
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.classList.add('hidden');
-      }
+      if (e.target === modal) modal.classList.add('hidden');
     });
   }
 
@@ -148,7 +126,6 @@ function attachListeners() {
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      console.log('📝 Submitting form...');
       
       const title = document.getElementById('post-title').value;
       const category = document.getElementById('post-category').value;
@@ -175,13 +152,14 @@ function attachListeners() {
         console.error('DB Error:', error);
         alert('Error posting: ' + error.message);
       } else {
-        console.log('✅ Post successful');
+        // Award XP for posting (10 XP)
+        await supabase.rpc('award_xp', { user_uuid: currentUserId, amount: 10, reason: 'forum_post' });
+        
         if(modal) modal.classList.add('hidden');
         form.reset();
         loadDiscussions('all');
       }
     });
-    console.log('✅ Form listener attached');
   }
 }
 
@@ -198,7 +176,6 @@ async function loadDiscussions(category) {
   const { data: posts, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error loading posts:', error);
     listEl.innerHTML = '<div class="text-red-400 text-center">Error loading posts.</div>';
     return;
   }
@@ -208,14 +185,28 @@ async function loadDiscussions(category) {
     return;
   }
 
-  // Fetch Avatars for Main Posts
+  // Fetch Avatars AND Ranks for Main Posts
   const authorIds = [...new Set(posts.map(p => p.user_id))];
   let profilesMap = new Map();
   
   if (authorIds.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url')
+      .select(`
+        id, 
+        username, 
+        avatar_url, 
+        xp_total, 
+        motto, 
+        gamercard_bg_type, 
+        gamercard_bg_value,
+        current_rank_id,
+        user_ranks!inner (
+          id,
+          name,
+          color
+        )
+      `)
       .in('id', authorIds);
     
     if (profiles) profiles.forEach(p => profilesMap.set(p.id, p));
@@ -231,6 +222,9 @@ async function loadDiscussions(category) {
     };
     
     const profile = profilesMap.get(post.user_id);
+    // Handle the join result structure
+    const rank = profile?.user_ranks?.[0] || null; 
+    
     const displayUsername = profile?.username || post.username || 'Unknown';
     const displayAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${displayUsername}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${displayUsername}`;
@@ -243,6 +237,9 @@ async function loadDiscussions(category) {
         Delete
       </button>
     ` : '';
+
+    const rankBadge = rank ? 
+      `<span class="text-[10px] px-1.5 py-0.5 rounded font-bold border" style="background:${rank.color}20; color:${rank.color}; border-color:${rank.color}">${escapeHtml(rank.name)}</span>` : '';
 
     return `
       <div class="bg-gray-800/80 backdrop-blur border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition shadow-lg mb-4">
@@ -263,10 +260,11 @@ async function loadDiscussions(category) {
         </div>
         
         <div class="flex items-center justify-between border-t border-gray-700 pt-3 mb-3">
-          <a href="${profileLink}" class="flex items-center gap-2 hover:opacity-80 transition">
+          <div class="flex items-center gap-2">
             <img src="${displayAvatar}" class="w-6 h-6 rounded-full border border-gray-600">
-            <span class="text-xs text-cyan-400 font-bold hover:underline">${escapeHtml(displayUsername)}</span>
-          </a>
+            <a href="${profileLink}" class="text-xs text-cyan-400 font-bold hover:underline">${escapeHtml(displayUsername)}</a>
+            ${rankBadge}
+          </div>
           ${currentUser ? `
             <button onclick="toggleReplyForm('${post.id}')" class="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1">
               💬 Reply
@@ -293,7 +291,6 @@ async function loadDiscussions(category) {
     `;
   }).join('');
 
-  // Load Replies for each post
   posts.forEach(async (post) => {
     await loadReplies(post.id);
   });
@@ -314,14 +311,25 @@ async function loadReplies(parentId) {
     return;
   }
 
-  // Fetch Avatars for Replies
   const authorIds = [...new Set(replies.map(r => r.user_id))];
   let profilesMap = new Map();
   
   if (authorIds.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url')
+      .select(`
+        id, 
+        username, 
+        avatar_url, 
+        xp_total, 
+        motto, 
+        current_rank_id,
+        user_ranks!inner (
+          id,
+          name,
+          color
+        )
+      `)
       .in('id', authorIds);
     
     if (profiles) profiles.forEach(p => profilesMap.set(p.id, p));
@@ -329,6 +337,8 @@ async function loadReplies(parentId) {
 
   container.innerHTML = replies.map(reply => {
     const profile = profilesMap.get(reply.user_id);
+    const rank = profile?.user_ranks?.[0] || null;
+    
     const displayUsername = profile?.username || reply.username || 'Unknown';
     const displayAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${displayUsername}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${displayUsername}`;
@@ -340,13 +350,17 @@ async function loadReplies(parentId) {
       </button>
     ` : '';
 
+    const rankBadge = rank ? 
+      `<span class="text-[9px] px-1 py-0.5 rounded font-bold border" style="background:${rank.color}20; color:${rank.color}; border-color:${rank.color}">${escapeHtml(rank.name)}</span>` : '';
+
     return `
       <div class="bg-gray-800/30 p-3 rounded-lg text-sm relative group">
         <div class="flex justify-between items-start mb-1">
-          <a href="${profileLink}" class="flex items-center gap-2 hover:opacity-80">
+          <div class="flex items-center gap-2">
             <img src="${displayAvatar}" class="w-5 h-5 rounded-full border border-gray-600">
-            <span class="text-xs font-bold text-cyan-400 hover:underline">${escapeHtml(displayUsername)}</span>
-          </a>
+            <a href="${profileLink}" class="text-xs font-bold text-cyan-400 hover:underline">${escapeHtml(displayUsername)}</a>
+            ${rankBadge}
+          </div>
           <div class="flex items-center">
             <span class="text-[10px] text-gray-500">${new Date(reply.created_at).toLocaleDateString()}</span>
             ${deleteBtn}
@@ -371,7 +385,6 @@ function processContentWithLinks(text) {
   });
 }
 
-// Global Functions for Replies
 window.toggleReplyForm = function(parentId) {
   const form = document.getElementById(`reply-form-${parentId}`);
   if (form) form.classList.toggle('hidden');
@@ -394,15 +407,18 @@ window.submitReply = async function(parentId) {
       avatar_url: null,
       content: content,
       parent_id: parentId,
-      category: 'general', // Default category for replies
-      title: 'Reply' // Placeholder title
+      category: 'general',
+      title: 'Reply'
     }]);
 
     if (error) throw error;
 
+    // Award XP for reply (5 XP)
+    await supabase.rpc('award_xp', { user_uuid: currentUserId, amount: 5, reason: 'forum_reply' });
+
     contentInput.value = '';
     toggleReplyForm(parentId);
-    loadReplies(parentId); // Refresh just this reply list
+    loadReplies(parentId);
     
   } catch (err) {
     console.error("Error posting reply:", err);
