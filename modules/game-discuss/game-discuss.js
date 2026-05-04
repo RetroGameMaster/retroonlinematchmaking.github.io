@@ -31,15 +31,20 @@ function renderGamercard(profile, isChat = false) {
   const rank = profile?.rank;
   const motto = profile?.motto;
   const xp = profile?.xp_total || 0;
+  
   const xpPercent = Math.min(100, (xp / 5000) * 100); 
 
+  // --- UPDATED BACKGROUND LOGIC FOR VISIBILITY ---
   let bgStyle = '';
   if (profile?.gamercard_bg_type === 'image') {
-    bgStyle = `background-image: url('${profile.gamercard_bg_value}');`;
+    // Increased opacity to 0.6 so image is clearly visible
+    bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; opacity: 0.6;`;
   } else if (profile?.gamercard_bg_type === 'gradient') {
-    bgStyle = `background-image: ${profile.gamercard_bg_value};`;
+    // Increased opacity to 0.7 for gradients
+    bgStyle = `background-image: ${profile.gamercard_bg_value}; opacity: 0.7;`;
   } else {
-    bgStyle = `background-color: ${profile?.gamercard_bg_value || '#1f2937'};`;
+    // Solid color with higher opacity
+    bgStyle = `background-color: ${profile?.gamercard_bg_value || '#1f2937'}; opacity: 0.8;`;
   }
 
   const rankBadge = rank ? 
@@ -49,12 +54,19 @@ function renderGamercard(profile, isChat = false) {
   const mottoHtml = motto && !isChat ? `<span class="gc-motto">"${escapeHtml(motto)}"</span>` : '';
 
   return `
-    <div class="gamercard ${isChat ? 'chat-gamercard' : ''}">
-      <div class="gc-bg" style="${bgStyle}"></div>
-      <div class="gc-content">
+    <div class="gamercard ${isChat ? 'chat-gamercard' : ''} relative overflow-hidden border border-gray-600 shadow-xl">
+      <!-- Background Layer (Now More Visible) -->
+      <div class="gc-bg absolute inset-0 z-0" style="${bgStyle}"></div>
+      
+      <!-- Gradient Overlay (Lightened to let background show through) -->
+      <!-- Changed from black/80 to black/50 to ensure background is seen -->
+      <div class="absolute inset-0 z-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70"></div>
+      
+      <!-- Content Layer (Higher Z-Index to stay on top) -->
+      <div class="gc-content relative z-10">
         <img src="${avatar}" alt="${escapeHtml(username)}" class="gc-avatar">
         <div class="gc-info">
-          <span class="gc-name">${escapeHtml(username)}</span>
+          <span class="gc-name text-shadow-md">${escapeHtml(username)}</span>
           ${rankBadge}
           ${mottoHtml}
           <div class="gc-xp-bar-container">
