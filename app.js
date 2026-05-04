@@ -341,8 +341,7 @@ async function loadModuleWithParams(moduleName, params) {
                 navigateTo: (m) => window.location.hash = `#/${m}`
             };
 
-            module.default(rom, { slug });
-            return; 
+            module.default(rom, { slug }); 
         }
         const identifier = hash.split('/')[1];
         console.log('Loading game detail for:', identifier);
