@@ -1508,3 +1508,12 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { attributes: false, childList: true, subtree: false });
+// ============================================================================
+// HELPER: ESCAPE HTML (Prevents XSS attacks)
+// ============================================================================
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
