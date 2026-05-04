@@ -346,7 +346,6 @@ async function loadModuleWithParams(moduleName, params) {
         const identifier = hash.split('/')[1];
         console.log('Loading game detail for:', identifier);
         await loadGameDetail(identifier);
-        return;
     }
     // Check for guide detail page
     if (hash.startsWith('guide/')) {
