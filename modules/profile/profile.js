@@ -583,12 +583,19 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           <div style="font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Comments</div>
         </div>
         <!-- XP Stat -->
-        <div class="ra-stat" style="text-align: center;">
-          <div style="font-size: 1.2rem; font-weight: bold; color: #fbbf24;">${profile.xp_total || 0}</div>
-          <div style="font-size: 0.75rem; color: #fbbf24; text-transform: uppercase;">XP</div>
-        </div>
-      </div>
-    </div>
+<div class="ra-stat" style="text-align: center;">
+  <div style="font-size: 1.2rem; font-weight: bold; color: #fbbf24;">${profile.xp_total || 0}</div>
+  <div style="font-size: 0.75rem; color: #fbbf24; text-transform: uppercase;">XP</div>
+</div>
+
+<!-- WRITER BADGE (Shows if user has published articles) -->
+${(profile.stats?.articles_published || 0) > 0 ? `
+  <div class="ra-stat" style="text-align: center;">
+    <div style="font-size: 1.2rem; font-weight: bold; color: #ec4899;">✒️</div>
+    <div style="font-size: 0.75rem; color: #ec4899; text-transform: uppercase; font-weight: bold;">Writer</div>
+    <div style="font-size: 0.65rem; color: #9ca3af; margin-top: 2px;">${profile.stats.articles_published} Articles</div>
+  </div>
+` : ''}
 
     ${isOwnProfile ? `
       <button id="btn-edit-profile" class="ra-edit-btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; backdrop-filter: blur(4px);">
