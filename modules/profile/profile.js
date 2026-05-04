@@ -933,20 +933,6 @@ const updates = {
   gamercard_bg_value: finalGcBgValue,
   custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
 };
-let finalGcBgValue = formData.get('gc_bg_value');
-const gcFileType = formData.get('gc_bg_type');
-
-const gcFileInput = document.getElementById('gc_file_input');
-if (gcFileType === 'image' && gcFileInput && gcFileInput.files.length > 0) {
-   const file = gcFileInput.files[0];
-   const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-   // Reuse storage bucket 'user-backgrounds'
-   const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
-   if (!error) {
-     const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
-     finalGcBgValue = publicUrl;
-   }
-}
       // 4. Send to Database
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.textContent = 'Saving...';
