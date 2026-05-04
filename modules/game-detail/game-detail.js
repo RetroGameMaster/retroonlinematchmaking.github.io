@@ -677,6 +677,7 @@ async function loadChatMessages(rom, roomId) {
     if (!container) return;
 
     try {
+        // ✅ SAFE: Only selects from chat_messages, no joins
         const { data: messages, error } = await rom.supabase
             .from('chat_messages')
             .select('*')
@@ -694,7 +695,6 @@ async function loadChatMessages(rom, roomId) {
 
         messages.forEach(msg => appendMessageToDOM(msg, rom.currentUser?.id));
         
-        // Scroll to bottom
         container.scrollTop = container.scrollHeight;
 
     } catch (err) {
@@ -703,56 +703,69 @@ async function loadChatMessages(rom, roomId) {
     }
 }
 
-function appendMessageToDOM(msg, currentUserId) {
+async function appendMessageToDOM(msg, currentUserId) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
     const isMe = msg.user_id === currentUserId;
-    
-    // 1. Fetch Profile Data for Gamercard (Avatar, Rank, Motto, etc.)
-    // Note: In a high-traffic chat, you might want to cache this globally to avoid fetching every message
-    // For now, we construct the card from available data or fetch if needed. 
-    // Assuming 'msg' has basic info, we build the card. If you have rank/motto in 'msg', use them.
-    // If not, we use defaults or you can add a small fetch here. 
-    // OPTIMIZATION: Ideally, your chat_messages table should select profile data via RPC or join.
-    // For this fix, we will build the card using the data we have + defaults.
-    
-    const username = msg.username || 'Unknown';
-    const avatarUrl = msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
+    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // 1. SAFE FETCH: Get full profile data for this specific message author
+    // We do this individually to avoid breaking the main query with joins
+    let profileData = null;
+    try {
+        const { data } = await supabase
+            .from('profiles')
+            .select(`
+                username, 
+                avatar_url, 
+                motto, 
+                xp_total, 
+                gamercard_bg_type, 
+                gamercard_bg_value,
+                rank:user_ranks (name, color)
+            `)
+            .eq('id', msg.user_id)
+            .single();
+        profileData = data;
+    } catch (e) {
+        // Fallback if fetch fails
+        profileData = null;
+    }
+
+    // 2. Prepare Data with Fallbacks
+    const username = profileData?.username || msg.username || 'Unknown';
+    const avatarUrl = profileData?.avatar_url || msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${username}`;
     
-    // Mock Rank/Motto for chat if not present in message payload (Optional: Fetch real data if needed)
-    // If your realtime payload doesn't include rank/motto, we show basic info. 
-    // To get real rank, you'd need to join profiles in your realtime query or fetch here.
-    // For this fix, we assume basic display. If you have rank data in 'msg', insert it here.
-    const rankName = msg.rank_name || null; 
-    const rankColor = msg.rank_color || '#9ca3af';
-    const motto = msg.motto || null;
-
-    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
-
-    // 2. Create Wrapper with Proper Spacing
-    const messageEl = document.createElement('div');
-    // Added 'items-start' to prevent stretching, and specific gap
-    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4`; 
+    // Extract Rank & Motto from fetched profile
+    const rankName = profileData?.rank?.name || null;
+    const rankColor = profileData?.rank?.color || '#9ca3af';
+    const motto = profileData?.motto || '';
+    const xpTotal = profileData?.xp_total || 0;
     
-    // 3. Construct Gamercard HTML (Clickable & Distinct)
-    // Added 'flex-shrink-0' to prevent avatar cutoff
-    // Added 'z-10' and distinct background to separate from chat text
+    // Extract Gamercard BG settings
+    const gcBgType = profileData?.gamercard_bg_type || 'color';
+    const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
+
+    // 3. Construct Gamercard HTML
+    // We build the background style dynamically based on the fetched type
+    let bgStyle = `background-color: ${gcBgValue};`;
+    if (gcBgType === 'image') {
+        bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
+    } else if (gcBgType === 'gradient') {
+        bgStyle = `background-image: ${gcBgValue};`;
+    }
+
     const gamercardHtml = `
         <a href="${profileLink}" class="group block flex-shrink-0 w-[240px] hover:scale-[1.02] transition-transform duration-200 z-10">
             <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
-                <!-- Background Layer (Darkened for contrast) -->
-                <div class="absolute inset-0 opacity-20" style="
-                    background: ${msg.gc_bg_type === 'image' ? `url('${msg.gc_bg_value}') center/cover` : 
-                               msg.gc_bg_type === 'gradient' ? msg.gc_bg_value : 
-                               (msg.gc_bg_value || '#1f2937')};
-                    filter: brightness(0.6);
-                "></div>
-                <!-- Gradient Overlay to ensure text readability -->
+                <!-- Background Layer -->
+                <div class="absolute inset-0 opacity-20" style="${bgStyle} filter: brightness(0.6);"></div>
+                <!-- Gradient Overlay for Readability -->
                 <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80"></div>
                 
-                <!-- Content Layer -->
+                <!-- Content -->
                 <div class="relative z-10 p-2 flex items-center gap-2">
                     <img src="${avatarUrl}" alt="${username}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-md">
                     <div class="flex-1 min-w-0">
@@ -766,9 +779,9 @@ function appendMessageToDOM(msg, currentUserId) {
                             </span>
                         ` : ''}
                         ${motto ? `<p class="text-[9px] text-gray-300 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
-                        <!-- XP Bar (Mini) -->
+                        <!-- Mini XP Bar -->
                         <div class="h-1 w-full bg-gray-700 rounded-full mt-1 overflow-hidden">
-                            <div class="h-full bg-cyan-500 rounded-full" style="width: ${(msg.xp_total % 1000) / 10}%"></div>
+                            <div class="h-full bg-cyan-500 rounded-full" style="width: ${Math.min(100, (xpTotal % 1000) / 10)}%"></div>
                         </div>
                     </div>
                 </div>
@@ -789,6 +802,8 @@ function appendMessageToDOM(msg, currentUserId) {
     `;
 
     // 5. Assemble
+    const messageEl = document.createElement('div');
+    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start`;
     messageEl.innerHTML = gamercardHtml + bubbleHtml;
     
     container.appendChild(messageEl);
