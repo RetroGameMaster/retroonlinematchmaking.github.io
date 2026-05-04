@@ -60,47 +60,50 @@ export default async function initWriteModule(rom) {
 
 function initEditor() {
   const editorElement = document.querySelector('#editor-content');
-  if (!editorElement) {
-    console.error('❌ #editor-content not found in DOM');
-    return;
-  }
+  if (!editorElement) return;
 
-  // CRITICAL: Ensure the div is completely empty before attaching Tiptap
+  // Ensure empty
   editorElement.innerHTML = ''; 
 
-  // Access Globals (CDN exposes them directly on window)
-  const Core = window.TiptapCore;
-  const StarterKit = window.TiptapStarterKit; 
-  const ImageExt = window.TiptapExtensionImage;
-  const LinkExt = window.TiptapExtensionLink;
+  // Try to find the libraries under various possible global names
+  const Core = window.TiptapCore || window.tiptapCore || window.Tiptap;
+  
+  // StarterKit is often exposed directly as 'StarterKit' or nested
+  let StarterKit = window.TiptapStarterKit || window.StarterKit;
+  if (StarterKit && StarterKit.StarterKit) StarterKit = StarterKit.StarterKit;
+
+  // Extensions
+  let ImageExt = window.TiptapExtensionImage || window.ImageExtension || window.Image;
+  if (ImageExt && ImageExt.Image) ImageExt = ImageExt.Image;
+  
+  let LinkExt = window.TiptapExtensionLink || window.LinkExtension || window.Link;
+  if (LinkExt && LinkExt.Link) LinkExt = LinkExt.Link;
+
+  console.log('🛠️ Editor Config:', { Core, StarterKit, ImageExt, LinkExt });
 
   if (!Core || !StarterKit) {
-    console.error("❌ Tiptap libraries failed to load globally");
-    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Please refresh the page.</p>";
+    console.error("❌ CRITICAL: Tiptap Core or StarterKit not found on window object.");
+    console.log("Available keys:", Object.keys(window).filter(k => k.toLowerCase().includes('tip')));
+    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Check console for missing libs.</p>";
     return;
   }
-
-  console.log('🚀 Initializing Tiptap Editor...');
 
   try {
     editor = Core.Editor.create({
       element: editorElement,
       extensions: [
         StarterKit,
-        ImageExt ? ImageExt.Image.configure({ inline: true }) : [],
-        LinkExt ? LinkExt.Link.configure({ openOnClick: false }) : [],
+        ImageExt ? ImageExt.configure({ inline: true }) : [],
+        LinkExt ? LinkExt.configure({ openOnClick: false }) : [],
       ],
       content: '<p>Start writing your amazing article here...</p>',
       editable: true,
-      autofocus: true, // Puts cursor in box immediately
-      onTransaction: () => {
-        // Optional: Update toolbar state if you add active states later
-      }
+      autofocus: true
     });
-    console.log('✅ Editor initialized successfully');
-  } catch (err) {
-    console.error('💥 Error creating editor:', err);
-    editorElement.innerHTML = `<p class='text-red-500'>Error: ${err.message}</p>`;
+    console.log('✅ Editor Created Successfully');
+  } catch (e) {
+    console.error('💥 Init Error:', e);
+    editorElement.innerHTML = `<p class='text-red-500'>Init Error: ${e.message}</p>`;
   }
 }
 
