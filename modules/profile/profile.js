@@ -523,80 +523,76 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
 
   container.innerHTML = `
     <div class="ra-profile-wrapper">
-    <div class="ra-header" style="position: relative; overflow: hidden; border-radius: 12px; border: 1px solid #374151; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <div class="ra-header" style="position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
   
-  <!-- 1. Dynamic Gamercard Background (High Visibility) -->
+  <!-- 1. Gamercard Dynamic Background (Behind everything) -->
   ${profile.gamercard_bg_type === 'image' && profile.gamercard_bg_value ? `
-    <div style="position: absolute; inset: 0; background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; opacity: 0.6; z-index: 0; filter: brightness(0.8);"></div>
+    <div style="position: absolute; inset: 0; background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; z-index: 0;"></div>
   ` : ''}
-  
   ${profile.gamercard_bg_type === 'gradient' && profile.gamercard_bg_value ? `
-    <div style="position: absolute; inset: 0; background-image: ${profile.gamercard_bg_value}; opacity: 0.7; z-index: 0;"></div>
+    <div style="position: absolute; inset: 0; background-image: ${profile.gamercard_bg_value}; z-index: 0;"></div>
   ` : ''}
-  
   ${profile.gamercard_bg_type === 'color' && profile.gamercard_bg_value ? `
-    <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; opacity: 0.8; z-index: 0;"></div>
+    <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; z-index: 0;"></div>
   ` : ''}
 
-  <!-- 2. Lighter Gradient Overlay (To ensure text pops but BG shows) -->
-  <div class="ra-header-overlay" style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.3)); z-index: 1; border-radius: 12px;"></div>
+  <!-- 2. DARK OVERLAY (Crucial: Makes card distinct from page bg) -->
+  <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9)); z-index: 1; backdrop-filter: blur(2px);"></div>
   
-  <!-- 3. Content (Z-Index 2 to stay on top) -->
-  <div class="ra-header-content" style="position: relative; z-index: 2;">
+  <!-- 3. Content (Above overlay) -->
+  <div class="ra-header-content" style="position: relative; z-index: 2; padding: 2rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
     
-    <div class="ra-avatar-container" style="${avatarStyle}">
+    <!-- Avatar -->
+    <div class="ra-avatar-container" style="${avatarStyle || ''}" style="flex-shrink: 0;">
       <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
            alt="${profile.username}" 
-           class="${avatarClass}">
+           class="${avatarClass || 'ra-avatar'}" 
+           style="border: 2px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3);">
       <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'}"></div>
     </div>
-
-    <div class="ra-info">
-      <h1 class="ra-username text-shadow-lg">${profile.username}</h1>
 
     <!-- Info -->
     <div class="ra-info" style="flex: 1; min-width: 200px;">
       <h1 class="ra-username" style="font-size: 2rem; margin: 0; text-shadow: 0 2px 4px black;">${profile.username}</h1>
       
-    <!-- Rank Badge -->
-      ${profile.rank ? `
-        <span class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold border shadow-lg backdrop-blur-sm" 
-              style="background-color: rgba(0,0,0,0.6); color: ${profile.rank.color}; border-color: ${profile.rank.color}">
-          👑 ${profile.rank.name}
-        </span>
-      ` : ''}
+      <!-- RANK BADGE (Fixed Logic) -->
+      ${profile.rank && profile.rank.name ? `
+        <div class="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-md border shadow-lg backdrop-blur-sm" 
+             style="background: rgba(0,0,0,0.6); border-color: ${profile.rank.color}; box-shadow: 0 0 10px ${profile.rank.color}40;">
+          <span style="color: ${profile.rank.color}; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            👑 ${profile.rank.name}
+          </span>
+        </div>
+      ` : `
+        <div class="mt-2 inline-block px-3 py-1 rounded-md border border-gray-600 bg-gray-800/80">
+          <span style="color: #9ca3af; font-weight: 600; font-size: 0.85rem;">NPC</span>
+        </div>
+      `}
 
-      ${profile.display_name ? `<div class="ra-display-name text-shadow-md">${profile.display_name}</div>` : ''}
-      ${profile.motto ? `<p class="text-gray-300 text-sm italic mt-1 text-shadow-md">"${escapeHtml(profile.motto)}"</p>` : ''}
-
+      <!-- Motto -->
+      ${profile.motto ? `<p class="text-gray-300 text-sm italic mt-2 font-medium" style="text-shadow: 0 1px 2px black;">"${escapeHtml(profile.motto)}"</p>` : ''}
+      
       <!-- Stats Row -->
-       <div class="ra-stats-row">
-        <div class="ra-stat">
-          <span class="ra-stat-icon">🎮</span>
-          <span class="ra-stat-val">${profile.stats?.games_approved || 0}</span>
-          <span class="ra-stat-label">Games</span>
+      <div class="ra-stats-row" style="display: flex; gap: 1.5rem; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+        <div class="ra-stat" style="text-align: center;">
+          <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">${profile.stats?.games_approved || 0}</div>
+          <div style="font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Games</div>
         </div>
-        <div class="ra-stat">
-          <span class="ra-stat-icon">💬</span>
-          <span class="ra-stat-val">${profile.stats?.comments_made || 0}</span>
-          <span class="ra-stat-label">Comments</span>
+        <div class="ra-stat" style="text-align: center;">
+          <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">${profile.stats?.comments_made || 0}</div>
+          <div style="font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Comments</div>
         </div>
-        <div class="ra-stat">
-          <span class="ra-stat-icon">⭐</span>
-          <span class="ra-stat-val">${profile.stats?.total_points || 0}</span>
-          <span class="ra-stat-label">Points</span>
+        <!-- XP Stat -->
+        <div class="ra-stat" style="text-align: center;">
+          <div style="font-size: 1.2rem; font-weight: bold; color: #fbbf24;">${profile.xp_total || 0}</div>
+          <div style="font-size: 0.75rem; color: #fbbf24; text-transform: uppercase;">XP</div>
         </div>
       </div>
     </div>
 
-
-  ${isOwnProfile ? `
-      <button id="btn-edit-profile" class="ra-edit-btn backdrop-blur-sm bg-black/40 hover:bg-black/60">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-        Edit
+    ${isOwnProfile ? `
+      <button id="btn-edit-profile" class="ra-edit-btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; backdrop-filter: blur(4px);">
+        Edit Profile
       </button>
     ` : ''}
   </div>
