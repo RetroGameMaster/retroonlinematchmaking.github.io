@@ -352,7 +352,6 @@ async function loadModuleWithParams(moduleName, params) {
         const slug = hash.split('/')[1];
         console.log('Loading guide detail for:', slug);
         await loadGuideDetail(slug);
-        return;
     }
 
     // Check for game edit page
@@ -360,7 +359,6 @@ async function loadModuleWithParams(moduleName, params) {
         const gameId = hash.split('/')[1];
         console.log('Loading game edit for:', gameId);
         await loadGameEdit(gameId);
-        return;
     }
 
     // Check for profile detail page
@@ -371,7 +369,6 @@ async function loadModuleWithParams(moduleName, params) {
             const user = window.rom?.currentUser;
             if (!user) {
                 window.location.hash = '#/auth';
-                return;
             }
             try {
                 const { data: profileData } = await supabase
