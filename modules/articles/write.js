@@ -3,17 +3,24 @@ import { supabase } from '../../lib/supabase.js';
 
 let editor = null;
 
-// Helper to wait for CDN scripts to be ready
+// 1. Robust Loader: Waits specifically for the CDN globals to exist
 function waitForTiptap() {
   return new Promise((resolve) => {
     const check = () => {
-      if (window.TiptapCore && window.TiptapStarterKit && window.TiptapExtensionImage && window.TiptapExtensionLink) {
+      // Check if the main Core and StarterKit are on the window object
+      if (window.TiptapCore && window.TiptapStarterKit) {
+        console.log('✅ Tiptap libraries detected');
         resolve();
       } else {
-        setTimeout(check, 100);
+        console.log('⏳ Waiting for Tiptap...');
+        setTimeout(check, 100); // Check every 100ms
       }
     };
     check();
+    // Fallback timeout just in case
+    setTimeout(() => {
+      if (!window.TiptapCore) resolve(); 
+    }, 5000);
   });
 }
 
@@ -43,9 +50,10 @@ export default async function initWriteModule(rom) {
     }
   }
 
-  // Wait for Tiptap CDN scripts to load
+  // WAIT for scripts to load before doing ANYTHING else
   await waitForTiptap();
 
+  // Initialize
   initEditor();
   setupListeners(rom);
 }
@@ -53,59 +61,46 @@ export default async function initWriteModule(rom) {
 function initEditor() {
   const editorElement = document.querySelector('#editor-content');
   if (!editorElement) {
-    console.error("Editor element #editor-content not found!");
+    console.error('❌ #editor-content not found in DOM');
     return;
   }
 
-  // Access Tiptap from Window (CDN globals)
-  // NOTE: CDN exposes them directly, e.g., window.TiptapStarterKit, not .StarterKit
+  // CRITICAL: Ensure the div is completely empty before attaching Tiptap
+  editorElement.innerHTML = ''; 
+
+  // Access Globals (CDN exposes them directly on window)
   const Core = window.TiptapCore;
   const StarterKit = window.TiptapStarterKit; 
   const ImageExt = window.TiptapExtensionImage;
   const LinkExt = window.TiptapExtensionLink;
 
   if (!Core || !StarterKit) {
-    console.error("❌ Tiptap libraries NOT found on window object:", { 
-      Core: !!Core, 
-      StarterKit: !!StarterKit,
-      Image: !!ImageExt,
-      Link: !!LinkExt
-    });
-    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Refresh page.</p>";
+    console.error("❌ Tiptap libraries failed to load globally");
+    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Please refresh the page.</p>";
     return;
   }
 
-  console.log("✅ Tiptap loaded successfully, initializing editor...");
+  console.log('🚀 Initializing Tiptap Editor...');
 
   try {
-    editor = Core.create({
+    editor = Core.Editor.create({
       element: editorElement,
       extensions: [
-        StarterKit.configure({
-          history: false, // Disable history to avoid conflicts
-          dropcursor: false,
-        }),
-        ImageExt.configure({ 
-          inline: true,
-          allowBase64: false 
-        }),
-        LinkExt.configure({ 
-          openOnClick: false,
-          HTMLAttributes: {
-            class: 'text-cyan-400 underline'
-          }
-        }),
+        StarterKit,
+        ImageExt ? ImageExt.Image.configure({ inline: true }) : [],
+        LinkExt ? LinkExt.Link.configure({ openOnClick: false }) : [],
       ],
       content: '<p>Start writing your amazing article here...</p>',
       editable: true,
+      autofocus: true, // Puts cursor in box immediately
       onTransaction: () => {
         // Optional: Update toolbar state if you add active states later
-      },
+      }
     });
-    console.log("✅ Editor instance created!");
+    console.log('✅ Editor initialized successfully');
   } catch (err) {
-    console.error("💥 Error creating editor:", err);
-    editorElement.innerHTML = `<p class='text-red-500'>Editor init error: ${err.message}</p>`;
+    console.error('💥 Error creating editor:', err);
+    editorElement.innerHTML = `<p class='text-red-500'>Error: ${err.message}</p>`;
   }
 }
 
@@ -115,16 +110,23 @@ function setupListeners(rom) {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       const action = btn.dataset.action;
-      if (!editor) return;
       
-      if (action === 'heading') editor.chain().focus().toggleHeading({ level: 1 }).run();
-      else if (action === 'bold') editor.chain().focus().toggleBold().run();
-      else if (action === 'italic') editor.chain().focus().toggleItalic().run();
-      else if (action === 'underline') editor.chain().focus().toggleUnderline().run();
-      else if (action === 'bulletList') editor.chain().focus().toggleBulletList().run();
-      else if (action === 'orderedList') editor.chain().focus().toggleOrderedList().run();
-      else if (action === 'blockquote') editor.chain().focus().toggleBlockquote().run();
-      else if (action === 'codeBlock') editor.chain().focus().toggleCodeBlock().run();
+      if (!editor) {
+        alert('Editor not ready yet.');
+        return;
+      }
+
+      switch (action) {
+        case 'heading': editor.chain().focus().toggleHeading({ level: 1 }).run(); break;
+        case 'bold': editor.chain().focus().toggleBold().run(); break;
+        case 'italic': editor.chain().focus().toggleItalic().run(); break;
+        case 'underline': editor.chain().focus().toggleUnderline().run(); break;
+        case 'bulletList': editor.chain().focus().toggleBulletList().run(); break;
+        case 'orderedList': editor.chain().focus().toggleOrderedList().run(); break;
+        case 'blockquote': editor.chain().focus().toggleBlockquote().run(); break;
+        case 'codeBlock': editor.chain().focus().toggleCodeBlock().run(); break;
+        default: break;
+      }
     });
   });
 
@@ -154,7 +156,6 @@ function setupListeners(rom) {
         if (error) throw error;
 
         const { publicUrl } = supabase.storage.from('article-uploads').getPublicUrl(fileName);
-
         editor.chain().focus().setImage({ src: publicUrl }).run();
         
         if (statusEl) {
@@ -171,7 +172,7 @@ function setupListeners(rom) {
           statusEl.className = 'text-xs text-red-400';
         }
       } finally {
-        fileInput.value = '';
+        fileInput.value = ''; 
       }
     });
   }
