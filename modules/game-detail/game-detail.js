@@ -632,7 +632,7 @@ function renderActiveSession(container, room, rom, game) {
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('btn-send');
 
-    chatForm.addEventListener('submit', async (e) => {
+       chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const message = chatInput.value.trim();
         if (!message || !rom.currentUser) return;
@@ -641,27 +641,54 @@ function renderActiveSession(container, room, rom, game) {
         sendBtn.textContent = '...';
 
         try {
-            // Fetch fresh profile data for avatar/username
-            const { data: profile } = await rom.supabase
+            // 1. Fetch FRESH profile data to snapshot into the message
+            const { data: profile, error: profErr } = await rom.supabase
                 .from('profiles')
-                .select('username, avatar_url')
+                .select(`
+                    username, 
+                    avatar_url, 
+                    motto, 
+                    xp_total, 
+                    gamercard_bg_type, 
+                    gamercard_bg_value,
+                    rank:user_ranks (name, color)
+                `)
                 .eq('id', rom.currentUser.id)
                 .single();
 
+            if (profErr) throw profErr;
+
             const username = profile?.username || rom.currentUser.email.split('@')[0];
             const avatarUrl = profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
+            
+            // Extract Rank info safely
+            const rankName = profile?.rank?.name || null;
+            const rankColor = profile?.rank?.color || '#9ca3af';
 
-            await rom.supabase.from('chat_messages').insert([{
+            // 2. Insert Message WITH all gamercard data embedded
+            const { error: insertErr } = await rom.supabase.from('chat_messages').insert([{
                 room_id: room.id,
                 user_id: rom.currentUser.id,
                 username: username,
                 avatar_url: avatarUrl,
-                message: message
+                message: message,
+                // Embed Gamercard Data
+                motto: profile?.motto || '',
+                xp_total: profile?.xp_total || 0,
+                gc_bg_type: profile?.gamercard_bg_type || 'color',
+                gc_bg_value: profile?.gamercard_bg_value || '#1f2937',
+                rank_name: rankName,
+                rank_color: rankColor
             }]);
 
+            if (insertErr) throw insertErr;
+
             chatInput.value = '';
+            
+            // Award XP
             const xpAmount = currentRoomId ? 2 : 1;
-await supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
+            await supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
+
         } catch (err) {
             console.error('Failed to send:', err);
             alert('Failed to send message: ' + err.message);
@@ -670,28 +697,17 @@ await supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount
             sendBtn.textContent = 'Send';
         }
     });
-}
 
 async function loadChatMessages(rom, roomId) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
     try {
-        // FIX: Fetch message + joined profile data (rank, motto, bg settings)
+        // FIX: Just select * from chat_messages. Do NOT try to join profiles here.
+        // We rely on the data saved during message insertion.
         const { data: messages, error } = await rom.supabase
             .from('chat_messages')
-            .select(`
-                *,
-                profiles:user_id (
-                    username,
-                    avatar_url,
-                    motto,
-                    xp_total,
-                    gamercard_bg_type,
-                    gamercard_bg_value,
-                    rank:user_ranks (name, color)
-                )
-            `)
+            .select('*') 
             .eq('room_id', roomId)
             .order('created_at', { ascending: true })
             .limit(50);
@@ -704,20 +720,7 @@ async function loadChatMessages(rom, roomId) {
             return;
         }
 
-        messages.forEach(msg => {
-            // Map the joined 'profiles' data to the top level for easy access in appendMessageToDOM
-            const p = msg.profiles;
-            msg.username = p?.username || msg.username || 'Unknown';
-            msg.avatar_url = p?.avatar_url || msg.avatar_url;
-            msg.motto = p?.motto;
-            msg.xp_total = p?.xp_total || 0;
-            msg.gc_bg_type = p?.gamercard_bg_type;
-            msg.gc_bg_value = p?.gamercard_bg_value;
-            msg.rank_name = p?.rank?.name;
-            msg.rank_color = p?.rank?.color;
-            
-            appendMessageToDOM(msg, rom.currentUser?.id);
-        });
+        messages.forEach(msg => appendMessageToDOM(msg, rom.currentUser?.id));
         
         container.scrollTop = container.scrollHeight;
 
