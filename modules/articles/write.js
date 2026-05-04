@@ -52,30 +52,61 @@ export default async function initWriteModule(rom) {
 
 function initEditor() {
   const editorElement = document.querySelector('#editor-content');
-  if (!editorElement) return;
+  if (!editorElement) {
+    console.error("Editor element #editor-content not found!");
+    return;
+  }
 
   // Access Tiptap from Window (CDN globals)
+  // NOTE: CDN exposes them directly, e.g., window.TiptapStarterKit, not .StarterKit
   const Core = window.TiptapCore;
-  const StarterKit = window.TiptapStarterKit?.StarterKit;
-  const Image = window.TiptapExtensionImage?.Image;
-  const Link = window.TiptapExtensionLink?.Link;
+  const StarterKit = window.TiptapStarterKit; 
+  const ImageExt = window.TiptapExtensionImage;
+  const LinkExt = window.TiptapExtensionLink;
 
   if (!Core || !StarterKit) {
-    console.error("Tiptap libraries not found on window object");
+    console.error("❌ Tiptap libraries NOT found on window object:", { 
+      Core: !!Core, 
+      StarterKit: !!StarterKit,
+      Image: !!ImageExt,
+      Link: !!LinkExt
+    });
     editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Refresh page.</p>";
     return;
   }
 
-  editor = Core.Editor.create({
-    element: editorElement,
-    extensions: [
-      StarterKit,
-      Image.configure({ inline: true }),
-      Link.configure({ openOnClick: false }),
-    ],
-    content: '<p>Start writing your amazing article here...</p>',
-    editable: true,
-  });
+  console.log("✅ Tiptap loaded successfully, initializing editor...");
+
+  try {
+    editor = Core.create({
+      element: editorElement,
+      extensions: [
+        StarterKit.configure({
+          history: false, // Disable history to avoid conflicts
+          dropcursor: false,
+        }),
+        ImageExt.configure({ 
+          inline: true,
+          allowBase64: false 
+        }),
+        LinkExt.configure({ 
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'text-cyan-400 underline'
+          }
+        }),
+      ],
+      content: '<p>Start writing your amazing article here...</p>',
+      editable: true,
+      onTransaction: () => {
+        // Optional: Update toolbar state if you add active states later
+      },
+    });
+    console.log("✅ Editor instance created!");
+  } catch (err) {
+    console.error("💥 Error creating editor:", err);
+    editorElement.innerHTML = `<p class='text-red-500'>Editor init error: ${err.message}</p>`;
+  }
 }
 
 function setupListeners(rom) {
