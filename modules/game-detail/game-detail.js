@@ -478,101 +478,112 @@ async function createSession(rom, game) {
     const btn = document.getElementById('btn-start-session');
     if (!btn) return;
     
-    const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Creating Room...';
 
     try {
-        // 1. CHECK FOR EXISTING ROOM BY NAME (Ignore time limit here)
-        // We look for ANY room with this specific name to avoid duplicates
-        const { data: existingRoom, error: checkError } = await rom.supabase
+        // 1. SAFE CLEANUP: Delete only OLD inactive rooms (>1 hour) for this specific game
+        // This prevents "duplicate key" errors from zombie rooms while keeping active ones alive.
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        
+        await rom.supabase
+            .from('chat_rooms')
+            .delete()
+            .eq('game_id', game.id)
+            .eq('is_ephemeral', true)
+            .lt('last_activity', oneHourAgo);
+
+        // 2. CHECK FOR EXISTING ACTIVE ROOM
+        // If a room exists (even if created 5 mins ago), reuse it instead of creating a duplicate.
+        const { data: existingRoom } = await rom.supabase
             .from('chat_rooms')
             .select('*')
-            .eq('name', `${game.title} Live Lobby`)
-            .eq('game_id', game.id) // Ensure it's for this game
+            .eq('game_id', game.id)
+            .eq('is_ephemeral', true)
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
 
-        let room = existingRoom;
-
         if (existingRoom) {
-            // ✅ ROOM EXISTS: Reactivate it instead of creating a new one
-            console.log('♻️ Found existing room, reactivating...', existingRoom.id);
+            console.log('♻️ Reusing existing room:', existingRoom.id);
             
-            const { data: updatedRoom, error: updateError } = await rom.supabase
+            // Reactivate it (update timestamp so it doesn't get deleted next time)
+            const { data: reactivatedRoom } = await rom.supabase
                 .from('chat_rooms')
                 .update({ 
                     last_activity: new Date().toISOString(),
-                    is_ephemeral: true // Ensure it's marked as ephemeral
+                    status: 'active'
                 })
                 .eq('id', existingRoom.id)
                 .select()
                 .single();
 
-            if (updateError) throw updateError;
-            room = updatedRoom;
-        } else {
-            // ✅ NO ROOM EXISTS: Create a new one safely
-            console.log('✨ Creating new room...');
+            currentRoomId = reactivatedRoom.id;
+            const container = document.getElementById('live-session-container');
             
-            const { data: newRoom, error: roomError } = await rom.supabase
-                .from('chat_rooms')
-                .insert([{
-                    name: `${game.title} Live Lobby`,
-                    game_id: game.id,
-                    is_public: true,
-                    is_ephemeral: true,
-                    last_activity: new Date().toISOString(),
-                    created_by: rom.currentUser.id
-                }])
-                .select()
-                .single();
-
-            if (roomError) {
-                // Double check: If it fails due to unique constraint, fetch it anyway
-                if (roomError.code === '23505') {
-                    console.warn('⚠️ Race condition detected, fetching existing room...');
-                    const { data: fallbackRoom } = await rom.supabase
-                        .from('chat_rooms')
-                        .select('*')
-                        .eq('name', `${game.title} Live Lobby`)
-                        .eq('game_id', game.id)
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .single();
-                    if (fallbackRoom) room = fallbackRoom;
-                    else throw roomError;
-                } else {
-                    throw roomError;
-                }
-            } else {
-                room = newRoom;
-                
-                // 2. Create Initial LFG Post (Only for brand new rooms)
-                await rom.supabase.from('lfg_posts').insert([{
-                    user_id: rom.currentUser.id,
-                    posted_username: rom.currentUser.user_metadata?.username || 'Player',
-                    game_title: game.title,
-                    region: 'Global',
-                    status: 'open',
-                    expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-                    description: `Joined the live chat for ${game.title}! Come hang out.`
-                }]);
-            }
+            // Render the existing room
+            renderActiveSession(container, reactivatedRoom, rom, game);
+            
+            // Restart heartbeat to keep it alive
+            startHeartbeat(rom, reactivatedRoom.id);
+            
+            // Reset button
+            btn.disabled = false;
+            btn.textContent = '🚀 Start Room & Look for Players';
+            return;
         }
 
-        currentRoomId = room.id;
+        // 3. CREATE NEW ROOM (Only if none existed)
+        // Use a timestamp in the name to guarantee uniqueness if cleanup fails
+        const uniqueRoomName = `${game.title} Live Lobby-${Date.now()}`;
         
-        // 3. Render Active State
+        const { data: room, error: roomError } = await rom.supabase
+            .from('chat_rooms')
+            .insert([{
+                name: uniqueRoomName,
+                game_id: game.id,
+                is_public: true,
+                is_ephemeral: true,
+                last_activity: new Date().toISOString(),
+                created_by: rom.currentUser.id,
+                status: 'active'
+            }])
+            .select()
+            .single();
+
+        if (roomError) throw roomError;
+
+        // 4. Create Initial LFG Post linked to this room
+        await rom.supabase.from('lfg_posts').insert([{
+            user_id: rom.currentUser.id,
+            posted_username: rom.currentUser.user_metadata?.username || 'Player',
+            game_title: game.title,
+            region: 'Global',
+            status: 'open',
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            description: `Joined the live chat for ${game.title}! Come hang out.`,
+            chat_room_id: room.id
+        }]);
+
+        currentRoomId = room.id;
         const container = document.getElementById('live-session-container');
+        
+        // Render new room
         renderActiveSession(container, room, rom, game);
         
-        // 4. Start Heartbeat
+        // Start Heartbeat (Crucial: This keeps updating last_activity every 5 mins)
         startHeartbeat(rom, room.id);
 
     } catch (err) {
-        console.error('Error starting session:', err);
+        console.error('Error creating session:', err);
+        
+        // Handle Duplicate Key Error gracefully
+        if (err.code === '23505' || err.message.includes('duplicate key')) {
+            alert('A room already exists! Refreshing to join it...');
+            setTimeout(() => window.location.reload(), 1500);
+            return;
+        }
+        
         alert('Failed to start room: ' + err.message);
         btn.disabled = false;
         btn.textContent = '🚀 Start Room & Look for Players';
