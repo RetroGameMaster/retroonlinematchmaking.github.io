@@ -3,24 +3,31 @@ import { supabase } from '../../lib/supabase.js';
 
 let editor = null;
 
-// 1. Robust Loader: Waits specifically for the CDN globals to exist
+// 1. Robust Loader: Waits for the SPECIFIC keys seen in your console logs
 function waitForTiptap() {
   return new Promise((resolve) => {
     const check = () => {
-      // Check if the main Core and StarterKit are on the window object
-      if (window.TiptapCore && window.TiptapStarterKit) {
-        console.log('✅ Tiptap libraries detected');
+      // Check for the ACTUAL keys: '@tiptap/core' and '@tiptap/starter-kit'
+      const hasCore = !!window['@tiptap/core'];
+      const hasStarterKit = !!window['@tiptap/starter-kit'];
+
+      if (hasCore && hasStarterKit) {
+        console.log('✅ Tiptap libraries detected on window object');
         resolve();
       } else {
-        console.log('⏳ Waiting for Tiptap...');
-        setTimeout(check, 100); // Check every 100ms
+        console.log('⏳ Waiting for Tiptap scripts...', { hasCore, hasStarterKit });
+        setTimeout(check, 100); 
       }
     };
     check();
+    
     // Fallback timeout just in case
     setTimeout(() => {
-      if (!window.TiptapCore) resolve(); 
-    }, 5000);
+      if (!window['@tiptap/core']) {
+        console.warn('⚠️ Tiptap load timeout. Proceeding anyway...');
+        resolve(); 
+      }
+    }, 8000);
   });
 }
 
@@ -60,7 +67,10 @@ export default async function initWriteModule(rom) {
 
 function initEditor() {
   const editorElement = document.querySelector('#editor-content');
-  if (!editorElement) return;
+  if (!editorElement) {
+    console.error('❌ #editor-content element not found');
+    return;
+  }
 
   // ✅ FIX: Read from the exact keys found in your console log
   const Core = window['@tiptap/core'];
@@ -80,6 +90,7 @@ function initEditor() {
 
   if (!Core || !StarterKit) {
     console.error("❌ CRITICAL: Tiptap Core or StarterKit not found");
+    console.log("Available keys on window:", Object.keys(window).filter(k => k.includes('tiptap')));
     editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Refresh page.</p>";
     return;
   }
@@ -102,6 +113,7 @@ function initEditor() {
     console.log('✅ Editor Initialized Successfully!');
   } catch (err) {
     console.error('💥 Init Error:', err);
+    editorElement.innerHTML = `<p class='text-red-500'>Error initializing editor: ${err.message}</p>`;
   }
 }
 
