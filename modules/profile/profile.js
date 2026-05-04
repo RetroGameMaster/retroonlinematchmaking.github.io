@@ -685,10 +685,22 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           <div class="ra-card mt-6">
             <h3>Profile Details</h3>
             <ul class="ra-details-list text-sm space-y-2">
-              <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
-              <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-              ${isTargetUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
-            </ul>
+  <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
+  <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
+  
+  ${profile.rank ? `
+    <li>
+      <strong>Current Rank:</strong> 
+      <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
+            style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
+        ${profile.rank.name}
+      </span>
+      <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
+    </li>
+  ` : '<li><strong>Rank:</strong> NPC</li>'}
+  
+  ${isTargetUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
+</ul>
           </div>
         </div>
       </div>
@@ -933,6 +945,23 @@ const updates = {
   gamercard_bg_value: finalGcBgValue,
   custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
 };
+  
+if (formData.get('gc_bg_type') === 'image') {
+  const gcFileInput = document.getElementById('gc_file_input');
+  if (gcFileInput && gcFileInput.files.length > 0) {
+    const file = gcFileInput.files[0];
+    const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+    try {
+      const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
+      updates.gamercard_bg_value = publicUrl;
+    } catch (err) {
+      alert('Gamercard BG upload failed: ' + err.message);
+      return; 
+    }
+  }
+}  
       // 4. Send to Database
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.textContent = 'Saving...';
