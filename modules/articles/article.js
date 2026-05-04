@@ -1,211 +1,235 @@
-// modules/articles/write.js
+// modules/articles/article.js
 import { supabase } from '../../lib/supabase.js';
+import { REACTIONS_CONFIG, getReactionVisual } from './reactions-config.js'; // Import your config from Step 3
 
-let editor = null;
-
-// Helper to wait for CDN scripts to be ready
-function waitForTiptap() {
-  return new Promise((resolve) => {
-    const check = () => {
-      if (window.TiptapCore && window.TiptapStarterKit && window.TiptapExtensionImage && window.TiptapExtensionLink) {
-        resolve();
-      } else {
-        setTimeout(check, 100);
-      }
-    };
-    check();
-  });
-}
-
-export default async function initWriteModule(rom) {
+export default async function initArticleModule(rom, params) {
   const container = document.getElementById('app-content');
   if (!container) return;
 
-  // Check Auth
-  if (!rom.currentUser) {
-    container.innerHTML = `<div class="text-center py-20"><h2 class="text-2xl text-white">Please log in to write.</h2><button onclick="window.location.hash='#/auth'" class="mt-4 text-cyan-400 underline">Log In</button></div>`;
+  const articleId = params.id || params.slug; // Support ID or Slug
+  if (!articleId) {
+    container.innerHTML = '<div class="text-center text-red-400">Article not found.</div>';
     return;
   }
 
-  // If HTML isn't already there (in case app.js didn't load it), fetch it
-  if (!document.getElementById('editor-content')) {
-    container.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor...</p></div>`;
+  // Load HTML structure
+  const response = await fetch('./modules/articles/article.html');
+  container.innerHTML = await response.text();
+
+  await loadArticle(articleId, rom);
+  setupInteractions(articleId, rom);
+}
+
+async function loadArticle(id, rom) {
+  try {
+    // 1. Fetch Article Data
+    const {  article, error } = await supabase
+      .from('articles')
+      .select(`
+        *,
+        profiles!articles_author_id_fkey (
+          id, username, avatar_url, motto, xp_total, 
+          gamercard_bg_type, gamercard_bg_value,
+          rank:user_ranks (name, color),
+          stats
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !article) throw new Error('Article not found');
+
+    // Update Meta Tags
+    document.title = `${article.title} | ROM Writers Guild`;
+
+    // Render Header
+    document.getElementById('article-title').textContent = article.title;
+    document.getElementById('article-date').textContent = new Date(article.created_at).toLocaleDateString();
     
-    try {
-      const response = await fetch('./modules/articles/write.html');
-      if (!response.ok) throw new Error('HTML not found');
-      const html = await response.text();
-      container.innerHTML = html;
-    } catch (e) {
-      console.error(e);
-      container.innerHTML = `<div class="text-red-400 text-center">Failed to load editor interface.</div>`;
-      return;
+    const catBadge = document.getElementById('article-category-badge');
+    catBadge.textContent = article.category_slug?.toUpperCase() || 'GENERAL';
+    
+    // Render Body (Sanitize if needed, but trusting DB content for now)
+    document.getElementById('article-body').innerHTML = article.content_html;
+
+    // Render Author Gamercard
+    const authorSlot = document.getElementById('author-gamercard-slot');
+    if (article.profiles) {
+      authorSlot.innerHTML = createAuthorGamercard(article.profiles);
     }
+
+    // Load Reactions
+    await loadReactions(id, rom);
+
+    // Load Comments
+    await loadComments(id, rom);
+
+    // Show Content
+    document.getElementById('article-loading').classList.add('hidden');
+    document.getElementById('article-content').classList.remove('hidden');
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('article-loading').innerHTML = `<div class="text-red-400">Error: ${err.message}</div>`;
   }
-
-  // Wait for Tiptap CDN scripts to load
-  await waitForTiptap();
-
-  initEditor();
-  setupListeners(rom);
 }
 
-function initEditor() {
-  const editorElement = document.querySelector('#editor-content');
-  if (!editorElement) return;
+function createAuthorGamercard(profile) {
+  // Reuse your existing gamercard logic here or import it
+  const username = profile.username || 'Anonymous';
+  const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${username}&background=06b6d4&color=fff`;
+  const rank = profile.rank;
+  const motto = profile.motto;
+  
+  // Check for Writer Badge (Logic: if they have published articles)
+  const articlesCount = profile.stats?.articles_published || 0;
+  const isWriter = articlesCount > 0;
+  const writerBadge = isWriter ? `<span class="ml-2 text-[10px] bg-yellow-900 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-600">✒️ Writer</span>` : '';
 
-  // Access Tiptap from Window (CDN globals)
-  const Core = window.TiptapCore;
-  const StarterKit = window.TiptapStarterKit?.StarterKit;
-  const Image = window.TiptapExtensionImage?.Image;
-  const Link = window.TiptapExtensionLink?.Link;
+  let bgStyle = `background-color: ${profile.gamercard_bg_value || '#1f2937'};`;
+  if (profile.gamercard_bg_type === 'image') bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover;`;
+  else if (profile.gamercard_bg_type === 'gradient') bgStyle = `background-image: ${profile.gamercard_bg_value};`;
 
-  if (!Core || !StarterKit) {
-    console.error("Tiptap libraries not found on window object");
-    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Refresh page.</p>";
+  return `
+    <div class="gamercard relative overflow-hidden rounded-lg border border-gray-600 shadow-md bg-gray-900 max-w-md">
+      <div class="absolute inset-0 opacity-40" style="${bgStyle} filter: brightness(0.7);"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-black/80 to-black/40"></div>
+      <div class="relative z-10 p-3 flex items-center gap-3">
+        <img src="${avatar}" class="w-12 h-12 rounded-full border-2 border-purple-500 object-cover">
+        <div class="flex-1">
+          <div class="flex items-center">
+            <span class="text-sm font-bold text-white drop-shadow-md">${username}</span>
+            ${writerBadge}
+          </div>
+          ${rank ? `<span class="text-[10px] text-purple-300 font-bold">${rank.name}</span>` : ''}
+          ${motto ? `<p class="text-[10px] text-gray-300 italic truncate">"${motto}"</p>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function loadReactions(articleId, rom) {
+  const container = document.getElementById('reaction-buttons');
+  const countsContainer = document.getElementById('reaction-counts');
+  
+  // 1. Fetch Counts
+  const {  counts } = await supabase.rpc('get_reaction_counts', { post_id: articleId });
+  // Note: You might need a simple SQL view or JS aggregation if RPC isn't set up yet. 
+  // For now, we'll assume we fetch raw rows and aggregate in JS if RPC fails.
+  
+  // Fallback JS Aggregation if RPC missing:
+  if (!counts) {
+    const {  rows } = await supabase.from('article_reactions').select('reaction_key').eq('post_id', articleId);
+    // Aggregate logic here...
+  }
+
+  // 2. Render Buttons
+  container.innerHTML = Object.keys(REACTIONS_CONFIG).map(key => {
+    const config = REACTIONS_CONFIG[key];
+    return `
+      <button 
+        data-key="${key}" 
+        class="reaction-btn px-3 py-1.5 rounded-full bg-gray-700 hover:bg-gray-600 border border-gray-600 transition transform hover:scale-110 flex items-center gap-1.5"
+      >
+        ${getReactionVisual(key)}
+        <span class="text-xs font-bold text-gray-300">${config.label}</span>
+      </button>
+    `;
+  }).join('');
+
+  // 3. Add Click Listeners
+  container.querySelectorAll('.reaction-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!rom.currentUser) return alert('Please log in to react!');
+      await addReaction(articleId, rom.currentUser.id, btn.dataset.key);
+    });
+  });
+}
+
+async function addReaction(postId, userId, key) {
+  // Upsert logic: If exists, remove (toggle). If not, insert.
+  const {  existing } = await supabase
+    .from('article_reactions')
+    .select('id')
+    .eq('post_id', postId)
+    .eq('user_id', userId)
+    .eq('reaction_key', key)
+    .single();
+
+  if (existing) {
+    await supabase.from('article_reactions').delete().eq('id', existing.id);
+  } else {
+    // Remove other reactions by this user for this post (optional: limit 1 reaction per user)
+    await supabase.from('article_reactions').delete().eq('post_id', postId).eq('user_id', userId);
+    
+    await supabase.from('article_reactions').insert({
+      post_id: postId,
+      user_id: userId,
+      reaction_key: key
+    });
+  }
+  
+  // Refresh UI
+  loadReactions(postId, { currentUser: { id: userId } }); // Re-fetch locally
+}
+
+async function loadComments(postId, rom) {
+  const {  comments } = await supabase
+    .from('article_comments')
+    .select(`
+      *,
+      profiles!article_comments_author_id_fkey (username, avatar_url)
+    `)
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+
+  const list = document.getElementById('comments-list');
+  if (!comments || comments.length === 0) {
+    list.innerHTML = '<p class="text-gray-500 text-sm italic">No comments yet. Be the first!</p>';
     return;
   }
 
-  editor = Core.Editor.create({
-    element: editorElement,
-    extensions: [
-      StarterKit,
-      Image.configure({ inline: true }),
-      Link.configure({ openOnClick: false }),
-    ],
-    content: '<p>Start writing your amazing article here...</p>',
-    editable: true,
-  });
+  list.innerHTML = comments.map(c => `
+    <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700 flex gap-3">
+      <img src="${c.profiles?.avatar_url || 'https://via.placeholder.com/32'}" class="w-8 h-8 rounded-full">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-sm font-bold text-cyan-400">${c.profiles?.username || 'Anonymous'}</span>
+          <span class="text-xs text-gray-500">${new Date(c.created_at).toLocaleDateString()}</span>
+        </div>
+        <p class="text-sm text-gray-300">${c.content}</p>
+      </div>
+    </div>
+  `).join('');
 }
 
-function setupListeners(rom) {
-  // Toolbar Actions
-  document.querySelectorAll('#toolbar button[data-action]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const action = btn.dataset.action;
-      if (!editor) return;
-      
-      if (action === 'heading') editor.chain().focus().toggleHeading({ level: 1 }).run();
-      else if (action === 'bold') editor.chain().focus().toggleBold().run();
-      else if (action === 'italic') editor.chain().focus().toggleItalic().run();
-      else if (action === 'underline') editor.chain().focus().toggleUnderline().run();
-      else if (action === 'bulletList') editor.chain().focus().toggleBulletList().run();
-      else if (action === 'orderedList') editor.chain().focus().toggleOrderedList().run();
-      else if (action === 'blockquote') editor.chain().focus().toggleBlockquote().run();
-      else if (action === 'codeBlock') editor.chain().focus().toggleCodeBlock().run();
-    });
-  });
+function setupInteractions(articleId, rom) {
+  const btn = document.getElementById('btn-post-comment');
+  const input = document.getElementById('comment-input');
 
-  // Image Upload Trigger
-  const uploadBtn = document.getElementById('btn-upload-image');
-  const fileInput = document.getElementById('image-input');
-  
-  if (uploadBtn && fileInput) {
-    uploadBtn.addEventListener('click', () => fileInput.click());
+  btn.addEventListener('click', async () => {
+    const content = input.value.trim();
+    if (!content) return;
+    if (!rom.currentUser) return alert('Log in to comment');
+
+    btn.disabled = true;
+    btn.textContent = 'Posting...';
+
+    const { error } = await supabase.from('article_comments').insert({
+      post_id: articleId,
+      author_id: rom.currentUser.id,
+      content: content
+    });
+
+    if (error) {
+      alert('Failed to post: ' + error.message);
+    } else {
+      input.value = '';
+      loadComments(articleId, rom);
+    }
     
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file || !editor) return;
-
-      const statusEl = document.getElementById('save-status');
-      if (statusEl) {
-        statusEl.textContent = 'Uploading image...';
-        statusEl.className = 'text-xs text-yellow-400';
-      }
-
-      try {
-        // Upload to Supabase Storage
-        const fileName = `${rom.currentUser.id}/${Date.now()}-${file.name.replace(/\s/g, '-')}`;
-        const { data, error } = await supabase.storage
-          .from('article-uploads')
-          .upload(fileName, file, { cacheControl: '3600', upsert: false });
-
-        if (error) throw error;
-
-        // Get Public URL
-        const {  { publicUrl } } = supabase.storage.from('article-uploads').getPublicUrl(fileName);
-
-        // Insert into Editor
-        editor.chain().focus().setImage({ src: publicUrl }).run();
-        
-        if (statusEl) {
-          statusEl.textContent = 'Image inserted!';
-          statusEl.className = 'text-xs text-green-400';
-          setTimeout(() => statusEl.textContent = '', 2000);
-        }
-
-      } catch (err) {
-        console.error(err);
-        alert('Failed to upload image: ' + err.message);
-        if (statusEl) {
-          statusEl.textContent = 'Upload failed.';
-          statusEl.className = 'text-xs text-red-400';
-        }
-      } finally {
-        fileInput.value = ''; // Reset input
-      }
-    });
-  }
-
-  // Publish Button
-  const publishBtn = document.getElementById('btn-publish');
-  if (publishBtn) {
-    publishBtn.addEventListener('click', async () => {
-      const titleInput = document.getElementById('article-title');
-      const categorySelect = document.getElementById('article-category');
-      const magazineCheck = document.getElementById('is-magazine');
-      
-      const title = titleInput ? titleInput.value.trim() : '';
-      const categorySlug = categorySelect ? categorySelect.value : '';
-      const isMagazine = magazineCheck ? magazineCheck.checked : false;
-      const contentHtml = editor ? editor.getHTML() : '';
-
-      if (!title) return alert('Please enter a title.');
-      if (!categorySlug) return alert('Please select a category.');
-      if (!contentHtml || contentHtml.length < 20) return alert('Article is too short.');
-
-      publishBtn.disabled = true;
-      publishBtn.textContent = 'Publishing...';
-
-      try {
-        // 1. Insert Article
-        const {  article, error: artError } = await supabase
-          .from('articles')
-          .insert([{
-            author_id: rom.currentUser.id,
-            title: title,
-            content_html: contentHtml,
-            category_slug: categorySlug,
-            is_magazine_issue: isMagazine,
-            status: 'published'
-          }])
-          .select()
-          .single();
-
-        if (artError) throw artError;
-
-        // 2. Award XP
-        await supabase.rpc('award_xp', { 
-          user_uuid: rom.currentUser.id, 
-          amount: 50, 
-          reason: 'article_published' 
-        });
-
-        // 3. Update Profile Stats
-        try {
-          await supabase.rpc('increment_article_count', { user_uuid: rom.currentUser.id }); 
-        } catch (e) { console.warn('Could not increment count', e); }
-
-        alert('🎉 Article Published! You earned 50 XP.');
-        window.location.hash = `#/article/${article.id}`;
-
-      } catch (err) {
-        console.error(err);
-        alert('Error publishing: ' + err.message);
-        publishBtn.disabled = false;
-        publishBtn.textContent = '🚀 Publish Article (+50 XP)';
-      }
-    });
-  }
+    btn.disabled = false;
+    btn.textContent = 'Post';
+  });
 }
