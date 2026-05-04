@@ -19,6 +19,8 @@ const modules = {
     'guides': () => import('./modules/guides/guides.js'),
     'lfg': () => import('./modules/lfg/lfg.js'),
     'tournaments': () => import('./modules/tournaments/tournaments.js'),
+    'articles': () => import('./modules/articles/home.js'),
+    'write': () => import('./modules/articles/write.js'),
 };
 
 // Fallback content
@@ -338,6 +340,8 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         await loadProfileDetail(providedSlug);
         return;
     }
+    if (hash === 'articles') { await loadModule('articles'); return; }
+    if (hash === 'write') { await loadModule('write'); return; }
 
     // Heartbeat Logic
    let heartbeatInterval;
