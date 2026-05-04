@@ -19,8 +19,6 @@ const modules = {
     'guides': () => import('./modules/guides/guides.js'),
     'lfg': () => import('./modules/lfg/lfg.js'),
     'tournaments': () => import('./modules/tournaments/tournaments.js'),
-    'articles': () => import('./modules/articles/home.js'),
-    'write': () => import('./modules/articles/write.js'),
 };
 
 // Fallback content
@@ -340,99 +338,7 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         await loadProfileDetail(providedSlug);
         return;
     }
-    // Handle Articles List
-if (hash === 'articles' || hash.startsWith('articles?')) {
-    await loadModule('articles');
-    return;
-}
 
-// Handle Single Article View (Similar to game-detail)
-if (hash.startsWith('article/')) {
-    const articleId = hash.split('/')[1];
-    console.log('Loading article:', articleId);
-    
-    // Load HTML first
-    const appContent = document.getElementById('app-content');
-    const response = await fetch('./modules/articles/article.html');
-    const html = await response.text();
-    appContent.innerHTML = html;
-
-    // Then Load JS
-    const module = await import('./modules/articles/article.js');
-    const rom = getRomObject(); // Your existing helper
-    if (module.default) await module.default(rom, articleId);
-    return;
-}
-
-// Handle Write Page
-if (hash === 'write') {
-    const appContent = document.getElementById('app-content');
-    if (!appContent) return;
-    
-    appContent.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor Scripts...</p></div>`;
-
-    // ✅ USE THESE SPECIFIC STANDALONE BUILDS
-    const scripts = [
-        'https://unpkg.com/@tiptap/core@2.0.3/dist/index.umd.js',
-        'https://unpkg.com/@tiptap/starter-kit@2.0.3/dist/index.umd.js',
-        'https://unpkg.com/@tiptap/extension-image@2.0.3/dist/index.umd.js',
-        'https://unpkg.com/@tiptap/extension-link@2.0.3/dist/index.umd.js'
-    ];
-
-    const loadScript = (src) => {
-        return new Promise((resolve, reject) => {
-            // Skip if already exists
-            if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = () => { console.log(`✅ Loaded: ${src}`); resolve(); };
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    };
-
-    try {
-        // Load sequentially
-        for (const src of scripts) { await loadScript(src); }
-        
-        // ⏳ Wait slightly for global attachment
-        await new Promise(r => setTimeout(r, 500));
-
-        // 🔍 DEBUG: Log what actually loaded
-        console.log('🔍 Global Check:', {
-            hasCore: !!window.TiptapCore,
-            hasStarterKit: !!window.TiptapStarterKit,
-            windowKeys: Object.keys(window).filter(k => k.includes('tiptap') || k.includes('Tiptap'))
-        });
-
-        // Fallback mapping if standard names failed
-        if (!window.TiptapCore && window.tiptapCore) window.TiptapCore = window.tiptapCore;
-        if (!window.TiptapStarterKit && window.StarterKit) window.TiptapStarterKit = window.StarterKit;
-        if (!window.TiptapExtensionImage && window.ImageExtension) window.TiptapExtensionImage = { Image: window.ImageExtension };
-        if (!window.TiptapExtensionLink && window.LinkExtension) window.TiptapExtensionLink = { Link: window.LinkExtension };
-
-        // Fetch HTML
-        const response = await fetch('./modules/articles/write.html');
-        if (!response.ok) throw new Error('HTML not found');
-        appContent.innerHTML = await response.text();
-
-        // Run Module
-        const module = await import('./modules/articles/write.js');
-        const rom = {
-            supabase: window.supabase,
-            currentUser: window.rom?.currentUser || null,
-            loadModule: loadModule,
-            navigateTo: (m) => window.location.hash = `#/${m}`
-        };
-        
-        if (module.default) await module.default(rom);
-        
-    } catch (err) {
-        console.error('❌ Write Module Error:', err);
-        appContent.innerHTML = `<div class="text-red-400 text-center mt-10">Error: ${err.message}</div>`;
-    }
-    return;
-}
     // Heartbeat Logic
    let heartbeatInterval;
     async function startHeartbeat() {
