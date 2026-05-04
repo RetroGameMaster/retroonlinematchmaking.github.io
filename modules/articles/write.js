@@ -3,6 +3,20 @@ import { supabase } from '../../lib/supabase.js';
 
 let editor = null;
 
+// Helper to wait for CDN scripts to be ready
+function waitForTiptap() {
+  return new Promise((resolve) => {
+    const check = () => {
+      if (window.TiptapCore && window.TiptapStarterKit && window.TiptapExtensionImage && window.TiptapExtensionLink) {
+        resolve();
+      } else {
+        setTimeout(check, 100);
+      }
+    };
+    check();
+  });
+}
+
 export default async function initWriteModule(rom) {
   const container = document.getElementById('app-content');
   if (!container) return;
@@ -15,55 +29,40 @@ export default async function initWriteModule(rom) {
 
   // If HTML isn't already there (in case app.js didn't load it), fetch it
   if (!document.getElementById('editor-content')) {
+    container.innerHTML = `<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading Editor...</p></div>`;
+    
     try {
       const response = await fetch('./modules/articles/write.html');
       if (!response.ok) throw new Error('HTML not found');
       const html = await response.text();
       container.innerHTML = html;
     } catch (e) {
-      console.error("Failed to load write.html", e);
-      container.innerHTML = `<div class="text-red-500 text-center">Error loading editor interface.</div>`;
+      console.error(e);
+      container.innerHTML = `<div class="text-red-400 text-center">Failed to load editor interface.</div>`;
       return;
     }
   }
 
-  // Wait for Tiptap scripts to be available
+  // Wait for Tiptap CDN scripts to load
   await waitForTiptap();
 
   initEditor();
   setupListeners(rom);
 }
 
-// Helper to wait for CDN scripts
-function waitForTiptap() {
-  return new Promise((resolve) => {
-    const check = () => {
-      // Check for the global variables provided by the CDN scripts
-      if (window.TiptapCore && window.TiptapStarterKit) {
-        resolve();
-      } else {
-        setTimeout(check, 100); // Check again in 100ms
-      }
-    };
-    check();
-  });
-}
-
 function initEditor() {
   const editorElement = document.querySelector('#editor-content');
-  if (!editorElement) {
-    console.error("Editor element not found");
-    return;
-  }
+  if (!editorElement) return;
 
-  // Access globals safely
+  // Access Tiptap from Window (CDN globals)
   const Core = window.TiptapCore;
-  const StarterKit = window.TiptapStarterKit.StarterKit;
-  const Image = window.TiptapExtensionImage.Image;
-  const Link = window.TiptapExtensionLink.Link;
+  const StarterKit = window.TiptapStarterKit?.StarterKit;
+  const Image = window.TiptapExtensionImage?.Image;
+  const Link = window.TiptapExtensionLink?.Link;
 
   if (!Core || !StarterKit) {
-    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load libraries. Refresh page.</p>";
+    console.error("Tiptap libraries not found on window object");
+    editorElement.innerHTML = "<p class='text-red-500'>Editor failed to load. Refresh page.</p>";
     return;
   }
 
@@ -157,16 +156,14 @@ function setupListeners(rom) {
       const categorySelect = document.getElementById('article-category');
       const magazineCheck = document.getElementById('is-magazine');
       
-      if (!titleInput || !categorySelect || !editor) return;
-
-      const title = titleInput.value.trim();
-      const categorySlug = categorySelect.value;
+      const title = titleInput ? titleInput.value.trim() : '';
+      const categorySlug = categorySelect ? categorySelect.value : '';
       const isMagazine = magazineCheck ? magazineCheck.checked : false;
-      const contentHtml = editor.getHTML();
+      const contentHtml = editor ? editor.getHTML() : '';
 
       if (!title) return alert('Please enter a title.');
       if (!categorySlug) return alert('Please select a category.');
-      if (contentHtml.length < 20) return alert('Article is too short.');
+      if (!contentHtml || contentHtml.length < 20) return alert('Article is too short.');
 
       publishBtn.disabled = true;
       publishBtn.textContent = 'Publishing...';
@@ -197,10 +194,8 @@ function setupListeners(rom) {
 
         // 3. Update Profile Stats
         try {
-            await supabase.rpc('increment_article_count', { user_uuid: rom.currentUser.id });
-        } catch (e) {
-            console.warn("Could not increment article count", e);
-        }
+          await supabase.rpc('increment_article_count', { user_uuid: rom.currentUser.id }); 
+        } catch (e) { console.warn('Could not increment count', e); }
 
         alert('🎉 Article Published! You earned 50 XP.');
         window.location.hash = `#/article/${article.id}`;
@@ -213,4 +208,3 @@ function setupListeners(rom) {
       }
     });
   }
-}
