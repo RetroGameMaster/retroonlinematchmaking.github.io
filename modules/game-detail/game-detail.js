@@ -393,7 +393,7 @@ async function renderGame(game, container, rom) {
                     ` : ''}
 
                     <!-- 🚀 LIVE SESSION CONTAINER -->
-                    <div id="live-session-container" class="mb-8 hidden"></div>
+                    <div id="live-session-container" class="mb-8"></div>
 
                     <div id="achievements-container" class="mb-8">
                         <h2 class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2 drop-shadow-md">🏆 Achievements</h2>
