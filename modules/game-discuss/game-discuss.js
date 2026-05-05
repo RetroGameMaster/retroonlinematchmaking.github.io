@@ -41,7 +41,7 @@ function renderGamercard(profile, isChat = false) {
     bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; opacity: 0.9;`;
   } else if (profile?.gamercard_bg_type === 'gradient') {
     // Increased opacity to 0.7 for gradients
-    bgStyle = `background-image: ${profile.gamercard_bg_value}; opacity: 0.1;`;
+    bgStyle = `background-image: ${profile.gamercard_bg_value}; opacity: 0.1;`filter: brightness(0.8);
   } else {
     // Solid color with higher opacity
     bgStyle = `background-color: ${profile?.gamercard_bg_value || '#1f2937'}; opacity: 0.9;`;
