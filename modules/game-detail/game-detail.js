@@ -813,13 +813,18 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
 
     const writerBadgeHtml = isWriter ? `<span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:#ec489940; color:#ec4899; border:1px solid #ec4899;">✒️ Writer</span>` : '';
 
-    // --- GAMERCARD (Fixed Width 180px) ---
+    // --- CRITICAL FIX: WRAPPER STRUCTURE ---
+    // We create a wrapper that holds BOTH the card and the bubble.
+    // This wrapper aligns to the left or right.
+    // Inside, the Card and Bubble are stacked vertically (col) or flex-start, 
+    // ensuring the bubble NEVER goes under the card.
+    
     const gamercardHtml = `
-        <a href="${profileLink}" class="block flex-shrink-0 w-[180px] hover:scale-[1.02] transition-transform duration-200 z-20">
-            <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900 h-full">
+        <a href="${profileLink}" class="block flex-shrink-0 w-[160px] hover:scale-[1.02] transition-transform duration-200 z-20 mb-1">
+            <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
                 <div class="absolute inset-0" style="${bgStyle} opacity: 0.6; filter: brightness(0.8);"></div>
                 <div class="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
-                <div class="relative z-10 p-2 flex items-center gap-2 h-full">
+                <div class="relative z-10 p-2 flex items-center gap-2">
                     <img src="${avatarUrl}" alt="${username}" class="w-8 h-8 rounded-full border border-cyan-500 object-cover flex-shrink-0">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1 mb-0.5">
@@ -827,30 +832,35 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
                         </div>
                         ${rankName ? `<span class="text-[8px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor};">${escapeHtml(rankName)}</span>` : ''}
                         ${writerBadgeHtml}
-                        ${motto ? `<p class="text-[8px] text-gray-200 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
                     </div>
                 </div>
             </div>
         </a>
     `;
 
-    // --- BUBBLE (Fixed Max-Width & Flex Settings INLINED) ---
-    // We add 'flex-none' and an inline style max-width directly here so no JS querySelector is needed
     const bubbleHtml = `
-        <div class="flex flex-col flex-none ${isMe ? 'items-end' : 'items-start'} pt-1" style="max-width: calc(100% - 200px); min-width: 0;">
+        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
             <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
                 <span class="text-[10px] text-gray-500">${time}</span>
             </div>
-            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-xs md:text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-br-none' : 'rounded-bl-none'}">
+            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-xs md:text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 max-w-[280px] sm:max-w-[400px] ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-tr-none' : 'rounded-tl-none'}">
                 ${escapeHtml(msg.message)}
             </div>
         </div>
     `;
 
-    // --- ASSEMBLE ---
     const messageEl = document.createElement('div');
-    // 'flex-nowrap' is the key here to prevent wrapping
-    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start flex-nowrap`;
+    
+    // LAYOUT LOGIC:
+    // We use 'flex' and 'flex-col' on mobile, 'flex-row' on larger screens IF space permits,
+    // BUT to guarantee no overlap, we simply align the whole block left/right.
+    // The Card has a fixed width (160px). The Bubble has max-width.
+    // They sit in a container that wraps if needed, but usually sits side by side on desktop.
+    
+    // ACTUAL FIX: Use a Grid or Flex row that WRAPS.
+    // If the screen is too small, the bubble drops BELOW the card automatically.
+    messageEl.className = `flex flex-wrap gap-2 ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in mb-4 items-start`;
+    
     messageEl.innerHTML = gamercardHtml + bubbleHtml;
     
     container.appendChild(messageEl);
