@@ -1,4 +1,4 @@
-// modules/home/home.js - ENHANCED WITH PERSISTENT GOTW & LEADERBOARD
+// modules/home/home.js - ENHANCED WITH LFG & TOURNAMENT TICKER
 import { supabase } from '../../lib/supabase.js';
 import { getRecentTournamentsForTicker } from '../tournaments/tournaments.js';
 
@@ -27,11 +27,11 @@ export default function initModule(rom) {
   // 4. Load Dynamic Content
   loadSiteSettings();
   loadFeaturedGame();
-  loadGameOfTheWeek(); // Now persistent for 1 week
+  loadGameOfTheWeek();
   loadOnlineUsers();
   loadRecentActivity();
   loadCommunitySpotlight();
-  loadHomeLeaderboardPreview(); // New Leaderboard Section
+  loadHomeLeaderboardPreview(); // Load Leaderboard Preview
   
   // 5. Start Realtime Listeners & Ticker
   refreshDynamicTicker(rom); // Initial Load of LFG + Tournaments
@@ -114,7 +114,7 @@ function initAmbientEffects() {
 }
 
 // ============================================================================
-// 2. RENDER LAYOUT (Social Links Moved Up)
+// 2. RENDER LAYOUT (REORGANIZED)
 // ============================================================================
 function renderHomeLayout() {
   const appContent = document.getElementById('app-content');
@@ -140,7 +140,7 @@ function renderHomeLayout() {
         </div>
       </div>
 
-      <!-- Welcome Header with Stats & SOCIAL LINKS MOVED HERE -->
+      <!-- Welcome Header with Stats -->
       <div class="text-center py-8 relative">
         <div class="absolute top-0 right-0 flex items-center gap-2 text-xs text-green-400 bg-green-900/20 px-3 py-1 rounded-full border border-green-500/30">
           <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
@@ -154,7 +154,7 @@ function renderHomeLayout() {
         </p>
         
         <!-- Live Stats Counter -->
-        <div class="flex justify-center gap-4 md:gap-8 text-sm md:text-base mb-8">
+        <div class="flex justify-center gap-4 md:gap-8 text-sm md:text-base mb-6">
           <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
             <span class="block text-2xl font-bold text-cyan-400" id="stat-games">-</span>
             <span class="text-gray-500 text-xs uppercase">Games</span>
@@ -169,27 +169,29 @@ function renderHomeLayout() {
           </div>
         </div>
 
-        <!-- SOCIAL LINKS (MOVED HERE FOR VISIBILITY) -->
-        <div class="flex flex-col sm:flex-row justify-center gap-4 max-w-md mx-auto">
-          <a id="discord-link" href="#" target="_blank" class="ambient-card flex items-center justify-center gap-3 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 px-6 py-3 rounded-lg transition group">
-            <div class="text-2xl">💬</div>
-            <div>
-              <div class="text-white font-bold text-sm group-hover:text-[#5865F2]">Join Discord</div>
-            </div>
-          </a>
-          <a id="patreon-link" href="#" target="_blank" class="ambient-card flex items-center justify-center gap-3 bg-[#F96854]/10 hover:bg-[#F96854]/20 border border-[#F96854]/30 px-6 py-3 rounded-lg transition group">
-            <div class="text-2xl">❤️</div>
-            <div>
-              <div class="text-white font-bold text-sm group-hover:text-[#F96854]">Support ROM</div>
-            </div>
-          </a>
+        <!-- MOVED: Social Links (Now under stats) -->
+        <div class="flex justify-center gap-4 mb-8">
+            <a id="discord-link" href="#" target="_blank" class="ambient-card flex items-center gap-3 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 px-5 py-3 rounded-lg transition group">
+              <div class="text-2xl">💬</div>
+              <div>
+                <div class="text-white font-bold text-sm group-hover:text-[#5865F2]">Join Discord</div>
+                <div class="text-xs text-gray-400">Chat & Support</div>
+              </div>
+            </a>
+            <a id="patreon-link" href="#" target="_blank" class="ambient-card flex items-center gap-3 bg-[#F96854]/10 hover:bg-[#F96854]/20 border border-[#F96854]/30 px-5 py-3 rounded-lg transition group">
+              <div class="text-2xl">❤️</div>
+              <div>
+                <div class="text-white font-bold text-sm group-hover:text-[#F96854]">Support ROM</div>
+                <div class="text-xs text-gray-400">Keep us running</div>
+              </div>
+            </a>
         </div>
       </div>
 
       <!-- Main Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- LEFT COLUMN -->
+        <!-- LEFT COLUMN (Content) -->
         <div class="lg:col-span-2 space-y-8">
           
           <!-- Game of the Week -->
@@ -229,10 +231,10 @@ function renderHomeLayout() {
           </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT COLUMN (Community Hub - Reordered) -->
         <div class="space-y-6">
           
-          <!-- Who's Online -->
+          <!-- MOVED UP: Who's Online (Now under social links) -->
           <div class="ambient-card bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden">
             <div class="bg-gray-900/50 p-4 border-b border-gray-700 flex justify-between items-center">
               <h3 class="font-bold text-white flex items-center gap-2">
@@ -242,21 +244,6 @@ function renderHomeLayout() {
               <span id="online-count" class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded-full">0</span>
             </div>
             <div id="online-users-list" class="p-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
-          </div>
-
-          <!-- NEW: Site XP Leaderboard Preview -->
-          <div class="ambient-card bg-gray-800 rounded-xl border border-yellow-500/30 shadow-lg shadow-yellow-900/10 overflow-hidden">
-            <div class="bg-gradient-to-r from-yellow-900/40 to-gray-900/50 p-4 border-b border-yellow-500/30 flex justify-between items-center">
-              <h3 class="font-bold text-yellow-300 flex items-center gap-2">
-                <span class="text-xl">🏆</span> Top Players
-              </h3>
-              <a href="#/site-xp-leaderboard" class="text-xs text-yellow-400 hover:text-yellow-300 font-bold underline">View All</a>
-            </div>
-            <div id="home-leaderboard-preview" class="p-2 space-y-2">
-              <div class="text-center text-gray-500 text-sm py-4">
-                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-500"></div>
-              </div>
-            </div>
           </div>
 
           <!-- Community Spotlight -->
@@ -279,6 +266,19 @@ function renderHomeLayout() {
               </h3>
             </div>
             <div id="activity-feed" class="p-4 space-y-4"></div>
+          </div>
+
+          <!-- Site XP Leaderboard Preview (New) -->
+          <div class="ambient-card bg-gray-800 rounded-xl border border-cyan-500/30 shadow-lg shadow-cyan-900/10 overflow-hidden">
+            <div class="bg-gradient-to-r from-cyan-900/40 to-gray-900/50 p-4 border-b border-cyan-500/30 flex justify-between items-center">
+              <h3 class="font-bold text-cyan-300 flex items-center gap-2">
+                <span class="text-xl">🏆</span> Top Players
+              </h3>
+              <a href="#/site-xp-leaderboard" class="text-xs text-cyan-400 hover:text-cyan-300 font-bold">View All →</a>
+            </div>
+            <div id="home-leaderboard-preview" class="p-2">
+               <div class="text-center text-gray-500 text-sm py-4">Loading rankings...</div>
+            </div>
           </div>
 
         </div>
@@ -409,7 +409,7 @@ async function loadFeaturedGame() {
 }
 
 // ============================================================================
-// FIXED: PERSISTENT GAME OF THE WEEK (Random but holds for 1 week)
+// FIXED: Game of the Week (Weekly Seed + Caching)
 // ============================================================================
 async function loadGameOfTheWeek() {
   const container = document.getElementById('gotw-content');
@@ -422,59 +422,66 @@ async function loadGameOfTheWeek() {
     const pastDays = (now - startOfYear) / 86400000;
     const weekNum = Math.ceil((pastDays + startOfYear.getDay() + 1) / 7);
     const year = now.getFullYear();
-    const seedKey = `gotw_${year}_week_${weekNum}`;
+    const cacheKey = `game_of_week_${year}_w${weekNum}`;
 
-    // 2. Check if we already saved a game for this week
-    const { data: savedSetting } = await supabase
+    // 2. Check Cache in DB first
+    const { data: cachedData } = await supabase
       .from('site_settings')
       .select('value')
-      .eq('key', seedKey)
+      .eq('key', cacheKey)
       .single();
 
-    let selectedGame = null;
+    let selectedGameId = null;
 
-    if (savedSetting && savedSetting.value) {
-      // Use the saved Game ID
-      const { data: game } = await supabase
-        .from('games')
-        .select('*')
-        .eq('id', savedSetting.value)
-        .single();
-      selectedGame = game;
-    }
-
-    // 3. If no saved game (new week), pick a random one and SAVE it
-    if (!selectedGame) {
-      const { count } = await supabase
+    if (cachedData && cachedData.value) {
+      selectedGameId = cachedData.value;
+      console.log(`ℹ️ Loaded cached Game of the Week: ${selectedGameId}`);
+    } else {
+      // 3. If no cache, pick random game
+      const { count, error: countError } = await supabase
         .from('games')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'approved')
         .not('cover_image_url', 'is', null);
 
-      if (count && count > 0) {
-        // Deterministic random based on week number so all users see same game
-        const offset = weekNum % count; 
-        
-        const { data: randomGame } = await supabase
-          .from('games')
-          .select('*')
-          .eq('status', 'approved')
-          .not('cover_image_url', 'is', null)
-          .range(offset, offset)
-          .single();
+      if (countError || count === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-gray-500">No featured game this week.</div>`;
+        return;
+      }
 
-        if (randomGame) {
-          selectedGame = randomGame;
-          // Save to DB so it persists for the rest of the week
-          await supabase.from('site_settings').upsert({ key: seedKey, value: randomGame.id });
-        }
+      // Use week number as offset seed so it's consistent for everyone this week
+      const offset = (weekNum - 1) % count; 
+      
+      const { data: randomGame } = await supabase
+        .from('games')
+        .select('id')
+        .eq('status', 'approved')
+        .not('cover_image_url', 'is', null)
+        .range(offset, offset)
+        .single();
+
+      if (randomGame) {
+        selectedGameId = randomGame.id;
+        // Save to cache
+        await supabase.from('site_settings').upsert({ key: cacheKey, value: selectedGameId });
+        console.log(`✅ Selected new Game of the Week: ${selectedGameId}`);
       }
     }
 
-    if (selectedGame) {
-      renderGameCard(selectedGame, container, null, true);
-    } else {
-      container.innerHTML = `<div class="p-8 text-center text-gray-500">No featured game this week.</div>`;
+    // 4. Fetch Full Details of Selected Game
+    if (selectedGameId) {
+      const { data: game, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('id', selectedGameId)
+        .single();
+
+      if (!error && game) {
+        renderGameCard(game, container, null, true);
+      } else {
+        // Fallback if cached ID is invalid (game deleted)
+        container.innerHTML = `<div class="p-8 text-center text-gray-500">Featured game unavailable.</div>`;
+      }
     }
 
   } catch (error) {
@@ -560,48 +567,6 @@ async function loadOnlineUsers() {
 
   } catch (error) {
     console.error('Online users error:', error);
-  }
-}
-
-// ============================================================================
-// NEW: LEADERBOARD PREVIEW LOADER
-// ============================================================================
-async function loadHomeLeaderboardPreview() {
-  const container = document.getElementById('home-leaderboard-preview');
-  if (!container) return;
-
-  try {
-    const { data: leaders, error } = await supabase
-      .from('profiles')
-      .select('id, username, avatar_url, xp_total')
-      .order('xp_total', { ascending: false })
-      .limit(5);
-
-    if (error || !leaders || leaders.length === 0) {
-      container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No rankings yet.</div>';
-      return;
-    }
-
-    container.innerHTML = leaders.map((user, index) => {
-      const rank = index + 1;
-      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
-      const highlight = rank <= 3 ? 'bg-yellow-900/20 border-yellow-500/30' : 'bg-gray-800/50 border-gray-700';
-      
-      return `
-        <a href="#/profile/${user.username}" class="flex items-center gap-3 p-2 rounded-lg border ${highlight} hover:bg-gray-700 transition group">
-          <span class="text-lg w-6 text-center">${medal}</span>
-          <img src="${user.avatar_url || 'https://ui-avatars.com/api/?name=${user.username}'}" class="w-8 h-8 rounded-full border border-gray-600">
-          <div class="flex-1 min-w-0">
-            <div class="text-white text-sm font-bold truncate group-hover:text-yellow-400">${user.username}</div>
-          </div>
-          <div class="text-xs font-mono font-bold text-cyan-400">${user.xp_total.toLocaleString()} XP</div>
-        </a>
-      `;
-    }).join('');
-
-  } catch (err) {
-    console.error('Leaderboard preview error:', err);
-    container.innerHTML = '<div class="text-center text-red-400 text-xs">Failed to load</div>';
   }
 }
 
@@ -692,6 +657,55 @@ async function loadRecentActivity() {
 
   } catch (error) {
     console.error('Activity feed error:', error);
+  }
+}
+
+// ============================================================================
+// NEW: Leaderboard Preview Loader
+// ============================================================================
+async function loadHomeLeaderboardPreview() {
+  const container = document.getElementById('home-leaderboard-preview');
+  if (!container) return;
+
+  try {
+    const { data: leaders, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        username,
+        avatar_url,
+        xp_total,
+        rank:user_ranks (name, color)
+      `)
+      .order('xp_total', { ascending: false })
+      .limit(5);
+
+    if (error || !leaders || leaders.length === 0) {
+      container.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">No rankings yet.</div>`;
+      return;
+    }
+
+    container.innerHTML = leaders.map((user, index) => {
+      const rankIndex = index + 1;
+      const medal = rankIndex === 1 ? '🥇' : rankIndex === 2 ? '🥈' : rankIndex === 3 ? '🥉' : `#${rankIndex}`;
+      const highlight = rankIndex <= 3 ? 'bg-gray-700/50' : '';
+      const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
+      
+      return `
+        <a href="${link}" class="flex items-center gap-3 p-2 rounded-lg transition hover:bg-gray-700/50 ${highlight} mb-1 last:mb-0">
+          <div class="w-6 text-center font-bold text-gray-400 text-sm">${medal}</div>
+          <img src="${user.avatar_url || 'https://ui-avatars.com/api/?name=${user.username}'}" class="w-8 h-8 rounded-full border border-gray-600">
+          <div class="flex-1 min-w-0">
+            <div class="text-white text-sm font-bold truncate">${user.username}</div>
+          </div>
+          <div class="text-cyan-400 text-xs font-mono font-bold">${user.xp_total.toLocaleString()} XP</div>
+        </a>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error('Leaderboard preview error:', err);
+    container.innerHTML = `<div class="text-center text-red-400 text-sm py-4">Error loading rankings.</div>`;
   }
 }
 
