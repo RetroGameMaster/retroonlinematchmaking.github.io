@@ -776,6 +776,7 @@ async function loadChatMessages(rom, roomId) {
 }
 
 // ✅ FIX: Added 'rom' argument and fixed layout CSS to prevent overlap
+// ✅ FIX: Stacked Layout (Card on top, Message below) - Guarantees no overlap
 async function appendMessageToDOM(msg, currentUserId, rom) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
@@ -794,6 +795,7 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         profileData = data;
     } catch (e) { profileData = null; }
 
+    // 2. Prepare Data
     const username = profileData?.username || msg.username || 'Unknown';
     const avatarUrl = profileData?.avatar_url || msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${username}`;
@@ -801,68 +803,59 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
     const rankName = profileData?.rank?.name || null;
     const rankColor = profileData?.rank?.color || '#9ca3af';
     const motto = profileData?.motto || '';
-    const articleCount = profileData?.stats?.articles_published || 0;
-    const isWriter = articleCount > 0;
-    
     const gcBgType = profileData?.gamercard_bg_type || 'color';
     const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
+    const articleCount = profileData?.stats?.articles_published || 0;
+    const isWriter = articleCount > 0;
 
+    // 3. Construct Gamercard Background
     let bgStyle = `background-color: ${gcBgValue};`;
     if (gcBgType === 'image') bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
     else if (gcBgType === 'gradient') bgStyle = `background-image: ${gcBgValue};`;
 
     const writerBadgeHtml = isWriter ? `<span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:#ec489940; color:#ec4899; border:1px solid #ec4899;">✒️ Writer</span>` : '';
 
-    // --- CRITICAL FIX: WRAPPER STRUCTURE ---
-    // We create a wrapper that holds BOTH the card and the bubble.
-    // This wrapper aligns to the left or right.
-    // Inside, the Card and Bubble are stacked vertically (col) or flex-start, 
-    // ensuring the bubble NEVER goes under the card.
+    // 4. Construct HTML (STACKED LAYOUT)
+    // Structure: [Container -> [Gamercard Header] + [Message Bubble]]
+    const messageEl = document.createElement('div');
     
-    const gamercardHtml = `
-        <a href="${profileLink}" class="block flex-shrink-0 w-[160px] hover:scale-[1.02] transition-transform duration-200 z-20 mb-1">
-            <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
-                <div class="absolute inset-0" style="${bgStyle} opacity: 0.6; filter: brightness(0.8);"></div>
-                <div class="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
-                <div class="relative z-10 p-2 flex items-center gap-2">
-                    <img src="${avatarUrl}" alt="${username}" class="w-8 h-8 rounded-full border border-cyan-500 object-cover flex-shrink-0">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1 mb-0.5">
-                            <span class="text-[10px] font-bold text-white truncate drop-shadow-md">${escapeHtml(username)}</span>
+    // Container: Flex Column (Stacks items vertically)
+    // Items-start ensures left alignment for others, flex-row-reverse handles "Me" alignment
+    messageEl.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade-in mb-4 w-full`;
+
+    messageEl.innerHTML = `
+        <!-- TOP: Gamercard / User Info -->
+        <div class="mb-1.5 flex items-center gap-2">
+            <a href="${profileLink}" class="group block hover:scale-105 transition-transform">
+                <div class="gamercard chat-gamercard relative overflow-hidden rounded border border-gray-700 shadow-md bg-gray-900" style="width: 160px;">
+                    <div class="absolute inset-0" style="${bgStyle} opacity: 0.6; filter: brightness(0.8);"></div>
+                    <div class="absolute inset-0 bg-gradient-to-br from-black/40 to-black/20"></div>
+                    <div class="relative z-10 p-1.5 flex items-center gap-2">
+                        <img src="${avatarUrl}" class="w-6 h-6 rounded-full border border-cyan-500 object-cover">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] font-bold text-white truncate">${escapeHtml(username)}</span>
+                            </div>
+                            ${rankName ? `<span class="text-[8px] px-1 rounded font-bold block w-fit" style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor};">${escapeHtml(rankName)}</span>` : ''}
+                            ${writerBadgeHtml}
                         </div>
-                        ${rankName ? `<span class="text-[8px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor};">${escapeHtml(rankName)}</span>` : ''}
-                        ${writerBadgeHtml}
                     </div>
                 </div>
-            </div>
-        </a>
-    `;
+            </a>
+            <span class="text-[9px] text-gray-500 mt-2">${time}</span>
+        </div>
 
-    const bubbleHtml = `
-        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
-            <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
-                <span class="text-[10px] text-gray-500">${time}</span>
-            </div>
-            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-xs md:text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 max-w-[280px] sm:max-w-[400px] ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-tr-none' : 'rounded-tl-none'}">
-                ${escapeHtml(msg.message)}
-            </div>
+        <!-- BOTTOM: Message Bubble -->
+        <!-- Max-width ensures it doesn't stretch too wide on large screens -->
+        <div class="text-sm px-3 py-2 rounded-lg break-words shadow-md border border-gray-700 max-w-[90%] md:max-w-[80%] ${
+            isMe 
+            ? 'bg-cyan-900/40 text-cyan-50 rounded-tl-none border-cyan-800/50' 
+            : 'bg-gray-800 text-gray-200 rounded-tr-none'
+        }">
+            ${escapeHtml(msg.message)}
         </div>
     `;
 
-    const messageEl = document.createElement('div');
-    
-    // LAYOUT LOGIC:
-    // We use 'flex' and 'flex-col' on mobile, 'flex-row' on larger screens IF space permits,
-    // BUT to guarantee no overlap, we simply align the whole block left/right.
-    // The Card has a fixed width (160px). The Bubble has max-width.
-    // They sit in a container that wraps if needed, but usually sits side by side on desktop.
-    
-    // ACTUAL FIX: Use a Grid or Flex row that WRAPS.
-    // If the screen is too small, the bubble drops BELOW the card automatically.
-    messageEl.className = `flex flex-wrap gap-2 ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in mb-4 items-start`;
-    
-    messageEl.innerHTML = gamercardHtml + bubbleHtml;
-    
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
 }
