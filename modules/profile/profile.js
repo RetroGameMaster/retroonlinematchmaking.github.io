@@ -550,13 +550,17 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       <div class="ra-header-content w-full p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
         
         <!-- Avatar: Centered on Mobile -->
-        <div class="ra-avatar-container flex-shrink-0 mx-auto md:mx-0" style="${avatarStyle || ''}">
-          <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
-               alt="${profile.username}" 
-               class="${avatarClass || 'ra-avatar'} w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] object-cover" 
-               style="border: 4px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3);">
-          <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'} absolute bottom-1 right-1 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 border-white"></div>
-        </div>
+        <div class="ra-avatar-container" style="${avatarStyle || ''}; flex-shrink: 0;">
+  <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
+       alt="${profile.username}" 
+       class="${avatarClass || 'ra-avatar'}" 
+       style="border: 2px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3);">
+  
+  <!-- FIX: Inline style ensures green shows even if CSS class fails -->
+  <div class="ra-status-dot" 
+       style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; background-color: ${profile.is_online ? '#22c55e' : '#6b7280'}; z-index: 10;">
+  </div>
+</div>
 
         <!-- Info: Centered Text on Mobile, Left on Desktop -->
         <div class="ra-info flex-1 w-full text-center md:text-left min-w-0">
@@ -586,8 +590,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               <div class="text-xs text-gray-400 uppercase">Games</div>
             </div>
             <div class="ra-stat text-center">
-              <div class="text-xl font-bold text-white">${profile.stats?.comments_made || 0}</div>
-              <div class="text-xs text-gray-400 uppercase">Comments</div>
+             <div style="font-size: 1.2rem; font-weight: bold; color: #fbbf24;">${profile.stats?.site_posts_total || 0}</div>
+             <div style="font-size: 0.75rem; color: #fbbf24; text-transform: uppercase;">Site Posts</div>
             </div>
             <div class="ra-stat text-center">
               <div class="text-xl font-bold text-yellow-400">${profile.xp_total || 0}</div>
