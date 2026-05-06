@@ -75,32 +75,33 @@ function showLoginPrompt() {
 
 function loadChatInterface() {
   const app = document.getElementById('app-content');
+  // ✅ MOBILE FIX: Use dvh for better mobile browser support, flex-col for stacking
   app.innerHTML = `
-    <div class="flex flex-col h-[calc(100vh-100px)] gap-4">
+    <div class="flex flex-col h-[calc(100dvh-80px)] gap-2 md:gap-4 p-2 md:p-4">
       <!-- Header -->
-      <div class="bg-gray-800 p-4 rounded-xl border border-cyan-500/30 flex justify-between items-center shadow-lg">
-        <h1 class="text-2xl font-bold text-cyan-400 flex items-center gap-2">
-          <span>💬</span> ROM Chat
+      <div class="bg-gray-800 p-3 md:p-4 rounded-xl border border-cyan-500/30 flex justify-between items-center shadow-lg flex-shrink-0">
+        <h1 class="text-xl md:text-2xl font-bold text-cyan-400 flex items-center gap-2 truncate">
+          <span>💬</span> <span class="truncate">ROM Chat</span>
         </h1>
-        <div class="flex items-center gap-4">
-          <div class="text-sm text-gray-400">
-            Logged in as <span class="text-cyan-300 font-bold">${userProfile?.username || 'User'}</span>
+        <div class="flex items-center gap-2 md:gap-4 flex-shrink-0">
+          <div class="hidden md:block text-sm text-gray-400 truncate max-w-[150px]">
+            <span class="text-cyan-300 font-bold">${userProfile?.username || 'User'}</span>
           </div>
-          <button onclick="window.location.hash='#/home'" class="text-gray-400 hover:text-white">
-            ✕ Close
+          <button onclick="window.location.hash='#/home'" class="text-gray-400 hover:text-white p-2">
+            ✕
           </button>
         </div>
       </div>
 
-      <!-- Main Grid -->
-      <div class="flex flex-1 gap-4 overflow-hidden">
+      <!-- Main Grid: Stacks on mobile, side-by-side on desktop -->
+      <div class="flex flex-1 flex-col lg:flex-row gap-2 md:gap-4 overflow-hidden min-h-0">
         
-        <!-- Sidebar -->
-        <div class="w-72 flex flex-col gap-4 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+        <!-- Sidebar: Becomes top section on mobile -->
+        <div class="w-full lg:w-72 flex flex-col gap-2 md:gap-4 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex-shrink-0 lg:flex-shrink-0 h-[40vh] lg:h-auto">
           <!-- Tabs -->
-          <div class="flex border-b border-gray-700">
-            <button id="tab-rooms" class="flex-1 p-3 text-sm font-bold text-cyan-400 border-b-2 border-cyan-400 bg-gray-900/50">Rooms</button>
-            <button id="tab-dms" class="flex-1 p-3 text-sm font-bold text-gray-400 hover:text-white">Direct Messages</button>
+          <div class="flex border-b border-gray-700 flex-shrink-0">
+            <button id="tab-rooms" class="flex-1 p-3 text-xs md:text-sm font-bold text-cyan-400 border-b-2 border-cyan-400 bg-gray-900/50 transition">Rooms</button>
+            <button id="tab-dms" class="flex-1 p-3 text-xs md:text-sm font-bold text-gray-400 hover:text-white transition">Direct Messages</button>
           </div>
           
           <!-- Content Area -->
@@ -109,46 +110,46 @@ function loadChatInterface() {
           </div>
           
           <!-- Online Users Mini List -->
-          <div class="p-3 border-t border-gray-700 bg-gray-900/50">
-            <h3 class="text-xs font-bold text-gray-400 uppercase mb-2">Online Now</h3>
-            <div id="mini-online-list" class="space-y-1 max-h-32 overflow-y-auto"></div>
+          <div class="p-3 border-t border-gray-700 bg-gray-900/50 flex-shrink-0">
+            <h3 class="text-[10px] md:text-xs font-bold text-gray-400 uppercase mb-2">Online Now</h3>
+            <div id="mini-online-list" class="space-y-1 max-h-24 overflow-y-auto"></div>
           </div>
         </div>
 
-        <!-- Chat Area -->
-        <div class="flex-1 flex flex-col bg-gray-800 rounded-xl border border-cyan-500/30 overflow-hidden shadow-lg">
+        <!-- Chat Area: Takes remaining space -->
+        <div class="flex-1 flex flex-col bg-gray-800 rounded-xl border border-cyan-500/30 overflow-hidden shadow-lg min-w-0">
           <!-- Chat Header -->
-          <div class="p-4 border-b border-gray-700 bg-gray-900/50 flex justify-between items-center">
-            <div>
-              <h2 id="chat-header-title" class="text-xl font-bold text-white">Select a Room</h2>
-              <p id="chat-header-subtitle" class="text-sm text-gray-400">Join a conversation to start chatting</p>
+          <div class="p-3 md:p-4 border-b border-gray-700 bg-gray-900/50 flex justify-between items-center flex-shrink-0">
+            <div class="min-w-0 flex-1">
+              <h2 id="chat-header-title" class="text-lg md:text-xl font-bold text-white truncate">Select a Room</h2>
+              <p id="chat-header-subtitle" class="text-xs md:text-sm text-gray-400 truncate">Join a conversation to start chatting</p>
             </div>
-            <div id="chat-actions" class="hidden"></div>
+            <div id="chat-actions" class="hidden flex-shrink-0 ml-2"></div>
           </div>
 
           <!-- Messages -->
-          <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
+          <div id="messages-container" class="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 scroll-smooth min-h-0">
             <div class="text-center text-gray-500 mt-10">
               <p>Select a room or user to begin.</p>
             </div>
           </div>
 
           <!-- Typing Indicator -->
-          <div id="typing-indicator" class="px-4 h-6 text-xs text-gray-400 italic"></div>
+          <div id="typing-indicator" class="px-3 md:px-4 h-5 md:h-6 text-[10px] md:text-xs text-gray-400 italic flex-shrink-0"></div>
 
           <!-- Input -->
-          <div class="p-4 border-t border-gray-700 bg-gray-900/50">
+          <div class="p-3 md:p-4 border-t border-gray-700 bg-gray-900/50 flex-shrink-0">
             <div class="flex gap-2">
               <input 
                 id="message-input" 
                 type="text" 
                 placeholder="Type a message..." 
-                class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"
+                class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 md:px-4 py-2 md:py-3 text-sm md:text-base text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition min-w-0"
                 disabled
               />
               <button 
                 id="send-btn" 
-                class="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-bold transition"
+                class="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 md:px-6 py-2 md:py-3 rounded-lg font-bold transition text-sm md:text-base whitespace-nowrap"
                 disabled
               >
                 Send
