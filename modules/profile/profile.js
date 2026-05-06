@@ -503,19 +503,26 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   });
 
   // Create Overlay for readability
-  const overlayEl = document.createElement('div');
-  overlayEl.id = 'profile-bg-overlay';
-  Object.assign(overlayEl.style, {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.45)', // Darker overlay for profiles
-    zIndex: '-1',
-    backdropFilter: 'blur(4px)', // Nice blur effect
-    pointerEvents: 'none'
-  });
+ const overlayEl = document.createElement('div');
+overlayEl.id = 'profile-bg-overlay';
+
+// Check if background is an image to reduce darkness
+let overlayOpacity = '0.45'; // Default for colors/gradients
+if (bgType === 'image') {
+  overlayOpacity = '0.15'; // Much lighter for images/GIFs so they pop
+}
+
+Object.assign(overlayEl.style, {
+  position: 'fixed',
+  top: '0',
+  left: '0',
+  width: '100%',
+  height: '100%',
+  backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`,
+  zIndex: '-1',
+  backdropFilter: bgType === 'image' ? 'blur(2px)' : 'blur(4px)', // Less blur for images
+  pointerEvents: 'none'
+});
 
   // Inject into DOM
   document.body.insertBefore(bgEl, document.body.firstChild);
