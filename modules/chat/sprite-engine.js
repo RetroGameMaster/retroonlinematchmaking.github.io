@@ -168,16 +168,34 @@ export default class SpriteEngine {
     });
   }
 
-  draw() {
+draw() {
     if (!this.ctx) return;
+    
+    // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // DEBUG: Draw a red dot at center to prove canvas works
+    this.ctx.fillStyle = 'red';
+    this.ctx.beginPath();
+    this.ctx.arc(this.canvas.width/2, this.canvas.height/2, 5, 0, Math.PI*2);
+    this.ctx.fill();
+    this.ctx.fillStyle = 'white';
+    this.ctx.font = '12px Arial';
+    this.ctx.fillText("Canvas Active", 10, 20);
 
+    // Draw Sprites
     Object.keys(this.users).forEach(uid => {
       const u = this.users[uid];
       const def = this.spriteDefinitions[u.spriteId];
       const img = this.sprites[u.spriteId];
 
-      if (!img || !img.complete || !def) return;
+      // DEBUG: Log missing assets
+      if (!img) { console.warn(`⚠️ Image not loaded for ${uid}`); return; }
+      if (!img.complete || img.naturalWidth === 0) { 
+          console.warn(`⚠️ Image broken for ${uid}:`, img.src); 
+          return; 
+      }
+      if (!def) { console.warn(`⚠️ No definition for ${u.spriteId}`); return; }
 
       const frameW = def.frame_width;
       const frameH = def.frame_height;
@@ -189,12 +207,11 @@ export default class SpriteEngine {
       const frames = animMap[u.state] || animMap['idle'] || [0];
       const frameIndex = frames[u.frame] || 0;
 
-      // Calculate Source Rect (from sprite sheet)
-      // Assuming horizontal strip:
+      // Calculate Source Rect
       const sx = frameIndex * frameW;
       const sy = 0; 
 
-      // Draw Sprite (Flip if moving left)
+      // Draw Sprite
       this.ctx.save();
       if (u.direction === -1) {
         this.ctx.translate(u.x + drawW, u.y);
