@@ -1,4 +1,4 @@
-import { supabase, isAdmin } from '../../lib/supabase.js';
+ import { supabase, isAdmin } from '../../lib/supabase.js';
 
 // ============================================================================
 // MODULE INITIALIZATION
@@ -19,7 +19,9 @@ export async function initModule(container, params) {
       <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
       <p class="text-cyan-400 mt-4 text-xl">Loading Profile...</p>
     </div>
-  `;const updatePageSEO = (profile) => {
+  `;
+
+  const updatePageSEO = (profile) => {
     document.title = `${profile.username}'s Profile | RetroOnlineMatchmaking`;
     
     // Update/Open Graph Meta Tags
@@ -50,7 +52,7 @@ export async function initModule(container, params) {
       document.head.appendChild(script);
     }
     script.textContent = JSON.stringify({
-      "@context": "https://schema.org",
+      "@context": " https://schema.org ",
       "@type": "Person",
       "name": profile.username,
       "url": window.location.href,
@@ -93,6 +95,7 @@ export async function initModule(container, params) {
     
     // FIX 1: DYNAMIC ADMIN CHECK
     const isTargetUserAdmin = !!targetUser.is_admin;
+    
     // --- NEW: Trigger SEO and Data Loaders ---
     updatePageSEO(targetUser); // Apply SEO tags
     
@@ -102,6 +105,7 @@ export async function initModule(container, params) {
     if (typeof loadProudAchievementsWall === 'function') loadProudAchievementsWall(targetUser.id, isOwnProfile);
     if (typeof loadGameAchievementsWall === 'function') loadGameAchievementsWall(targetUser.id, isOwnProfile);
     if (typeof loadMasteredGamesWall === 'function') loadMasteredGamesWall(targetUser.id);
+    
     // 3. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
@@ -455,7 +459,7 @@ function getGameLink(game) {
 }
 
 // ============================================================================
-// RENDERING LOGIC
+// RENDERING LOGIC (MOBILE FIXES APPLIED HERE)
 // ============================================================================
 
 function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin, currentUser) {
@@ -517,115 +521,125 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   document.body.insertBefore(bgEl, document.body.firstChild);
   document.body.insertBefore(overlayEl, document.body.firstChild);
 
-  // 3. Prepare Avatar Styles (Rest of original logic)
+  // 3. Prepare Avatar Styles
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
   const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
+  // ✅ MOBILE FIX: Added overflow-x-hidden and w-full to wrapper
   container.innerHTML = `
-    <div class="ra-profile-wrapper">
-    <div class="ra-header" style="position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
-  
-  <!-- 1. Gamercard Dynamic Background (Behind everything) -->
-  ${profile.gamercard_bg_type === 'image' && profile.gamercard_bg_value ? `
-    <div style="position: absolute; inset: 0; background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; z-index: 0;"></div>
-  ` : ''}
-  ${profile.gamercard_bg_type === 'gradient' && profile.gamercard_bg_value ? `
-    <div style="position: absolute; inset: 0; background-image: ${profile.gamercard_bg_value}; z-index: 0;"></div>
-  ` : ''}
-  ${profile.gamercard_bg_type === 'color' && profile.gamercard_bg_value ? `
-    <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; z-index: 0;"></div>
-  ` : ''}
-
-  <!-- 2. DARK OVERLAY (Crucial: Makes card distinct from page bg) -->
-  <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9)); z-index: 1; backdrop-filter: blur(2px);"></div>
-  
-  <!-- 3. Content (Above overlay) -->
-  <div class="ra-header-content" style="position: relative; z-index: 2; padding: 2rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+    <div class="ra-profile-wrapper w-full overflow-x-hidden">
     
-    <!-- Avatar -->
-    <div class="ra-avatar-container" style="${avatarStyle || ''}" style="flex-shrink: 0;">
-      <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
-           alt="${profile.username}" 
-           class="${avatarClass || 'ra-avatar'}" 
-           style="border: 2px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3);">
-      <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'}"></div>
-    </div>
+    <!-- HEADER: Mobile Stack (col) -> Desktop Row (md:row) -->
+    <div class="ra-header w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4" style="position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
+  
+      <!-- Background Layers -->
+      ${profile.gamercard_bg_type === 'image' && profile.gamercard_bg_value ? `
+        <div style="position: absolute; inset: 0; background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; z-index: 0;"></div>
+      ` : ''}
+      ${profile.gamercard_bg_type === 'gradient' && profile.gamercard_bg_value ? `
+        <div style="position: absolute; inset: 0; background-image: ${profile.gamercard_bg_value}; z-index: 0;"></div>
+      ` : ''}
+      ${profile.gamercard_bg_type === 'color' && profile.gamercard_bg_value ? `
+        <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; z-index: 0;"></div>
+      ` : ''}
 
-    <!-- Info -->
-    <div class="ra-info" style="flex: 1; min-width: 200px;">
-      <h1 class="ra-username" style="font-size: 2rem; margin: 0; text-shadow: 0 2px 4px black;">${profile.username}</h1>
+      <!-- DARK OVERLAY -->
+      <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9)); z-index: 1; backdrop-filter: blur(2px);"></div>
       
-      <!-- RANK BADGE (Fixed Logic) -->
-      ${profile.rank && profile.rank.name ? `
-        <div class="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-md border shadow-lg backdrop-blur-sm" 
-             style="background: rgba(0,0,0,0.6); border-color: ${profile.rank.color}; box-shadow: 0 0 10px ${profile.rank.color}40;">
-          <span style="color: ${profile.rank.color}; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
-            👑 ${profile.rank.name}
-          </span>
+      <!-- Content: Flex Col on Mobile, Row on Desktop -->
+      <div class="ra-header-content w-full p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
+        
+        <!-- Avatar: Centered on Mobile -->
+        <div class="ra-avatar-container flex-shrink-0 mx-auto md:mx-0" style="${avatarStyle || ''}">
+          <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
+               alt="${profile.username}" 
+               class="${avatarClass || 'ra-avatar'} w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] object-cover" 
+               style="border: 4px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3);">
+          <div class="ra-status-dot ${profile.is_online ? 'online' : 'offline'} absolute bottom-1 right-1 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 border-white"></div>
         </div>
-      ` : `
-        <div class="mt-2 inline-block px-3 py-1 rounded-md border border-gray-600 bg-gray-800/80">
-          <span style="color: #9ca3af; font-weight: 600; font-size: 0.85rem;">NPC</span>
-        </div>
-      `}
 
-      <!-- Motto -->
-      ${profile.motto ? `<p class="text-gray-300 text-sm italic mt-2 font-medium" style="text-shadow: 0 1px 2px black;">"${escapeHtml(profile.motto)}"</p>` : ''}
-      
-      <!-- Stats Row -->
-      <div class="ra-stats-row" style="display: flex; gap: 1.5rem; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
-        <div class="ra-stat" style="text-align: center;">
-          <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">${profile.stats?.games_approved || 0}</div>
-          <div style="font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Games</div>
+        <!-- Info: Centered Text on Mobile, Left on Desktop -->
+        <div class="ra-info flex-1 w-full text-center md:text-left min-w-0">
+          <h1 class="ra-username text-3xl md:text-4xl font-bold m-0 text-white break-words" style="text-shadow: 0 2px 4px black;">${profile.username}</h1>
+          
+          <!-- RANK BADGE -->
+          ${profile.rank && profile.rank.name ? `
+            <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-md border shadow-lg backdrop-blur-sm" 
+                 style="background: rgba(0,0,0,0.6); border-color: ${profile.rank.color}; box-shadow: 0 0 10px ${profile.rank.color}40;">
+              <span style="color: ${profile.rank.color}; font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                👑 ${profile.rank.name}
+              </span>
+            </div>
+          ` : `
+            <div class="mt-3 inline-block px-3 py-1 rounded-md border border-gray-600 bg-gray-800/80">
+              <span style="color: #9ca3af; font-weight: 600; font-size: 0.85rem;">NPC</span>
+            </div>
+          `}
+
+          <!-- Motto -->
+          ${profile.motto ? `<p class="text-gray-300 text-sm italic mt-3 font-medium break-words" style="text-shadow: 0 1px 2px black;">"${escapeHtml(profile.motto)}"</p>` : ''}
+          
+          <!-- Stats Row: Wrap on Mobile -->
+          <div class="ra-stats-row flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 mt-4 pt-4 border-t border-white/10">
+            <div class="ra-stat text-center">
+              <div class="text-xl font-bold text-white">${profile.stats?.games_approved || 0}</div>
+              <div class="text-xs text-gray-400 uppercase">Games</div>
+            </div>
+            <div class="ra-stat text-center">
+              <div class="text-xl font-bold text-white">${profile.stats?.comments_made || 0}</div>
+              <div class="text-xs text-gray-400 uppercase">Comments</div>
+            </div>
+            <div class="ra-stat text-center">
+              <div class="text-xl font-bold text-yellow-400">${profile.xp_total || 0}</div>
+              <div class="text-xs text-yellow-400 uppercase">XP</div>
+            </div>
+          </div>
         </div>
-        <div class="ra-stat" style="text-align: center;">
-          <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">${profile.stats?.comments_made || 0}</div>
-          <div style="font-size: 0.75rem; color: #9ca3af; text-transform: uppercase;">Comments</div>
-        </div>
-        <!-- XP Stat -->
-        <div class="ra-stat" style="text-align: center;">
-          <div style="font-size: 1.2rem; font-weight: bold; color: #fbbf24;">${profile.xp_total || 0}</div>
-          <div style="font-size: 0.75rem; color: #fbbf24; text-transform: uppercase;">XP</div>
-        </div>
+
+        <!-- Edit Button: Full Width on Mobile -->
+        ${isOwnProfile ? `
+          <div class="w-full md:w-auto mt-4 md:mt-0">
+            <button id="btn-edit-profile" class="ra-edit-btn w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-2 rounded-lg cursor-pointer backdrop-blur-md transition font-bold">
+              Edit Profile
+            </button>
+          </div>
+        ` : ''}
       </div>
     </div>
 
-    ${isOwnProfile ? `
-      <button id="btn-edit-profile" class="ra-edit-btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; backdrop-filter: blur(4px);">
-        Edit Profile
-      </button>
-    ` : ''}
-  </div>
-</div>
-
       ${profile.signature_text ? `
-        <div class="ra-signature-box" style="${profile.signature_custom_css || ''}">
+        <div class="ra-signature-box w-full mx-auto max-w-7xl px-4 mt-4" style="${profile.signature_custom_css || ''}">
           ${profile.signature_text}
         </div>
       ` : ''}
 
-      <!-- NEW: SITE AWARDS WALL (Top Priority) -->
-      <div class="ra-card mb-6 border-purple-500/50 bg-purple-900/10">
-        <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
-          🎖️ Site Awards & Badges
-        </h3>
-        <div id="site-awards-list" class="flex flex-wrap gap-4 min-h-[60px]">
-          <div class="text-gray-500 text-sm italic">Loading awards...</div>
-        </div>
-      </div>
+      <!-- MAIN GRID: 1 Column Mobile, 3 Columns Large -->
+      <div class="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        
+        <!-- LEFT COLUMN (Main Content) -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Site Awards -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-purple-500/30 p-6">
+            <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
+              🎖️ Site Awards & Badges
+            </h3>
+            <div id="site-awards-list" class="flex flex-wrap gap-4 min-h-[60px]">
+              <div class="text-gray-500 text-sm italic">Loading awards...</div>
+            </div>
+          </div>
 
-      <div class="ra-grid">
-        <div class="ra-col-main">
-          <div class="ra-card">
-            <h3>About</h3>
-            <p class="ra-bio">${profile.bio || 'No bio added yet.'}</p>
+          <!-- About -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+            <h3 class="text-lg font-bold text-white mb-3">About</h3>
+            <p class="ra-bio text-gray-300 leading-relaxed break-words">${profile.bio || 'No bio added yet.'}</p>
           </div>
           
-          <!-- Currently Playing Section -->
-          <div class="ra-card">
-            <h3>🎮 What I'm Playing Currently</h3>
+          <!-- Currently Playing -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+            <h3 class="text-lg font-bold text-white mb-4">🎮 What I'm Playing Currently</h3>
             <div id="currently-playing-container">
-              <div id="currently-playing-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div id="currently-playing-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 <div class="col-span-full text-center text-gray-500 py-4">
                   <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
                   <span class="ml-2 text-sm">Loading games...</span>
@@ -634,12 +648,12 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- NEW: MOST PROUD ACHIEVEMENTS WALL -->
-          <div class="ra-card mt-6">
+          <!-- Proud Achievements -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-yellow-500/30 p-6">
             <h3 class="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
               ⭐ Most Proud Achievements
             </h3>
-            <div id="proud-achievements-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div id="proud-achievements-list" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
               <div class="col-span-full text-center text-gray-500 py-4">
                 <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-500"></div>
                 <span class="ml-2 text-sm">Loading proud moments...</span>
@@ -647,13 +661,13 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- NEW: ALL GAME ACHIEVEMENTS WALL -->
-          <div class="ra-card mt-6">
+          <!-- All Game Achievements -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6">
             <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
               🎮 Game Achievements
               <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
             </h3>
-            <div id="game-achievements-list" class="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-3">
+            <div id="game-achievements-list" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
               <div class="col-span-full text-center text-gray-500 py-4">
                 <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
                 <span class="ml-2 text-sm">Loading achievements...</span>
@@ -661,38 +675,42 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <div class="ra-card mt-6">
-            <h3>Shout Box / Wall</h3>
+          <!-- Wall -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Shout Box / Wall</h3>
             <div id="wall-container">
               ${isOwnProfile || currentUser ? `
-                <div class="wall-post-form">
-                  <textarea id="new-wall-comment" placeholder="Say something on ${profile.username}'s wall..." class="ra-input"></textarea>
-                  <button id="btn-post-wall" class="btn-primary mt-2">Post Shout</button>
+                <div class="wall-post-form mb-4">
+                  <textarea id="new-wall-comment" placeholder="Say something on ${profile.username}'s wall..." class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none"></textarea>
+                  <button id="btn-post-wall" class="btn-primary mt-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded font-bold w-full sm:w-auto">Post Shout</button>
                 </div>
               ` : ''}
-              <div id="wall-list" class="space-y-3 mt-4">
+              <div id="wall-list" class="space-y-3">
                 <div class="text-center text-gray-500 py-4">Loading wall comments...</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="ra-col-side">
-          <div class="ra-card">
-            <h3>Friends</h3>
+        <!-- RIGHT COLUMN (Sidebar) -->
+        <div class="space-y-6">
+          
+          <!-- Friends -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
             <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
               <div class="text-sm text-gray-500 py-2">Loading friends...</div>
             </div>
             
             ${!isOwnProfile ? `
-              <div id="friend-action-container" class="mt-3">
+              <div id="friend-action-container" class="mt-4 space-y-2">
                 <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
               </div>
             ` : ''}
           </div>
 
-          <!-- NEW: MASTERED GAMES WALL -->
-          <div class="ra-card mt-6">
+          <!-- Mastered Games -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6">
             <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
               🏆 Mastered Games
             </h3>
@@ -704,124 +722,128 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <div class="ra-card mt-6">
-            <h3>Profile Details</h3>
-            <ul class="ra-details-list text-sm space-y-2">
-  <li><strong>Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
-  <li><strong>Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-  
-  ${profile.rank ? `
-    <li>
-      <strong>Current Rank:</strong> 
-      <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
-            style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
-        ${profile.rank.name}
-      </span>
-      <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
-    </li>
-  ` : '<li><strong>Rank:</strong> NPC</li>'}
-  
-  ${isTargetUserAdmin ? '<li><strong>Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
-</ul>
+          <!-- Details -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
+            <ul class="ra-details-list text-sm space-y-3 text-gray-300">
+              <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
+              <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
+              
+              ${profile.rank ? `
+                <li>
+                  <strong class="text-white">Current Rank:</strong> 
+                  <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
+                        style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
+                    ${profile.rank.name}
+                  </span>
+                  <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
+                </li>
+              ` : '<li><strong class="text-white">Rank:</strong> NPC</li>'}
+              
+              ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
+            </ul>
           </div>
         </div>
       </div>
 
       ${isOwnProfile ? `
-        <div id="edit-modal" class="ra-modal">
-          <div class="ra-modal-content">
-            <h2>Edit Profile Settings</h2>
-            <form id="profile-form">
-             <label>Username (Unique)</label>
-  <div class="flex flex-col gap-1 mb-4">
-    <input type="text" name="username" class="ra-input w-full" value="${profile.username || ''}" placeholder="Enter new username">
-    <span class="text-xs text-yellow-500">⚠️ Changing this updates your profile URL and all chat history instantly.</span>
-  </div>
-  <label>Favorite Console</label>
-<select name="favorite_console" class="ra-input w-full mb-4">
-  <option value="">Select a system...</option>
-  <option value="3D0 Interactive Multiplayer" ${profile.favorite_console === '3D0 Interactive Multiplayer' ? 'selected' : ''}>3D0 Interactive Multiplayer</option>
-  <option value="Arcade" ${profile.favorite_console === 'Arcade' ? 'selected' : ''}>Arcade</option>
-  <option value="Gameboy Color" ${profile.favorite_console === 'Gameboy Color' ? 'selected' : ''}>Gameboy Color</option>
-  <option value="Gameboy Advance" ${profile.favorite_console === 'Gameboy Advance' ? 'selected' : ''}>Gameboy Advance</option>
-  <option value="GameCube" ${profile.favorite_console === 'GameCube' ? 'selected' : ''}>GameCube</option>
-  <option value="Nintendo Entertainment System" ${profile.favorite_console === 'Nintendo Entertainment System' ? 'selected' : ''}>Nintendo Entertainment System</option>
-  <option value="Nintendo Gameboy" ${profile.favorite_console === 'Nintendo Gameboy' ? 'selected' : ''}>Nintendo Gameboy</option>
-  <option value="Nintendo 64" ${profile.favorite_console === 'Nintendo 64' ? 'selected' : ''}>Nintendo 64</option>
-  <option value="Nintendo DS" ${profile.favorite_console === 'Nintendo DS' ? 'selected' : ''}>Nintendo DS</option>
-  <option value="Nintendo 3DS" ${profile.favorite_console === 'Nintendo 3DS' ? 'selected' : ''}>Nintendo 3DS</option>
-  <option value="Nintendo Virtual Boy" ${profile.favorite_console === 'Nintendo Virtual Boy' ? 'selected' : ''}>Nintendo Virtual Boy</option>
-  <option value="PC" ${profile.favorite_console === 'PC' ? 'selected' : ''}>PC</option>
-  <option value="PlayStation 1" ${profile.favorite_console === 'PlayStation 1' ? 'selected' : ''}>PlayStation 1</option>
-  <option value="PlayStation 2" ${profile.favorite_console === 'PlayStation 2' ? 'selected' : ''}>PlayStation 2</option>
-  <option value="PlayStation 3" ${profile.favorite_console === 'PlayStation 3' ? 'selected' : ''}>PlayStation 3</option>
-  <option value="PlayStation 4" ${profile.favorite_console === 'PlayStation 4' ? 'selected' : ''}>PlayStation 4</option>
-  <option value="PlayStation 5" ${profile.favorite_console === 'PlayStation 5' ? 'selected' : ''}>PlayStation 5</option>
-  <option value="Playstation Portable" ${profile.favorite_console === 'Playstation Portable' ? 'selected' : ''}>Playstation Portable</option>
-  <option value="PlayStation Vita" ${profile.favorite_console === 'PlayStation Vita' ? 'selected' : ''}>PlayStation Vita</option>
-  <option value="Neo Geo AES" ${profile.favorite_console === 'Neo Geo AES' ? 'selected' : ''}>Neo Geo AES</option>
-  <option value="Neo Geo CD" ${profile.favorite_console === 'Neo Geo CD' ? 'selected' : ''}>Neo Geo CD</option>
-  <option value="Sega SG-1000" ${profile.favorite_console === 'Sega SG-1000' ? 'selected' : ''}>Sega SG-1000</option>
-  <option value="Sega Mark III" ${profile.favorite_console === 'Sega Mark III' ? 'selected' : ''}>Sega Mark III</option>
-  <option value="Sega Genesis/MD" ${profile.favorite_console === 'Sega Genesis/MD' ? 'selected' : ''}>Sega Genesis/MD</option>
-  <option value="Sega 32X" ${profile.favorite_console === 'Sega 32X' ? 'selected' : ''}>Sega 32X</option>
-  <option value="Sega CD" ${profile.favorite_console === 'Sega CD' ? 'selected' : ''}>Sega CD</option>
-  <option value="Sega Gamegear" ${profile.favorite_console === 'Sega Gamegear' ? 'selected' : ''}>Sega Gamegear</option>
-  <option value="Sega Saturn" ${profile.favorite_console === 'Sega Saturn' ? 'selected' : ''}>Sega Saturn</option>
-  <option value="Sega Dreamcast" ${profile.favorite_console === 'Sega Dreamcast' ? 'selected' : ''}>Sega Dreamcast</option>
-  <option value="Super Nintendo Entertainment System" ${profile.favorite_console === 'Super Nintendo Entertainment System' ? 'selected' : ''}>Super Nintendo Entertainment System</option>
-  <option value="Nintendo Switch" ${profile.favorite_console === 'Nintendo Switch' ? 'selected' : ''}>Nintendo Switch</option>
-  <option value="TurboGrafx16/CD" ${profile.favorite_console === 'TurboGrafx16/CD' ? 'selected' : ''}>TurboGrafx16/CD</option>
-  <option value="Wii" ${profile.favorite_console === 'Wii' ? 'selected' : ''}>Wii</option>
-  <option value="Wii U" ${profile.favorite_console === 'Wii U' ? 'selected' : ''}>Wii U</option>
-  <option value="Xbox" ${profile.favorite_console === 'Xbox' ? 'selected' : ''}>Xbox</option>
-  <option value="Xbox 360" ${profile.favorite_console === 'Xbox 360' ? 'selected' : ''}>Xbox 360</option>
-  <option value="Other" ${profile.favorite_console === 'Other' ? 'selected' : ''}>Other</option>
-</select>
-<hr class="border-gray-700 my-4">
-<h3 class="text-cyan-400 font-bold mb-2">🎮 Gamercard Settings</h3>
-
-<label>Gamer Motto / Signature</label>
-<input type="text" name="motto" class="ra-input w-full mb-4" value="${profile.motto || ''}" placeholder="Enter a short motto..." maxlength="100">
-
-<label>Gamercard Background Type</label>
-<select name="gc_bg_type" id="gc_bg_type" class="ra-input w-full mb-4">
-  <option value="color" ${profile.gamercard_bg_type === 'color' ? 'selected' : ''}>Solid Color</option>
-  <option value="image" ${profile.gamercard_bg_type === 'image' ? 'selected' : ''}>Uploaded Image / GIF</option>
-  <option value="gradient" ${profile.gamercard_bg_type === 'gradient' ? 'selected' : ''}>Gradient</option>
-</select>
-
-<div id="gc-upload-container" style="display: ${profile.gamercard_bg_type === 'image' ? 'block' : 'none'};" class="mb-4">
-  <label class="block text-sm text-cyan-400 mb-1">Upload Gamercard Background</label>
-  <input type="file" id="gc_file_input" accept="image/*" class="ra-input">
-</div>
-
-<label class="block mb-4">Background Value (Color Hex, Gradient CSS, or URL)</label>
-<input type="text" name="gc_bg_value" id="gc_bg_value" class="ra-input w-full" value="${profile.gamercard_bg_value || '#1f2937'}">
-              <label>Bio</label>
-              <textarea name="bio" class="ra-input" rows="3">${profile.bio || ''}</textarea>
-
-              <hr class="border-gray-700 my-4">
-              <label>Signature Content (HTML Allowed)</label>
-              <textarea name="signature_text" class="ra-input" rows="3">${profile.signature_text || ''}</textarea>
+        <div id="edit-modal" class="ra-modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 hidden backdrop-blur-sm">
+          <div class="ra-modal-content bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 m-4 shadow-2xl">
+            <h2 class="text-2xl font-bold text-white mb-6">Edit Profile Settings</h2>
+            <form id="profile-form" class="space-y-4">
+             <label class="block text-sm font-bold text-cyan-400">Username (Unique)</label>
+             <div class="flex flex-col gap-1 mb-4">
+                <input type="text" name="username" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none" value="${profile.username || ''}" placeholder="Enter new username">
+                <span class="text-xs text-yellow-500">⚠️ Changing this updates your profile URL and all chat history instantly.</span>
+              </div>
               
-              <label>Signature Custom CSS</label>
-              <textarea name="signature_custom_css" class="ra-input font-mono text-xs" rows="4">${profile.signature_custom_css || ''}</textarea>
+              <label class="block text-sm font-bold text-cyan-400">Favorite Console</label>
+              <select name="favorite_console" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none mb-4">
+                <option value="">Select a system...</option>
+                <option value="3D0 Interactive Multiplayer" ${profile.favorite_console === '3D0 Interactive Multiplayer' ? 'selected' : ''}>3D0 Interactive Multiplayer</option>
+                <option value="Arcade" ${profile.favorite_console === 'Arcade' ? 'selected' : ''}>Arcade</option>
+                <option value="Gameboy Color" ${profile.favorite_console === 'Gameboy Color' ? 'selected' : ''}>Gameboy Color</option>
+                <option value="Gameboy Advance" ${profile.favorite_console === 'Gameboy Advance' ? 'selected' : ''}>Gameboy Advance</option>
+                <option value="GameCube" ${profile.favorite_console === 'GameCube' ? 'selected' : ''}>GameCube</option>
+                <option value="Nintendo Entertainment System" ${profile.favorite_console === 'Nintendo Entertainment System' ? 'selected' : ''}>Nintendo Entertainment System</option>
+                <option value="Nintendo Gameboy" ${profile.favorite_console === 'Nintendo Gameboy' ? 'selected' : ''}>Nintendo Gameboy</option>
+                <option value="Nintendo 64" ${profile.favorite_console === 'Nintendo 64' ? 'selected' : ''}>Nintendo 64</option>
+                <option value="Nintendo DS" ${profile.favorite_console === 'Nintendo DS' ? 'selected' : ''}>Nintendo DS</option>
+                <option value="Nintendo 3DS" ${profile.favorite_console === 'Nintendo 3DS' ? 'selected' : ''}>Nintendo 3DS</option>
+                <option value="Nintendo Virtual Boy" ${profile.favorite_console === 'Nintendo Virtual Boy' ? 'selected' : ''}>Nintendo Virtual Boy</option>
+                <option value="PC" ${profile.favorite_console === 'PC' ? 'selected' : ''}>PC</option>
+                <option value="PlayStation 1" ${profile.favorite_console === 'PlayStation 1' ? 'selected' : ''}>PlayStation 1</option>
+                <option value="PlayStation 2" ${profile.favorite_console === 'PlayStation 2' ? 'selected' : ''}>PlayStation 2</option>
+                <option value="PlayStation 3" ${profile.favorite_console === 'PlayStation 3' ? 'selected' : ''}>PlayStation 3</option>
+                <option value="PlayStation 4" ${profile.favorite_console === 'PlayStation 4' ? 'selected' : ''}>PlayStation 4</option>
+                <option value="PlayStation 5" ${profile.favorite_console === 'PlayStation 5' ? 'selected' : ''}>PlayStation 5</option>
+                <option value="Playstation Portable" ${profile.favorite_console === 'Playstation Portable' ? 'selected' : ''}>Playstation Portable</option>
+                <option value="PlayStation Vita" ${profile.favorite_console === 'PlayStation Vita' ? 'selected' : ''}>PlayStation Vita</option>
+                <option value="Neo Geo AES" ${profile.favorite_console === 'Neo Geo AES' ? 'selected' : ''}>Neo Geo AES</option>
+                <option value="Neo Geo CD" ${profile.favorite_console === 'Neo Geo CD' ? 'selected' : ''}>Neo Geo CD</option>
+                <option value="Sega SG-1000" ${profile.favorite_console === 'Sega SG-1000' ? 'selected' : ''}>Sega SG-1000</option>
+                <option value="Sega Mark III" ${profile.favorite_console === 'Sega Mark III' ? 'selected' : ''}>Sega Mark III</option>
+                <option value="Sega Genesis/MD" ${profile.favorite_console === 'Sega Genesis/MD' ? 'selected' : ''}>Sega Genesis/MD</option>
+                <option value="Sega 32X" ${profile.favorite_console === 'Sega 32X' ? 'selected' : ''}>Sega 32X</option>
+                <option value="Sega CD" ${profile.favorite_console === 'Sega CD' ? 'selected' : ''}>Sega CD</option>
+                <option value="Sega Gamegear" ${profile.favorite_console === 'Sega Gamegear' ? 'selected' : ''}>Sega Gamegear</option>
+                <option value="Sega Saturn" ${profile.favorite_console === 'Sega Saturn' ? 'selected' : ''}>Sega Saturn</option>
+                <option value="Sega Dreamcast" ${profile.favorite_console === 'Sega Dreamcast' ? 'selected' : ''}>Sega Dreamcast</option>
+                <option value="Super Nintendo Entertainment System" ${profile.favorite_console === 'Super Nintendo Entertainment System' ? 'selected' : ''}>Super Nintendo Entertainment System</option>
+                <option value="Nintendo Switch" ${profile.favorite_console === 'Nintendo Switch' ? 'selected' : ''}>Nintendo Switch</option>
+                <option value="TurboGrafx16/CD" ${profile.favorite_console === 'TurboGrafx16/CD' ? 'selected' : ''}>TurboGrafx16/CD</option>
+                <option value="Wii" ${profile.favorite_console === 'Wii' ? 'selected' : ''}>Wii</option>
+                <option value="Wii U" ${profile.favorite_console === 'Wii U' ? 'selected' : ''}>Wii U</option>
+                <option value="Xbox" ${profile.favorite_console === 'Xbox' ? 'selected' : ''}>Xbox</option>
+                <option value="Xbox 360" ${profile.favorite_console === 'Xbox 360' ? 'selected' : ''}>Xbox 360</option>
+                <option value="Other" ${profile.favorite_console === 'Other' ? 'selected' : ''}>Other</option>
+              </select>
 
-              <hr class="border-gray-700 my-4">
-              <label>Avatar Overlay Custom CSS</label>
-              <textarea name="avatar_custom_css" class="ra-input font-mono text-xs" rows="4">${profile.avatar_custom_css || ''}</textarea>
+              <hr class="border-gray-700 my-6">
+              <h3 class="text-cyan-400 font-bold mb-4">🎮 Gamercard Settings</h3>
 
-              <hr class="border-gray-700 my-4">
-              <label>Update Profile Picture</label>
-              <input type="file" id="avatar_file_input" accept="image/*" class="ra-input">
+              <label class="block text-sm font-bold text-cyan-400">Gamer Motto / Signature</label>
+              <input type="text" name="motto" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none mb-4" value="${profile.motto || ''}" placeholder="Enter a short motto..." maxlength="100">
+
+              <label class="block text-sm font-bold text-cyan-400">Gamercard Background Type</label>
+              <select name="gc_bg_type" id="gc_bg_type" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none mb-4">
+                <option value="color" ${profile.gamercard_bg_type === 'color' ? 'selected' : ''}>Solid Color</option>
+                <option value="image" ${profile.gamercard_bg_type === 'image' ? 'selected' : ''}>Uploaded Image / GIF</option>
+                <option value="gradient" ${profile.gamercard_bg_type === 'gradient' ? 'selected' : ''}>Gradient</option>
+              </select>
+
+              <div id="gc-upload-container" style="display: ${profile.gamercard_bg_type === 'image' ? 'block' : 'none'};" class="mb-4">
+                <label class="block text-sm text-cyan-400 mb-1">Upload Gamercard Background</label>
+                <input type="file" id="gc_file_input" accept="image/*" class="ra-input w-full text-gray-400">
+              </div>
+
+              <label class="block mb-4 text-sm font-bold text-cyan-400">Background Value (Color Hex, Gradient CSS, or URL)</label>
+              <input type="text" name="gc_bg_value" id="gc_bg_value" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none" value="${profile.gamercard_bg_value || '#1f2937'}">
+              
+              <label class="block text-sm font-bold text-cyan-400">Bio</label>
+              <textarea name="bio" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none" rows="3">${profile.bio || ''}</textarea>
+
+              <hr class="border-gray-700 my-6">
+              <label class="block text-sm font-bold text-cyan-400">Signature Content (HTML Allowed)</label>
+              <textarea name="signature_text" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none" rows="3">${profile.signature_text || ''}</textarea>
+              
+              <label class="block text-sm font-bold text-cyan-400">Signature Custom CSS</label>
+              <textarea name="signature_custom_css" class="ra-input font-mono text-xs w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none" rows="4">${profile.signature_custom_css || ''}</textarea>
+
+              <hr class="border-gray-700 my-6">
+              <label class="block text-sm font-bold text-cyan-400">Avatar Overlay Custom CSS</label>
+              <textarea name="avatar_custom_css" class="ra-input font-mono text-xs w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none" rows="4">${profile.avatar_custom_css || ''}</textarea>
+
+              <hr class="border-gray-700 my-6">
+              <label class="block text-sm font-bold text-cyan-400">Update Profile Picture</label>
+              <input type="file" id="avatar_file_input" accept="image/*" class="ra-input w-full text-gray-400 mb-2">
               <div class="mt-2">
                 <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" class="w-16 h-16 rounded-full border border-gray-600" alt="Current Avatar">
               </div>
 
-              <hr class="border-gray-700 my-4">
-              <label>Background Type</label>
-              <select name="bg_type" id="bg_type" class="ra-input">
+              <hr class="border-gray-700 my-6">
+              <label class="block text-sm font-bold text-cyan-400">Profile Background Type</label>
+              <select name="bg_type" id="bg_type" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none">
                 <option value="color" ${profile.custom_background?.type === 'color' ? 'selected' : ''}>Solid Color</option>
                 <option value="image" ${profile.custom_background?.type === 'image' ? 'selected' : ''}>Uploaded Image / GIF</option>
                 <option value="gradient" ${profile.custom_background?.type === 'gradient' ? 'selected' : ''}>Gradient</option>
@@ -829,15 +851,15 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
 
               <div id="bg-upload-container" style="display: ${profile.custom_background?.type === 'image' ? 'block' : 'none'}; margin-top: 15px;">
                 <label class="block text-sm font-bold text-cyan-400 mb-1">Upload New Background</label>
-                <input type="file" id="bg_file_input" accept="image/*" class="ra-input">
+                <input type="file" id="bg_file_input" accept="image/*" class="ra-input w-full text-gray-400">
               </div>
 
-              <label class="block mt-4">Background Value</label>
-              <input type="text" name="bg_value" id="bg_value_input" class="ra-input" value="${profile.custom_background?.value || '#1f2937'}">
+              <label class="block mt-4 text-sm font-bold text-cyan-400">Background Value</label>
+              <input type="text" name="bg_value" id="bg_value_input" class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none" value="${profile.custom_background?.value || '#1f2937'}">
 
-              <div class="modal-actions">
-                <button type="button" id="btn-cancel-edit" class="bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
-                <button type="submit" class="btn-primary">Save Changes</button>
+              <div class="modal-actions flex gap-3 mt-8 pt-4 border-t border-gray-700">
+                <button type="button" id="btn-cancel-edit" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded font-bold transition">Cancel</button>
+                <button type="submit" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded font-bold transition">Save Changes</button>
               </div>
             </form>
           </div>
@@ -868,21 +890,29 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   const bgTypeSelect = document.getElementById('bg_type');
   const bgUploadContainer = document.getElementById('bg-upload-container');
 
-  if (editBtn && modal) editBtn.addEventListener('click', () => modal.style.display = 'flex');
-  if (cancelBtn && modal) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
+  if (editBtn && modal) editBtn.addEventListener('click', () => {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  });
+  
+  if (cancelBtn && modal) cancelBtn.addEventListener('click', () => {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  });
 
   if (bgTypeSelect && bgUploadContainer) {
     bgTypeSelect.addEventListener('change', (e) => {
       bgUploadContainer.style.display = e.target.value === 'image' ? 'block' : 'none';
     });
   }
+  
   const gcTypeSelect = document.getElementById('gc_bg_type');
-const gcUploadContainer = document.getElementById('gc-upload-container');
-if (gcTypeSelect && gcUploadContainer) {
-  gcTypeSelect.addEventListener('change', (e) => {
-    gcUploadContainer.style.display = e.target.value === 'image' ? 'block' : 'none';
-  });
-}
+  const gcUploadContainer = document.getElementById('gc-upload-container');
+  if (gcTypeSelect && gcUploadContainer) {
+    gcTypeSelect.addEventListener('change', (e) => {
+      gcUploadContainer.style.display = e.target.value === 'image' ? 'block' : 'none';
+    });
+  }
 
   if (form) {
     form.addEventListener('submit', async (e) => {
@@ -940,55 +970,34 @@ if (gcTypeSelect && gcUploadContainer) {
 
       // 3. Prepare Updates Object (INCLUDING USERNAME)
       let finalGcBgValue = formData.get('gc_bg_value');
-const gcFileType = formData.get('gc_bg_type');
+      const gcFileType = formData.get('gc_bg_type');
 
-const gcFileInput = document.getElementById('gc_file_input');
-if (gcFileType === 'image' && gcFileInput && gcFileInput.files.length > 0) {
-   const file = gcFileInput.files[0];
-   const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-   // Reuse storage bucket 'user-backgrounds'
-   const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
-   if (!error) {
-     const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
-     finalGcBgValue = publicUrl;
-   }
-}
+      const gcFileInput = document.getElementById('gc_file_input');
+      if (gcFileType === 'image' && gcFileInput && gcFileInput.files.length > 0) {
+         const file = gcFileInput.files[0];
+         const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+         // Reuse storage bucket 'user-backgrounds'
+         const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
+         if (!error) {
+           const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
+           finalGcBgValue = publicUrl;
+         }
+      }
 
-const updates = {
-  bio: formData.get('bio'),
-  signature_text: formData.get('signature_text'),
-  signature_custom_css: formData.get('signature_custom_css'),
-  avatar_custom_css: formData.get('avatar_custom_css'),
-  avatar_url: finalAvatarUrl,
-  username: formData.get('username')?.trim(), 
-  favorite_console: formData.get('favorite_console'),
-  motto: formData.get('motto'),
-  gamercard_bg_type: formData.get('gc_bg_type'),
-  gamercard_bg_value: formData.get('gc_bg_value'), // Temporary value, overwritten below if file exists
-  custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
-};
+      const updates = {
+        bio: formData.get('bio'),
+        signature_text: formData.get('signature_text'),
+        signature_custom_css: formData.get('signature_custom_css'),
+        avatar_custom_css: formData.get('avatar_custom_css'),
+        avatar_url: finalAvatarUrl,
+        username: formData.get('username')?.trim(), 
+        favorite_console: formData.get('favorite_console'),
+        motto: formData.get('motto'),
+        gamercard_bg_type: formData.get('gc_bg_type'),
+        gamercard_bg_value: finalGcBgValue, 
+        custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
+      };
 
-// Handle Gamercard Background File Upload
-if (formData.get('gc_bg_type') === 'image') {
-  const gcFileInput = document.getElementById('gc_file_input');
-  if (gcFileInput && gcFileInput.files.length > 0) {
-    const file = gcFileInput.files[0];
-    const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-    
-    try {
-      const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
-      if (error) throw error;
-      
-      const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
-      updates.gamercard_bg_value = publicUrl; // Overwrite temporary value
-    } catch (err) {
-      alert('Gamercard BG upload failed: ' + err.message);
-      submitBtn.textContent = 'Save Changes';
-      submitBtn.disabled = false;
-      return;
-    }
-  }
-}
       // 4. Send to Database
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.textContent = 'Saving...';
@@ -1007,10 +1016,10 @@ if (formData.get('gc_bg_type') === 'image') {
         alert('✅ Profile updated successfully! Refreshing to show changes...');
         
         // Close Modal
-        document.getElementById('edit-modal').style.display = 'none';
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
         
-        // FORCE RELOAD: This fetches the fresh data from DB and re-renders the whole page
-        // We use a small timeout to allow the alert to dismiss first
+        // FORCE RELOAD
         setTimeout(() => {
             window.location.reload();
         }, 500);
@@ -1036,13 +1045,10 @@ if (formData.get('gc_bg_type') === 'image') {
       if (!content) return alert("Please type a message first.");
       if (!currentUser) return alert("You must be logged in.");
 
-      // Disable button to prevent double posts
       postBtn.disabled = true;
       postBtn.textContent = 'Posting...';
 
       try {
-        // 1. Explicitly fetch Target Username (The Profile Owner)
-        // We do this again to ensure we have it, even if 'profile' var is stale
         const { data: targetData, error: targetErr } = await supabase
           .from('profiles')
           .select('username')
@@ -1052,7 +1058,6 @@ if (formData.get('gc_bg_type') === 'image') {
         if (targetErr || !targetData) throw new Error("Could not find profile owner.");
         const targetUsername = targetData.username;
 
-        // 2. Explicitly fetch Author Username (The Person Posting)
         const { data: authorData, error: authorErr } = await supabase
           .from('profiles')
           .select('username')
@@ -1061,7 +1066,6 @@ if (formData.get('gc_bg_type') === 'image') {
 
         const authorUsername = authorData?.username || currentUser.email.split('@')[0];
 
-        // 3. Insert with ALL required fields
         const { error: insertErr } = await supabase.from('profile_comments').insert({
           target_user_id: profile.id,
           target_username: targetUsername,      
@@ -1072,7 +1076,6 @@ if (formData.get('gc_bg_type') === 'image') {
 
         if (insertErr) throw insertErr;
 
-        // Success
         input.value = '';
         loadWallComments(profile.id);
 
@@ -1080,7 +1083,6 @@ if (formData.get('gc_bg_type') === 'image') {
         console.error("Wall Post Failed:", err);
         alert('Failed to post: ' + err.message);
       } finally {
-        // Re-enable button
         postBtn.disabled = false;
         postBtn.textContent = 'Post Shout';
       }
@@ -1089,12 +1091,10 @@ if (formData.get('gc_bg_type') === 'image') {
 
   // --- 4. Load Friends List ---
   loadFriends(profile.id);
+  
   // --- 4.5. Direct Message Button Logic ---
   if (!isOwnProfile && currentUser) {
     const dmContainer = document.getElementById('dm-action-container');
-    
-    // If the container doesn't exist in HTML yet, create it dynamically above the friend button
-    // Or better, let's inject it right before the friend-action-container in the DOM
     const friendContainer = document.getElementById('friend-action-container');
     
     if (friendContainer && !document.getElementById('btn-send-dm')) {
@@ -1112,10 +1112,10 @@ if (formData.get('gc_bg_type') === 'image') {
         window.location.hash = `#/messages?user=${profile.id}`;
       });
 
-      // Insert before the friend button
       friendContainer.parentNode.insertBefore(dmBtn, friendContainer);
     }
   }
+  
   // --- 5. Smart Friend Button Logic ---
   if (!isOwnProfile && currentUser) {
     loadFriendButtonState(profile.id, currentUser.id);
@@ -1127,7 +1127,7 @@ if (formData.get('gc_bg_type') === 'image') {
   // --- NEW: Load Achievement Walls ---
   loadSiteAwardsWall(profile.id);
   loadProudAchievementsWall(profile.id, isOwnProfile); 
-  loadGameAchievementsWall(profile.id, isOwnProfile); // NEW: Load All Game Achievements
+  loadGameAchievementsWall(profile.id, isOwnProfile); 
   loadMasteredGamesWall(profile.id);
 
   // --- 7. Remove Game Listener ---
@@ -1183,7 +1183,6 @@ async function loadSiteAwardsWall(userId) {
 
   listEl.innerHTML = awards.map(item => {
     const a = item.achievements;
-    // Safety check for badge_url
     const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Award';
     
     return `
@@ -1220,7 +1219,6 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
     const a = item.achievements;
     const game = a.games;
     const gameLink = game ? getGameLink(game) : '#/games';
-    // Safety check for badge_url
     const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Trophy';
     
     return `
@@ -1251,7 +1249,6 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
     `;
   }).join('');
 
-  // Attach listeners for "Remove Proud" if own profile
   if (isOwnProfile) {
     listEl.querySelectorAll('.remove-proud-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -1267,15 +1264,14 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
 
         if (error) alert('Error: ' + error.message);
         else {
-          loadProudAchievementsWall(userId, true); // Reload Proud Wall
-          loadGameAchievementsWall(userId, true);  // Reload Main Wall to update star
+          loadProudAchievementsWall(userId, true); 
+          loadGameAchievementsWall(userId, true);  
         }
       });
     });
   }
 }
 
-// NEW: Load All Game Achievements Wall
 async function loadGameAchievementsWall(userId, isOwnProfile) {
   const listEl = document.getElementById('game-achievements-list');
   const countEl = document.getElementById('game-achieve-count');
@@ -1295,11 +1291,8 @@ async function loadGameAchievementsWall(userId, isOwnProfile) {
     const a = item.achievements;
     const game = a.games;
     const gameLink = game ? getGameLink(game) : '#/games';
-    
-    // Safety check for badge_url
     const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Trophy';
     
-    // Only show toggle if own profile
     const toggleBtn = isOwnProfile ? `
       <button class="absolute top-1 right-1 p-1 rounded-full bg-gray-900/80 hover:bg-yellow-600 transition-colors z-10" 
               onclick="window.toggleProudStatus(event, '${a.id}', ${item.is_proud})" 
@@ -1334,7 +1327,6 @@ async function loadGameAchievementsWall(userId, isOwnProfile) {
   }).join('');
 }
 
-// Global Helper to Toggle "Most Proud" Status
 window.toggleProudStatus = async function(e, achievementId, currentStatus) {
   e.stopPropagation();
   e.preventDefault();
@@ -1353,7 +1345,6 @@ window.toggleProudStatus = async function(e, achievementId, currentStatus) {
 
     if (error) throw error;
 
-    // Refresh the walls immediately
     loadProudAchievementsWall(user.id, true);
     loadGameAchievementsWall(user.id, true);
     
@@ -1387,7 +1378,6 @@ async function loadMasteredGamesWall(userId) {
             <span class="text-[10px] text-gray-300">${game.console || 'Unknown'}</span>
           </div>
         </div>
-        <!-- Mastered Icon Overlay -->
         <div class="absolute top-1 right-1 bg-green-600 text-white p-1 rounded-full shadow-lg">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
@@ -1516,11 +1506,11 @@ async function loadWallComments(profileId) {
     const avatarSrc = c.author?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="bg-gray-800/50 p-3 rounded border border-gray-700 flex gap-3 hover:bg-gray-800 transition-colors">
-      <img src="${avatarSrc}" class="w-8 h-8 rounded-full bg-gray-600 object-cover">
-      <div class="flex-1">
-        <div class="flex items-baseline gap-2">
+      <img src="${avatarSrc}" class="w-8 h-8 rounded-full bg-gray-600 object-cover flex-shrink-0">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-baseline gap-2 flex-wrap">
           <span class="font-bold text-cyan-400 text-sm hover:underline cursor-pointer" onclick="window.location.hash='${link}'">${displayName}</span>
-          <span class="text-xs text-gray-500">${new Date(c.created_at).toLocaleDateString()}</span>
+          <span class="text-xs text-gray-500 whitespace-nowrap">${new Date(c.created_at).toLocaleDateString()}</span>
         </div>
         <p class="text-gray-300 text-sm mt-1 break-words">${c.content}</p>
       </div>
@@ -1542,7 +1532,7 @@ async function loadFriends(userId) {
     const avatarSrc = f.avatar_url || `https://ui-avatars.com/api/?name=${displayName}`;
     return `
     <div class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer transition-colors" onclick="window.location.hash='${link}'">
-      <div class="relative">
+      <div class="relative flex-shrink-0">
         <img src="${avatarSrc}" class="w-6 h-6 rounded-full object-cover">
         <div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-gray-900 ${f.is_online ? 'bg-green-500' : 'bg-gray-500'}"></div>
       </div>
@@ -1550,13 +1540,12 @@ async function loadFriends(userId) {
     </div>`;
   }).join('');
 }
+
 // ============================================================================
 // CLEANUP ON NAVIGATION
 // ============================================================================
-// Remove dynamic background when leaving the profile module
 const observer = new MutationObserver(() => {
   const hash = window.location.hash;
-  // If hash changes to anything other than a profile, remove bg
   if (!hash.startsWith('#/profile/')) {
     document.getElementById('dynamic-profile-bg')?.remove();
     document.getElementById('profile-bg-overlay')?.remove();
@@ -1564,12 +1553,13 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { attributes: false, childList: true, subtree: false });
+
 // ============================================================================
-// HELPER: ESCAPE HTML (Prevents XSS attacks)
+// HELPER: ESCAPE HTML
 // ============================================================================
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
-}
+}        
