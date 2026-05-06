@@ -590,7 +590,7 @@ async function createSession(rom, game) {
     }
 }
 
-function renderActiveSession(container, room, rom, game) {
+async function renderActiveSession(container, room, rom, game) {
     // Stop any existing heartbeat/listeners
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     if (chatChannel) {
