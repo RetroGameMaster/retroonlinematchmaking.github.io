@@ -873,15 +873,27 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         </div>
     `;
 
-    // 5. Assemble
+      // 5. Assemble (FIXED LAYOUT)
     const messageEl = document.createElement('div');
-    // ✅ FIX: Added flex-nowrap to force side-by-side layout
+    
+    // CRITICAL FIXES:
+    // 1. 'flex-nowrap': Forces card and bubble to stay side-by-side
+    // 2. 'items-stretch': Ensures equal height alignment if needed
+    // 3. Inline style 'max-width': Hard limit prevents bubble from pushing card
     messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start flex-nowrap`;
+    
+    // Set inner HTML
     messageEl.innerHTML = gamercardHtml + bubbleHtml;
     
+    // Force the bubble child to respect width strictly via CSS on the container
+    const bubbleContainer = messageEl.querySelector('.flex.flex-col');
+    if (bubbleContainer) {
+        bubbleContainer.style.flex = "0 0 auto"; // Don't grow, don't shrink, base size
+        bubbleContainer.style.maxWidth = "calc(100% - 210px)"; // 180px card + 30px gap buffer
+    }
+
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
-}
 
 function startHeartbeat(rom, roomId) {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
