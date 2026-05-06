@@ -29,9 +29,9 @@ export default function initModule(rom) {
   loadFeaturedGame();
   loadGameOfTheWeek();
   loadOnlineUsers();
+  loadHomeLeaderboardPreview(); // Load Top Players
   loadRecentActivity();
   loadCommunitySpotlight();
-  loadHomeLeaderboardPreview(); // Load Leaderboard
   
   // 5. Start Realtime Listeners & Ticker
   refreshDynamicTicker(rom); // Initial Load of LFG + Tournaments
@@ -114,7 +114,7 @@ function initAmbientEffects() {
 }
 
 // ============================================================================
-// 2. RENDER LAYOUT (REORGANIZED)
+// 2. RENDER LAYOUT
 // ============================================================================
 function renderHomeLayout() {
   const appContent = document.getElementById('app-content');
@@ -140,7 +140,7 @@ function renderHomeLayout() {
         </div>
       </div>
 
-      <!-- Welcome Header with Stats -->
+      <!-- Welcome Header with Stats & Community Hub -->
       <div class="text-center py-8 relative">
         <div class="absolute top-0 right-0 flex items-center gap-2 text-xs text-green-400 bg-green-900/20 px-3 py-1 rounded-full border border-green-500/30">
           <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
@@ -153,38 +153,54 @@ function renderHomeLayout() {
           The ultimate hub for retro online multiplayer. Connect, compete, and relive the golden age of gaming.
         </p>
         
-        <!-- Live Stats Counter -->
-        <div class="flex justify-center gap-4 md:gap-8 text-sm md:text-base mb-8">
-          <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
-            <span class="block text-2xl font-bold text-cyan-400" id="stat-games">-</span>
-            <span class="text-gray-500 text-xs uppercase">Games</span>
+        <!-- TOP ROW: Stats + Social + Online -->
+        <div class="flex flex-col lg:flex-row justify-center items-center gap-6 mb-8">
+          
+          <!-- Stats Counters -->
+          <div class="flex gap-4 md:gap-8 text-sm md:text-base">
+            <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+              <span class="block text-2xl font-bold text-cyan-400" id="stat-games">-</span>
+              <span class="text-gray-500 text-xs uppercase">Games</span>
+            </div>
+            <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+              <span class="block text-2xl font-bold text-purple-400" id="stat-users">-</span>
+              <span class="text-gray-500 text-xs uppercase">Members</span>
+            </div>
+            <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+              <span class="block text-2xl font-bold text-green-400" id="stat-online">-</span>
+              <span class="text-gray-500 text-xs uppercase">Online</span>
+            </div>
           </div>
-          <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
-            <span class="block text-2xl font-bold text-purple-400" id="stat-users">-</span>
-            <span class="text-gray-500 text-xs uppercase">Members</span>
-          </div>
-          <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
-            <span class="block text-2xl font-bold text-green-400" id="stat-online">-</span>
-            <span class="text-gray-500 text-xs uppercase">Online</span>
-          </div>
-        </div>
 
-        <!-- MOVED UP: Social Links (Under Stats) -->
-        <div class="flex justify-center gap-4 mb-8">
-            <a id="discord-link" href="#" target="_blank" class="ambient-card flex items-center gap-3 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 px-5 py-3 rounded-lg transition group">
-              <div class="text-2xl">💬</div>
-              <div>
-                <div class="text-white font-bold text-sm group-hover:text-[#5865F2]">Join Discord</div>
-                <div class="text-xs text-gray-400">Chat & Support</div>
+          <!-- Social Links (Moved Up) -->
+          <div class="flex gap-3">
+            <a id="discord-link" href="#" target="_blank" class="ambient-card flex items-center gap-2 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 px-4 py-2 rounded-lg transition group">
+              <div class="text-xl">💬</div>
+              <div class="text-left">
+                <div class="text-white font-bold text-xs group-hover:text-[#5865F2]">Join Discord</div>
+                <div class="text-[10px] text-gray-400">Chat & Support</div>
               </div>
             </a>
-            <a id="patreon-link" href="#" target="_blank" class="ambient-card flex items-center gap-3 bg-[#F96854]/10 hover:bg-[#F96854]/20 border border-[#F96854]/30 px-5 py-3 rounded-lg transition group">
-              <div class="text-2xl">❤️</div>
-              <div>
-                <div class="text-white font-bold text-sm group-hover:text-[#F96854]">Support ROM</div>
-                <div class="text-xs text-gray-400">Keep us running</div>
+            <a id="patreon-link" href="#" target="_blank" class="ambient-card flex items-center gap-2 bg-[#F96854]/10 hover:bg-[#F96854]/20 border border-[#F96854]/30 px-4 py-2 rounded-lg transition group">
+              <div class="text-xl">❤️</div>
+              <div class="text-left">
+                <div class="text-white font-bold text-xs group-hover:text-[#F96854]">Support ROM</div>
+                <div class="text-[10px] text-gray-400">Keep us running</div>
               </div>
             </a>
+          </div>
+
+          <!-- Who's Online Mini (Moved Up) -->
+          <div class="ambient-card bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden min-w-[200px]">
+            <div class="bg-gray-900/50 p-2 border-b border-gray-700 flex justify-between items-center">
+              <h3 class="font-bold text-white text-xs flex items-center gap-2">
+                <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
+                Online Now
+              </h3>
+              <span id="online-count-mini" class="text-[10px] bg-green-900 text-green-300 px-1.5 py-0.5 rounded-full">0</span>
+            </div>
+            <div id="online-users-list-mini" class="p-2 max-h-32 overflow-y-auto custom-scrollbar"></div>
+          </div>
         </div>
       </div>
 
@@ -207,7 +223,7 @@ function renderHomeLayout() {
             </div>
           </div>
 
-          <!-- MOVED UP: Clip of the Week (Between GOTW and Random) -->
+          <!-- Clip of the Week (Moved Up) -->
           <div class="ambient-card bg-gray-800 rounded-xl overflow-hidden border border-pink-500/30 shadow-lg shadow-pink-900/20 flex flex-col">
             <div class="bg-gradient-to-r from-pink-900/50 to-red-900/50 p-4 border-b border-pink-500/30">
               <h2 id="clip-title" class="text-xl font-bold text-pink-300 flex items-center gap-2">
@@ -234,27 +250,16 @@ function renderHomeLayout() {
         <!-- RIGHT COLUMN -->
         <div class="space-y-6">
           
-          <!-- MOVED UP: Who's Online (Under Social Links) -->
-          <div class="ambient-card bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden">
-            <div class="bg-gray-900/50 p-4 border-b border-gray-700 flex justify-between items-center">
-              <h3 class="font-bold text-white flex items-center gap-2">
-                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span></span>
-                Who's Online
-              </h3>
-              <span id="online-count" class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded-full">0</span>
-            </div>
-            <div id="online-users-list" class="p-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
-          </div>
-
-          <!-- Community Spotlight -->
+          <!-- Top Players (Leaderboard Preview) -->
           <div class="ambient-card bg-gray-800 rounded-xl border border-yellow-500/30 shadow-lg shadow-yellow-900/10 overflow-hidden">
-            <div class="bg-gradient-to-r from-yellow-900/40 to-gray-900/50 p-4 border-b border-yellow-500/30">
+            <div class="bg-gradient-to-r from-yellow-900/40 to-gray-900/50 p-4 border-b border-yellow-500/30 flex justify-between items-center">
               <h3 class="font-bold text-yellow-300 flex items-center gap-2">
-                <span class="text-xl">⭐</span> Member Spotlight
+                <span class="text-xl">👑</span> Top Players
               </h3>
+              <a href="#/site-xp-leaderboard" class="text-[10px] text-yellow-400 hover:text-yellow-200 underline">View All</a>
             </div>
-            <div id="spotlight-content" class="p-4 text-center">
-              <div class="animate-pulse text-gray-500 text-sm">Finding standout member...</div>
+            <div id="home-leaderboard-preview" class="p-2 space-y-2">
+              <div class="animate-pulse text-gray-500 text-xs text-center py-4">Calculating rankings...</div>
             </div>
           </div>
 
@@ -268,16 +273,15 @@ function renderHomeLayout() {
             <div id="activity-feed" class="p-4 space-y-4"></div>
           </div>
 
-          <!-- NEW: Leaderboard Preview -->
-          <div class="ambient-card bg-gray-800 rounded-xl border border-cyan-500/30 shadow-lg shadow-cyan-900/20 overflow-hidden">
-            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-4 border-b border-cyan-500/30 flex justify-between items-center">
-              <h3 class="font-bold text-cyan-300 flex items-center gap-2">
-                <span class="text-xl">🏆</span> Top Players
+          <!-- Community Spotlight (Moved to bottom or kept if space) -->
+          <div class="ambient-card bg-gray-800 rounded-xl border border-yellow-500/30 shadow-lg shadow-yellow-900/10 overflow-hidden">
+            <div class="bg-gradient-to-r from-yellow-900/40 to-gray-900/50 p-4 border-b border-yellow-500/30">
+              <h3 class="font-bold text-yellow-300 flex items-center gap-2">
+                <span class="text-xl">⭐</span> Member Spotlight
               </h3>
-              <a href="#/site-xp-leaderboard" class="text-xs text-cyan-400 hover:text-white font-bold underline">View All</a>
             </div>
-            <div id="home-leaderboard-preview" class="p-2">
-               <div class="text-center text-gray-500 text-sm py-4">Loading rankings...</div>
+            <div id="spotlight-content" class="p-4 text-center">
+              <div class="animate-pulse text-gray-500 text-sm">Finding standout member...</div>
             </div>
           </div>
 
@@ -408,46 +412,39 @@ async function loadFeaturedGame() {
   }
 }
 
-// UPDATED: Weekly Persistence Logic
+// UPDATED: Game of the Week Logic (Persists for 7 Days)
 async function loadGameOfTheWeek() {
   const container = document.getElementById('gotw-content');
   if (!container) return;
 
   try {
     const now = new Date();
-    // Calculate ISO Week Number
-    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-    const year = d.getUTCFullYear();
-    
-    const settingKey = `game_of_week_${year}_w${weekNo}`;
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+    const year = now.getFullYear();
+    const seedKey = `gotw_${year}_week_${weekNum}`;
 
     // 1. Check if we already picked a game for this week
-    const { data: storedData } = await supabase
+    const { data: storedSetting } = await supabase
       .from('site_settings')
       .select('value')
-      .eq('key', settingKey)
+      .eq('key', seedKey)
       .single();
 
     let selectedGame = null;
 
-    if (storedData && storedData.value) {
-      // Fetch the stored game by ID
-      const { data: game } = await supabase.from('games').select('*').eq('id', storedData.value).single();
+    if (storedSetting && storedSetting.value) {
+      // Fetch the stored game ID
+      const gameId = storedSetting.value;
+      const { data: game } = await supabase.from('games').select('*').eq('id', gameId).single();
       selectedGame = game;
     }
 
-    // 2. If no game stored (or invalid), pick a new random one
+    // 2. If no game found (new week), pick a random one and save it
     if (!selectedGame) {
       const { count } = await supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'approved');
-      if (!count || count === 0) {
-         container.innerHTML = `<div class="p-8 text-center text-gray-500">No games available.</div>`;
-         return;
-      }
-      
+      if (!count || count === 0) return;
+
       const randomOffset = Math.floor(Math.random() * count);
       const { data: randomGame } = await supabase
         .from('games')
@@ -458,15 +455,15 @@ async function loadGameOfTheWeek() {
 
       if (randomGame) {
         selectedGame = randomGame;
-        // Save this selection for the rest of the week
-        await supabase.from('site_settings').upsert({ key: settingKey, value: randomGame.id.toString() });
+        // Save to DB
+        await supabase.from('site_settings').upsert({ key: seedKey, value: randomGame.id });
       }
     }
 
     if (selectedGame) {
       renderGameCard(selectedGame, container, null, true);
     } else {
-      container.innerHTML = `<div class="p-8 text-center text-gray-500">Selecting champion...</div>`;
+      container.innerHTML = `<div class="p-8 text-center text-gray-500">No featured game this week.</div>`;
     }
 
   } catch (error) {
@@ -510,7 +507,12 @@ async function loadOnlineUsers() {
   const listEl = document.getElementById('online-users-list');
   const countEl = document.getElementById('online-count');
   const statEl = document.getElementById('stat-online');
-  if (!listEl) return;
+  
+  // Also target the mini version in the new layout
+  const miniListEl = document.getElementById('online-users-list-mini');
+  const miniCountEl = document.getElementById('online-count-mini');
+
+  if (!listEl && !miniListEl) return;
 
   try {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
@@ -525,30 +527,38 @@ async function loadOnlineUsers() {
 
     const count = users?.length || 0;
     if(countEl) countEl.textContent = count;
+    if(miniCountEl) miniCountEl.textContent = count;
     if(statEl) animateValue("stat-online", 0, count, 1000);
 
     if (!users || count === 0) {
-      listEl.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">No one online right now.</div>`;
+      const emptyHtml = `<div class="text-center text-gray-500 text-sm py-4">No one online right now.</div>`;
+      if(listEl) listEl.innerHTML = emptyHtml;
+      if(miniListEl) miniListEl.innerHTML = emptyHtml;
       return;
     }
 
-    listEl.innerHTML = users.map(user => {
+    const generateHtml = (isMini) => users.map(user => {
       const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
       const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      const textSize = isMini ? 'text-xs' : 'text-sm';
+      const imgSize = isMini ? 'w-8 h-8' : 'w-10 h-10';
       
       return `
-        <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
+        <a href="${link}" class="flex items-center gap-2 p-1.5 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
           <div class="relative">
-            <img src="${avatar}" class="w-10 h-10 rounded-full border border-gray-600 group-hover:border-cyan-400 transition shadow-md">
-            <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-gray-800 rounded-full shadow-[0_0_5px_rgba(34,197,94,0.8)]"></span>
+            <img src="${avatar}" class="${imgSize} rounded-full border border-gray-600 group-hover:border-cyan-400 transition shadow-md">
+            <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-gray-800 rounded-full shadow-[0_0_5px_rgba(34,197,94,0.8)]"></span>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="text-white text-sm font-bold truncate group-hover:text-cyan-400 drop-shadow-sm">${user.username}</div>
-            <div class="text-xs text-green-400">Online</div>
+            <div class="text-white ${textSize} font-bold truncate group-hover:text-cyan-400 drop-shadow-sm">${user.username}</div>
+            ${!isMini ? '<div class="text-[10px] text-green-400">Online</div>' : ''}
           </div>
         </a>
       `;
     }).join('');
+
+    if(listEl) listEl.innerHTML = generateHtml(false);
+    if(miniListEl) miniListEl.innerHTML = generateHtml(true);
 
   } catch (error) {
     console.error('Online users error:', error);
@@ -664,31 +674,33 @@ async function loadHomeLeaderboardPreview() {
       .limit(5);
 
     if (error || !users || users.length === 0) {
-      container.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">No rankings yet.</div>`;
+      container.innerHTML = `<div class="text-center text-gray-500 text-xs py-4">No rankings yet.</div>`;
       return;
     }
 
+    const medals = ['🥇', '🥈', '🥉', '🏅', '🏅'];
+    
     container.innerHTML = users.map((user, index) => {
-      const rankIndex = index + 1;
-      const medal = rankIndex === 1 ? '🥇' : rankIndex === 2 ? '🥈' : rankIndex === 3 ? '🥉' : `#${rankIndex}`;
-      const highlight = rankIndex <= 3 ? 'bg-gray-700/50' : '';
-      const nameColor = rankIndex === 1 ? 'text-yellow-400' : rankIndex === 2 ? 'text-gray-300' : rankIndex === 3 ? 'text-orange-400' : 'text-gray-400';
+      const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
+      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      const medal = medals[index] || '•';
+      const isTop3 = index < 3;
       
       return `
-        <a href="#/profile/${user.username}" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700/50 transition ${highlight}">
-          <span class="w-6 text-center font-bold text-sm">${medal}</span>
-          <img src="${user.avatar_url || 'https://ui-avatars.com/api/?name='+user.username}" class="w-8 h-8 rounded-full border border-gray-600">
+        <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group">
+          <div class="w-6 text-center text-lg font-bold ${isTop3 ? 'text-yellow-400' : 'text-gray-500'}">${medal}</div>
+          <img src="${avatar}" class="w-8 h-8 rounded-full border border-gray-600 group-hover:border-cyan-400 transition">
           <div class="flex-1 min-w-0">
-            <div class="text-sm font-bold truncate ${nameColor}">${user.username}</div>
+            <div class="text-white text-xs font-bold truncate group-hover:text-cyan-400">${user.username}</div>
+            <div class="text-[10px] text-cyan-400 font-mono">${user.xp_total.toLocaleString()} XP</div>
           </div>
-          <div class="text-xs font-mono text-cyan-400 font-bold">${user.xp_total.toLocaleString()} XP</div>
         </a>
       `;
     }).join('');
 
   } catch (err) {
     console.error('Leaderboard preview error:', err);
-    container.innerHTML = `<div class="text-center text-red-400 text-sm py-4">Error loading ranks.</div>`;
+    container.innerHTML = `<div class="text-center text-red-400 text-xs py-4">Error loading ranks.</div>`;
   }
 }
 
