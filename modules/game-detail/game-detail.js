@@ -646,7 +646,38 @@ function renderActiveSession(container, room, rom, game) {
             </div>
         </div>
     `;
+ // ==========================================
+    // 🚀 SPRITE ENGINE INITIALIZATION
+    // ==========================================
+    if (rom.currentUser) {
+        try {
+            // 1. Dynamic Import of the Sprite Engine
+            const { default: SpriteEngine } = await import('../chat/sprite-engine.js');
+            
+            // 2. Initialize Engine
+            // We pass the container ID, current User ID, and Supabase client
+            window.spriteEngine = new SpriteEngine('sprite-canvas-container', rom.currentUser.id, rom.supabase);
+            await window.spriteEngine.init();
 
+            // 3. Global Hook for Chat Messages
+            // This allows appendMessageToDOM to trigger sprite speech
+            window.spriteSpeak = (userId, text) => {
+                if (window.spriteEngine) {
+                    window.spriteEngine.speak(userId, text);
+                }
+            };
+
+            console.log('✅ Sprite Engine Loaded & Ready');
+        } catch (err) {
+            console.warn('⚠️ Sprite Engine failed to load:', err);
+            // Optional: Remove the canvas container if engine fails so it doesn't look broken
+            const canvasContainer = document.getElementById('sprite-canvas-container');
+            if (canvasContainer) canvasContainer.style.display = 'none';
+        }
+    }
+
+    // Load initial messages (Existing line below...)
+    loadChatMessages(rom, room.id);
     // Load initial messages
     loadChatMessages(rom, room.id);
 
