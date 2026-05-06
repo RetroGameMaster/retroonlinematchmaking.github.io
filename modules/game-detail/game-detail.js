@@ -626,9 +626,9 @@ async function renderActiveSession(container, room, rom, game) {
                 <div class="text-center text-gray-500 text-sm py-4">Loading messages...</div>
                 
                 <!-- 🆕 SPRITE CANVAS CONTAINER (Absolute Bottom of Chat) -->
-                <div id="sprite-canvas-container" class="absolute bottom-0 left-0 w-full h-32 pointer-events-none z-10">
-                    <canvas id="sprite-canvas" width="800" height="128"></canvas>
-                </div>
+                <div id="sprite-canvas-container" class="absolute bottom-0 left-0 w-full h-40 pointer-events-none z-50" style="border: 1px dashed rgba(0,255,0,0.3);">
+    <canvas id="sprite-canvas" width="800" height="160" style="width: 100%; height: 100%;"></canvas>
+</div>
             </div>
 
             <!-- Controls -->
