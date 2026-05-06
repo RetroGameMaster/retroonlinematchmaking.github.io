@@ -773,6 +773,9 @@ async function renderActiveSession(container, room, rom, game) {
             }]);
 
             chatInput.value = '';
+            if (spriteEngine) {
+  spriteEngine.speak(message);
+}
             const xpAmount = currentRoomId ? 2 : 1;
             await rom.supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
         } catch (err) {
