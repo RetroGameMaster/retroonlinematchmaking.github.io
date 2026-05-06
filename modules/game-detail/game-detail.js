@@ -586,85 +586,91 @@ async function createSession(rom, game) {
 }
 
 async function renderActiveSession(container, room, rom, game) {
-    // Stop any existing heartbeat/listeners
+    // 1. Cleanup existing listeners/engines
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     if (chatChannel) {
         rom.supabase.removeChannel(chatChannel);
         chatChannel = null;
     }
-    // ✅ ADDED: Stop sprite engine if running
     if (spriteEngine) {
         spriteEngine.destroy();
         spriteEngine = null;
     }
 
     container.classList.remove('hidden');
-    
-    // ✅ UPDATED HTML: Added Sprite Canvas Container at the bottom
+
+    // 2. Render Full-Width Bottom Bar Layout
+    // We use 'fixed' positioning to pin it to the bottom of the viewport
     container.innerHTML = `
-        <div class="bg-gray-900/95 backdrop-blur-xl rounded-xl border border-cyan-500/50 overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col h-[500px]">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-cyan-900/80 to-blue-900/80 p-4 border-b border-cyan-500/30 flex justify-between items-center flex-shrink-0">
-                <div class="flex items-center gap-3">
-                    <span class="relative flex h-3 w-3">
+        <div class="fixed bottom-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-t border-cyan-500/50 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] z-50 transition-transform duration-300">
+            
+            <!-- Top Bar of Chat (Status & Close) -->
+            <div class="flex justify-between items-center px-6 py-2 bg-gray-800/80 border-b border-gray-700 cursor-grab active:cursor-grabbing" id="chat-header-handle">
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2.5 w-2.5">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
                     </span>
-                    <h3 class="text-lg font-bold text-white">Live Lobby: ${escapeHtml(game.title)}</h3>
+                    <h3 class="text-sm font-bold text-cyan-400">Live Lobby: ${escapeHtml(game.title)}</h3>
                 </div>
-                <div class="text-xs text-cyan-300 font-mono hidden md:block">
-                    Welcome to the live chat lobby. Enjoy and have fun! 
+                <div class="flex items-center gap-4">
+                    <span class="text-xs text-gray-400 hidden md:inline">Sprites Active • Type !jump to interact</span>
+                    <button id="btn-minimize-chat" class="text-gray-400 hover:text-white transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
                 </div>
             </div>
 
-            <!-- Stream Area -->
-            <div id="stream-area" class="hidden bg-black aspect-video relative group flex-shrink-0">
-                <iframe id="stream-frame" class="w-full h-full" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-                <button id="close-stream" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition">Close Stream</button>
-            </div>
-
-            <!-- Chat Messages Area (Scrollable) -->
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900/50 scroll-smooth custom-scrollbar relative z-10">
-                <div class="text-center text-gray-500 text-sm py-4">Loading messages...</div>
-            </div>
-
-            <!-- 🆕 SPRITE CANVAS LAYER (Absolute at bottom of chat area) -->
-            <div id="sprite-canvas-container" class="absolute bottom-0 left-0 w-full h-32 pointer-events-none z-20 overflow-hidden">
-                <canvas id="sprite-canvas" width="800" height="128"></canvas>
-            </div>
-
-            <!-- Controls (Fixed at bottom) -->
-            <div class="p-4 bg-gray-800/50 border-t border-gray-700 flex flex-col gap-2 flex-shrink-0 z-30 relative">
-                <!-- Stream Input -->
-                <div class="flex gap-2">
-                    <input type="text" id="stream-url-input" placeholder="Paste Twitch/YouTube stream link..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none">
-                    <button id="btn-go-live" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm font-bold whitespace-nowrap">Go Live</button>
+            <!-- Main Chat Area (Hidden when minimized) -->
+            <div id="chat-content-area" class="transition-all duration-300 overflow-hidden">
+                
+                <!-- Sprite Canvas Layer (The Runway) -->
+                <div class="relative w-full h-32 bg-gray-900/50 border-b border-gray-800 overflow-hidden">
+                    <div id="sprite-canvas-container" class="absolute inset-0 w-full h-full"></div>
+                    <!-- Overlay hint -->
+                    <div class="absolute top-2 right-4 text-[10px] text-gray-500 pointer-events-none">
+                        🟢 Live Users: <span id="live-user-count">1</span>
+                    </div>
                 </div>
-                <!-- Chat Input -->
-                <form id="chat-form" class="flex gap-2">
-                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none" autocomplete="off">
-                    <button type="submit" id="btn-send" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold whitespace-nowrap">Send</button>
-                </form>
+
+                <!-- Messages Scroll Area -->
+                <div id="chat-messages" class="h-48 overflow-y-auto p-4 space-y-2 bg-gray-900/80 scroll-smooth custom-scrollbar">
+                    <div class="text-center text-gray-500 text-xs py-2">Loading messages...</div>
+                </div>
+
+                <!-- Input Controls -->
+                <div class="p-3 bg-gray-800 border-t border-gray-700 flex gap-2 items-center">
+                    <form id="chat-form" class="flex-1 flex gap-2">
+                        <input type="text" id="chat-input" placeholder="Type to chat... (Try !jump)" 
+                            class="flex-1 bg-gray-900 border border-gray-600 rounded-full px-4 py-2 text-sm text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition shadow-inner">
+                        <button type="submit" id="btn-send" class="bg-cyan-600 hover:bg-cyan-500 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center transition shadow-lg disabled:opacity-50">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     `;
 
-    // ✅ ADDED: INITIALIZE SPRITE ENGINE
+    // 3. Initialize Sprite Engine (FIXED IMPORT)
     if (rom.currentUser) {
         try {
-            // Adjust path if your sprite-engine.js is located elsewhere
+            // Ensure path matches your file structure exactly
             const { default: SpriteEngine } = await import('../chat/sprite-engine.js');
+            
             spriteEngine = new SpriteEngine('sprite-canvas-container', rom.currentUser.id, rom.supabase);
-            spriteEngine.init();
+            await spriteEngine.init();
+            
+            // Hook up the "speak" function to the engine
+            window.spriteSpeak = (uid, text) => spriteEngine.speak(uid, text);
         } catch (e) {
-            console.warn("Sprite Engine not found or failed to load:", e);
+            console.error("❌ Sprite Engine Failed:", e);
         }
     }
 
-    // Load initial messages
+    // 4. Load Messages & Setup Listeners
     loadChatMessages(rom, room.id);
 
-    // Setup Realtime listener
     chatChannel = rom.supabase.channel(`room:${room.id}`);
     
     chatChannel
@@ -677,42 +683,28 @@ async function renderActiveSession(container, room, rom, game) {
             appendMessageToDOM(payload.new, rom.currentUser?.id, rom);
         })
         .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-                console.log('✅ Joined chat channel:', room.id);
-            }
+            if (status === 'SUBSCRIBED') console.log('✅ Joined chat channel:', room.id);
         });
 
-    // Stream Logic
-    const btnGoLive = document.getElementById('btn-go-live');
-    const streamArea = document.getElementById('stream-area');
-    const streamFrame = document.getElementById('stream-frame');
-    const closeStream = document.getElementById('close-stream');
-    const input = document.getElementById('stream-url-input');
+    // 5. Minimize/Maximize Logic
+    const minimizeBtn = document.getElementById('btn-minimize-chat');
+    const contentArea = document.getElementById('chat-content-area');
+    let isMinimized = false;
 
-    btnGoLive.addEventListener('click', () => {
-        const url = input.value.trim();
-        if (!url) return;
-        
-        const embedUrl = getEmbedUrl(url);
-        streamFrame.src = embedUrl;
-        streamArea.classList.remove('hidden');
-        
-        rom.supabase.from('chat_rooms').update({ stream_url: url }).eq('id', room.id);
+    minimizeBtn.addEventListener('click', () => {
+        isMinimized = !isMinimized;
+        if (isMinimized) {
+            contentArea.style.maxHeight = '0px';
+            contentArea.style.opacity = '0';
+            minimizeBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>';
+        } else {
+            contentArea.style.maxHeight = '500px'; // Arbitrary large height
+            contentArea.style.opacity = '1';
+            minimizeBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>';
+        }
     });
 
-    closeStream.addEventListener('click', () => {
-        streamArea.classList.add('hidden');
-        streamFrame.src = '';
-        rom.supabase.from('chat_rooms').update({ stream_url: null }).eq('id', room.id);
-    });
-
-    if (room.stream_url) {
-        input.value = room.stream_url;
-        streamFrame.src = getEmbedUrl(room.stream_url);
-        streamArea.classList.remove('hidden');
-    }
-
-    // Chat Form Logic
+    // 6. Chat Form Logic
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('btn-send');
@@ -723,7 +715,6 @@ async function renderActiveSession(container, room, rom, game) {
         if (!message || !rom.currentUser) return;
 
         sendBtn.disabled = true;
-        sendBtn.textContent = '...';
 
         try {
             const { data: profile } = await rom.supabase
@@ -744,17 +735,15 @@ async function renderActiveSession(container, room, rom, game) {
             }]);
 
             chatInput.value = '';
-            if (spriteEngine) {
-  spriteEngine.speak(message);
-}
-            const xpAmount = currentRoomId ? 2 : 1;
-            await rom.supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
+            
+            // Award XP
+            await rom.supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: 2, reason: 'chat_message' });
+
         } catch (err) {
             console.error('Failed to send:', err);
-            alert('Failed to send message: ' + err.message);
+            alert('Failed: ' + err.message);
         } finally {
             sendBtn.disabled = false;
-            sendBtn.textContent = 'Send';
         }
     });
 }
@@ -797,7 +786,7 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
     const isMe = msg.user_id === currentUserId;
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. SAFE FETCH: Use rom.supabase
+    // 1. SAFE FETCH: Get full profile data (Restored full selection)
     let profileData = null;
     try {
         const { data } = await rom.supabase
@@ -832,6 +821,7 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
     const gcBgType = profileData?.gamercard_bg_type || 'color';
     const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
 
+    // Build Background Style
     let bgStyle = `background-color: ${gcBgValue};`;
     if (gcBgType === 'image') {
         bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
@@ -839,17 +829,22 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         bgStyle = `background-image: ${gcBgValue};`;
     }
 
+    // Writer Badge Logic
     const articleCount = profileData?.stats?.articles_published || 0;
     const isWriter = articleCount > 0;
-    
     const writerBadgeHtml = isWriter ? `
-        <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
+        <span class="text-[8px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
               style="background:#ec489940; color:#ec4899; border:1px solid #ec4899; text-shadow: 0 1px 2px black; backdrop-filter: blur(2px); display:flex; align-items:center; gap:2px;">
             ✒️ Writer
         </span>
     ` : '';
 
-    // ✅ FIXED LAYOUT: Strict widths to prevent overlap
+    // 🗣️ TRIGGER SPRITE SPEECH
+    if (window.spriteSpeak) {
+        window.spriteSpeak(msg.user_id, msg.message);
+    }
+
+    // 3. Construct Full Gamercard HTML (Restored)
     const gamercardHtml = `
         <a href="${profileLink}" class="block flex-shrink-0 w-[180px] hover:scale-[1.02] transition-transform duration-200 z-10">
             <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
@@ -863,14 +858,18 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
                         </div>
                         ${rankName ? `<span class="text-[8px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor};">${escapeHtml(rankName)}</span>` : ''}
                         ${writerBadgeHtml}
-                        ${motto ? `<p class="text-[8px] text-gray-200 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
+                        ${motto ? `<p class="text-[8px] text-gray-200 italic truncate drop-shadow-md hidden md:block">"${escapeHtml(motto)}"</p>` : ''}
+                        <!-- Mini XP Bar -->
+                        <div class="h-1 w-full bg-gray-900/60 rounded-full mt-1 overflow-hidden backdrop-blur-sm">
+                            <div class="h-full bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" style="width: ${Math.min(100, (xpTotal % 1000) / 10)}%"></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </a>
     `;
 
-    // ✅ FIXED LAYOUT: max-w calculation ensures it never overlaps card
+    // 4. Construct Message Bubble (Fixed Width to prevent overlap)
     const bubbleHtml = `
         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} pt-1" style="max-width: calc(100% - 200px);">
             <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
@@ -882,8 +881,8 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         </div>
     `;
 
+    // 5. Assemble (Added flex-nowrap to force side-by-side)
     const messageEl = document.createElement('div');
-    // ✅ ADDED flex-nowrap to force side-by-side
     messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start flex-nowrap`;
     messageEl.innerHTML = gamercardHtml + bubbleHtml;
     
