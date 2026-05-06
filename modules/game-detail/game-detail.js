@@ -26,7 +26,6 @@ function getEmbedUrl(url) {
 let chatChannel = null;
 let heartbeatInterval = null;
 let currentRoomId = null;
-let spriteEngine = null; 
 
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
@@ -427,12 +426,6 @@ async function initLiveSessionPanel(rom, game) {
         chatChannel = null;
     }
     if (heartbeatInterval) clearInterval(heartbeatInterval);
-    
-    // ✅ ADDED: Stop sprite engine if running
-    if (spriteEngine) {
-        spriteEngine.destroy();
-        spriteEngine = null;
-    }
 
     // Check for existing active room
     const { data: room } = await rom.supabase
@@ -490,6 +483,7 @@ async function createSession(rom, game) {
 
     try {
         // 1. SAFE CLEANUP: Delete only OLD inactive rooms (>1 hour) for this specific game
+        // This prevents "duplicate key" errors from zombie rooms while keeping active ones alive.
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
         
         await rom.supabase
@@ -500,6 +494,7 @@ async function createSession(rom, game) {
             .lt('last_activity', oneHourAgo);
 
         // 2. CHECK FOR EXISTING ACTIVE ROOM
+        // If a room exists (even if created 5 mins ago), reuse it instead of creating a duplicate.
         const { data: existingRoom } = await rom.supabase
             .from('chat_rooms')
             .select('*')
@@ -512,6 +507,7 @@ async function createSession(rom, game) {
         if (existingRoom) {
             console.log('♻️ Reusing existing room:', existingRoom.id);
             
+            // Reactivate it (update timestamp so it doesn't get deleted next time)
             const { data: reactivatedRoom } = await rom.supabase
                 .from('chat_rooms')
                 .update({ 
@@ -525,15 +521,20 @@ async function createSession(rom, game) {
             currentRoomId = reactivatedRoom.id;
             const container = document.getElementById('live-session-container');
             
+            // Render the existing room
             renderActiveSession(container, reactivatedRoom, rom, game);
+            
+            // Restart heartbeat to keep it alive
             startHeartbeat(rom, reactivatedRoom.id);
             
+            // Reset button
             btn.disabled = false;
             btn.textContent = '🚀 Start Room & Look for Players';
             return;
         }
 
-        // 3. CREATE NEW ROOM
+        // 3. CREATE NEW ROOM (Only if none existed)
+        // Use a timestamp in the name to guarantee uniqueness if cleanup fails
         const uniqueRoomName = `${game.title} Live Lobby-${Date.now()}`;
         
         const { data: room, error: roomError } = await rom.supabase
@@ -567,12 +568,16 @@ async function createSession(rom, game) {
         currentRoomId = room.id;
         const container = document.getElementById('live-session-container');
         
+        // Render new room
         renderActiveSession(container, room, rom, game);
+        
+        // Start Heartbeat (Crucial: This keeps updating last_activity every 5 mins)
         startHeartbeat(rom, room.id);
 
     } catch (err) {
         console.error('Error creating session:', err);
         
+        // Handle Duplicate Key Error gracefully
         if (err.code === '23505' || err.message.includes('duplicate key')) {
             alert('A room already exists! Refreshing to join it...');
             setTimeout(() => window.location.reload(), 1500);
@@ -585,92 +590,67 @@ async function createSession(rom, game) {
     }
 }
 
-async function renderActiveSession(container, room, rom, game) {
-    // 1. Cleanup existing listeners/engines
+function renderActiveSession(container, room, rom, game) {
+    // Stop any existing heartbeat/listeners
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     if (chatChannel) {
         rom.supabase.removeChannel(chatChannel);
         chatChannel = null;
     }
-    if (spriteEngine) {
-        spriteEngine.destroy();
-        spriteEngine = null;
-    }
 
     container.classList.remove('hidden');
-
-    // 2. Render Full-Width Bottom Bar Layout
-    // We use 'fixed' positioning to pin it to the bottom of the viewport
     container.innerHTML = `
-        <div class="fixed bottom-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-t border-cyan-500/50 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] z-50 transition-transform duration-300">
-            
-            <!-- Top Bar of Chat (Status & Close) -->
-            <div class="flex justify-between items-center px-6 py-2 bg-gray-800/80 border-b border-gray-700 cursor-grab active:cursor-grabbing" id="chat-header-handle">
-                <div class="flex items-center gap-2">
-                    <span class="relative flex h-2.5 w-2.5">
+        <div class="bg-gray-900/95 backdrop-blur-xl rounded-xl border border-cyan-500/50 overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-cyan-900/80 to-blue-900/80 p-4 border-b border-cyan-500/30 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="relative flex h-3 w-3">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                     </span>
-                    <h3 class="text-sm font-bold text-cyan-400">Live Lobby: ${escapeHtml(game.title)}</h3>
+                    <h3 class="text-lg font-bold text-white">Live Lobby: ${escapeHtml(game.title)}</h3>
                 </div>
-                <div class="flex items-center gap-4">
-                    <span class="text-xs text-gray-400 hidden md:inline">Sprites Active • Type !jump to interact</span>
-                    <button id="btn-minimize-chat" class="text-gray-400 hover:text-white transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
+                <div class="text-xs text-cyan-300 font-mono">
+                    Welcome to the live chat lobby. Enjoy and have fun! 
                 </div>
             </div>
 
-            <!-- Main Chat Area (Hidden when minimized) -->
-            <div id="chat-content-area" class="transition-all duration-300 overflow-hidden">
+            <!-- Stream Area -->
+            <div id="stream-area" class="hidden bg-black aspect-video relative group">
+                <iframe id="stream-frame" class="w-full h-full" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                <button id="close-stream" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition">Close Stream</button>
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div id="chat-messages" class="h-64 overflow-y-auto p-4 space-y-3 bg-gray-900/50 scroll-smooth custom-scrollbar relative">
+                <div class="text-center text-gray-500 text-sm py-4">Loading messages...</div>
                 
-                <!-- Sprite Canvas Layer (The Runway) -->
-                <div class="relative w-full h-32 bg-gray-900/50 border-b border-gray-800 overflow-hidden">
-                    <div id="sprite-canvas-container" class="absolute inset-0 w-full h-full"></div>
-                    <!-- Overlay hint -->
-                    <div class="absolute top-2 right-4 text-[10px] text-gray-500 pointer-events-none">
-                        🟢 Live Users: <span id="live-user-count">1</span>
-                    </div>
+                <!-- 🆕 SPRITE CANVAS CONTAINER (Absolute Bottom of Chat) -->
+                <div id="sprite-canvas-container" class="absolute bottom-0 left-0 w-full h-32 pointer-events-none z-10">
+                    <canvas id="sprite-canvas" width="800" height="128"></canvas>
                 </div>
+            </div>
 
-                <!-- Messages Scroll Area -->
-                <div id="chat-messages" class="h-48 overflow-y-auto p-4 space-y-2 bg-gray-900/80 scroll-smooth custom-scrollbar">
-                    <div class="text-center text-gray-500 text-xs py-2">Loading messages...</div>
+            <!-- Controls -->
+            <div class="p-4 bg-gray-800/50 border-t border-gray-700 flex flex-col gap-2">
+                <!-- Stream Input -->
+                <div class="flex gap-2">
+                    <input type="text" id="stream-url-input" placeholder="Paste Twitch/YouTube stream link..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none">
+                    <button id="btn-go-live" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm font-bold whitespace-nowrap">Go Live</button>
                 </div>
-
-                <!-- Input Controls -->
-                <div class="p-3 bg-gray-800 border-t border-gray-700 flex gap-2 items-center">
-                    <form id="chat-form" class="flex-1 flex gap-2">
-                        <input type="text" id="chat-input" placeholder="Type to chat... (Try !jump)" 
-                            class="flex-1 bg-gray-900 border border-gray-600 rounded-full px-4 py-2 text-sm text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition shadow-inner">
-                        <button type="submit" id="btn-send" class="bg-cyan-600 hover:bg-cyan-500 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center transition shadow-lg disabled:opacity-50">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                        </button>
-                    </form>
-                </div>
+                <!-- Chat Input -->
+                <form id="chat-form" class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none" autocomplete="off">
+                    <button type="submit" id="btn-send" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-sm font-bold whitespace-nowrap">Send</button>
+                </form>
             </div>
         </div>
     `;
 
-    // 3. Initialize Sprite Engine (FIXED IMPORT)
-    if (rom.currentUser) {
-        try {
-            // Ensure path matches your file structure exactly
-            const { default: SpriteEngine } = await import('../chat/sprite-engine.js');
-            
-            spriteEngine = new SpriteEngine('sprite-canvas-container', rom.currentUser.id, rom.supabase);
-            await spriteEngine.init();
-            
-            // Hook up the "speak" function to the engine
-            window.spriteSpeak = (uid, text) => spriteEngine.speak(uid, text);
-        } catch (e) {
-            console.error("❌ Sprite Engine Failed:", e);
-        }
-    }
-
-    // 4. Load Messages & Setup Listeners
+    // Load initial messages
     loadChatMessages(rom, room.id);
 
+    // Setup Realtime listener
     chatChannel = rom.supabase.channel(`room:${room.id}`);
     
     chatChannel
@@ -683,28 +663,42 @@ async function renderActiveSession(container, room, rom, game) {
             appendMessageToDOM(payload.new, rom.currentUser?.id, rom);
         })
         .subscribe((status) => {
-            if (status === 'SUBSCRIBED') console.log('✅ Joined chat channel:', room.id);
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Joined chat channel:', room.id);
+            }
         });
 
-    // 5. Minimize/Maximize Logic
-    const minimizeBtn = document.getElementById('btn-minimize-chat');
-    const contentArea = document.getElementById('chat-content-area');
-    let isMinimized = false;
+    // Stream Logic
+    const btnGoLive = document.getElementById('btn-go-live');
+    const streamArea = document.getElementById('stream-area');
+    const streamFrame = document.getElementById('stream-frame');
+    const closeStream = document.getElementById('close-stream');
+    const input = document.getElementById('stream-url-input');
 
-    minimizeBtn.addEventListener('click', () => {
-        isMinimized = !isMinimized;
-        if (isMinimized) {
-            contentArea.style.maxHeight = '0px';
-            contentArea.style.opacity = '0';
-            minimizeBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>';
-        } else {
-            contentArea.style.maxHeight = '500px'; // Arbitrary large height
-            contentArea.style.opacity = '1';
-            minimizeBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>';
-        }
+    btnGoLive.addEventListener('click', () => {
+        const url = input.value.trim();
+        if (!url) return;
+        
+        const embedUrl = getEmbedUrl(url);
+        streamFrame.src = embedUrl;
+        streamArea.classList.remove('hidden');
+        
+        rom.supabase.from('chat_rooms').update({ stream_url: url }).eq('id', room.id);
     });
 
-    // 6. Chat Form Logic
+    closeStream.addEventListener('click', () => {
+        streamArea.classList.add('hidden');
+        streamFrame.src = '';
+        rom.supabase.from('chat_rooms').update({ stream_url: null }).eq('id', room.id);
+    });
+
+    if (room.stream_url) {
+        input.value = room.stream_url;
+        streamFrame.src = getEmbedUrl(room.stream_url);
+        streamArea.classList.remove('hidden');
+    }
+
+    // Chat Form Logic
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('btn-send');
@@ -715,8 +709,10 @@ async function renderActiveSession(container, room, rom, game) {
         if (!message || !rom.currentUser) return;
 
         sendBtn.disabled = true;
+        sendBtn.textContent = '...';
 
         try {
+            // Fetch fresh profile data for avatar/username
             const { data: profile } = await rom.supabase
                 .from('profiles')
                 .select('username, avatar_url')
@@ -735,15 +731,15 @@ async function renderActiveSession(container, room, rom, game) {
             }]);
 
             chatInput.value = '';
-            
-            // Award XP
-            await rom.supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: 2, reason: 'chat_message' });
-
+            const xpAmount = currentRoomId ? 2 : 1;
+            // FIX: Use rom.supabase here
+            await rom.supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
         } catch (err) {
             console.error('Failed to send:', err);
-            alert('Failed: ' + err.message);
+            alert('Failed to send message: ' + err.message);
         } finally {
             sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
         }
     });
 }
@@ -753,6 +749,7 @@ async function loadChatMessages(rom, roomId) {
     if (!container) return;
 
     try {
+        // ✅ SAFE: Only selects from chat_messages, no joins
         const { data: messages, error } = await rom.supabase
             .from('chat_messages')
             .select('*')
@@ -778,7 +775,7 @@ async function loadChatMessages(rom, roomId) {
     }
 }
 
-// ✅ FIXED: Added 'rom' argument and fixed layout CSS to prevent overlap
+// ✅ FIX: Added 'rom' argument and fixed layout CSS to prevent overlap
 async function appendMessageToDOM(msg, currentUserId, rom) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
@@ -786,7 +783,7 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
     const isMe = msg.user_id === currentUserId;
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. SAFE FETCH: Get full profile data (Restored full selection)
+    // 1. SAFE FETCH: Get full profile data (FIXED: Use rom.supabase)
     let profileData = null;
     try {
         const { data } = await rom.supabase
@@ -805,23 +802,26 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
             .single();
         profileData = data;
     } catch (e) {
+        // Fallback if fetch fails
         profileData = null;
     }
 
-    // 2. Prepare Data
+    // 2. Prepare Data with Fallbacks
     const username = profileData?.username || msg.username || 'Unknown';
     const avatarUrl = profileData?.avatar_url || msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${username}`;
     
+    // Extract Rank & Motto from fetched profile
     const rankName = profileData?.rank?.name || null;
     const rankColor = profileData?.rank?.color || '#9ca3af';
     const motto = profileData?.motto || '';
     const xpTotal = profileData?.xp_total || 0;
     
+    // Extract Gamercard BG settings
     const gcBgType = profileData?.gamercard_bg_type || 'color';
     const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
 
-    // Build Background Style
+    // 3. Construct Gamercard HTML
     let bgStyle = `background-color: ${gcBgValue};`;
     if (gcBgType === 'image') {
         bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
@@ -829,24 +829,20 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         bgStyle = `background-image: ${gcBgValue};`;
     }
 
-    // Writer Badge Logic
+    // 🆕 CHECK FOR WRITER STATUS
     const articleCount = profileData?.stats?.articles_published || 0;
     const isWriter = articleCount > 0;
+    
     const writerBadgeHtml = isWriter ? `
-        <span class="text-[8px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
+        <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
               style="background:#ec489940; color:#ec4899; border:1px solid #ec4899; text-shadow: 0 1px 2px black; backdrop-filter: blur(2px); display:flex; align-items:center; gap:2px;">
             ✒️ Writer
         </span>
     ` : '';
 
-    // 🗣️ TRIGGER SPRITE SPEECH
-    if (window.spriteSpeak) {
-        window.spriteSpeak(msg.user_id, msg.message);
-    }
-
-    // 3. Construct Full Gamercard HTML (Restored)
+    // ✅ FIX: Reduced width to 180px and ensured flex-shrink-0
     const gamercardHtml = `
-        <a href="${profileLink}" class="block flex-shrink-0 w-[180px] hover:scale-[1.02] transition-transform duration-200 z-10">
+        <a href="${profileLink}" class="group block flex-shrink-0 w-[180px] hover:scale-[1.02] transition-transform duration-200 z-20">
             <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
                 <div class="absolute inset-0" style="${bgStyle} opacity: 0.6; filter: brightness(0.8);"></div>
                 <div class="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
@@ -858,18 +854,14 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
                         </div>
                         ${rankName ? `<span class="text-[8px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor};">${escapeHtml(rankName)}</span>` : ''}
                         ${writerBadgeHtml}
-                        ${motto ? `<p class="text-[8px] text-gray-200 italic truncate drop-shadow-md hidden md:block">"${escapeHtml(motto)}"</p>` : ''}
-                        <!-- Mini XP Bar -->
-                        <div class="h-1 w-full bg-gray-900/60 rounded-full mt-1 overflow-hidden backdrop-blur-sm">
-                            <div class="h-full bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" style="width: ${Math.min(100, (xpTotal % 1000) / 10)}%"></div>
-                        </div>
+                        ${motto ? `<p class="text-[8px] text-gray-200 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
                     </div>
                 </div>
             </div>
         </a>
     `;
 
-    // 4. Construct Message Bubble (Fixed Width to prevent overlap)
+    // ✅ FIX: Calc width ensures bubble never overlaps card (180px card + 20px gap)
     const bubbleHtml = `
         <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} pt-1" style="max-width: calc(100% - 200px);">
             <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
@@ -881,8 +873,9 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         </div>
     `;
 
-    // 5. Assemble (Added flex-nowrap to force side-by-side)
+    // 5. Assemble
     const messageEl = document.createElement('div');
+    // ✅ FIX: Added flex-nowrap to force side-by-side layout
     messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start flex-nowrap`;
     messageEl.innerHTML = gamercardHtml + bubbleHtml;
     
@@ -1178,7 +1171,6 @@ async function loadAchievements(rom, gameId) {
         container.innerHTML = `<p class="text-red-400 text-sm">Failed to load achievements.</p>`;
     }
 }
-
 function createGamercardHTML(profile, isChat = false) {
   if (!profile) return '<div class="text-xs text-gray-500">Unknown User</div>';
   
@@ -1223,7 +1215,6 @@ function createGamercardHTML(profile, isChat = false) {
     </div>
   `;
 }
-
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
