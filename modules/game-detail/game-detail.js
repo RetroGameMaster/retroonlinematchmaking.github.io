@@ -894,7 +894,7 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
 
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
-
+}
 function startHeartbeat(rom, roomId) {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     
