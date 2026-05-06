@@ -136,9 +136,17 @@ async function fetchProfileBySlug(slug) {
     cleanSlug = slug;
   }
 
-  const { data, error } = await supabase
+ const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select(`
+      *,
+      rank:user_ranks (
+        id,
+        name,
+        color,
+        description
+      )
+    `)
     .ilike('username', cleanSlug)
     .single();
     
