@@ -415,30 +415,6 @@ async function renderGame(game, container, rom) {
     }
 }
 
-// modules/game-detail/game-detail.js
-
-// ===== HELPER: Convert YouTube URLs to Embed Format =====
-function getEmbedUrl(url) {
-    if (!url) return '';
-    url = url.trim();
-    if (url.includes('youtube.com/embed/')) return url;
-
-    let videoId = '';
-    const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-    if (shortMatch) {
-        videoId = shortMatch[1];
-    } else {
-        const params = new URLSearchParams(url.split('?')[1]);
-        videoId = params.get('v');
-    }
-
-    if (videoId && videoId.length === 11) {
-        return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
-    }
-    console.warn('Could not parse YouTube ID from:', url);
-    return url;
-}
-
 // ===== 🚀 NEW: LIVE SESSION LOGIC =====
 
 async function initLiveSessionPanel(rom, game) {
