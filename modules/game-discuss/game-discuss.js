@@ -34,17 +34,24 @@ function renderGamercard(profile, isChat = false) {
   
   const xpPercent = Math.min(100, (xp / 5000) * 100); 
 
-  // --- UPDATED BACKGROUND LOGIC FOR MAXIMUM VISIBILITY ---
+  // --- MATCHING PROFILE/LIVE CHAT BRIGHTNESS ---
   let bgStyle = '';
+  let overlayStyle = ''; // Default to no overlay
+
   if (profile?.gamercard_bg_type === 'image') {
-    // HIGH VISIBILITY: Opacity 1.0 so animated GIFs play clearly
+    // PERFECT VISIBILITY: Opacity 1.0, NO dark overlay
     bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; opacity: 1.0;`;
+    // Removed the dark gradient overlay completely for images so GIFs shine
+    overlayStyle = 'display: none;'; 
   } else if (profile?.gamercard_bg_type === 'gradient') {
-    // Brighter gradient visibility
-    bgStyle = `background-image: ${profile.gamercard_bg_value}; opacity: 0.8;`;
+    // Bright gradient
+    bgStyle = `background-image: ${profile.gamercard_bg_value}; opacity: 1.0;`;
+    // Very subtle overlay just for text contrast
+    overlayStyle = 'background: rgba(0,0,0,0.2);'; 
   } else {
-    // Solid color slightly transparent
-    bgStyle = `background-color: ${profile?.gamercard_bg_value || '#1f2937'}; opacity: 0.9;`;
+    // Solid color
+    bgStyle = `background-color: ${profile?.gamercard_bg_value || '#1f2937'}; opacity: 1.0;`;
+    overlayStyle = 'background: rgba(0,0,0,0.3);';
   }
 
   const rankBadge = rank ? 
@@ -55,14 +62,13 @@ function renderGamercard(profile, isChat = false) {
 
   return `
     <div class="gamercard ${isChat ? 'chat-gamercard' : ''} relative overflow-hidden border border-gray-600 shadow-xl">
-      <!-- Background Layer (Fully Visible for Animations) -->
+      <!-- Background Layer (Fully Visible) -->
       <div class="gc-bg absolute inset-0 z-0" style="${bgStyle}"></div>
       
-      <!-- Gradient Overlay (SIGNIFICANTLY LIGHTENED) -->
-      <!-- Changed to a subtle sweep so the background shines through -->
-      <div class="absolute inset-0 z-0 bg-gradient-to-r from-black/60 via-black/30 to-black/60 pointer-events-none"></div>
+      <!-- Gradient Overlay (Conditional: Hidden for Images, Subtle for others) -->
+      <div class="absolute inset-0 z-0 transition-colors" style="${overlayStyle}"></div>
       
-      <!-- Content Layer (Higher Z-Index to stay on top) -->
+      <!-- Content Layer (Higher Z-Index) -->
       <div class="gc-content relative z-10 flex items-center gap-3 p-3">
         <img src="${avatar}" alt="${escapeHtml(username)}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-md">
         <div class="flex-1 min-w-0">
