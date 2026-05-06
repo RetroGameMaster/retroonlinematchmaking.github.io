@@ -783,70 +783,43 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
     const isMe = msg.user_id === currentUserId;
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. SAFE FETCH: Get full profile data (FIXED: Use rom.supabase)
+    // 1. SAFE FETCH
     let profileData = null;
     try {
         const { data } = await rom.supabase
             .from('profiles')
-            .select(`
-                username, 
-                avatar_url, 
-                motto, 
-                xp_total, 
-                gamercard_bg_type, 
-                gamercard_bg_value,
-                stats,
-                rank:user_ranks (name, color)
-            `)
+            .select(`username, avatar_url, motto, xp_total, gamercard_bg_type, gamercard_bg_value, stats, rank:user_ranks (name, color)`)
             .eq('id', msg.user_id)
             .single();
         profileData = data;
-    } catch (e) {
-        // Fallback if fetch fails
-        profileData = null;
-    }
+    } catch (e) { profileData = null; }
 
-    // 2. Prepare Data with Fallbacks
     const username = profileData?.username || msg.username || 'Unknown';
     const avatarUrl = profileData?.avatar_url || msg.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=06b6d4&color=fff`;
     const profileLink = `#/profile/${username}`;
     
-    // Extract Rank & Motto from fetched profile
     const rankName = profileData?.rank?.name || null;
     const rankColor = profileData?.rank?.color || '#9ca3af';
     const motto = profileData?.motto || '';
-    const xpTotal = profileData?.xp_total || 0;
-    
-    // Extract Gamercard BG settings
-    const gcBgType = profileData?.gamercard_bg_type || 'color';
-    const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
-
-    // 3. Construct Gamercard HTML
-    let bgStyle = `background-color: ${gcBgValue};`;
-    if (gcBgType === 'image') {
-        bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
-    } else if (gcBgType === 'gradient') {
-        bgStyle = `background-image: ${gcBgValue};`;
-    }
-
-    // 🆕 CHECK FOR WRITER STATUS
     const articleCount = profileData?.stats?.articles_published || 0;
     const isWriter = articleCount > 0;
     
-    const writerBadgeHtml = isWriter ? `
-        <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
-              style="background:#ec489940; color:#ec4899; border:1px solid #ec4899; text-shadow: 0 1px 2px black; backdrop-filter: blur(2px); display:flex; align-items:center; gap:2px;">
-            ✒️ Writer
-        </span>
-    ` : '';
+    const gcBgType = profileData?.gamercard_bg_type || 'color';
+    const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
 
-    // ✅ FIX: Reduced width to 180px and ensured flex-shrink-0
+    let bgStyle = `background-color: ${gcBgValue};`;
+    if (gcBgType === 'image') bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
+    else if (gcBgType === 'gradient') bgStyle = `background-image: ${gcBgValue};`;
+
+    const writerBadgeHtml = isWriter ? `<span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:#ec489940; color:#ec4899; border:1px solid #ec4899;">✒️ Writer</span>` : '';
+
+    // --- GAMERCARD (Fixed Width 180px) ---
     const gamercardHtml = `
-        <a href="${profileLink}" class="group block flex-shrink-0 w-[180px] hover:scale-[1.02] transition-transform duration-200 z-20">
-            <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
+        <a href="${profileLink}" class="block flex-shrink-0 w-[180px] hover:scale-[1.02] transition-transform duration-200 z-20">
+            <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900 h-full">
                 <div class="absolute inset-0" style="${bgStyle} opacity: 0.6; filter: brightness(0.8);"></div>
                 <div class="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
-                <div class="relative z-10 p-2 flex items-center gap-2">
+                <div class="relative z-10 p-2 flex items-center gap-2 h-full">
                     <img src="${avatarUrl}" alt="${username}" class="w-8 h-8 rounded-full border border-cyan-500 object-cover flex-shrink-0">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1 mb-0.5">
@@ -861,9 +834,10 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         </a>
     `;
 
-    // ✅ FIX: Calc width ensures bubble never overlaps card (180px card + 20px gap)
+    // --- BUBBLE (Fixed Max-Width & Flex Settings INLINED) ---
+    // We add 'flex-none' and an inline style max-width directly here so no JS querySelector is needed
     const bubbleHtml = `
-        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} pt-1" style="max-width: calc(100% - 200px);">
+        <div class="flex flex-col flex-none ${isMe ? 'items-end' : 'items-start'} pt-1" style="max-width: calc(100% - 200px); min-width: 0;">
             <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
                 <span class="text-[10px] text-gray-500">${time}</span>
             </div>
@@ -873,25 +847,12 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
         </div>
     `;
 
-      // 5. Assemble (FIXED LAYOUT)
+    // --- ASSEMBLE ---
     const messageEl = document.createElement('div');
-    
-    // CRITICAL FIXES:
-    // 1. 'flex-nowrap': Forces card and bubble to stay side-by-side
-    // 2. 'items-stretch': Ensures equal height alignment if needed
-    // 3. Inline style 'max-width': Hard limit prevents bubble from pushing card
+    // 'flex-nowrap' is the key here to prevent wrapping
     messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start flex-nowrap`;
-    
-    // Set inner HTML
     messageEl.innerHTML = gamercardHtml + bubbleHtml;
     
-    // Force the bubble child to respect width strictly via CSS on the container
-    const bubbleContainer = messageEl.querySelector('.flex.flex-col');
-    if (bubbleContainer) {
-        bubbleContainer.style.flex = "0 0 auto"; // Don't grow, don't shrink, base size
-        bubbleContainer.style.maxWidth = "calc(100% - 210px)"; // 180px card + 30px gap buffer
-    }
-
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
 }
