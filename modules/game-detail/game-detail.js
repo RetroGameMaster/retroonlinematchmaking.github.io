@@ -622,8 +622,13 @@ function renderActiveSession(container, room, rom, game) {
             </div>
 
             <!-- Chat Messages Area -->
-            <div id="chat-messages" class="h-64 overflow-y-auto p-4 space-y-3 bg-gray-900/50 scroll-smooth custom-scrollbar">
+            <div id="chat-messages" class="h-64 overflow-y-auto p-4 space-y-3 bg-gray-900/50 scroll-smooth custom-scrollbar relative">
                 <div class="text-center text-gray-500 text-sm py-4">Loading messages...</div>
+                
+                <!-- 🆕 SPRITE CANVAS CONTAINER (Absolute Bottom of Chat) -->
+                <div id="sprite-canvas-container" class="absolute bottom-0 left-0 w-full h-32 pointer-events-none z-10">
+                    <canvas id="sprite-canvas" width="800" height="128"></canvas>
+                </div>
             </div>
 
             <!-- Controls -->
@@ -655,7 +660,7 @@ function renderActiveSession(container, room, rom, game) {
             table: 'chat_messages',
             filter: `room_id=eq.${room.id}`
         }, (payload) => {
-            appendMessageToDOM(payload.new, rom.currentUser?.id);
+            appendMessageToDOM(payload.new, rom.currentUser?.id, rom);
         })
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
@@ -727,7 +732,8 @@ function renderActiveSession(container, room, rom, game) {
 
             chatInput.value = '';
             const xpAmount = currentRoomId ? 2 : 1;
-await supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
+            // FIX: Use rom.supabase here
+            await rom.supabase.rpc('award_xp', { user_uuid: rom.currentUser.id, amount: xpAmount, reason: 'chat_message' });
         } catch (err) {
             console.error('Failed to send:', err);
             alert('Failed to send message: ' + err.message);
@@ -759,7 +765,7 @@ async function loadChatMessages(rom, roomId) {
             return;
         }
 
-        messages.forEach(msg => appendMessageToDOM(msg, rom.currentUser?.id));
+        messages.forEach(msg => appendMessageToDOM(msg, rom.currentUser?.id, rom));
         
         container.scrollTop = container.scrollHeight;
 
@@ -769,18 +775,18 @@ async function loadChatMessages(rom, roomId) {
     }
 }
 
-async function appendMessageToDOM(msg, currentUserId) {
+// ✅ FIX: Added 'rom' argument and fixed layout CSS to prevent overlap
+async function appendMessageToDOM(msg, currentUserId, rom) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
     const isMe = msg.user_id === currentUserId;
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. SAFE FETCH: Get full profile data for this specific message author
-    // We do this individually to avoid breaking the main query with joins
+    // 1. SAFE FETCH: Get full profile data (FIXED: Use rom.supabase)
     let profileData = null;
     try {
-        const { data } = await supabase
+        const { data } = await rom.supabase
             .from('profiles')
             .select(`
                 username, 
@@ -789,6 +795,7 @@ async function appendMessageToDOM(msg, currentUserId) {
                 xp_total, 
                 gamercard_bg_type, 
                 gamercard_bg_value,
+                stats,
                 rank:user_ranks (name, color)
             `)
             .eq('id', msg.user_id)
@@ -814,8 +821,7 @@ async function appendMessageToDOM(msg, currentUserId) {
     const gcBgType = profileData?.gamercard_bg_type || 'color';
     const gcBgValue = profileData?.gamercard_bg_value || '#1f2937';
 
-        // 3. Construct Gamercard HTML
-    // We build the background style dynamically based on the fetched type
+    // 3. Construct Gamercard HTML
     let bgStyle = `background-color: ${gcBgValue};`;
     if (gcBgType === 'image') {
         bgStyle = `background-image: url('${gcBgValue}'); background-size: cover; background-position: center;`;
@@ -824,7 +830,6 @@ async function appendMessageToDOM(msg, currentUserId) {
     }
 
     // 🆕 CHECK FOR WRITER STATUS
-    // We check if the user has published any articles (stats.articles_published > 0)
     const articleCount = profileData?.stats?.articles_published || 0;
     const isWriter = articleCount > 0;
     
@@ -835,59 +840,34 @@ async function appendMessageToDOM(msg, currentUserId) {
         </span>
     ` : '';
 
+    // ✅ FIX: Reduced width to 180px and ensured flex-shrink-0
     const gamercardHtml = `
-        <a href="${profileLink}" class="group block flex-shrink-0 w-[240px] hover:scale-[1.02] transition-transform duration-200 z-10">
+        <a href="${profileLink}" class="group block flex-shrink-0 w-[180px] hover:scale-[1.02] transition-transform duration-200 z-20">
             <div class="gamercard chat-gamercard relative overflow-hidden rounded-lg border border-gray-700 shadow-xl bg-gray-900">
-                
-                <!-- Background Layer -->
-                <div class="absolute inset-0" style="
-                    ${bgStyle} 
-                    opacity: 0.6; 
-                    filter: brightness(0.8);
-                    transition: opacity 0.3s ease;
-                "></div>
-
-                <!-- Gradient Overlay -->
+                <div class="absolute inset-0" style="${bgStyle} opacity: 0.6; filter: brightness(0.8);"></div>
                 <div class="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/50"></div>
-                
-                <!-- Content -->
                 <div class="relative z-10 p-2 flex items-center gap-2">
-                    <img src="${avatarUrl}" alt="${username}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-md">
+                    <img src="${avatarUrl}" alt="${username}" class="w-8 h-8 rounded-full border border-cyan-500 object-cover flex-shrink-0">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1 mb-0.5">
-                            <span class="text-xs font-bold text-white truncate drop-shadow-md">${escapeHtml(username)}</span>
+                            <span class="text-[10px] font-bold text-white truncate drop-shadow-md">${escapeHtml(username)}</span>
                         </div>
-                        
-                        <!-- Rank Badge -->
-                        ${rankName ? `
-                            <span class="text-[9px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" 
-                                  style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor}; text-shadow: 0 1px 2px black; backdrop-filter: blur(2px);">
-                                ${escapeHtml(rankName)}
-                            </span>
-                        ` : ''}
-
-                        <!-- 🆕 Writer Badge (Shows if user has published articles) -->
+                        ${rankName ? `<span class="text-[8px] px-1 py-0.5 rounded font-bold block w-fit mb-0.5" style="background:${rankColor}40; color:${rankColor}; border:1px solid ${rankColor};">${escapeHtml(rankName)}</span>` : ''}
                         ${writerBadgeHtml}
-
-                        ${motto ? `<p class="text-[9px] text-gray-200 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
-                        
-                        <!-- Mini XP Bar -->
-                        <div class="h-1 w-full bg-gray-900/60 rounded-full mt-1 overflow-hidden backdrop-blur-sm">
-                            <div class="h-full bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" style="width: ${Math.min(100, (xpTotal % 1000) / 10)}%"></div>
-                        </div>
+                        ${motto ? `<p class="text-[8px] text-gray-200 italic truncate drop-shadow-md">"${escapeHtml(motto)}"</p>` : ''}
                     </div>
                 </div>
             </div>
         </a>
     `;
 
-    // 4. Construct Message Bubble
+    // ✅ FIX: Calc width ensures bubble never overlaps card (180px card + 20px gap)
     const bubbleHtml = `
-        <div class="flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'} pt-1">
+        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} pt-1" style="max-width: calc(100% - 200px);">
             <div class="flex items-baseline gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
                 <span class="text-[10px] text-gray-500">${time}</span>
             </div>
-            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-br-none' : 'rounded-bl-none'}">
+            <div class="bg-gray-800/95 backdrop-blur text-gray-200 text-xs md:text-sm px-3 py-2 rounded-lg break-words shadow-lg border border-gray-700 ${isMe ? 'bg-cyan-900/30 border-cyan-800/50 text-cyan-50 rounded-br-none' : 'rounded-bl-none'}">
                 ${escapeHtml(msg.message)}
             </div>
         </div>
@@ -895,12 +875,14 @@ async function appendMessageToDOM(msg, currentUserId) {
 
     // 5. Assemble
     const messageEl = document.createElement('div');
-    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start`;
+    // ✅ FIX: Added flex-nowrap to force side-by-side layout
+    messageEl.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''} animate-fade-in mb-4 items-start flex-nowrap`;
     messageEl.innerHTML = gamercardHtml + bubbleHtml;
     
     container.appendChild(messageEl);
     container.scrollTop = container.scrollHeight;
 }
+
 function startHeartbeat(rom, roomId) {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     
@@ -940,7 +922,7 @@ function updateMetaTags(game) {
 // ===== SEO: INJECT SCHEMA MARKUP (JSON-LD) =====
 function injectSchemaMarkup(game) {
     const schema = {
-        "@context": "https://schema.org",
+        "@context": " https://schema.org ",
         "@type": "VideoGame",
         "name": game.title,
         "description": game.description,
@@ -1193,15 +1175,13 @@ function createGamercardHTML(profile, isChat = false) {
   if (!profile) return '<div class="text-xs text-gray-500">Unknown User</div>';
   
   const name = profile.username || 'Anonymous';
-  const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${name}&background=06b6d4&color=fff`;
+  const avatar = profile.avatar_url || ` https://ui-avatars.com/api/?name=${name}&background=06b6d4&color=fff`;
   const rankName = profile.rank?.name || 'Player';
   const rankColor = profile.rank?.color || '#9ca3af';
   const motto = profile.motto || '';
   
-  // Calculate XP Progress (Next rank logic simplified for display)
   const xp = profile.xp_total || 0;
-  const nextRankXp = 500; // Simplified: In real app, calculate distance to next rank dynamically
-  const xpPercent = Math.min(100, (xp % 1000) / 10); // Visual filler for now
+  const xpPercent = Math.min(100, (xp % 1000) / 10); 
 
   let bgStyle = `background-color: ${profile.gamercard_bg_value || '#1f2937'}`;
   if (profile.gamercard_bg_type === 'image') {
