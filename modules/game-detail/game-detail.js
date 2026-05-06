@@ -26,6 +26,7 @@ function getEmbedUrl(url) {
 let chatChannel = null;
 let heartbeatInterval = null;
 let currentRoomId = null;
+let spriteEngine = null; 
 
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
@@ -415,12 +416,6 @@ async function renderGame(game, container, rom) {
 }
 
 // modules/game-detail/game-detail.js
-
-// ===== GLOBAL STATE FOR CHAT & SPRITES =====
-let chatChannel = null;
-let heartbeatInterval = null;
-let currentRoomId = null;
-let spriteEngine = null; // ✅ ADDED: Store sprite engine instance
 
 // ===== HELPER: Convert YouTube URLs to Embed Format =====
 function getEmbedUrl(url) {
