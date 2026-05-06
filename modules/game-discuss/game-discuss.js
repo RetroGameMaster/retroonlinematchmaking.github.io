@@ -34,17 +34,17 @@ function renderGamercard(profile, isChat = false) {
   
   const xpPercent = Math.min(100, (xp / 5000) * 100); 
 
-  // --- UPDATED BACKGROUND LOGIC FOR VISIBILITY ---
+  // --- UPDATED BACKGROUND LOGIC FOR MAXIMUM VISIBILITY ---
   let bgStyle = '';
   if (profile?.gamercard_bg_type === 'image') {
-    // Increased opacity to 0.6 so image is clearly visible
-    bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; opacity: 0.6;`;
+    // HIGH VISIBILITY: Opacity 1.0 so animated GIFs play clearly
+    bgStyle = `background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; opacity: 1.0;`;
   } else if (profile?.gamercard_bg_type === 'gradient') {
-    // Increased opacity to 0.7 for gradients
-    bgStyle = `background-image: ${profile.gamercard_bg_value}; opacity: 0.3;`;
+    // Brighter gradient visibility
+    bgStyle = `background-image: ${profile.gamercard_bg_value}; opacity: 0.8;`;
   } else {
-    // Solid color with higher opacity
-    bgStyle = `background-color: ${profile?.gamercard_bg_value || '#1f2937'}; opacity: 0.8;`;
+    // Solid color slightly transparent
+    bgStyle = `background-color: ${profile?.gamercard_bg_value || '#1f2937'}; opacity: 0.9;`;
   }
 
   const rankBadge = rank ? 
@@ -55,24 +55,26 @@ function renderGamercard(profile, isChat = false) {
 
   return `
     <div class="gamercard ${isChat ? 'chat-gamercard' : ''} relative overflow-hidden border border-gray-600 shadow-xl">
-      <!-- Background Layer (Now More Visible) -->
+      <!-- Background Layer (Fully Visible for Animations) -->
       <div class="gc-bg absolute inset-0 z-0" style="${bgStyle}"></div>
       
-      <!-- Gradient Overlay (Lightened to let background show through) -->
-      <!-- Changed from black/80 to black/50 to ensure background is seen -->
-      <div class="absolute inset-0 z-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70"></div>
+      <!-- Gradient Overlay (SIGNIFICANTLY LIGHTENED) -->
+      <!-- Changed to a subtle sweep so the background shines through -->
+      <div class="absolute inset-0 z-0 bg-gradient-to-r from-black/60 via-black/30 to-black/60 pointer-events-none"></div>
       
       <!-- Content Layer (Higher Z-Index to stay on top) -->
-      <div class="gc-content relative z-10">
-        <img src="${avatar}" alt="${escapeHtml(username)}" class="gc-avatar">
-        <div class="gc-info">
-          <span class="gc-name text-shadow-md">${escapeHtml(username)}</span>
-          ${rankBadge}
-          ${mottoHtml}
-          <div class="gc-xp-bar-container">
-            <div class="gc-xp-fill" style="width: ${xpPercent}%"></div>
+      <div class="gc-content relative z-10 flex items-center gap-3 p-3">
+        <img src="${avatar}" alt="${escapeHtml(username)}" class="w-10 h-10 rounded-full border-2 border-cyan-500 object-cover flex-shrink-0 shadow-md">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <span class="gc-name text-sm font-bold text-white text-shadow-md truncate">${escapeHtml(username)}</span>
+            ${rankBadge}
           </div>
-          <span class="gc-xp-text">${xp} XP</span>
+          ${mottoHtml}
+          <div class="gc-xp-bar-container w-full bg-gray-900/60 h-1.5 rounded-full mt-1 overflow-hidden backdrop-blur-sm">
+            <div class="gc-xp-fill h-full bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]" style="width: ${xpPercent}%"></div>
+          </div>
+          <span class="gc-xp-text text-[10px] text-cyan-300 font-bold mt-0.5 block">${xp} XP</span>
         </div>
       </div>
     </div>
