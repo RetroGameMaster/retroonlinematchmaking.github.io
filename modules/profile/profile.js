@@ -543,8 +543,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; z-index: 0;"></div>
       ` : ''}
 
-      <!-- DARK OVERLAY -->
-      <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9)); z-index: 1; backdrop-filter: blur(2px);"></div>
+       <!-- 2. LIGHTER OVERLAY (Fixed: Allows animated backgrounds to shine through) -->
+  <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none;"></div>
       
       <!-- Content: Flex Col on Mobile, Row on Desktop -->
       <div class="ra-header-content w-full p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
