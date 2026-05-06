@@ -1,7 +1,7 @@
 // modules/chat/sprite-engine.js
 import { supabase } from '../../lib/supabase.js';
 
-export class SpriteEngine {
+export default class SpriteEngine {
   constructor(containerId, userId) {
     this.container = document.getElementById(containerId);
     this.userId = userId;
