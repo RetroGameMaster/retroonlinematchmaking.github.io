@@ -31,6 +31,7 @@ export default function initModule(rom) {
   loadOnlineUsers();
   loadRecentActivity();
   loadCommunitySpotlight();
+  loadHomeLeaderboardPreview(); // NEW: Load Leaderboard Preview
   
   // 5. Start Realtime Listeners & Ticker
   refreshDynamicTicker(rom); // Initial Load of LFG + Tournaments
@@ -57,7 +58,7 @@ function injectSEOMeta() {
     script.id = scriptId;
     script.type = 'application/ld+json';
     script.text = JSON.stringify({
-      "@context": "https://schema.org ",
+      "@context": "https://schema.org  ",
       "@type": "WebSite",
       "name": "Retro Online Matchmaking",
       "url": window.location.origin,
@@ -225,6 +226,19 @@ function renderHomeLayout() {
               <span id="online-count" class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded-full">0</span>
             </div>
             <div id="online-users-list" class="p-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
+          </div>
+
+          <!-- NEW: Site XP Leaderboard Preview -->
+          <div class="ambient-card bg-gray-800 rounded-xl border border-yellow-500/30 shadow-lg shadow-yellow-900/10 overflow-hidden flex flex-col">
+            <div class="bg-gradient-to-r from-yellow-900/40 to-gray-900/50 p-4 border-b border-yellow-500/30 flex justify-between items-center">
+              <h3 class="font-bold text-yellow-300 flex items-center gap-2">
+                <span class="text-xl">🏆</span> Top Players
+              </h3>
+              <a href="#/site-xp-leaderboard" class="text-[10px] text-yellow-400 hover:text-yellow-200 font-bold uppercase tracking-wider">View All</a>
+            </div>
+            <div id="home-leaderboard-preview" class="p-2 space-y-2">
+              <div class="text-center text-gray-500 text-xs py-4">Calculating rankings...</div>
+            </div>
           </div>
 
           <!-- Community Spotlight -->
@@ -480,7 +494,7 @@ async function loadOnlineUsers() {
 
     listEl.innerHTML = users.map(user => {
       const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
-      const avatar = user.avatar_url || ` https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
       
       return `
         <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
@@ -498,6 +512,58 @@ async function loadOnlineUsers() {
 
   } catch (error) {
     console.error('Online users error:', error);
+  }
+}
+
+// NEW: Load Top 5 Users for Home Page Preview
+async function loadHomeLeaderboardPreview() {
+  const container = document.getElementById('home-leaderboard-preview');
+  if (!container) return;
+
+  try {
+    const { data: users, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        username,
+        avatar_url,
+        xp_total,
+        rank:user_ranks (name, color)
+      `)
+      .order('xp_total', { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+    if (!users || users.length === 0) {
+      container.innerHTML = `<div class="text-center text-gray-500 text-xs py-4">No rankings yet.</div>`;
+      return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉', '🔹', '🔹'];
+
+    container.innerHTML = users.map((user, index) => {
+      const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
+      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      const medal = medals[index] || '•';
+      const isTop3 = index < 3;
+      
+      return `
+        <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
+          <div class="w-6 text-center text-lg filter drop-shadow-md">${medal}</div>
+          <div class="relative">
+            <img src="${avatar}" class="w-8 h-8 rounded-full border ${isTop3 ? 'border-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]' : 'border-gray-600'} group-hover:border-cyan-400 transition object-cover">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-white text-xs font-bold truncate group-hover:text-cyan-400 drop-shadow-sm">${user.username}</div>
+            <div class="text-[10px] text-cyan-400 font-mono">${user.xp_total.toLocaleString()} XP</div>
+          </div>
+        </a>
+      `;
+    }).join('');
+
+  } catch (error) {
+    console.error('Leaderboard preview error:', error);
+    container.innerHTML = `<div class="text-center text-red-400 text-xs py-2">Failed to load</div>`;
   }
 }
 
@@ -524,7 +590,7 @@ async function loadCommunitySpotlight() {
     if (error || !user) return;
 
     const link = `#/profile/${user.username}`;
-    const avatar = user.avatar_url || ` https://ui-avatars.com/api/?name=${user.username}&background=FBBF24&color=000`;
+    const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=FBBF24&color=000`;
 
     container.innerHTML = `
       <a href="${link}" class="group block">
