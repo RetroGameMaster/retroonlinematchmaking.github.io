@@ -887,7 +887,21 @@ Object.assign(overlayEl.style, {
     </div>
   `;
 }
-
+setTimeout(() => {
+  // Re-fetch fresh data to ensure rank matches current XP
+  fetchProfileBySlug(profile.username).then(freshData => {
+    if (freshData && freshData.rank) {
+      // Update the DOM directly without full reload
+      const rankBadge = document.querySelector('.ra-header .inline-flex span');
+      if (rankBadge) {
+        rankBadge.textContent = `👑 ${freshData.rank.name}`;
+        rankBadge.style.color = freshData.rank.color;
+        rankBadge.parentElement.style.borderColor = freshData.rank.color;
+        rankBadge.parentElement.style.boxShadow = `0 0 10px ${freshData.rank.color}40`;
+      }
+    }
+  });
+}, 1000); // Wait 1 second for DB to propagate
 function getBackgroundCSS(bg) {
   if (!bg || !bg.type) return 'background-color: #111827;';
   const { type, value } = bg;
