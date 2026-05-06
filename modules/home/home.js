@@ -27,11 +27,11 @@ export default function initModule(rom) {
   // 4. Load Dynamic Content
   loadSiteSettings();
   loadFeaturedGame();
-  loadGameOfTheWeek();
+  loadGameOfTheWeek(); // Now handles weekly persistence
   loadOnlineUsers();
   loadRecentActivity();
   loadCommunitySpotlight();
-  loadHomeLeaderboardPreview(); // NEW: Load Leaderboard Preview
+  loadHomeLeaderboardPreview(); // Load the new leaderboard preview
   
   // 5. Start Realtime Listeners & Ticker
   refreshDynamicTicker(rom); // Initial Load of LFG + Tournaments
@@ -58,7 +58,7 @@ function injectSEOMeta() {
     script.id = scriptId;
     script.type = 'application/ld+json';
     script.text = JSON.stringify({
-      "@context": "https://schema.org  ",
+      "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "Retro Online Matchmaking",
       "url": window.location.origin,
@@ -234,10 +234,13 @@ function renderHomeLayout() {
               <h3 class="font-bold text-yellow-300 flex items-center gap-2">
                 <span class="text-xl">🏆</span> Top Players
               </h3>
-              <a href="#/site-xp-leaderboard" class="text-[10px] text-yellow-400 hover:text-yellow-200 font-bold uppercase tracking-wider">View All</a>
+              <a href="#/site-xp-leaderboard" class="text-xs text-yellow-400 hover:text-yellow-300 font-bold underline">View All</a>
             </div>
             <div id="home-leaderboard-preview" class="p-2 space-y-2">
-              <div class="text-center text-gray-500 text-xs py-4">Calculating rankings...</div>
+              <div class="text-center text-gray-500 text-sm py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-500"></div>
+                <span class="ml-2">Calculating ranks...</span>
+              </div>
             </div>
           </div>
 
@@ -408,30 +411,69 @@ async function loadFeaturedGame() {
   }
 }
 
+// ============================================================================
+// UPDATED: PERSISTENT GAME OF THE WEEK LOGIC
+// ============================================================================
 async function loadGameOfTheWeek() {
   const container = document.getElementById('gotw-content');
   if (!container) return;
 
   try {
-    const { data: games, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('status', 'approved')
-      .not('cover_image_url', 'is', null)
-      .order('approved_at', { ascending: false })
-      .limit(5);
+    const today = new Date();
+    const currentWeek = getWeekNumber(today);
+    const year = today.getFullYear();
+    const storageKey = `gotw_${year}_${currentWeek}`;
 
-    if (error || !games || games.length === 0) {
-      container.innerHTML = `<div class="p-8 text-center text-gray-500">No featured game this week.</div>`;
+    // 1. Check if we already have a game saved for this week
+    const { data: setting } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', storageKey)
+      .single();
+
+    if (setting && setting.value) {
+      // Game found in cache, fetch details
+      const gameId = setting.value;
+      const { data: game } = await supabase.from('games').select('*').eq('id', gameId).single();
+      if (game) {
+        renderGameCard(game, container, null, true);
+        return;
+      }
+    }
+
+    // 2. No game found (or invalid), pick a new random one
+    const { count } = await supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'approved');
+    if (!count || count === 0) {
+      container.innerHTML = `<div class="p-8 text-center text-gray-500">No games available yet.</div>`;
       return;
     }
 
-    const selected = games[Math.floor(Math.random() * games.length)];
-    renderGameCard(selected, container, null, true);
+    const randomOffset = Math.floor(Math.random() * count);
+    const { data: newGame } = await supabase
+      .from('games')
+      .select('*')
+      .eq('status', 'approved')
+      .range(randomOffset, randomOffset)
+      .single();
+
+    if (newGame) {
+      // Save to DB for the rest of the week
+      await supabase.from('site_settings').upsert({ key: storageKey, value: newGame.id });
+      renderGameCard(newGame, container, null, true);
+    }
 
   } catch (error) {
     console.error('Game of the week error:', error);
   }
+}
+
+// Helper: Get ISO Week Number
+function getWeekNumber(d) {
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return weekNo;
 }
 
 function renderGameCard(game, container, statusEl, isFeatured = false) {
@@ -512,58 +554,6 @@ async function loadOnlineUsers() {
 
   } catch (error) {
     console.error('Online users error:', error);
-  }
-}
-
-// NEW: Load Top 5 Users for Home Page Preview
-async function loadHomeLeaderboardPreview() {
-  const container = document.getElementById('home-leaderboard-preview');
-  if (!container) return;
-
-  try {
-    const { data: users, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        username,
-        avatar_url,
-        xp_total,
-        rank:user_ranks (name, color)
-      `)
-      .order('xp_total', { ascending: false })
-      .limit(5);
-
-    if (error) throw error;
-    if (!users || users.length === 0) {
-      container.innerHTML = `<div class="text-center text-gray-500 text-xs py-4">No rankings yet.</div>`;
-      return;
-    }
-
-    const medals = ['🥇', '🥈', '🥉', '🔹', '🔹'];
-
-    container.innerHTML = users.map((user, index) => {
-      const link = user.username ? `#/profile/${user.username}` : `#/profile/${user.id}`;
-      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
-      const medal = medals[index] || '•';
-      const isTop3 = index < 3;
-      
-      return `
-        <a href="${link}" class="flex items-center gap-3 p-2 hover:bg-gray-700/50 rounded-lg transition group relative z-10">
-          <div class="w-6 text-center text-lg filter drop-shadow-md">${medal}</div>
-          <div class="relative">
-            <img src="${avatar}" class="w-8 h-8 rounded-full border ${isTop3 ? 'border-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]' : 'border-gray-600'} group-hover:border-cyan-400 transition object-cover">
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-white text-xs font-bold truncate group-hover:text-cyan-400 drop-shadow-sm">${user.username}</div>
-            <div class="text-[10px] text-cyan-400 font-mono">${user.xp_total.toLocaleString()} XP</div>
-          </div>
-        </a>
-      `;
-    }).join('');
-
-  } catch (error) {
-    console.error('Leaderboard preview error:', error);
-    container.innerHTML = `<div class="text-center text-red-400 text-xs py-2">Failed to load</div>`;
   }
 }
 
@@ -654,6 +644,55 @@ async function loadRecentActivity() {
 
   } catch (error) {
     console.error('Activity feed error:', error);
+  }
+}
+
+// ============================================================================
+// NEW: LEADERBOARD PREVIEW LOADER
+// ============================================================================
+async function loadHomeLeaderboardPreview() {
+  const container = document.getElementById('home-leaderboard-preview');
+  if (!container) return;
+
+  try {
+    const { data: leaders, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        username,
+        avatar_url,
+        xp_total,
+        rank:user_ranks (name, color)
+      `)
+      .order('xp_total', { ascending: false })
+      .limit(5);
+
+    if (error || !leaders || leaders.length === 0) {
+      container.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">No rankings yet.</div>`;
+      return;
+    }
+
+    container.innerHTML = leaders.map((user, index) => {
+      const rankIndex = index + 1;
+      const medal = rankIndex === 1 ? '🥇' : rankIndex === 2 ? '🥈' : rankIndex === 3 ? '🥉' : `#${rankIndex}`;
+      const highlight = rankIndex <= 3 ? 'bg-yellow-900/20 border-yellow-500/30' : 'hover:bg-gray-700/50 border-transparent';
+      const avatar = user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=06b6d4&color=fff`;
+      
+      return `
+        <a href="#/profile/${user.username}" class="flex items-center gap-3 p-2 rounded-lg border transition group ${highlight}">
+          <span class="w-6 text-center font-bold text-gray-400">${medal}</span>
+          <img src="${avatar}" class="w-8 h-8 rounded-full border border-gray-600">
+          <div class="flex-1 min-w-0">
+            <div class="text-white text-sm font-bold truncate group-hover:text-yellow-400">${user.username}</div>
+          </div>
+          <div class="text-xs font-mono font-bold text-cyan-400">${user.xp_total.toLocaleString()} XP</div>
+        </a>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error('Leaderboard preview error:', err);
+    container.innerHTML = `<div class="text-center text-red-400 text-xs">Failed to load</div>`;
   }
 }
 
