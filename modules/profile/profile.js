@@ -538,28 +538,10 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none; border-radius: 12px;"></div>
       
       <!-- Content: Flex Col on Mobile, Row on Desktop -->
-       <!-- HEADER: Fixed Mobile Overflow -->
-    <!-- Changed overflow to visible and removed restrictive max-width constraints on mobile -->
-    <div class="ra-header w-full mx-auto max-w-7xl px-0 sm:px-6 lg:px-8 mt-4" style="position: relative; overflow: visible; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
-  
-      <!-- Background Layers -->
-      ${profile.gamercard_bg_type === 'image' && profile.gamercard_bg_value ? `
-        <div style="position: absolute; inset: 0; background-image: url('${profile.gamercard_bg_value}'); background-size: cover; background-position: center; z-index: 0;"></div>
-      ` : ''}
-      ${profile.gamercard_bg_type === 'gradient' && profile.gamercard_bg_value ? `
-        <div style="position: absolute; inset: 0; background-image: ${profile.gamercard_bg_value}; z-index: 0;"></div>
-      ` : ''}
-      ${profile.gamercard_bg_type === 'color' && profile.gamercard_bg_value ? `
-        <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; z-index: 0;"></div>
-      ` : ''}
-
-      <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none;"></div>
-      
-     <!-- Content: Flex Col on Mobile, Row on Desktop -->
-      <!-- FIX: Removed overflow-hidden from parent, added z-30 to button -->
-      <div class="ra-header-content w-full p-4 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
+      <!-- FIX: Added overflow-visible and z-20 to ensure button pops out -->
+      <div class="ra-header-content w-full max-w-none p-4 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20 overflow-visible">
         
-        <!-- Avatar: Centered on Mobile -->
+        <!-- Avatar -->
         <div class="ra-avatar-container flex-shrink-0" style="${avatarStyle || ''}">
           <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
                alt="${profile.username}" 
@@ -571,7 +553,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
         </div>
 
-        <!-- Info: Centered on Mobile, Left on Desktop -->
+        <!-- Info -->
         <div class="ra-info flex-1 w-full text-center md:text-left min-w-0">
           <h1 class="ra-username text-3xl md:text-4xl font-bold m-0 text-white break-words" style="text-shadow: 0 2px 4px black;">${profile.username}</h1>
           
@@ -607,18 +589,16 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
         </div>
 
-        <!-- Edit Button: 
-             MOBILE: Full width, new line (mt-6), high z-index 
-             DESKTOP: Auto width, same line (md:mt-0, md:ml-4) 
-        -->
+        <!-- Edit Button: Fixed Mobile Spacing -->
         ${isOwnProfile ? `
-          <div class="w-full md:w-auto mt-6 md:mt-0 md:ml-4 flex-shrink-0 z-30 relative">
+          <div class="w-full md:w-auto mt-6 md:mt-0 md:ml-4 flex-shrink-0 relative z-30">
             <button id="btn-edit-profile" class="ra-edit-btn w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl">
               Edit Profile
             </button>
           </div>
         ` : ''}
       </div>
+    </div>
 
       ${profile.signature_text ? `
         <div class="ra-signature-box w-full mx-auto max-w-7xl px-4 mt-4" style="${profile.signature_custom_css || ''}">
