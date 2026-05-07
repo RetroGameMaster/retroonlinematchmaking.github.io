@@ -1,11 +1,11 @@
- import { supabase, isAdmin } from '../../lib/supabase.js';
+import { supabase, isAdmin } from '../../lib/supabase.js';
 
 // ============================================================================
 // MODULE INITIALIZATION
 // ============================================================================
 
 export async function initModule(container, params) {
-  // FORCE TARGET: Always render directly into #app-content to bypass app.js passing issues
+  // FORCE TARGET: Always render directly into #app-content
   const targetContainer = document.getElementById('app-content');
   
   if (!targetContainer) {
@@ -24,7 +24,6 @@ export async function initModule(container, params) {
   const updatePageSEO = (profile) => {
     document.title = `${profile.username}'s Profile | RetroOnlineMatchmaking`;
     
-    // Update/Open Graph Meta Tags
     const setMeta = (name, content, property = false) => {
       let tag = document.querySelector(`meta[${property ? 'property' : 'name'}="${name}"]`);
       if (!tag) {
@@ -42,7 +41,6 @@ export async function initModule(container, params) {
     setMeta('og:url', window.location.href);
     setMeta('og:type', 'profile');
     
-    // JSON-LD Structured Data
     const scriptId = 'profile-schema';
     let script = document.getElementById(scriptId);
     if (!script) {
@@ -52,7 +50,7 @@ export async function initModule(container, params) {
       document.head.appendChild(script);
     }
     script.textContent = JSON.stringify({
-      "@context": " https://schema.org ",
+      "@context": "https://schema.org",
       "@type": "Person",
       "name": profile.username,
       "url": window.location.href,
@@ -68,7 +66,6 @@ export async function initModule(container, params) {
     const slugOrId = params?.id || params?.slug; 
     
     if (!slugOrId) {
-      // Default to current user if no param provided
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         targetContainer.innerHTML = '<div class="text-center p-10 text-red-400 text-xl">🔒 Please log in to view your profile.</div>';
@@ -76,10 +73,8 @@ export async function initModule(container, params) {
       }
       targetUser = await fetchProfileByUserId(user.id);
     } else {
-      // Try fetching by Slug/Username first
       targetUser = await fetchProfileBySlug(slugOrId);
       if (!targetUser) {
-        // Fallback to ID if slug fails
         targetUser = await fetchProfileByUserId(slugOrId);
       }
     }
@@ -92,14 +87,10 @@ export async function initModule(container, params) {
     // 2. Check Permissions & Status
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const isOwnProfile = currentUser && currentUser.id === targetUser.id;
-    
-    // FIX 1: DYNAMIC ADMIN CHECK
     const isTargetUserAdmin = !!targetUser.is_admin;
     
-    // --- NEW: Trigger SEO and Data Loaders ---
-    updatePageSEO(targetUser); // Apply SEO tags
+    updatePageSEO(targetUser);
     
-    // Load new sections (Ensure these functions exist in your file)
     if (typeof loadCurrentlyPlayingList === 'function') loadCurrentlyPlayingList(targetUser);
     if (typeof loadSiteAwardsWall === 'function') loadSiteAwardsWall(targetUser.id);
     if (typeof loadProudAchievementsWall === 'function') loadProudAchievementsWall(targetUser.id, isOwnProfile);
@@ -109,7 +100,7 @@ export async function initModule(container, params) {
     // 3. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
-    // 4. Attach Event Listeners (Now includes loaders for new walls)
+    // 4. Attach Event Listeners
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
 
   } catch (error) {
@@ -136,7 +127,7 @@ async function fetchProfileBySlug(slug) {
     cleanSlug = slug;
   }
 
- const { data, error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select(`
       *,
@@ -168,11 +159,9 @@ async function fetchProfileByUserId(id) {
     .eq('id', id)
     .single();
     
-  // FIX: Return targetUser, not data
   return error ? null : targetUser;
 }
 
-// --- fetchWallComments ---
 async function fetchWallComments(profileId) {
   const { data: comments, error } = await supabase
     .from('profile_comments')
@@ -235,7 +224,6 @@ async function fetchFriends(userId) {
   }).filter(p => p !== null);
 }
 
-// FIX 2: Helper to check friendship status
 async function checkFriendStatus(currentUserId, targetUserId) {
   if (!currentUserId) return null;
 
@@ -255,7 +243,6 @@ async function checkFriendStatus(currentUserId, targetUserId) {
   return relationship || null;
 }
 
-// NEW: Fetch full game details for the "Currently Playing" list
 async function fetchCurrentlyPlayingGames(gameIdentifiers) {
   if (!gameIdentifiers || gameIdentifiers.length === 0) return [];
 
@@ -312,10 +299,9 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
 }
 
 // ============================================================================
-// NEW ACHIEVEMENT DATA FETCHERS
+// ACHIEVEMENT DATA FETCHERS
 // ============================================================================
 
-// Fetch Site Awards (Type = 'site')
 async function fetchSiteAwards(userId) {
   const { data, error } = await supabase
     .from('user_achievements')
@@ -336,11 +322,9 @@ async function fetchSiteAwards(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  // Safety filter: ensure achievement data exists
   return (data || []).filter(item => item.achievements);
 }
 
-// Fetch "Most Proud" Achievements (is_proud = true)
 async function fetchProudAchievements(userId) {
   const { data, error } = await supabase
     .from('user_achievements')
@@ -362,11 +346,9 @@ async function fetchProudAchievements(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  // Safety filter: ensure achievement data exists
   return (data || []).filter(item => item.achievements);
 }
 
-// Fetch ALL Game Achievements (Type = 'game', regardless of proud status)
 async function fetchGameAchievements(userId) {
   const { data, error } = await supabase
     .from('user_achievements')
@@ -388,13 +370,10 @@ async function fetchGameAchievements(userId) {
     .order('unlocked_at', { ascending: false });
 
   if (error) return [];
-  // Safety filter: ensure achievement data exists
   return (data || []).filter(item => item.achievements);
 }
 
-// Fetch Mastered Games (User has ALL achievements for a game)
 async function fetchMasteredGames(userId) {
-  // 1. Get all games that have achievements
   const { data: allGamesWithAchievements } = await supabase
     .from('achievements')
     .select('game_id, games(title, slug, cover_image_url, console)', { count: 'exact' })
@@ -402,7 +381,6 @@ async function fetchMasteredGames(userId) {
 
   if (!allGamesWithAchievements) return [];
 
-  // Group by game_id to count total achievements per game
   const gameTotals = {};
   allGamesWithAchievements.forEach(a => {
     if (!gameTotals[a.game_id]) {
@@ -414,7 +392,6 @@ async function fetchMasteredGames(userId) {
     gameTotals[a.game_id].total++;
   });
 
-  // 2. Get user's unlocked achievements
   const { data: userUnlocks } = await supabase
     .from('user_achievements')
     .select('achievement_id, achievements(game_id)')
@@ -422,7 +399,6 @@ async function fetchMasteredGames(userId) {
 
   if (!userUnlocks) return [];
 
-  // Count unlocks per game for this user
   const userCounts = {};
   userUnlocks.forEach(u => {
     const gid = u.achievements?.game_id;
@@ -431,7 +407,6 @@ async function fetchMasteredGames(userId) {
     }
   });
 
-  // 3. Filter for mastered games (userCount == totalCount)
   const masteredIds = [];
   Object.keys(gameTotals).forEach(gid => {
     if (userCounts[gid] === gameTotals[gid].total) {
@@ -441,7 +416,6 @@ async function fetchMasteredGames(userId) {
 
   if (masteredIds.length === 0) return [];
 
-  // 4. Fetch game details for mastered IDs
   const { data: masteredGames } = await supabase
     .from('games')
     .select('id, title, slug, cover_image_url, console')
@@ -466,18 +440,25 @@ function getGameLink(game) {
   return `#/game/${slug}`;
 }
 
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // ============================================================================
 // RENDERING LOGIC (MOBILE FIXES APPLIED HERE)
 // ============================================================================
 
 function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin, currentUser) {
-  // 1. CLEANUP: Remove any existing dynamic backgrounds from previous pages
+  // 1. CLEANUP
   document.getElementById('dynamic-profile-bg')?.remove();
   document.getElementById('profile-bg-overlay')?.remove();
 
-  // 2. INJECT FULL-SCREEN BACKGROUND (Like Game Detail Page)
+  // 2. INJECT FULL-SCREEN BACKGROUND
   const bg = profile.custom_background;
-  let bgValue = '#111827'; // Default
+  let bgValue = '#111827';
   let bgType = 'color';
   
   if (bg && bg.type) {
@@ -488,7 +469,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   const bgEl = document.createElement('div');
   bgEl.id = 'dynamic-profile-bg';
   
-  // Apply styles based on type
   if (bgType === 'image') {
     bgEl.style.backgroundImage = `url('${bgValue}')`;
     bgEl.style.backgroundSize = 'cover';
@@ -499,7 +479,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     bgEl.style.backgroundColor = bgValue;
   }
 
-  // Fixed positioning to cover entire viewport
   Object.assign(bgEl.style, {
     position: 'fixed',
     top: '0',
@@ -510,29 +489,26 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     backgroundAttachment: 'fixed'
   });
 
-  // Create Overlay for readability
- const overlayEl = document.createElement('div');
-overlayEl.id = 'profile-bg-overlay';
+  const overlayEl = document.createElement('div');
+  overlayEl.id = 'profile-bg-overlay';
 
-// Check if background is an image to reduce darkness
-let overlayOpacity = '0.45'; // Default for colors/gradients
-if (bgType === 'image') {
-  overlayOpacity = '0.15'; // Much lighter for images/GIFs so they pop
-}
+  let overlayOpacity = '0.45';
+  if (bgType === 'image') {
+    overlayOpacity = '0.15';
+  }
 
-Object.assign(overlayEl.style, {
-  position: 'fixed',
-  top: '0',
-  left: '0',
-  width: '100%',
-  height: '100%',
-  backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`,
-  zIndex: '-1',
-  backdropFilter: bgType === 'image' ? 'blur(2px)' : 'blur(4px)', // Less blur for images
-  pointerEvents: 'none'
-});
+  Object.assign(overlayEl.style, {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})`,
+    zIndex: '-1',
+    backdropFilter: bgType === 'image' ? 'blur(2px)' : 'blur(4px)',
+    pointerEvents: 'none'
+  });
 
-  // Inject into DOM
   document.body.insertBefore(bgEl, document.body.firstChild);
   document.body.insertBefore(overlayEl, document.body.firstChild);
 
@@ -540,12 +516,12 @@ Object.assign(overlayEl.style, {
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
   const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
-  // ✅ MOBILE FIX: Added overflow-x-hidden and w-full to wrapper
+  // ✅ MOBILE FIX: Full width, no clipping
   container.innerHTML = `
     <div class="ra-profile-wrapper w-full overflow-x-hidden">
     
-    <!-- HEADER: Mobile Stack (col) -> Desktop Row (md:row) -->
-    <div class="ra-header w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4" style="position: relative; overflow: hidden; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
+    <!-- HEADER -->
+    <div class="ra-header w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4" style="position: relative; overflow: visible; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
   
       <!-- Background Layers -->
       ${profile.gamercard_bg_type === 'image' && profile.gamercard_bg_value ? `
@@ -558,32 +534,27 @@ Object.assign(overlayEl.style, {
         <div style="position: absolute; inset: 0; background-color: ${profile.gamercard_bg_value}; z-index: 0;"></div>
       ` : ''}
 
-       <!-- 2. LIGHTER OVERLAY (Fixed: Allows animated backgrounds to shine through) -->
-  <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none;"></div>
+      <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none;"></div>
       
-            <!-- Content: Flex Col on Mobile, Row on Desktop -->
-      <!-- FIX: Added w-full max-w-none and removed restrictive padding to prevent cutoff -->
+      <!-- Content: Flex Col on Mobile, Row on Desktop -->
       <div class="ra-header-content w-full max-w-none p-4 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
         
-        <!-- Avatar: Centered on Mobile, Fixed Size -->
+        <!-- Avatar -->
         <div class="ra-avatar-container flex-shrink-0" style="${avatarStyle || ''}">
           <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
                alt="${profile.username}" 
                class="${avatarClass || 'ra-avatar'}" 
                style="border: 2px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3); width: 100px; height: 100px;">
           
-          <!-- Status Dot -->
           <div class="ra-status-dot" 
                style="position: absolute; bottom: 4px; right: 4px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; background-color: ${profile.is_online ? '#22c55e' : '#6b7280'}; z-index: 10;">
           </div>
         </div>
 
-        <!-- Info: Centered on Mobile, Left on Desktop -->
-        <!-- FIX: Added w-full to ensure text doesn't get squeezed -->
+        <!-- Info -->
         <div class="ra-info flex-1 w-full text-center md:text-left min-w-0">
           <h1 class="ra-username text-3xl md:text-4xl font-bold m-0 text-white break-words" style="text-shadow: 0 2px 4px black;">${profile.username}</h1>
           
-          <!-- RANK BADGE -->
           ${profile.rank && profile.rank.name ? `
             <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-md border shadow-lg backdrop-blur-sm" 
                  style="background: rgba(0,0,0,0.6); border-color: ${profile.rank.color}; box-shadow: 0 0 10px ${profile.rank.color}40;">
@@ -597,10 +568,9 @@ Object.assign(overlayEl.style, {
             </div>
           `}
 
-          <!-- Motto -->
           ${profile.motto ? `<p class="text-gray-300 text-sm italic mt-3 font-medium break-words" style="text-shadow: 0 1px 2px black;">"${escapeHtml(profile.motto)}"</p>` : ''}
           
-          <!-- Stats Row: Wrap on Mobile, Full Width -->
+          <!-- Stats Row: Fixed Mobile Wrap -->
           <div class="ra-stats-row flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 mt-4 pt-4 border-t border-white/10 w-full">
             <div class="ra-stat text-center">
               <div class="text-xl font-bold text-white">${profile.stats?.games_approved || 0}</div>
@@ -617,8 +587,7 @@ Object.assign(overlayEl.style, {
           </div>
         </div>
 
-        <!-- Edit Button: Full Width on Mobile, Auto on Desktop -->
-        <!-- FIX: Moved mt-0 to ensure it sticks to bottom of flex col on mobile -->
+        <!-- Edit Button -->
         ${isOwnProfile ? `
           <div class="w-full md:w-auto mt-6 md:mt-0 md:ml-4 flex-shrink-0">
             <button id="btn-edit-profile" class="ra-edit-btn w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap">
@@ -627,6 +596,7 @@ Object.assign(overlayEl.style, {
           </div>
         ` : ''}
       </div>
+    </div>
 
       ${profile.signature_text ? `
         <div class="ra-signature-box w-full mx-auto max-w-7xl px-4 mt-4" style="${profile.signature_custom_css || ''}">
@@ -634,10 +604,10 @@ Object.assign(overlayEl.style, {
         </div>
       ` : ''}
 
-      <!-- MAIN GRID: 1 Column Mobile, 3 Columns Large -->
+      <!-- MAIN GRID -->
       <div class="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
-        <!-- LEFT COLUMN (Main Content) -->
+        <!-- LEFT COLUMN -->
         <div class="lg:col-span-2 space-y-6">
           
           <!-- Site Awards -->
@@ -713,7 +683,7 @@ Object.assign(overlayEl.style, {
           </div>
         </div>
 
-        <!-- RIGHT COLUMN (Sidebar) -->
+        <!-- RIGHT COLUMN -->
         <div class="space-y-6">
           
           <!-- Friends -->
@@ -888,22 +858,22 @@ Object.assign(overlayEl.style, {
       ` : ''}
     </div>
   `;
-}
-setTimeout(() => {
-  // Re-fetch fresh data to ensure rank matches current XP
-  fetchProfileBySlug(profile.username).then(freshData => {
-    if (freshData && freshData.rank) {
-      // Update the DOM directly without full reload
-      const rankBadge = document.querySelector('.ra-header .inline-flex span');
-      if (rankBadge) {
-        rankBadge.textContent = `👑 ${freshData.rank.name}`;
-        rankBadge.style.color = freshData.rank.color;
-        rankBadge.parentElement.style.borderColor = freshData.rank.color;
-        rankBadge.parentElement.style.boxShadow = `0 0 10px ${freshData.rank.color}40`;
+
+  setTimeout(() => {
+    fetchProfileBySlug(profile.username).then(freshData => {
+      if (freshData && freshData.rank) {
+        const rankBadge = document.querySelector('.ra-header .inline-flex span');
+        if (rankBadge) {
+          rankBadge.textContent = `👑 ${freshData.rank.name}`;
+          rankBadge.style.color = freshData.rank.color;
+          rankBadge.parentElement.style.borderColor = freshData.rank.color;
+          rankBadge.parentElement.style.boxShadow = `0 0 10px ${freshData.rank.color}40`;
+        }
       }
-    }
-  });
-}, 1000); // Wait 1 second for DB to propagate
+    });
+  }, 1000);
+}
+
 function getBackgroundCSS(bg) {
   if (!bg || !bg.type) return 'background-color: #111827;';
   const { type, value } = bg;
@@ -917,7 +887,6 @@ function getBackgroundCSS(bg) {
 // ============================================================================
 
 function attachEventListeners(container, profile, isOwnProfile, currentUser) {
-  // --- 1. Edit Modal Logic ---
   const editBtn = document.getElementById('btn-edit-profile');
   const modal = document.getElementById('edit-modal');
   const cancelBtn = document.getElementById('btn-cancel-edit');
@@ -957,7 +926,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       const bgType = formData.get('bg_type');
       let finalAvatarUrl = profile.avatar_url;
 
-      // 1. Handle Avatar Upload
       const avatarInput = document.getElementById('avatar_file_input');
       if (avatarInput && avatarInput.files.length > 0) {
         const file = avatarInput.files[0];
@@ -980,7 +948,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         }
       }
 
-      // 2. Handle Background Upload
       const fileInput = document.getElementById('bg_file_input');
       if (bgType === 'image' && fileInput && fileInput.files.length > 0) {
         const file = fileInput.files[0];
@@ -1003,7 +970,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         }
       }
 
-      // 3. Prepare Updates Object (INCLUDING USERNAME)
       let finalGcBgValue = formData.get('gc_bg_value');
       const gcFileType = formData.get('gc_bg_type');
 
@@ -1011,7 +977,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
       if (gcFileType === 'image' && gcFileInput && gcFileInput.files.length > 0) {
          const file = gcFileInput.files[0];
          const fileName = `${profile.id}/gc_bg_${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-         // Reuse storage bucket 'user-backgrounds'
          const { error } = await supabase.storage.from('user-backgrounds').upload(fileName, file, { cacheControl: '3600', upsert: true });
          if (!error) {
            const { data: { publicUrl } } = supabase.storage.from('user-backgrounds').getPublicUrl(fileName);
@@ -1033,7 +998,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         custom_background: { type: bgType, value: finalBgValue, opacity: 1, position: 'center', size: 'cover' }
       };
 
-      // 4. Send to Database
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn.textContent = 'Saving...';
       submitBtn.disabled = true;
@@ -1050,11 +1014,9 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
         alert('✅ Profile updated successfully! Refreshing to show changes...');
         
-        // Close Modal
         modal.classList.add('hidden');
         modal.style.display = 'none';
         
-        // FORCE RELOAD
         setTimeout(() => {
             window.location.reload();
         }, 500);
@@ -1067,10 +1029,8 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     });
   }
 
-  // --- 2. Load Wall Comments ---
   loadWallComments(profile.id);
 
-  // --- 3. Post Wall Comment ---
   const postBtn = document.getElementById('btn-post-wall');
   if (postBtn) {
     postBtn.addEventListener('click', async () => {
@@ -1124,10 +1084,8 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     });
   }
 
-  // --- 4. Load Friends List ---
   loadFriends(profile.id);
   
-  // --- 4.5. Direct Message Button Logic ---
   if (!isOwnProfile && currentUser) {
     const dmContainer = document.getElementById('dm-action-container');
     const friendContainer = document.getElementById('friend-action-container');
@@ -1151,21 +1109,17 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
     }
   }
   
-  // --- 5. Smart Friend Button Logic ---
   if (!isOwnProfile && currentUser) {
     loadFriendButtonState(profile.id, currentUser.id);
   }
 
-  // --- 6. Load Currently Playing Games ---
   loadCurrentlyPlayingList(profile);
 
-  // --- NEW: Load Achievement Walls ---
   loadSiteAwardsWall(profile.id);
   loadProudAchievementsWall(profile.id, isOwnProfile); 
   loadGameAchievementsWall(profile.id, isOwnProfile); 
   loadMasteredGamesWall(profile.id);
 
-  // --- 7. Remove Game Listener ---
   const listContainer = document.getElementById('currently-playing-list');
   if (listContainer && isOwnProfile) {
     listContainer.addEventListener('click', async (e) => {
@@ -1202,7 +1156,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 }
 
 // ============================================================================
-// NEW RENDERING FUNCTIONS FOR ACHIEVEMENT WALLS
+// RENDERING FUNCTIONS FOR ACHIEVEMENT WALLS
 // ============================================================================
 
 async function loadSiteAwardsWall(userId) {
@@ -1422,7 +1376,7 @@ async function loadMasteredGamesWall(userId) {
 }
 
 // ============================================================================
-// EXISTING HELPER FUNCTIONS (Unchanged)
+// EXISTING HELPER FUNCTIONS
 // ============================================================================
 
 async function loadCurrentlyPlayingList(profile) {
@@ -1588,13 +1542,3 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { attributes: false, childList: true, subtree: false });
-
-// ============================================================================
-// HELPER: ESCAPE HTML
-// ============================================================================
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}        
