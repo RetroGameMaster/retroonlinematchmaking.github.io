@@ -589,16 +589,15 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
         </div>
 
-        <!-- Edit Button: Fixed Mobile Spacing -->
+                <!-- Edit Button: Forced Full Width & Bottom on Mobile -->
         ${isOwnProfile ? `
-          <div class="w-full md:w-auto mt-6 md:mt-0 md:ml-4 flex-shrink-0 relative z-30">
-            <button id="btn-edit-profile" class="ra-edit-btn w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl">
+          <div class="w-full mt-6 md:mt-0 md:ml-4 md:w-auto flex-shrink-0 z-30 relative">
+            <button id="btn-edit-profile" 
+                    class="w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-lg block text-center">
               Edit Profile
             </button>
           </div>
         ` : ''}
-      </div>
-    </div>
 
       ${profile.signature_text ? `
         <div class="ra-signature-box w-full mx-auto max-w-7xl px-4 mt-4" style="${profile.signature_custom_css || ''}">
