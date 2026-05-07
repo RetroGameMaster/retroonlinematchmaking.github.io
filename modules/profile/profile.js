@@ -561,23 +561,25 @@ Object.assign(overlayEl.style, {
        <!-- 2. LIGHTER OVERLAY (Fixed: Allows animated backgrounds to shine through) -->
   <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none;"></div>
       
-      <!-- Content: Flex Col on Mobile, Row on Desktop -->
-      <div class="ra-header-content w-full p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
+            <!-- Content: Flex Col on Mobile, Row on Desktop -->
+      <!-- FIX: Added w-full max-w-none and removed restrictive padding to prevent cutoff -->
+      <div class="ra-header-content w-full max-w-none p-4 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
         
-        <!-- Avatar: Centered on Mobile -->
-        <div class="ra-avatar-container" style="${avatarStyle || ''}; flex-shrink: 0;">
-  <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
-       alt="${profile.username}" 
-       class="${avatarClass || 'ra-avatar'}" 
-       style="border: 2px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3);">
-  
-  <!-- FIX: Inline style ensures green shows even if CSS class fails -->
-  <div class="ra-status-dot" 
-       style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; background-color: ${profile.is_online ? '#22c55e' : '#6b7280'}; z-index: 10;">
-  </div>
-</div>
+        <!-- Avatar: Centered on Mobile, Fixed Size -->
+        <div class="ra-avatar-container flex-shrink-0" style="${avatarStyle || ''}">
+          <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
+               alt="${profile.username}" 
+               class="${avatarClass || 'ra-avatar'}" 
+               style="border: 2px solid white; box-shadow: 0 0 15px rgba(255,255,255,0.3); width: 100px; height: 100px;">
+          
+          <!-- Status Dot -->
+          <div class="ra-status-dot" 
+               style="position: absolute; bottom: 4px; right: 4px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; background-color: ${profile.is_online ? '#22c55e' : '#6b7280'}; z-index: 10;">
+          </div>
+        </div>
 
-        <!-- Info: Centered Text on Mobile, Left on Desktop -->
+        <!-- Info: Centered on Mobile, Left on Desktop -->
+        <!-- FIX: Added w-full to ensure text doesn't get squeezed -->
         <div class="ra-info flex-1 w-full text-center md:text-left min-w-0">
           <h1 class="ra-username text-3xl md:text-4xl font-bold m-0 text-white break-words" style="text-shadow: 0 2px 4px black;">${profile.username}</h1>
           
@@ -598,8 +600,8 @@ Object.assign(overlayEl.style, {
           <!-- Motto -->
           ${profile.motto ? `<p class="text-gray-300 text-sm italic mt-3 font-medium break-words" style="text-shadow: 0 1px 2px black;">"${escapeHtml(profile.motto)}"</p>` : ''}
           
-          <!-- Stats Row: Wrap on Mobile -->
-          <div class="ra-stats-row flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 mt-4 pt-4 border-t border-white/10">
+          <!-- Stats Row: Wrap on Mobile, Full Width -->
+          <div class="ra-stats-row flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 mt-4 pt-4 border-t border-white/10 w-full">
             <div class="ra-stat text-center">
               <div class="text-xl font-bold text-white">${profile.stats?.games_approved || 0}</div>
               <div class="text-xs text-gray-400 uppercase">Games</div>
@@ -615,16 +617,16 @@ Object.assign(overlayEl.style, {
           </div>
         </div>
 
-        <!-- Edit Button: Full Width on Mobile -->
+        <!-- Edit Button: Full Width on Mobile, Auto on Desktop -->
+        <!-- FIX: Moved mt-0 to ensure it sticks to bottom of flex col on mobile -->
         ${isOwnProfile ? `
-          <div class="w-full md:w-auto mt-4 md:mt-0">
-            <button id="btn-edit-profile" class="ra-edit-btn w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-2 rounded-lg cursor-pointer backdrop-blur-md transition font-bold">
+          <div class="w-full md:w-auto mt-6 md:mt-0 md:ml-4 flex-shrink-0">
+            <button id="btn-edit-profile" class="ra-edit-btn w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap">
               Edit Profile
             </button>
           </div>
         ` : ''}
       </div>
-    </div>
 
       ${profile.signature_text ? `
         <div class="ra-signature-box w-full mx-auto max-w-7xl px-4 mt-4" style="${profile.signature_custom_css || ''}">
