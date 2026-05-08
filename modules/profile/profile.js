@@ -628,17 +628,14 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
       ` : ''}
 
-      <!-- MAIN GRID -->
-      <!-- We use flex-col on mobile, row on lg. Children use order-* to rearrange on mobile only -->
+            <!-- MAIN GRID -->
       <div class="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
-        <!-- LEFT COLUMN (Main Content) -->
-        <!-- Mobile Order: 3 (Appears after Details & Friends) -->
-        <div class="lg:col-span-2 space-y-6 flex flex-col order-3 lg:order-none">
+        <!-- LEFT COLUMN (Desktop: Main Content) -->
+        <div class="lg:col-span-2 space-y-6 flex flex-col lg:flex-col">
           
-          <!-- Currently Playing -->
-          <!-- Mobile Order: 2 (After Friends/Details, Before Awards) -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-2 lg:order-none">
+          <!-- Currently Playing (Mobile Order: 4) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-4 lg:order-2">
             <h3 class="text-lg font-bold text-white mb-4">🎮 What I'm Playing Currently</h3>
             <div id="currently-playing-container">
               <div id="currently-playing-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -650,9 +647,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- Site Awards -->
-          <!-- Mobile Order: 3 -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-purple-500/30 p-6 order-3 lg:order-none">
+          <!-- Site Awards (Mobile Order: 5) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-purple-500/30 p-6 order-5 lg:order-1">
             <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
               🎖️ Site Awards & Badges
             </h3>
@@ -661,9 +657,14 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- Proud Achievements -->
-          <!-- Mobile Order: 5 -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-yellow-500/30 p-6 order-5 lg:order-none">
+          <!-- About (Mobile Order: 2) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-2 lg:order-3">
+            <h3 class="text-lg font-bold text-white mb-3">About</h3>
+            <p class="ra-bio text-gray-300 leading-relaxed break-words">${profile.bio || 'No bio added yet.'}</p>
+          </div>
+          
+          <!-- Proud Achievements (Mobile Order: 7) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-yellow-500/30 p-6 order-7 lg:order-4">
             <h3 class="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
               ⭐ Most Proud Achievements
             </h3>
@@ -675,9 +676,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- All Game Achievements -->
-          <!-- Mobile Order: 6 -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6 order-6 lg:order-none">
+          <!-- All Game Achievements (Mobile Order: 8) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6 order-8 lg:order-5">
             <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
               🎮 Game Achievements
               <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
@@ -690,9 +690,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- Wall -->
-          <!-- Mobile Order: 7 (Last) -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-7 lg:order-none">
+          <!-- Wall (Mobile Order: 9) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-9 lg:order-6">
             <h3 class="text-lg font-bold text-white mb-4">Shout Box / Wall</h3>
             <div id="wall-container">
               ${isOwnProfile || currentUser ? `
@@ -706,23 +705,40 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               </div>
             </div>
           </div>
-
-          <!-- About (Hidden on Mobile? Or moved? You didn't specify, assuming it stays or goes near top. 
-               If you want it hidden on mobile or moved, let me know. For now, it stays in flow order 4) -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-4 lg:order-none">
-            <h3 class="text-lg font-bold text-white mb-3">About</h3>
-            <p class="ra-bio text-gray-300 leading-relaxed break-words">${profile.bio || 'No bio added yet.'}</p>
-          </div>
-
         </div>
 
-        <!-- RIGHT COLUMN (Sidebar) -->
-        <!-- Mobile Order: 1 & 2 (Details & Friends appear first) -->
-        <div class="space-y-6 flex flex-col order-1 lg:order-none">
+        <!-- RIGHT COLUMN (Desktop: Sidebar) -->
+        <div class="space-y-6 flex flex-col lg:flex-col">
           
-          <!-- Profile Details (Moved to Top of this column) -->
-          <!-- Mobile Order: 1 (Very First) -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-1 lg:order-none">
+          <!-- Friends (Mobile Order: 3) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-3 lg:order-1">
+            <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
+            <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              <div class="text-sm text-gray-500 py-2">Loading friends...</div>
+            </div>
+            
+            ${!isOwnProfile ? `
+              <div id="friend-action-container" class="mt-4 space-y-2">
+                <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Mastered Games (Mobile Order: 6) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6 order-6 lg:order-2">
+            <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+              🏆 Mastered Games
+            </h3>
+            <div id="mastered-games-list" class="grid grid-cols-2 gap-3">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
+                <span class="ml-2 text-sm">Checking completion...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Details (Mobile Order: 1) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-1 lg:order-3">
             <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
             
             <!-- MOBILE ONLY EDIT BUTTON -->
@@ -750,36 +766,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
             </ul>
           </div>
-
-          <!-- Friends -->
-          <!-- Mobile Order: 2 (Right after Details) -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-2 lg:order-none">
-            <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
-            <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-              <div class="text-sm text-gray-500 py-2">Loading friends...</div>
-            </div>
-            
-            ${!isOwnProfile ? `
-              <div id="friend-action-container" class="mt-4 space-y-2">
-                <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- Mastered Games -->
-          <!-- Mobile Order: 4 (After Awards) -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6 order-4 lg:order-none">
-            <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
-              🏆 Mastered Games
-            </h3>
-            <div id="mastered-games-list" class="grid grid-cols-2 gap-3">
-              <div class="col-span-full text-center text-gray-500 py-4">
-                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
-                <span class="ml-2 text-sm">Checking completion...</span>
-              </div>
-            </div>
-          </div>
-
         </div>
       </div>
 
