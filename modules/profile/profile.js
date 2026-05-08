@@ -516,8 +516,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
   const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
 
-  // ✅ MOBILE FIX: Full width, no clipping
- container.innerHTML = `
+  container.innerHTML = `
     <div class="ra-profile-wrapper w-full overflow-x-hidden">
     
     <!-- HEADER -->
@@ -537,10 +536,10 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       <!-- Overlay -->
       <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none; border-radius: 12px;"></div>
       
-      <!-- Content: Stacks on Mobile, Row on Desktop -->
+      <!-- Content: Flex Col on Mobile, Row on Desktop -->
       <div class="ra-header-content w-full p-4 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
         
-        <!-- Avatar: Centered on Mobile -->
+        <!-- Avatar -->
         <div class="ra-avatar-container flex-shrink-0 mx-auto md:mx-0" style="${avatarStyle || ''}">
           <img src="${profile.avatar_url || 'https://ui-avatars.com/api/?name=' + profile.username}" 
                alt="${profile.username}" 
@@ -552,7 +551,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
         </div>
 
-        <!-- Info: Full Width on Mobile -->
+        <!-- Info -->
         <div class="ra-info flex-1 w-full text-center md:text-left min-w-0">
           <h1 class="ra-username text-3xl md:text-4xl font-bold m-0 text-white break-words" style="text-shadow: 0 2px 4px black;">${profile.username}</h1>
           
@@ -588,10 +587,10 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
         </div>
 
-        <!-- Edit Button: Full Width on Mobile (New Line), Auto on Desktop -->
+        <!-- Edit Button: HIDDEN on Mobile, Visible on Desktop ONLY -->
         ${isOwnProfile ? `
-          <div class="w-full md:w-auto mt-6 md:mt-0 md:ml-4 flex-shrink-0 relative z-30">
-            <button id="btn-edit-profile" class="ra-edit-btn w-full md:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl block text-center md:block md:text-left">
+          <div class="hidden md:block w-auto md:ml-4 flex-shrink-0">
+            <button id="btn-edit-profile" class="ra-edit-btn w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl">
               Edit Profile
             </button>
           </div>
@@ -608,7 +607,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       <!-- MAIN GRID -->
       <div class="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
-        <!-- LEFT COLUMN -->
+        <!-- LEFT COLUMN (Main Content) -->
         <div class="lg:col-span-2 space-y-6">
           
           <!-- Site Awards -->
@@ -684,10 +683,10 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
-        <div class="space-y-6">
+        <!-- RIGHT COLUMN (Sidebar) -->
+        <div class="space-y-6 flex flex-col-reverse lg:flex-col">
           
-          <!-- Friends -->
+          <!-- Friends (Moved to bottom on mobile via flex-col-reverse parent) -->
           <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
             <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
             <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -701,7 +700,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             ` : ''}
           </div>
 
-          <!-- Mastered Games -->
+          <!-- Mastered Games (Middle on mobile) -->
           <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6">
             <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
               🏆 Mastered Games
@@ -714,9 +713,17 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- Details -->
+          <!-- Profile Details (Moved to TOP on mobile via flex-col-reverse parent) -->
           <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
             <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
+            
+            <!-- MOBILE ONLY EDIT BUTTON (Injected here) -->
+            ${isOwnProfile ? `
+              <button id="btn-edit-profile-mobile" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl mb-4 md:hidden">
+                Edit Profile
+              </button>
+            ` : ''}
+
             <ul class="ra-details-list text-sm space-y-3 text-gray-300">
               <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
               <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
@@ -859,7 +866,24 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       ` : ''}
     </div>
   `;
+
+  // Attach Event Listeners for BOTH buttons (Desktop & Mobile)
   setTimeout(() => {
+    const desktopBtn = document.getElementById('btn-edit-profile');
+    const mobileBtn = document.getElementById('btn-edit-profile-mobile');
+    const modal = document.getElementById('edit-modal');
+
+    const openModal = () => {
+      if(modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      }
+    };
+
+    if (desktopBtn) desktopBtn.addEventListener('click', openModal);
+    if (mobileBtn) mobileBtn.addEventListener('click', openModal);
+
+    // Rank Refresh Logic
     fetchProfileBySlug(profile.username).then(freshData => {
       if (freshData && freshData.rank) {
         const rankBadge = document.querySelector('.ra-header .inline-flex span');
@@ -871,7 +895,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         }
       }
     });
-  }, 1000);
+  }, 100);
 }
 
 function getBackgroundCSS(bg) {
