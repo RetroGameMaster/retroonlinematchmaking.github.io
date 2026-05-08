@@ -469,17 +469,15 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   const bgEl = document.createElement('div');
   bgEl.id = 'dynamic-profile-bg';
   
-  // Base Styles
   bgEl.style.backgroundPosition = 'center';
   bgEl.style.backgroundRepeat = 'no-repeat';
 
   if (bgType === 'image') {
     bgEl.style.backgroundImage = `url('${bgValue}')`;
-    
-    // MOBILE DEFAULT: Contain (Fit entire image, no cropping)
+    // Mobile: Contain (Fit full image)
     bgEl.style.backgroundSize = 'contain'; 
     
-    // DESKTOP OVERRIDE: Cover (Crop to fill, your current PC look)
+    // Desktop: Cover (Your perfect PC look)
     const styleSheet = document.createElement('style');
     styleSheet.textContent = `
       @media (min-width: 768px) {
@@ -490,7 +488,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     `;
     document.head.appendChild(styleSheet);
     
-    // Cleanup: Remove the style tag when leaving the page
     const cleanupObserver = new MutationObserver(() => {
       if (!document.getElementById('dynamic-profile-bg')) {
         styleSheet.remove();
@@ -546,7 +543,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   container.innerHTML = `
     <div class="ra-profile-wrapper w-full overflow-x-hidden">
     
-    <!-- HEADER (Gamercard) -->
+    <!-- HEADER -->
     <div class="ra-header w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4" style="position: relative; overflow: visible; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.6);">
   
       <!-- Background Layers -->
@@ -631,151 +628,17 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
       ` : ''}
 
-      <!-- MOBILE ONLY: Reordered Stack (Hidden on Desktop) -->
-      <div class="lg:hidden w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 space-y-6">
+      <!-- MAIN GRID -->
+      <!-- We use flex-col on mobile, row on lg. Children use order-* to rearrange on mobile only -->
+      <div class="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
-        <!-- 1. Profile Details (With Mobile Edit Button) -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
-          <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
-          ${isOwnProfile ? `
-            <button id="btn-edit-profile-mobile" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl mb-4">
-              Edit Profile
-            </button>
-          ` : ''}
-          <ul class="ra-details-list text-sm space-y-3 text-gray-300">
-            <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
-            <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-            ${profile.rank ? `
-              <li>
-                <strong class="text-white">Current Rank:</strong> 
-                <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
-                      style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
-                  ${profile.rank.name}
-                </span>
-                <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
-              </li>
-            ` : '<li><strong class="text-white">Rank:</strong> NPC</li>'}
-            ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
-          </ul>
-        </div>
-
-        <!-- 2. Friends -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
-          <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
-          <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-            <div class="text-sm text-gray-500 py-2">Loading friends...</div>
-          </div>
-          ${!isOwnProfile ? `
-            <div id="friend-action-container" class="mt-4 space-y-2">
-              <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
-            </div>
-          ` : ''}
-        </div>
-
-        <!-- 3. Currently Playing -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
-          <h3 class="text-lg font-bold text-white mb-4">🎮 What I'm Playing Currently</h3>
-          <div id="currently-playing-container">
-            <div id="currently-playing-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              <div class="col-span-full text-center text-gray-500 py-4">
-                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
-                <span class="ml-2 text-sm">Loading games...</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4. Site Awards -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-purple-500/30 p-6">
-          <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
-            🎖️ Site Awards & Badges
-          </h3>
-          <div id="site-awards-list" class="flex flex-wrap gap-4 min-h-[60px]">
-            <div class="text-gray-500 text-sm italic">Loading awards...</div>
-          </div>
-        </div>
-
-        <!-- 5. Mastered Games -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6">
-          <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
-            🏆 Mastered Games
-          </h3>
-          <div id="mastered-games-list" class="grid grid-cols-2 gap-3">
-            <div class="col-span-full text-center text-gray-500 py-4">
-              <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
-              <span class="ml-2 text-sm">Checking completion...</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 6. Proud Achievements -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-yellow-500/30 p-6">
-          <h3 class="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
-            ⭐ Most Proud Achievements
-          </h3>
-          <div id="proud-achievements-list" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-            <div class="col-span-full text-center text-gray-500 py-4">
-              <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-yellow-500"></div>
-              <span class="ml-2 text-sm">Loading proud moments...</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 7. Game Achievements -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6">
-          <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
-            🎮 Game Achievements
-            <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
-          </h3>
-          <div id="game-achievements-list" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-            <div class="col-span-full text-center text-gray-500 py-4">
-              <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
-              <span class="ml-2 text-sm">Loading achievements...</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 8. Shout Box / Wall -->
-        <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
-          <h3 class="text-lg font-bold text-white mb-4">Shout Box / Wall</h3>
-          <div id="wall-container">
-            ${isOwnProfile || currentUser ? `
-              <div class="wall-post-form mb-4">
-                <textarea id="new-wall-comment" placeholder="Say something on ${profile.username}'s wall..." class="ra-input w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none"></textarea>
-                <button id="btn-post-wall" class="btn-primary mt-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded font-bold w-full sm:w-auto">Post Shout</button>
-              </div>
-            ` : ''}
-            <div id="wall-list" class="space-y-3">
-              <div class="text-center text-gray-500 py-4">Loading wall comments...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- DESKTOP ONLY: Original Grid Layout (Hidden on Mobile) -->
-      <div class="hidden lg:block w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        
-        <!-- LEFT COLUMN -->
-        <div class="lg:col-span-2 space-y-6">
-          
-          <!-- Site Awards -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-purple-500/30 p-6">
-            <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
-              🎖️ Site Awards & Badges
-            </h3>
-            <div id="site-awards-list" class="flex flex-wrap gap-4 min-h-[60px]">
-              <div class="text-gray-500 text-sm italic">Loading awards...</div>
-            </div>
-          </div>
-
-          <!-- About -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
-            <h3 class="text-lg font-bold text-white mb-3">About</h3>
-            <p class="ra-bio text-gray-300 leading-relaxed break-words">${profile.bio || 'No bio added yet.'}</p>
-          </div>
+        <!-- LEFT COLUMN (Main Content) -->
+        <!-- Mobile Order: 3 (Appears after Details & Friends) -->
+        <div class="lg:col-span-2 space-y-6 flex flex-col order-3 lg:order-none">
           
           <!-- Currently Playing -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+          <!-- Mobile Order: 2 (After Friends/Details, Before Awards) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-2 lg:order-none">
             <h3 class="text-lg font-bold text-white mb-4">🎮 What I'm Playing Currently</h3>
             <div id="currently-playing-container">
               <div id="currently-playing-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -787,8 +650,20 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
+          <!-- Site Awards -->
+          <!-- Mobile Order: 3 -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-purple-500/30 p-6 order-3 lg:order-none">
+            <h3 class="text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
+              🎖️ Site Awards & Badges
+            </h3>
+            <div id="site-awards-list" class="flex flex-wrap gap-4 min-h-[60px]">
+              <div class="text-gray-500 text-sm italic">Loading awards...</div>
+            </div>
+          </div>
+
           <!-- Proud Achievements -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-yellow-500/30 p-6">
+          <!-- Mobile Order: 5 -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-yellow-500/30 p-6 order-5 lg:order-none">
             <h3 class="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
               ⭐ Most Proud Achievements
             </h3>
@@ -801,7 +676,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
 
           <!-- All Game Achievements -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6">
+          <!-- Mobile Order: 6 -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6 order-6 lg:order-none">
             <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
               🎮 Game Achievements
               <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
@@ -815,7 +691,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           </div>
 
           <!-- Wall -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+          <!-- Mobile Order: 7 (Last) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-7 lg:order-none">
             <h3 class="text-lg font-bold text-white mb-4">Shout Box / Wall</h3>
             <div id="wall-container">
               ${isOwnProfile || currentUser ? `
@@ -829,41 +706,32 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               </div>
             </div>
           </div>
+
+          <!-- About (Hidden on Mobile? Or moved? You didn't specify, assuming it stays or goes near top. 
+               If you want it hidden on mobile or moved, let me know. For now, it stays in flow order 4) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-4 lg:order-none">
+            <h3 class="text-lg font-bold text-white mb-3">About</h3>
+            <p class="ra-bio text-gray-300 leading-relaxed break-words">${profile.bio || 'No bio added yet.'}</p>
+          </div>
+
         </div>
 
-        <!-- RIGHT COLUMN -->
-        <div class="space-y-6">
+        <!-- RIGHT COLUMN (Sidebar) -->
+        <!-- Mobile Order: 1 & 2 (Details & Friends appear first) -->
+        <div class="space-y-6 flex flex-col order-1 lg:order-none">
           
-          <!-- Friends -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
-            <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
-            <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-              <div class="text-sm text-gray-500 py-2">Loading friends...</div>
-            </div>
-            
-            ${!isOwnProfile ? `
-              <div id="friend-action-container" class="mt-4 space-y-2">
-                <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- Mastered Games -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6">
-            <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
-              🏆 Mastered Games
-            </h3>
-            <div id="mastered-games-list" class="grid grid-cols-2 gap-3">
-              <div class="col-span-full text-center text-gray-500 py-4">
-                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
-                <span class="ml-2 text-sm">Checking completion...</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Profile Details -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
+          <!-- Profile Details (Moved to Top of this column) -->
+          <!-- Mobile Order: 1 (Very First) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-1 lg:order-none">
             <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
+            
+            <!-- MOBILE ONLY EDIT BUTTON -->
+            ${isOwnProfile ? `
+              <button id="btn-edit-profile-mobile" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl mb-4 md:hidden">
+                Edit Profile
+              </button>
+            ` : ''}
+
             <ul class="ra-details-list text-sm space-y-3 text-gray-300">
               <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
               <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
@@ -882,6 +750,36 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
               ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
             </ul>
           </div>
+
+          <!-- Friends -->
+          <!-- Mobile Order: 2 (Right after Details) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-2 lg:order-none">
+            <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
+            <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              <div class="text-sm text-gray-500 py-2">Loading friends...</div>
+            </div>
+            
+            ${!isOwnProfile ? `
+              <div id="friend-action-container" class="mt-4 space-y-2">
+                <div class="text-center text-gray-400 text-sm py-2">Checking status...</div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Mastered Games -->
+          <!-- Mobile Order: 4 (After Awards) -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6 order-4 lg:order-none">
+            <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
+              🏆 Mastered Games
+            </h3>
+            <div id="mastered-games-list" class="grid grid-cols-2 gap-3">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-green-500"></div>
+                <span class="ml-2 text-sm">Checking completion...</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1007,7 +905,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     </div>
   `;
 
-  // Attach Event Listeners for BOTH buttons (Desktop & Mobile)
+  // Attach Event Listeners for BOTH buttons
   setTimeout(() => {
     const desktopBtn = document.getElementById('btn-edit-profile');
     const mobileBtn = document.getElementById('btn-edit-profile-mobile');
