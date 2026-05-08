@@ -456,7 +456,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   document.getElementById('dynamic-profile-bg')?.remove();
   document.getElementById('profile-bg-overlay')?.remove();
 
-  // 2. INJECT FULL-SCREEN BACKGROUND
+  // 2. INJECT FULL-SCREEN BACKGROUND (Mobile Fit / PC Cover)
   const bg = profile.custom_background;
   let bgValue = '#111827';
   let bgType = 'color';
@@ -469,12 +469,39 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   const bgEl = document.createElement('div');
   bgEl.id = 'dynamic-profile-bg';
   
+  // Base Styles (Applied to ALL devices first)
+  bgEl.style.backgroundPosition = 'center';
+  bgEl.style.backgroundRepeat = 'no-repeat';
+  
   if (bgType === 'image') {
     bgEl.style.backgroundImage = `url('${bgValue}')`;
-    bgEl.style.backgroundSize = 'cover';
-    bgEl.style.backgroundPosition = 'center';
+    
+    // MOBILE DEFAULT: Contain (Fit entire image, no cropping)
+    bgEl.style.backgroundSize = 'contain'; 
+    
+    // DESKTOP OVERRIDE: Cover (Crop to fill, your current PC look)
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `
+      @media (min-width: 768px) {
+        #dynamic-profile-bg {
+          background-size: cover !important;
+        }
+      }
+    `;
+    document.head.appendChild(styleSheet);
+    
+    // Cleanup: Remove the style tag when leaving the page
+    const cleanupObserver = new MutationObserver(() => {
+      if (!document.getElementById('dynamic-profile-bg')) {
+        styleSheet.remove();
+        cleanupObserver.disconnect();
+      }
+    });
+    cleanupObserver.observe(document.body, { childList: true, subtree: true });
+
   } else if (bgType === 'gradient') {
     bgEl.style.backgroundImage = bgValue;
+    bgEl.style.backgroundSize = 'cover';
   } else {
     bgEl.style.backgroundColor = bgValue;
   }
@@ -511,7 +538,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
 
   document.body.insertBefore(bgEl, document.body.firstChild);
   document.body.insertBefore(overlayEl, document.body.firstChild);
-
+ 
   // 3. Prepare Avatar Styles
   const avatarStyle = profile.avatar_custom_css ? profile.avatar_custom_css : '';
   const avatarClass = profile.avatar_custom_css ? `ra-avatar custom-overlay` : 'ra-avatar';
