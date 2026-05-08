@@ -906,27 +906,22 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
   `;
 
   // Attach Event Listeners
+    // --- FIX: Inject Signature & Avatar Styles ---
   setTimeout(() => {
-     // 1. Process Signature Styles
+    // 1. Process Signature Styles
     const sigContainer = document.getElementById('signature-render-target');
     if (sigContainer && profile.signature_text) {
-      // Check if signature contains <style> tags
       if (profile.signature_text.includes('<style>')) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(profile.signature_text, 'text/html');
         const styleTag = doc.querySelector('style');
         
         if (styleTag) {
-          // Remove old styles if they exist
           document.getElementById('dynamic-sig-styles')?.remove();
-          
-          // Create new style element
           const newStyle = document.createElement('style');
           newStyle.id = 'dynamic-sig-styles';
           newStyle.textContent = styleTag.textContent;
           document.head.appendChild(newStyle);
-          
-          // Update container content without the <style> tag
           sigContainer.innerHTML = doc.body.innerHTML;
         }
       }
@@ -935,12 +930,15 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     // 2. Process Avatar Custom CSS
     if (profile.avatar_custom_css) {
       document.getElementById('dynamic-avatar-styles')?.remove();
-      const avatarStyle = document.createElement('style');
-      avatarStyle.id = 'dynamic-avatar-styles';
-      avatarStyle.textContent = profile.avatar_custom_css;
-      document.head.appendChild(avatarStyle);
+      const avatarStyleEl = document.createElement('style');
+      avatarStyleEl.id = 'dynamic-avatar-styles';
+      avatarStyleEl.textContent = profile.avatar_custom_css;
+      document.head.appendChild(avatarStyleEl);
     }
-  }, 100);
+  }, 50); // <--- CLOSED FIRST TIMEOUT
+
+  // --- Event Listeners for Edit Modal ---
+  setTimeout(() => {
     const desktopBtn = document.getElementById('btn-edit-profile');
     const mobileBtn = document.getElementById('btn-edit-profile-mobile');
     const modal = document.getElementById('edit-modal');
@@ -967,8 +965,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         }
       }
     });
-  }, 100);
-}
+  }, 100); // <--- CLOSED SECOND TIMEOUT
+} // <--- CLOSED FUNCTION
 
 function getBackgroundCSS(bg) {
   if (!bg || !bg.type) return 'background-color: #111827;';
