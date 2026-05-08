@@ -536,7 +536,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       <!-- Overlay -->
       <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)); z-index: 1; pointer-events: none; border-radius: 12px;"></div>
       
-      <!-- Content: Flex Col on Mobile, Row on Desktop -->
+      <!-- Content -->
       <div class="ra-header-content w-full p-4 sm:p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start relative z-20">
         
         <!-- Avatar -->
@@ -605,7 +605,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       ` : ''}
 
       <!-- MAIN GRID -->
-      <div class="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+      <div class="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 relative">
         
         <!-- LEFT COLUMN (Main Content) -->
         <div class="lg:col-span-2 space-y-6">
@@ -684,9 +684,44 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         </div>
 
         <!-- RIGHT COLUMN (Sidebar) -->
-        <div class="space-y-6 flex flex-col-reverse lg:flex-col">
+        <!-- MOBILE FIX: Relative container for absolute positioning trick -->
+        <div class="space-y-6 lg:static relative lg:block">
           
-          <!-- Friends (Moved to bottom on mobile via flex-col-reverse parent) -->
+          <!-- MOBILE ONLY: Profile Details (Absolute Top on Mobile, Static on Desktop) -->
+          <!-- This moves it ABOVE the Left Column on mobile visually, but keeps it in Right Col on Desktop -->
+          ${isOwnProfile ? `
+            <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 lg:hidden absolute top-0 left-0 w-full z-30 shadow-2xl mb-6">
+              <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
+              
+              <!-- Mobile Edit Button -->
+              <button id="btn-edit-profile-mobile" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl mb-4">
+                Edit Profile
+              </button>
+
+              <ul class="ra-details-list text-sm space-y-3 text-gray-300">
+                <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
+                <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
+                
+                ${profile.rank ? `
+                  <li>
+                    <strong class="text-white">Current Rank:</strong> 
+                    <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
+                          style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
+                      ${profile.rank.name}
+                    </span>
+                    <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
+                  </li>
+                ` : '<li><strong class="text-white">Rank:</strong> NPC</li>'}
+                
+                ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
+              </ul>
+            </div>
+          ` : ''}
+
+          <!-- Spacer for Mobile Absolute Element so it doesn't overlap content below -->
+          <div class="h-0 lg:h-auto"></div>
+
+          <!-- Friends -->
           <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
             <h3 class="text-lg font-bold text-white mb-4">Friends</h3>
             <div id="friends-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -700,7 +735,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             ` : ''}
           </div>
 
-          <!-- Mastered Games (Middle on mobile) -->
+          <!-- Mastered Games -->
           <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-green-500/30 p-6">
             <h3 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
               🏆 Mastered Games
@@ -713,35 +748,53 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- Profile Details (Moved to TOP on mobile via flex-col-reverse parent) -->
-          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6">
-            <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
-            
-            <!-- MOBILE ONLY EDIT BUTTON (Injected here) -->
-            ${isOwnProfile ? `
-              <button id="btn-edit-profile-mobile" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg cursor-pointer backdrop-blur-md transition font-bold whitespace-nowrap shadow-xl mb-4 md:hidden">
-                Edit Profile
-              </button>
-            ` : ''}
+          <!-- DESKTOP ONLY: Profile Details (Stays in Sidebar) -->
+          ${isOwnProfile ? `
+            <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 hidden lg:block">
+              <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
+              
+              <ul class="ra-details-list text-sm space-y-3 text-gray-300">
+                <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
+                <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
+                
+                ${profile.rank ? `
+                  <li>
+                    <strong class="text-white">Current Rank:</strong> 
+                    <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
+                          style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
+                      ${profile.rank.name}
+                    </span>
+                    <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
+                  </li>
+                ` : '<li><strong class="text-white">Rank:</strong> NPC</li>'}
+                
+                ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
+              </ul>
+            </div>
+          ` : ''}
+          
+          <!-- Non-own profile Desktop Details -->
+          ${!isOwnProfile ? `
+            <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 hidden lg:block">
+              <h3 class="text-lg font-bold text-white mb-4">Profile Details</h3>
+              <ul class="ra-details-list text-sm space-y-3 text-gray-300">
+                <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
+                <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
+                ${profile.rank ? `
+                  <li>
+                    <strong class="text-white">Current Rank:</strong> 
+                    <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
+                          style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
+                      ${profile.rank.name}
+                    </span>
+                    <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
+                  </li>
+                ` : '<li><strong class="text-white">Rank:</strong> NPC</li>'}
+                ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
+              </ul>
+            </div>
+          ` : ''}
 
-            <ul class="ra-details-list text-sm space-y-3 text-gray-300">
-              <li><strong class="text-white">Member Since:</strong> ${new Date(profile.created_at).toLocaleDateString()}</li>
-              <li><strong class="text-white">Favorite Console:</strong> ${profile.favorite_console || 'None'}</li>
-              
-              ${profile.rank ? `
-                <li>
-                  <strong class="text-white">Current Rank:</strong> 
-                  <span class="inline-block px-2 py-0.5 rounded text-xs font-bold mt-1" 
-                        style="background:${profile.rank.color}20; color:${profile.rank.color}; border:1px solid ${profile.rank.color}">
-                    ${profile.rank.name}
-                  </span>
-                  <div class="text-xs text-gray-400 mt-1">${profile.xp_total || 0} XP Total</div>
-                </li>
-              ` : '<li><strong class="text-white">Rank:</strong> NPC</li>'}
-              
-              ${isTargetUserAdmin ? '<li><strong class="text-white">Role:</strong> <span class="text-red-400 font-bold">Admin</span></li>' : ''}
-            </ul>
-          </div>
         </div>
       </div>
 
@@ -867,7 +920,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     </div>
   `;
 
-  // Attach Event Listeners for BOTH buttons (Desktop & Mobile)
+  // Event Listeners & Rank Refresh
   setTimeout(() => {
     const desktopBtn = document.getElementById('btn-edit-profile');
     const mobileBtn = document.getElementById('btn-edit-profile-mobile');
@@ -883,7 +936,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     if (desktopBtn) desktopBtn.addEventListener('click', openModal);
     if (mobileBtn) mobileBtn.addEventListener('click', openModal);
 
-    // Rank Refresh Logic
+    // Rank Refresh Logic (Restored Timeout)
     fetchProfileBySlug(profile.username).then(freshData => {
       if (freshData && freshData.rank) {
         const rankBadge = document.querySelector('.ra-header .inline-flex span');
@@ -895,7 +948,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
         }
       }
     });
-  }, 100);
+  }, 1000);
 }
 
 function getBackgroundCSS(bg) {
