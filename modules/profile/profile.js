@@ -623,7 +623,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     </div>
 
       ${profile.signature_text ? `
-        <div class="ra-signature-box w-full mx-auto max-w-7xl px-4 mt-4" style="${profile.signature_custom_css || ''}">
+        <div id="signature-render-target" class="ra-signature-box w-full mx-auto max-w-7xl px-4 mt-4" style="${profile.signature_custom_css || ''}">
           ${profile.signature_text}
         </div>
       ` : ''}
@@ -905,8 +905,42 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
     </div>
   `;
 
-  // Attach Event Listeners for BOTH buttons
+  // Attach Event Listeners
   setTimeout(() => {
+     // 1. Process Signature Styles
+    const sigContainer = document.getElementById('signature-render-target');
+    if (sigContainer && profile.signature_text) {
+      // Check if signature contains <style> tags
+      if (profile.signature_text.includes('<style>')) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(profile.signature_text, 'text/html');
+        const styleTag = doc.querySelector('style');
+        
+        if (styleTag) {
+          // Remove old styles if they exist
+          document.getElementById('dynamic-sig-styles')?.remove();
+          
+          // Create new style element
+          const newStyle = document.createElement('style');
+          newStyle.id = 'dynamic-sig-styles';
+          newStyle.textContent = styleTag.textContent;
+          document.head.appendChild(newStyle);
+          
+          // Update container content without the <style> tag
+          sigContainer.innerHTML = doc.body.innerHTML;
+        }
+      }
+    }
+
+    // 2. Process Avatar Custom CSS
+    if (profile.avatar_custom_css) {
+      document.getElementById('dynamic-avatar-styles')?.remove();
+      const avatarStyle = document.createElement('style');
+      avatarStyle.id = 'dynamic-avatar-styles';
+      avatarStyle.textContent = profile.avatar_custom_css;
+      document.head.appendChild(avatarStyle);
+    }
+  }, 100);
     const desktopBtn = document.getElementById('btn-edit-profile');
     const mobileBtn = document.getElementById('btn-edit-profile-mobile');
     const modal = document.getElementById('edit-modal');
