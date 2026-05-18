@@ -135,11 +135,15 @@ async function renderGame(game, container, rom) {
     updateMetaTags(game);
     injectSchemaMarkup(game);
 
-    // 2. Handle Dynamic Background
+      // 2. Handle Dynamic Background
     if (game.background_video_url || game.background_image_url) {
         document.body.style.background = 'transparent';
+        
+        // Cleanup existing elements
         const existingBg = document.getElementById('dynamic-game-bg');
         if (existingBg) existingBg.remove();
+        const existingOverlay = document.getElementById('bg-overlay');
+        if (existingOverlay) existingOverlay.remove();
 
         const bgUrl = game.background_image_url || game.background_video_url;
         const isVideo = !game.background_image_url && bgUrl.toLowerCase().endsWith('.mp4');
@@ -152,35 +156,56 @@ async function renderGame(game, container, rom) {
             bgVideo.loop = true;
             bgVideo.muted = true;
             bgVideo.playsInline = true;
+            
+            // FIXED: Opacity 1.0 (Full Brightness), No Blur
             Object.assign(bgVideo.style, {
-                position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-                objectFit: 'cover', zIndex: '-2', opacity: '0.45'
+                position: 'fixed', 
+                top: '0', 
+                left: '0', 
+                width: '100%', 
+                height: '100%',
+                objectFit: 'cover', 
+                zIndex: '-2', 
+                opacity: '1.0' 
             });
             document.body.insertBefore(bgVideo, document.body.firstChild);
         } else {
             const bgImg = document.createElement('div');
             bgImg.id = 'dynamic-game-bg';
+            
+            // FIXED: Opacity 1.0, No Blur, Cover Fit
             Object.assign(bgImg.style, {
-                position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-                backgroundImage: `url(${bgUrl})`, backgroundSize: 'cover',
-                backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
-                zIndex: '-2', opacity: '0.45'
+                position: 'fixed', 
+                top: '0', 
+                left: '0', 
+                width: '100%', 
+                height: '100%',
+                backgroundImage: `url(${bgUrl})`, 
+                backgroundSize: 'cover',
+                backgroundPosition: 'center', 
+                backgroundRepeat: 'no-repeat',
+                zIndex: '-2', 
+                opacity: '1.0' 
             });
             document.body.insertBefore(bgImg, document.body.firstChild);
         }
 
-        const existingOverlay = document.getElementById('bg-overlay');
-        if (!existingOverlay) {
-            const overlay = document.createElement('div');
-            overlay.id = 'bg-overlay';
-            Object.assign(overlay.style, {
-                position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-                backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: '-1', pointerEvents: 'none'
-            });
-            document.body.insertBefore(overlay, document.body.firstChild);
-        }
+        // FIXED: Lighter Overlay (0.4 instead of 0.65) so background shines through
+        const overlay = document.createElement('div');
+        overlay.id = 'bg-overlay';
+        Object.assign(overlay.style, {
+            position: 'fixed', 
+            top: '0', 
+            left: '0', 
+            width: '100%', 
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.4)', // Lighter dark overlay
+            zIndex: '-1', 
+            pointerEvents: 'none',
+            backdropFilter: 'none' // Ensure no blur
+        });
+        document.body.insertBefore(overlay, document.body.firstChild);
     }
-
     // 3. Prepare Rating Section HTML
     const ratingHTML = `
         <div class="mb-8 p-6 bg-gray-800/90 backdrop-blur-md rounded-xl border border-yellow-500/30 shadow-xl">
