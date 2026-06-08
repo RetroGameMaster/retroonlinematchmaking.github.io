@@ -1173,24 +1173,28 @@ async function loadAchievements(rom, gameId) {
                     const count = unlockCounts[a.id] || 0;
                     const rate = totalPlayers > 0 ? Math.round((count / totalPlayers) * 100) : 0;
                     return `
-                    <div class="bg-gray-800/90 backdrop-blur rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-xl">
-                        <div class="flex gap-3">
+                    <div class="bg-gray-800/90 backdrop-blur rounded-lg p-4 border border-gray-700 hover:border-cyan-500 transition shadow-xl flex flex-col h-full">
+                        <div class="flex gap-3 w-full">
                             <div class="flex-shrink-0">
                                 <img src="${a.badge_url || 'https://via.placeholder.com/48/1f2937/6b7280?text=🏆'}" 
                                      alt="${escapeHtml(a.title)}" class="w-12 h-12 rounded object-cover border border-gray-600 shadow-md">
                             </div>
-                            <div class="flex-1">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="text-sm font-bold text-white leading-tight drop-shadow-md">${escapeHtml(a.title)}</h3>
-                                    <span class="text-yellow-400 text-xs font-bold bg-yellow-900/40 px-1.5 py-0.5 rounded ml-2 border border-yellow-700/50 shadow-sm">${a.points} pts</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h3 class="text-sm font-bold text-white leading-tight drop-shadow-md break-words">${escapeHtml(a.title)}</h3>
+                                    <span class="text-yellow-400 text-xs font-bold bg-yellow-900/40 px-1.5 py-0.5 rounded ml-2 border border-yellow-700/50 shadow-sm flex-shrink-0">${a.points} pts</span>
                                 </div>
-                                <p class="text-gray-300 text-xs mt-1 mb-2 line-clamp-2 font-medium">${escapeHtml(a.description || '')}</p>
-                                <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1 relative overflow-hidden">
-                                    <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" style="width: ${rate}%"></div>
-                                </div>
-                                <div class="flex justify-between items-center mt-1">
-                                    <span class="text-[10px] text-gray-400 font-bold">${count} unlocks</span>
-                                    <span class="text-[10px] text-cyan-400 font-bold">${rate > 0 ? rate + '%' : '0%'}</span>
+                                <!-- FIXED: Removed line-clamp, added break-words and normal whitespace -->
+                                <p class="text-gray-300 text-xs mt-1 mb-2 font-medium break-words whitespace-normal leading-relaxed">${escapeHtml(a.description || '')}</p>
+                                
+                                <div class="mt-auto">
+                                    <div class="w-full bg-gray-700 rounded-full h-1.5 relative overflow-hidden">
+                                        <div class="bg-cyan-500 h-1.5 rounded-full absolute top-0 left-0 transition-all duration-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" style="width: ${rate}%"></div>
+                                    </div>
+                                    <div class="flex justify-between items-center mt-1">
+                                        <span class="text-[10px] text-gray-400 font-bold">${count} unlocks</span>
+                                        <span class="text-[10px] text-cyan-400 font-bold">${rate > 0 ? rate + '%' : '0%'}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
