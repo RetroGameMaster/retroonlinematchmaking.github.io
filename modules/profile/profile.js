@@ -94,7 +94,7 @@ export async function initModule(container, params) {
     if (typeof loadCurrentlyPlayingList === 'function') loadCurrentlyPlayingList(targetUser);
     if (typeof loadSiteAwardsWall === 'function') loadSiteAwardsWall(targetUser.id);
     if (typeof loadProudAchievementsWall === 'function') loadProudAchievementsWall(targetUser.id, isOwnProfile);
-    if (typeof loadGroupedGameAchievements === 'function') loadGroupedGameAchievements(targetUser.id, isOwnProfile);
+    if (typeof loadGameAchievementsWall === 'function') loadGameAchievementsWall(targetUser.id, isOwnProfile);
     if (typeof loadMasteredGamesWall === 'function') loadMasteredGamesWall(targetUser.id);
     
     // 3. Render the Layout
@@ -301,60 +301,7 @@ async function fetchCurrentlyPlayingGames(gameIdentifiers) {
 // ============================================================================
 // ACHIEVEMENT DATA FETCHERS
 // ============================================================================
-async function fetchGameAchievementsGrouped(userId) {
-  // 1. Fetch all unlocked game achievements with game data
-  const { data, error } = await supabase
-    .from('user_achievements')
-    .select(`
-      unlocked_at,
-      is_proud,
-      achievements (
-        id,
-        title,
-        description,
-        badge_url,
-        points,
-        game_id,
-        games (
-          id,
-          title,
-          slug,
-          cover_image_url,
-          console
-        )
-      )
-    `)
-    .eq('user_id', userId)
-    .eq('achievements.type', 'game')
-    .order('unlocked_at', { ascending: false });
 
-  if (error || !data) return {};
-
-  // 2. Group by Game ID
-  const grouped = {};
-  
-  data.forEach(item => {
-    const achievement = item.achievements;
-    const game = achievement.games;
-    
-    if (!game || !game.id) return; // Skip if no game linked
-
-    if (!grouped[game.id]) {
-      grouped[game.id] = {
-        game: game,
-        achievements: []
-      };
-    }
-
-    grouped[game.id].achievements.push({
-      ...achievement,
-      unlocked_at: item.unlocked_at,
-      is_proud: item.is_proud
-    });
-  });
-
-  return grouped;
-}
 async function fetchSiteAwards(userId) {
   const { data, error } = await supabase
     .from('user_achievements')
@@ -728,21 +675,20 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </div>
           </div>
 
-          <!-- All Game Achievements (GROUPED BY GAME) -->
-<!-- Mobile Order: 6 -->
-<div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6 order-6 lg:order-none">
-  <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
-    🎮 Game Achievements
-    <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
-  </h3>
-  <!-- NEW CONTAINER FOR GROUPED LAYOUT -->
-  <div id="grouped-game-achievements-container" class="space-y-6">
-    <div class="text-center text-gray-500 py-8">
-      <div class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-cyan-500"></div>
-      <p class="mt-2 text-sm">Loading achievements by game...</p>
-    </div>
-  </div>
-</div>
+          <!-- All Game Achievements -->
+          <!-- Mobile Order: 6 -->
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6 order-6 lg:order-none">
+            <h3 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
+              🎮 Game Achievements
+              <span id="game-achieve-count" class="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></span>
+            </h3>
+            <div id="game-achievements-list" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+              <div class="col-span-full text-center text-gray-500 py-4">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-cyan-500"></div>
+                <span class="ml-2 text-sm">Loading achievements...</span>
+              </div>
+            </div>
+          </div>
 
           <!-- Wall -->
           <!-- Mobile Order: 7 (Last) -->
@@ -1265,7 +1211,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
 
   loadSiteAwardsWall(profile.id);
   loadProudAchievementsWall(profile.id, isOwnProfile); 
-  loadGroupedGameAchievements(profile.id, isOwnProfile);
+  loadGameAchievementsWall(profile.id, isOwnProfile); 
   loadMasteredGamesWall(profile.id);
 
   const listContainer = document.getElementById('currently-playing-list');
@@ -1409,72 +1355,55 @@ async function loadProudAchievementsWall(userId, isOwnProfile) {
   }
 }
 
-async function loadGroupedGameAchievements(userId, isOwnProfile) {
-  const container = document.getElementById('grouped-game-achievements-container');
+async function loadGameAchievementsWall(userId, isOwnProfile) {
+  const listEl = document.getElementById('game-achievements-list');
   const countEl = document.getElementById('game-achieve-count');
-  if (!container) return;
+  if (!listEl) return;
 
-  const groupedData = await fetchGameAchievementsGrouped(userId);
-  const gameIds = Object.keys(groupedData);
+  const items = await fetchGameAchievements(userId);
 
-  if (gameIds.length === 0) {
-    container.innerHTML = '<div class="text-center text-gray-500 italic py-8">No game achievements unlocked yet.</div>';
+  if (!items || items.length === 0) {
+    listEl.innerHTML = '<div class="col-span-full text-center text-gray-500 italic py-4">No game achievements unlocked yet.</div>';
     if (countEl) countEl.textContent = '';
     return;
   }
 
-  // Calculate total count
-  const totalCount = gameIds.reduce((sum, id) => sum + groupedData[id].achievements.length, 0);
-  if (countEl) countEl.textContent = `${totalCount} unlocks across ${gameIds.length} games`;
+  if (countEl) countEl.textContent = `${items.length}`;
 
-  // Render Grouped Cards
-  container.innerHTML = gameIds.map(gameId => {
-    const { game, achievements } = groupedData[gameId];
-    const gameLink = getGameLink(game);
-    const coverUrl = game.cover_image_url || 'https://via.placeholder.com/150x200?text=No+Cover';
+  listEl.innerHTML = items.map((item) => {
+    const a = item.achievements;
+    const game = a.games;
+    const gameLink = game ? getGameLink(game) : '#/games';
+    const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=Trophy';
     
+    const toggleBtn = isOwnProfile ? `
+      <button class="absolute top-1 right-1 p-1 rounded-full bg-gray-900/80 hover:bg-yellow-600 transition-colors z-10" 
+              onclick="window.toggleProudStatus(event, '${a.id}', ${item.is_proud})" 
+              title="${item.is_proud ? 'Remove from Most Proud' : 'Mark as Most Proud'}">
+        <span class="text-xs ${item.is_proud ? 'text-yellow-400' : 'text-gray-400'}">
+          ${item.is_proud ? '⭐' : '☆'}
+        </span>
+      </button>
+    ` : '';
+
     return `
-      <div class="mb-8 bg-gray-800/40 border border-gray-700 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-colors">
-        <!-- Game Header -->
-        <div class="bg-gray-900/80 p-4 border-b border-gray-700 flex items-center gap-4">
-          <a href="${gameLink}" class="flex-shrink-0 block w-16 h-20 rounded overflow-hidden border border-gray-600 hover:border-cyan-400 transition">
-            <img src="${coverUrl}" alt="${game.title}" class="w-full h-full object-cover">
+      <div class="group relative bg-gray-800/50 border border-gray-700 rounded-lg p-2 hover:border-cyan-500/50 transition-colors flex flex-col items-center text-center">
+        ${toggleBtn}
+        
+        <img src="${badgeSrc}" 
+             alt="${a.title}" 
+             class="w-10 h-10 object-contain mb-1 group-hover:scale-110 transition-transform">
+        
+        <h4 class="text-[10px] font-bold text-gray-300 line-clamp-2 leading-tight mb-1" title="${a.title}">${a.title}</h4>
+        
+        ${game ? `
+          <a href="${gameLink}" class="text-[9px] text-cyan-500 hover:underline truncate w-full block">
+            ${game.title}
           </a>
-          <div class="flex-1 min-w-0">
-            <a href="${gameLink}" class="text-lg font-bold text-white hover:text-cyan-400 truncate block">${game.title}</a>
-            <div class="text-xs text-gray-400 mt-1 flex items-center gap-2">
-              <span class="bg-gray-700 px-2 py-0.5 rounded">${game.console || 'Unknown'}</span>
-              <span>•</span>
-              <span class="text-yellow-500 font-bold">${achievements.length} Unlocked</span>
-              <span>•</span>
-              <span class="text-gray-500">${achievements.reduce((sum, a) => sum + (a.points || 0), 0)} PTS</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Achievements Grid -->
-        <div class="p-4 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
-          ${achievements.map(a => {
-            const badgeSrc = a.badge_url || 'https://via.placeholder.com/64?text=?';
-            const toggleBtn = isOwnProfile ? `
-              <button class="absolute top-1 right-1 p-1 rounded-full bg-gray-900/80 hover:bg-yellow-600 transition-colors z-10" 
-                      onclick="window.toggleProudStatus(event, '${a.id}', ${a.is_proud})" 
-                      title="${a.is_proud ? 'Remove from Most Proud' : 'Mark as Most Proud'}">
-                <span class="text-xs ${a.is_proud ? 'text-yellow-400' : 'text-gray-400'}">
-                  ${a.is_proud ? '⭐' : '☆'}
-                </span>
-              </button>
-            ` : '';
-
-            return `
-              <div class="group relative bg-gray-800/60 border border-gray-700 rounded-lg p-2 hover:border-cyan-500/50 transition-colors flex flex-col items-center text-center">
-                ${toggleBtn}
-                <img src="${badgeSrc}" alt="${a.title}" class="w-10 h-10 object-contain mb-1 group-hover:scale-110 transition-transform" title="${a.description || a.title}">
-                <h4 class="text-[10px] font-bold text-gray-300 line-clamp-2 leading-tight" title="${a.title}">${a.title}</h4>
-                <div class="mt-0.5 text-[9px] text-yellow-500 font-bold">${a.points}</div>
-              </div>
-            `;
-          }).join('')}
+        ` : ''}
+        
+        <div class="mt-0.5 flex items-center gap-1">
+          <span class="text-[9px] text-yellow-500 font-bold">${a.points}</span>
         </div>
       </div>
     `;
