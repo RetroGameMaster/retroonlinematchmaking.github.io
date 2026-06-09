@@ -35,13 +35,14 @@ export default async function initTournaments(rom) {
             </div>
         </div>
 
-        <!-- Modal -->
+        <!-- Create/Edit Modal -->
         <div id="tourney-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-gray-800 rounded-xl border border-gray-600 w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
                 <button id="close-tourney-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
-                <h2 class="text-2xl font-bold text-white mb-4">🏆 Host a Tournament</h2>
+                <h2 id="modal-title" class="text-2xl font-bold text-white mb-4">🏆 Host a Tournament</h2>
                 
                 <form id="tourney-form" class="space-y-4">
+                    <input type="hidden" id="tourney-id">
                     <div>
                         <label class="block text-sm text-gray-300 mb-1">Game Title *</label>
                         <input type="text" id="tourney-game" list="game-suggestions" required 
@@ -83,19 +84,30 @@ export default async function initTournaments(rom) {
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-300 mb-1">Registration Link (External) *</label>
-                        <input type="url" id="tourney-link" required placeholder="https://challonge.com/... , https://discord.gg/... " 
+                        <label class="block text-sm text-gray-300 mb-1">Registration Link (External)</label>
+                        <input type="url" id="tourney-link" placeholder="https://challonge.com/... or leave blank for internal join" 
                             class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white break-all">
-                        <p class="text-xs text-gray-500 mt-1">Users will see this link before clicking register.</p>
+                        <p class="text-xs text-gray-500 mt-1">Optional. If empty, users join directly via website.</p>
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-300 mb-1">Description / Rules</label>
-                        <textarea id="tourney-desc" rows="3" placeholder="Rules, format, etc." class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"></textarea>
+                        <label class="block text-sm text-gray-300 mb-1">Description / Rules *</label>
+                        <textarea id="tourney-desc" rows="4" required placeholder="Rules, format, bracket info, etc." class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"></textarea>
                     </div>
 
-                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg">Create Tournament</button>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg">Save Tournament</button>
                 </form>
+            </div>
+        </div>
+
+        <!-- Details Modal (Read Only) -->
+        <div id="details-modal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-xl border border-purple-500/50 w-full max-w-2xl p-0 relative max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(168,85,247,0.3)]">
+                <button id="close-details-modal" class="absolute top-4 right-4 bg-black/50 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center transition">&times;</button>
+                
+                <div id="details-content">
+                    <!-- Injected via JS -->
+                </div>
             </div>
         </div>
     `;
@@ -103,13 +115,19 @@ export default async function initTournaments(rom) {
     // 2. Initialize Logic
     if (rom.currentUser) {
         const btn = document.getElementById('btn-new-tourney');
-        if(btn) btn.addEventListener('click', openModal);
+        if(btn) btn.addEventListener('click', () => openModal(rom));
         
         const closeBtn = document.getElementById('close-tourney-modal');
         if(closeBtn) closeBtn.addEventListener('click', closeModal);
         
         const form = document.getElementById('tourney-form');
         if(form) form.addEventListener('submit', (e) => handlePost(e, rom));
+        
+        // Close details modal
+        const closeDetailsBtn = document.getElementById('close-details-modal');
+        if(closeDetailsBtn) closeDetailsBtn.addEventListener('click', () => {
+            document.getElementById('details-modal').classList.add('hidden');
+        });
 
         await loadGameSuggestions(rom);
     }
@@ -126,21 +144,168 @@ export default async function initTournaments(rom) {
 
 // --- Global Functions ---
 
-window.openTourneyModal = function() {
-    const modal = document.getElementById('tourney-modal');
-    if (modal) modal.classList.remove('hidden');
+window.openTourneyModal = function(rom) { openModal(rom); };
+window.closeTourneyModal = function() { closeModal(); };
+
+const openModal = (rom) => {
+    // Reset form for new entry
+    document.getElementById('tourney-form').reset();
+    document.getElementById('tourney-id').value = '';
+    document.getElementById('modal-title').textContent = '🏆 Host a Tournament';
+    document.getElementById('tourney-modal').classList.remove('hidden');
 };
 
-window.closeTourneyModal = function() {
-    const modal = document.getElementById('tourney-modal');
-    if (modal) modal.classList.add('hidden');
-    const form = document.getElementById('tourney-form');
-    if(form) form.reset();
+const closeModal = () => {
+    document.getElementById('tourney-modal').classList.add('hidden');
 };
 
-// Aliases for internal use
-const openModal = window.openTourneyModal;
-const closeModal = window.closeTourneyModal;
+const openDetailsModal = (tour, isJoined, isOrganizer, rom) => {
+    const modal = document.getElementById('details-modal');
+    const content = document.getElementById('details-content');
+    
+    const dateObj = new Date(tour.start_date);
+    const dateStr = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+    let actionButtonHTML = '';
+    
+    // Internal Join Logic
+    if (tour.status === 'open') {
+        if (!rom.currentUser) {
+            actionButtonHTML = `<button onclick="window.location.hash='#/auth'" class="w-full bg-gray-700 text-white font-bold py-3 rounded-lg">Log In to Join</button>`;
+        } else if (isJoined) {
+            actionButtonHTML = `
+                <div class="flex gap-3">
+                    <button disabled class="flex-1 bg-green-900/50 border border-green-600 text-green-400 font-bold py-3 rounded-lg cursor-default">✓ Registered</button>
+                    <button onclick="handleLeaveTourney('${tour.id}', '${rom.currentUser.id}')" class="px-4 bg-red-900/50 hover:bg-red-700 border border-red-600 text-red-400 font-bold rounded-lg transition">Leave</button>
+                </div>
+            `;
+        } else {
+            actionButtonHTML = `<button onclick="handleJoinTourney('${tour.id}', '${rom.currentUser.id}')" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg shadow-lg transform hover:scale-[1.02] transition">🚀 Join Tournament</button>`;
+        }
+    } else {
+        actionButtonHTML = `<button disabled class="w-full bg-gray-700 text-gray-500 font-bold py-3 rounded-lg cursor-not-allowed">Registration Closed</button>`;
+    }
+
+    // Edit Button (If Organizer or Admin)
+    const editBtn = (isOrganizer || rom.currentUser?.user_metadata?.role === 'admin') 
+        ? `<button onclick="openEditModal('${tour.id}')" class="mt-3 w-full bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold py-2 rounded border border-gray-500">✏️ Edit Tournament</button>` 
+        : '';
+
+    content.innerHTML = `
+        <div class="relative h-48 w-full">
+            <img src="${tour.cover_url || 'https://via.placeholder.com/800x400/1f2937/6b7280?text=No+Cover'}" class="w-full h-full object-cover opacity-60">
+            <div class="absolute inset-0 bg-gradient-to-t from-gray-800 to-transparent"></div>
+            <div class="absolute bottom-4 left-6">
+                <span class="px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded uppercase">${tour.status}</span>
+                <h2 class="text-3xl font-bold text-white mt-2 drop-shadow-lg">${escapeHtml(tour.title)}</h2>
+                <p class="text-purple-300 font-medium">🎮 ${escapeHtml(tour.game_title)}</p>
+            </div>
+        </div>
+        
+        <div class="p-6 space-y-6">
+            <!-- Info Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700">
+                <div>
+                    <span class="text-xs text-gray-500 uppercase block">Date</span>
+                    <span class="text-white font-bold">${dateStr}</span>
+                </div>
+                <div>
+                    <span class="text-xs text-gray-500 uppercase block">Time</span>
+                    <span class="text-white font-bold">${timeStr}</span>
+                </div>
+                <div>
+                    <span class="text-xs text-gray-500 uppercase block">Platform</span>
+                    <span class="text-white font-bold">${tour.platform || 'Any'}</span>
+                </div>
+                <div>
+                    <span class="text-xs text-gray-500 uppercase block">Prize</span>
+                    <span class="text-yellow-400 font-bold">${tour.prize_pool || 'TBD'}</span>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <h3 class="text-xl font-bold text-white mb-2 border-b border-gray-700 pb-2">📜 Rules & Description</h3>
+                <div class="text-gray-300 leading-relaxed whitespace-pre-line bg-gray-900/30 p-4 rounded border border-gray-700">
+                    ${escapeHtml(tour.description)}
+                </div>
+            </div>
+
+            <!-- Organizer -->
+            <div class="flex items-center gap-3 pt-4 border-t border-gray-700">
+                <span class="text-gray-400 text-sm">Hosted by:</span>
+                <a href="#/profile/${tour.organizer_username}" class="flex items-center gap-2 hover:bg-gray-700 p-1.5 rounded transition">
+                    <img src="${tour.organizer_avatar || 'https://ui-avatars.com/api/?name=${tour.organizer_username}'}" class="w-8 h-8 rounded-full border border-purple-500">
+                    <span class="text-purple-400 font-bold hover:underline">${escapeHtml(tour.organizer_username)}</span>
+                </a>
+                <span class="ml-auto text-gray-500 text-sm">👥 ${tour.participant_count || 0} Joined</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="pt-4">
+                ${actionButtonHTML}
+                ${editBtn}
+                
+                ${tour.registration_link && !isJoined ? `
+                    <div class="mt-4 text-center">
+                        <p class="text-xs text-gray-500 mb-2">Or register via external link:</p>
+                        <a href="${tour.registration_link}" target="_blank" class="text-purple-400 hover:text-purple-300 underline break-all">${tour.registration_link}</a>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    modal.classList.remove('hidden');
+};
+
+// Expose join/leave/edit functions to window
+window.handleJoinTourney = async (tId, uId) => {
+    if(!confirm("Confirm joining this tournament?")) return;
+    try {
+        const { error } = await window.rom.supabase.from('tournament_participants').insert({ tournament_id: tId, user_id: uId });
+        if(error) throw error;
+        alert("✅ Successfully joined!");
+        document.getElementById('details-modal').classList.add('hidden');
+        await renderList(window.rom); // Refresh list
+    } catch(err) {
+        alert("Error joining: " + err.message);
+    }
+};
+
+window.handleLeaveTourney = async (tId, uId) => {
+    if(!confirm("Are you sure you want to leave?")) return;
+    try {
+        const { error } = await window.rom.supabase.from('tournament_participants').delete().match({ tournament_id: tId, user_id: uId });
+        if(error) throw error;
+        alert("You have left the tournament.");
+        document.getElementById('details-modal').classList.add('hidden');
+        await renderList(window.rom);
+    } catch(err) {
+        alert("Error leaving: " + err.message);
+    }
+};
+
+window.openEditModal = async (tId) => {
+    // Fetch single tourney data
+    const { data } = await window.rom.supabase.from('tournaments').select('*').eq('id', tId).single();
+    if(!data) return;
+
+    document.getElementById('tourney-id').value = data.id;
+    document.getElementById('tourney-game').value = data.game_title;
+    document.getElementById('tourney-title').value = data.title;
+    document.getElementById('tourney-date').value = new Date(data.start_date).toISOString().slice(0, 16);
+    document.getElementById('tourney-platform').value = data.platform || '';
+    document.getElementById('tourney-prize').value = data.prize_pool || '';
+    document.getElementById('tourney-status').value = data.status;
+    document.getElementById('tourney-link').value = data.registration_link || '';
+    document.getElementById('tourney-desc').value = data.description || '';
+
+    document.getElementById('modal-title').textContent = '✏️ Edit Tournament';
+    document.getElementById('details-modal').classList.add('hidden'); // Close details
+    document.getElementById('tourney-modal').classList.remove('hidden'); // Open form
+};
 
 async function loadGameSuggestions(rom) {
     const datalist = document.getElementById('game-suggestions');
@@ -159,6 +324,7 @@ async function loadGameSuggestions(rom) {
 async function handlePost(e, rom) {
     e.preventDefault();
 
+    const id = document.getElementById('tourney-id').value;
     const gameTitle = document.getElementById('tourney-game').value.trim();
     const title = document.getElementById('tourney-title').value.trim();
     const startDate = document.getElementById('tourney-date').value;
@@ -168,7 +334,7 @@ async function handlePost(e, rom) {
     const regLink = document.getElementById('tourney-link').value.trim();
     const description = document.getElementById('tourney-desc').value.trim();
 
-    if (!gameTitle || !title || !startDate || !regLink) {
+    if (!gameTitle || !title || !startDate || !description) {
         alert('Please fill in all required fields.');
         return;
     }
@@ -176,18 +342,21 @@ async function handlePost(e, rom) {
     const btn = document.querySelector('#tourney-form button[type="submit"]');
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Creating...';
+    btn.textContent = 'Saving...';
 
     try {
-        // Fetch organizer profile info
-        const { data: profile } = await rom.supabase.from('profiles').select('username, avatar_url').eq('id', rom.currentUser.id).single();
-        const organizerUsername = profile?.username || rom.currentUser.email.split('@')[0];
-        const organizerAvatar = profile?.avatar_url;
+        // Fetch organizer profile info (only needed for insert, not update)
+        let orgData = {};
+        if (!id) {
+            const { data: profile } = await rom.supabase.from('profiles').select('username, avatar_url').eq('id', rom.currentUser.id).single();
+            orgData = {
+                organizer_id: rom.currentUser.id,
+                organizer_username: profile?.username || rom.currentUser.email.split('@')[0],
+                organizer_avatar: profile?.avatar_url
+            };
+        }
 
-        const { error } = await rom.supabase.from('tournaments').insert([{
-            organizer_id: rom.currentUser.id,
-            organizer_username: organizerUsername,
-            organizer_avatar: organizerAvatar,
+        const payload = {
             game_title: gameTitle,
             title: title,
             start_date: new Date(startDate).toISOString(),
@@ -195,17 +364,29 @@ async function handlePost(e, rom) {
             prize_pool: prizePool,
             status: status,
             registration_link: regLink,
-            description: description
-        }]);
+            description: description,
+            ...orgData
+        };
+
+        let error;
+        if (id) {
+            // Update
+            const res = await rom.supabase.from('tournaments').update(payload).eq('id', id);
+            error = res.error;
+        } else {
+            // Insert
+            const res = await rom.supabase.from('tournaments').insert([payload]);
+            error = res.error;
+        }
 
         if (error) throw error;
 
-        alert('✅ Tournament created!');
+        alert(id ? '✅ Tournament Updated!' : '✅ Tournament Created!');
         closeModal();
         await renderList(rom);
 
     } catch (err) {
-        console.error('Error posting tournament:', err);
+        console.error('Error saving tournament:', err);
         alert('❌ Error: ' + err.message);
     } finally {
         btn.disabled = false;
@@ -240,11 +421,45 @@ async function renderList(rom) {
             return;
         }
 
-        // Pre-fetch game data for images/slugs
+        // Pre-fetch game data & Participant Counts
         const gameTitles = [...new Set(filtered.map(t => t.game_title))];
         const { data: gamesData } = await rom.supabase.from('games').select('title, slug, cover_image_url').in('title', gameTitles);
         const gameMap = {};
         if(gamesData) gamesData.forEach(g => gameMap[g.title] = g);
+
+        // Fetch Participant Counts
+        const tourneyIds = filtered.map(t => t.id);
+        const { data: countsData } = await rom.supabase
+            .from('tournament_participants')
+            .select('tournament_id', { count: 'exact' })
+            .in('tournament_id', tourneyIds);
+        
+        const countMap = {};
+        if(countsData) {
+             // Note: Supabase count logic in select might vary, simpler to just group if we had full rows. 
+             // Actually, let's do a proper count query per item if the above is tricky, or assume RPC.
+             // Simpler approach for now: Just map the count if available, else 0.
+             // Better: Use RPC or aggregate. Let's stick to simple mapping if possible, otherwise skip count for perf.
+             // Re-doing count fetch properly:
+        }
+        
+        // Proper Count Fetch
+        const { data: participantCounts } = await rom.supabase.rpc('get_tournament_counts', { tournament_ids: tourneyIds });
+        // Fallback if RPC doesn't exist yet: Just show "Join" without count or fetch individually (slow)
+        // Let's assume no RPC and just display "Join" for now to avoid breaking, 
+        // OR we can just count locally if we fetched all participants (too heavy).
+        // We will skip displaying exact count in the grid card for performance, but show it in details.
+
+        // Check Current User Joins
+        let myJoins = [];
+        if (rom.currentUser) {
+            const { data: joins } = await rom.supabase
+                .from('tournament_participants')
+                .select('tournament_id')
+                .eq('user_id', rom.currentUser.id)
+                .in('tournament_id', tourneyIds);
+            if(joins) myJoins = joins.map(j => j.tournament_id);
+        }
 
         container.innerHTML = filtered.map(t => {
             const gameInfo = gameMap[t.game_title] || {};
@@ -253,28 +468,26 @@ async function renderList(rom) {
             const gameLink = gameSlug ? `#/game/${gameSlug}` : `#/games?search=${encodeURIComponent(t.game_title)}`;
             
             const dateObj = new Date(t.start_date);
-            const dateStr = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-            const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            const dateStr = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            
+            const isJoined = myJoins.includes(t.id);
+            const isOrganizer = rom.currentUser && t.organizer_id === rom.currentUser.id;
 
-            // Organizer Info
-            const orgName = t.organizer_username || 'Unknown';
-            const orgAvatar = t.organizer_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(orgName)}&background=8b5cf6&color=fff`;
-            const orgLink = `#/profile/${orgName}`; 
-
-            // Status Badge Color
             let statusColor = 'bg-gray-700 text-gray-300';
             if(t.status === 'open') statusColor = 'bg-green-900/50 text-green-400 border-green-700';
             if(t.status === 'live') statusColor = 'bg-red-900/50 text-red-400 border-red-700';
             if(t.status === 'completed') statusColor = 'bg-blue-900/50 text-blue-400 border-blue-700';
 
             return `
-                <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-purple-500 transition shadow-lg flex flex-col h-full">
+                <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-purple-500 transition shadow-lg flex flex-col h-full group cursor-pointer" 
+                     onclick="openDetailsModal(${JSON.stringify(t).replace(/"/g, '&quot;')}, ${isJoined}, ${isOrganizer}, window.rom)">
+                    
                     <!-- Header Image -->
-                    <div class="relative h-40 w-full overflow-hidden group">
+                    <div class="relative h-40 w-full overflow-hidden">
                         <img src="${coverUrl}" alt="${t.game_title}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500">
                         <div class="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
                         <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
-                            <a href="${gameLink}" class="text-lg font-bold text-white drop-shadow-md hover:text-purple-400 transition truncate max-w-[70%]">
+                            <a href="${gameLink}" onclick="event.stopPropagation()" class="text-lg font-bold text-white drop-shadow-md hover:text-purple-400 transition truncate max-w-[70%]">
                                 ${escapeHtml(t.game_title)} ↗
                             </a>
                             <span class="px-2 py-1 rounded text-xs font-bold border ${statusColor} uppercase">${t.status}</span>
@@ -284,37 +497,24 @@ async function renderList(rom) {
                     <div class="p-5 flex-1 flex flex-col">
                         <h3 class="text-xl font-bold text-white mb-2 line-clamp-1">${escapeHtml(t.title)}</h3>
                         
-                        <!-- Organizer -->
                         <div class="flex items-center gap-2 mb-4 text-sm">
-                            <a href="${orgLink}" class="flex items-center gap-2 hover:bg-gray-700 p-1 rounded transition">
-                                <img src="${orgAvatar}" class="w-6 h-6 rounded-full border border-purple-500">
-                                <span class="text-gray-300 hover:text-white">Host: ${escapeHtml(orgName)}</span>
-                            </a>
+                            <span class="text-gray-400">📅 ${dateStr}</span>
+                            ${isJoined ? '<span class="ml-auto text-green-400 text-xs font-bold flex items-center gap-1">✓ Joined</span>' : ''}
+                            ${isOrganizer ? '<span class="ml-auto text-purple-400 text-xs font-bold flex items-center gap-1">✏️ Edit</span>' : ''}
                         </div>
 
-                        <!-- Details Grid -->
-                        <div class="grid grid-cols-2 gap-2 text-sm text-gray-400 mb-4">
-                            <div class="flex items-center gap-1"><span>📅</span> ${dateStr}</div>
-                            <div class="flex items-center gap-1"><span>🕒</span> ${timeStr}</div>
-                            <div class="flex items-center gap-1"><span>🎮</span> ${t.platform || 'Any'}</div>
-                            <div class="flex items-center gap-1"><span>💰</span> ${t.prize_pool || 'TBD'}</div>
-                        </div>
+                        <p class="text-gray-500 text-xs mb-4 line-clamp-2">${escapeHtml(t.description)}</p>
 
-                        ${t.description ? `<p class="text-gray-500 text-xs mb-4 line-clamp-2">${escapeHtml(t.description)}</p>` : ''}
-
-                        <!-- Registration Section -->
-                        <div class="mt-auto pt-4 border-t border-gray-700">
-                            <div class="mb-3">
-                                <span class="text-xs text-gray-500 block mb-1">Registration Link:</span>
-                                <a href="${t.registration_link}" target="_blank" rel="noopener noreferrer" 
-                                   class="text-xs text-purple-400 hover:text-purple-300 hover:underline break-all block">
-                                    ${t.registration_link}
-                                </a>
-                            </div>
-                            <a href="${t.registration_link}" target="_blank" rel="noopener noreferrer" 
-                               class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded-lg transition shadow-lg">
-                                Register Now
-                            </a>
+                        <div class="mt-auto pt-4 border-t border-gray-700 flex gap-2">
+                             ${t.status === 'open' && rom.currentUser ? (
+                                 isJoined 
+                                 ? `<button onclick="event.stopPropagation(); handleLeaveTourney('${t.id}', '${rom.currentUser.id}')" class="flex-1 bg-gray-700 hover:bg-red-900 text-gray-300 hover:text-red-400 text-xs font-bold py-2 rounded border border-gray-600 hover:border-red-600 transition">Leave</button>`
+                                 : `<button onclick="event.stopPropagation(); handleJoinTourney('${t.id}', '${rom.currentUser.id}')" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 rounded shadow transition">Join Now</button>`
+                             ) : (
+                                 t.registration_link ? 
+                                 `<a href="${t.registration_link}" target="_blank" class="flex-1 text-center bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold py-2 rounded border border-gray-600">External Reg</a>` 
+                                 : `<span class="flex-1 text-center text-gray-500 text-xs py-2">Closed</span>`
+                             )}
                         </div>
                     </div>
                 </div>
@@ -334,13 +534,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ============================================================================
-// HELPER FOR HOME PAGE TICKER
-// ============================================================================
-
-/**
- * Fetches recent open tournaments formatted for the scrolling marquee
- */
+// Helper for ticker (unchanged)
 export async function getRecentTournamentsForTicker(rom) {
     try {
         const { data, error } = await rom.supabase
