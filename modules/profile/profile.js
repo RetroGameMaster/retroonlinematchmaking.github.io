@@ -1019,9 +1019,27 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Could not check Discord status.');
-        discordLinkStatus.textContent = result.linked
-          ? `Linked to Discord: ${result.username || 'Connected account'}`
-          : 'Your Discord account is not linked yet.';
+        const oauthResult = new URLSearchParams(window.location.search).get('discord_link');
+        const oauthMessages = {
+          success: 'Discord account linked successfully.',
+          already_linked: 'That Discord account or ROM account is already linked elsewhere.',
+          invalid_or_expired_state: 'The Discord linking request expired or could not be verified. Please try again.',
+          token_exchange_failed: 'Discord authorization could not be completed. Please try again.',
+          discord_identity_failed: 'Discord did not return your account identity. Please try again.',
+          link_failed: 'Discord could not be linked. If this continues, contact ROM support.',
+          missing_parameters: 'Discord returned an incomplete authorization response.',
+          invalid_discord_identity: 'Discord returned an invalid account identity.'
+        };
+        discordLinkStatus.textContent = oauthResult && oauthMessages[oauthResult]
+          ? oauthMessages[oauthResult]
+          : result.linked
+            ? `Linked to Discord: ${result.username || 'Connected account'}`
+            : 'Your Discord account is not linked yet.';
+        if (oauthResult) {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('discord_link');
+          window.history.replaceState({}, document.title, cleanUrl.toString());
+        }
         discordLinkButton.textContent = result.linked ? 'Discord Linked' : 'Link Discord';
         discordLinkButton.disabled = !!result.linked;
         discordLinkButton.classList.toggle('opacity-60', !!result.linked);
