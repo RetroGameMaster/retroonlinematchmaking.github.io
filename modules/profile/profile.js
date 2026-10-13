@@ -751,6 +751,17 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </ul>
           </div>
 
+          ${isOwnProfile ? `
+            <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-indigo-500/30 p-6">
+              <h3 class="text-lg font-bold text-indigo-300 mb-2">Discord Account</h3>
+              <p id="discord-link-status" class="text-sm text-gray-300 mb-4">Checking link status...</p>
+              <button id="btn-link-discord" type="button" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-bold transition">
+                Link Discord
+              </button>
+              <p class="text-xs text-gray-500 mt-3">Link your Discord identity to this existing ROM account. Your matchmaking history stays in place.</p>
+            </div>
+          ` : ''}
+
           <!-- Friends -->
           <!-- Mobile Order: 2 (Right after Details) -->
           <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-2 lg:order-none">
@@ -987,6 +998,63 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   const form = document.getElementById('profile-form');
   const bgTypeSelect = document.getElementById('bg_type');
   const bgUploadContainer = document.getElementById('bg-upload-container');
+
+  // Discord linking is an additive feature. All OAuth secrets remain server-side.
+  const discordLinkButton = document.getElementById('btn-link-discord');
+  const discordLinkStatus = document.getElementById('discord-link-status');
+  if (isOwnProfile && currentUser && discordLinkButton && discordLinkStatus) {
+    const discordFunctionUrl = 'https://lapyxhothazalssrbimb.supabase.co/functions/v1/discord-link';
+    const loadDiscordLinkStatus = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('Please sign in again.');
+        const response = await fetch(discordFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJvcGVuYWkiLCJzdWIiOiJwdWJsaWMifQ.placeholder'
+          },
+          body: JSON.stringify({ action: 'status' })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not check Discord status.');
+        discordLinkStatus.textContent = result.linked
+          ? `Linked to Discord: ${result.username || 'Connected account'}`
+          : 'Your Discord account is not linked yet.';
+        discordLinkButton.textContent = result.linked ? 'Discord Linked' : 'Link Discord';
+        discordLinkButton.disabled = !!result.linked;
+        discordLinkButton.classList.toggle('opacity-60', !!result.linked);
+      } catch (error) {
+        discordLinkStatus.textContent = error.message || 'Could not check Discord link status.';
+      }
+    };
+    discordLinkButton.addEventListener('click', async () => {
+      discordLinkButton.disabled = true;
+      discordLinkButton.textContent = 'Connecting...';
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('Please sign in to ROM first.');
+        const response = await fetch(discordFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': window.ROM_SUPABASE_ANON_KEY || ''
+          },
+          body: JSON.stringify({ action: 'start' })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.url) throw new Error(result.error || 'Could not start Discord linking.');
+        window.location.assign(result.url);
+      } catch (error) {
+        discordLinkStatus.textContent = error.message || 'Could not start Discord linking.';
+        discordLinkButton.disabled = false;
+        discordLinkButton.textContent = 'Link Discord';
+      }
+    });
+    loadDiscordLinkStatus();
+  }
 
   if (editBtn && modal) editBtn.addEventListener('click', () => {
     modal.classList.remove('hidden');
