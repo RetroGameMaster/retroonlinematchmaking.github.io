@@ -5,7 +5,7 @@ This feature is intentionally additive. It does not migrate Supabase Auth users,
 ## Discord account linking
 
 1. Apply `supabase/migrations/202610130001_discord_account_links.sql`.
-2. Deploy `supabase/functions/discord-link` with Supabase CLI.
+2. From the repository root, deploy `supabase/functions/discord-link` with Supabase CLI. Keep `supabase/config.toml` in place: it disables gateway JWT verification for the OAuth callback, while the function itself verifies the user's Supabase JWT on authenticated POST actions and validates one-time OAuth state on the callback.
 3. In Supabase Function secrets, configure:
    - `DISCORD_CLIENT_ID`
    - `DISCORD_CLIENT_SECRET`
@@ -29,7 +29,7 @@ The bot database export is available as `rom_bot_game_catalog.csv` and contains 
 
 The website now reads a dedicated `discord_live_lobbies` table and subscribes to Supabase Realtime. Apply `supabase/migrations/202610130002_discord_live_lobbies.sql` and deploy `supabase/functions/discord-lobby-bridge` before the panel can receive rows. Configure the function secret `ROM_BRIDGE_SECRET`.
 
-The bot integration itself still needs to be added to the running bot source and rebuilt/deployed. Its `Find Players` handler should send an authenticated `upsert` event when it creates the lobby record; its expiration handler should send `expire` when it marks the record expired. Use the endpoint `https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/discord-lobby-bridge` and header `x-rom-bridge-secret`. Payload details are validated in `supabase/functions/discord-lobby-bridge/index.ts`. Never put the bridge secret in browser code. SQLite remains authoritative; this table is a live website projection.
+The bot integration itself still needs to be added to the running bot source and rebuilt/deployed. `supabase/config.toml` disables gateway JWT verification for this endpoint because the bot authenticates with the separate bridge secret; the function checks that secret on every request. Its `Find Players` handler should send an authenticated `upsert` event when it creates the lobby record; its expiration handler should send `expire` when it marks the record expired. Use the endpoint `https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/discord-lobby-bridge` and header `x-rom-bridge-secret`. Payload details are validated in `supabase/functions/discord-lobby-bridge/index.ts`. Never put the bridge secret in browser code. SQLite remains authoritative; this table is a live website projection.
 
 ## Deployment order
 
