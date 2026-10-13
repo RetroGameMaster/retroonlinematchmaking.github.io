@@ -7,7 +7,9 @@ export default function initModule(rom) {
   
   renderLayout();
   loadActiveLobbies(rom);
+  loadDiscordLobbies(rom);
   startRealtimeListener(rom);
+  startDiscordRealtimeListener(rom);
 }
 
 function renderLayout() {
@@ -37,6 +39,20 @@ function renderLayout() {
           <span class="text-gray-500 text-xs uppercase">Active Rooms</span>
         </div>
       </div>
+
+      <!-- Discord Bot Matchmaking -->
+      <section class="mb-8 rounded-xl border border-indigo-500/40 bg-gray-900/70 p-5 shadow-lg">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-indigo-300">🎮 Discord Matchmaking</h2>
+            <p class="text-sm text-gray-400 mt-1">Live searches started through the ROM Discord bot.</p>
+          </div>
+          <span id="discord-lobby-count" class="text-xs font-bold rounded-full border border-indigo-400/40 bg-indigo-900/40 px-3 py-1 text-indigo-200">Loading…</span>
+        </div>
+        <div id="discord-lobbies-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="col-span-full text-center py-6 text-gray-500">Connecting to Discord matchmaking…</div>
+        </div>
+      </section>
 
       <!-- Filters -->
       <div class="bg-gray-800/50 backdrop-blur p-4 rounded-xl border border-gray-700 mb-8 flex flex-wrap gap-4 items-center justify-between">
@@ -77,8 +93,8 @@ function renderLayout() {
   const searchInput = document.getElementById('filter-search');
   const sortSelect = document.getElementById('filter-sort');
   
-  if(searchInput) searchInput.addEventListener('input', () => loadActiveLobbies(rom));
-  if(sortSelect) sortSelect.addEventListener('change', () => loadActiveLobbies(rom));
+  if(searchInput) searchInput.addEventListener('input', () => { loadActiveLobbies(rom); loadDiscordLobbies(rom); });
+  if(sortSelect) sortSelect.addEventListener('change', () => { loadActiveLobbies(rom); loadDiscordLobbies(rom); });
 }
 
 async function loadActiveLobbies(rom) {
@@ -307,6 +323,82 @@ async function loadActiveLobbies(rom) {
     console.error('Error loading live lobbies:', err);
     if(container) container.innerHTML = `<div class="col-span-full text-center text-red-400">Error loading lobbies: ${err.message}</div>`;
   }
+}
+
+async function loadDiscordLobbies(rom) {
+  const container = document.getElementById('discord-lobbies-grid');
+  const count = document.getElementById('discord-lobby-count');
+  if (!container) return;
+  try {
+    const { data, error } = await rom.supabase
+      .from('discord_live_lobbies')
+      .select('discord_lobby_key, game_title, console, host_discord_id, minimum_players, joined_players, connection_methods, additional_notes, discord_url, expires_at, created_at')
+      .eq('is_expired', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    const search = document.getElementById('filter-search')?.value?.trim().toLowerCase() || '';
+    const sort = document.getElementById('filter-sort')?.value || 'newest';
+    let lobbies = (data || []).filter(l => !search || `${l.game_title} ${l.console || ''}`.toLowerCase().includes(search));
+    lobbies.sort((a, b) => sort === 'oldest'
+      ? new Date(a.created_at) - new Date(b.created_at)
+      : new Date(b.created_at) - new Date(a.created_at));
+    if (count) count.textContent = `${lobbies.length} active`;
+    if (!lobbies.length) {
+      container.innerHTML = '<div class="col-span-full rounded-lg border border-gray-700 bg-gray-950/50 p-5 text-sm text-gray-400">No active Discord matchmaking searches right now. When someone uses Find Players in Discord, their lobby will appear here.</div>';
+      return;
+    }
+    container.innerHTML = lobbies.map(lobby => {
+      const game = escapeHtml(lobby.game_title || 'Unknown game');
+      const consoleName = escapeHtml(lobby.console || '');
+      const methods = escapeHtml(lobby.connection_methods || 'Ask the host in Discord');
+      const notes = escapeHtml(lobby.additional_notes || '');
+      const joined = Number(lobby.joined_players || 0);
+      const minimum = Number(lobby.minimum_players || 2);
+      const expires = new Date(lobby.expires_at);
+      const remainingMinutes = Math.max(0, Math.ceil((expires.getTime() - Date.now()) / 60000));
+      const host = String(lobby.host_discord_id || '');
+      const discordUrl = /^https:\/\/discord\.com\/channels\/\d+\/\d+\/\d+$/.test(lobby.discord_url || '') ? lobby.discord_url : '#';
+      return `
+        <article class="rounded-lg border border-indigo-500/30 bg-gray-950/70 p-4 flex flex-col gap-3">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h3 class="text-lg font-bold text-white">${game}</h3>
+              ${consoleName ? `<p class="text-xs text-gray-400 mt-1">${consoleName}</p>` : ''}
+            </div>
+            <span class="shrink-0 text-[10px] uppercase tracking-wide rounded border border-green-500/30 bg-green-900/30 text-green-300 px-2 py-1">Discord Live</span>
+          </div>
+          <div class="text-sm text-gray-300">
+            <p><strong class="text-indigo-200">Players:</strong> ${joined} joined · target ${minimum}</p>
+            <p class="mt-1"><strong class="text-indigo-200">Connection:</strong> ${methods}</p>
+            ${notes ? `<p class="mt-2 text-gray-400">${notes}</p>` : ''}
+          </div>
+          <div class="mt-auto flex items-center justify-between gap-3 border-t border-gray-800 pt-3">
+            <span class="text-xs text-gray-500">Expires in about ${remainingMinutes} min</span>
+            <a href="${discordUrl}" target="_blank" rel="noopener noreferrer" class="rounded bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-sm font-bold text-white">${host ? 'Open Discord' : 'View on Discord'} ↗</a>
+          </div>
+        </article>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('Discord lobby feed unavailable:', error);
+    if (container) container.innerHTML = '<div class="col-span-full rounded-lg border border-gray-700 bg-gray-950/50 p-5 text-sm text-gray-400">Discord lobby sync is not configured yet. Existing ROM live lobbies are still available below.</div>';
+    if (count) count.textContent = 'Not connected';
+  }
+}
+
+function startDiscordRealtimeListener(rom) {
+  const channel = rom.supabase.channel('discord-live-lobbies-monitor');
+  channel.on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'discord_live_lobbies'
+  }, () => {
+    clearTimeout(window.discordLobbyRefreshTimeout);
+    window.discordLobbyRefreshTimeout = setTimeout(() => loadDiscordLobbies(rom), 350);
+  }).subscribe();
+  window.addEventListener('beforeunload', () => rom.supabase.removeChannel(channel), { once: true });
 }
 
 function startRealtimeListener(rom) {
