@@ -30,9 +30,11 @@ function json(body: unknown, status = 200) {
 
 function redirectResult(userId: string | null, result: string) {
   const url = new URL(siteUrl || "https://retroonlinematchmaking.com");
+  // Keep the router path clean; pass the result as a normal query parameter.
+  url.searchParams.set("discord_link", result);
   url.hash = userId
-    ? `/profile/${encodeURIComponent(userId)}?discord_link=${encodeURIComponent(result)}`
-    : `/login?discord_link=${encodeURIComponent(result)}`;
+    ? `/profile/${encodeURIComponent(userId)}`
+    : `/auth`;
   return Response.redirect(url.toString(), 302);
 }
 
