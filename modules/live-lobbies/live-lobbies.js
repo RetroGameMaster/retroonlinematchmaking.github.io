@@ -5,14 +5,14 @@ let realtimeChannel = null;
 export default function initModule(rom) {
   console.log('🌍 Live Lobbies module initialized');
   
-  renderLayout();
+  renderLayout(rom);
   loadActiveLobbies(rom);
   loadDiscordLobbies(rom);
   startRealtimeListener(rom);
   startDiscordRealtimeListener(rom);
 }
 
-function renderLayout() {
+function renderLayout(rom) {
   const appContent = document.getElementById('app-content');
   if (!appContent) return;
 
