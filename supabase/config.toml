@@ -1,0 +1,8 @@
+# These functions validate their own authorization:
+# - discord-link validates the Supabase JWT on POST start/status and validates one-time OAuth state on callback.
+# - discord-lobby-bridge validates a separate high-entropy shared secret.
+[functions.discord-link]
+verify_jwt = false
+
+[functions.discord-lobby-bridge]
+verify_jwt = false
