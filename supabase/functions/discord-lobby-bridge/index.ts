@@ -46,7 +46,59 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, action: "expire" });
   }
 
-  if (body.action !== "upsert") return json({ error: "action must be upsert or expire." }, 400);
+  // Snapshot sync lets a separate read-only process poll the bot's SQLite database.
+  // It does not require modifying the bot application.
+  if (body.action === "sync") {
+    if (!Array.isArray(body.lobbies) || body.lobbies.length > 500) {
+      return json({ error: "lobbies must be an array with at most 500 records." }, 400);
+    }
+    const rows = body.lobbies as Array<Record<string, unknown>>;
+    const activeKeys: string[] = [];
+    for (const lobby of rows) {
+      if (!validSnowflake(lobby.guild_id) || lobby.guild_id !== guildId ||
+          !validSnowflake(lobby.channel_id) || !validSnowflake(lobby.message_id) ||
+          !validSnowflake(lobby.host_discord_id) ||
+          typeof lobby.game_title !== "string" || !lobby.game_title.trim()) {
+        return json({ error: "A lobby has missing or invalid Discord IDs or game_title." }, 400);
+      }
+      const expiry = new Date(String(lobby.expires_at ?? ""));
+      if (!Number.isFinite(expiry.getTime()) || expiry.getTime() <= Date.now()) continue;
+      const lobbyKey = `${guildId}:${lobby.message_id}`;
+      const numeric = (v: unknown, fallback: number, min: number, max: number) =>
+        typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.floor(v))) : fallback;
+      const row = {
+        discord_lobby_key: lobbyKey,
+        guild_id: guildId,
+        channel_id: lobby.channel_id,
+        message_id: lobby.message_id,
+        host_discord_id: lobby.host_discord_id,
+        game_id: numeric(lobby.game_id, 0, 0, 2147483647) || null,
+        game_title: String(lobby.game_title).trim().slice(0, 200),
+        console: typeof lobby.console === "string" ? lobby.console.slice(0, 80) : null,
+        minimum_players: numeric(lobby.minimum_players, 2, 1, 100),
+        joined_players: numeric(lobby.joined_players, 0, 0, 100),
+        connection_methods: typeof lobby.connection_methods === "string" ? lobby.connection_methods.slice(0, 1000) : null,
+        additional_notes: typeof lobby.additional_notes === "string" ? lobby.additional_notes.slice(0, 1000) : null,
+        discord_url: `https://discord.com/channels/${guildId}/${lobby.channel_id}/${lobby.message_id}`,
+        expires_at: expiry.toISOString(),
+        is_expired: false,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await admin.from("discord_live_lobbies").upsert(row, { onConflict: "discord_lobby_key" });
+      if (error) return json({ error: "Could not upsert a lobby snapshot." }, 500);
+      activeKeys.push(lobbyKey);
+    }
+    let staleQuery = admin.from("discord_live_lobbies")
+      .update({ is_expired: true, updated_at: new Date().toISOString() })
+      .eq("guild_id", guildId)
+      .eq("is_expired", false);
+    if (activeKeys.length) staleQuery = staleQuery.not("discord_lobby_key", "in", `(${activeKeys.map(k => `"${k}"`).join(",")})`);
+    const { error: staleError } = await staleQuery;
+    if (staleError) return json({ error: "Could not expire stale lobby records." }, 500);
+    return json({ ok: true, action: "sync", active_lobbies: activeKeys.length });
+  }
+
+  if (body.action !== "upsert") return json({ error: "action must be upsert, expire, or sync." }, 400);
   if (!validSnowflake(body.host_discord_id)) return json({ error: "host_discord_id must be a Discord snowflake string." }, 400);
   if (typeof body.game_title !== "string" || !body.game_title.trim() || body.game_title.length > 200) {
     return json({ error: "game_title is required (max 200 characters)." }, 400);
