@@ -35,14 +35,6 @@ Deno.serve(async (req: Request) => {
     return json({ error: "guild_id must be a Discord snowflake string." }, 400);
   }
 
-  if (body.action === "sync") {
-    const { error } = await admin.from("discord_live_lobbies")
-      .update({ is_expired: true, updated_at: new Date().toISOString() })
-      .eq("discord_lobby_key", key);
-    if (error) return json({ error: "Could not expire lobby." }, 500);
-    return json({ ok: true, action: "expire" });
-  }
-
   // Snapshot sync lets a separate read-only process poll the bot's SQLite database.
   // It does not require modifying the bot application.
   if (body.action === "sync") {
