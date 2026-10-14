@@ -31,14 +31,11 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON." }, 400); }
 
   const guildId = body.guild_id;
-  const channelId = body.channel_id;
-  const messageId = body.message_id;
-  if (!validSnowflake(guildId) || !validSnowflake(channelId) || !validSnowflake(messageId)) {
-    return json({ error: "guild_id, channel_id, and message_id must be Discord snowflake strings." }, 400);
+  if (!validSnowflake(guildId)) {
+    return json({ error: "guild_id must be a Discord snowflake string." }, 400);
   }
-  const key = `${guildId}:${messageId}`;
 
-  if (body.action === "expire") {
+  if (body.action === "sync") {
     const { error } = await admin.from("discord_live_lobbies")
       .update({ is_expired: true, updated_at: new Date().toISOString() })
       .eq("discord_lobby_key", key);
@@ -96,6 +93,21 @@ Deno.serve(async (req: Request) => {
     const { error: staleError } = await staleQuery;
     if (staleError) return json({ error: "Could not expire stale lobby records." }, 500);
     return json({ ok: true, action: "sync", active_lobbies: activeKeys.length });
+  }
+
+  const channelId = body.channel_id;
+  const messageId = body.message_id;
+  if (!validSnowflake(channelId) || !validSnowflake(messageId)) {
+    return json({ error: "channel_id and message_id must be Discord snowflake strings." }, 400);
+  }
+  const key = `${guildId}:${messageId}`;
+
+  if (body.action === "expire") {
+    const { error } = await admin.from("discord_live_lobbies")
+      .update({ is_expired: true, updated_at: new Date().toISOString() })
+      .eq("discord_lobby_key", key);
+    if (error) return json({ error: "Could not expire lobby." }, 500);
+    return json({ ok: true, action: "expire" });
   }
 
   if (body.action !== "upsert") return json({ error: "action must be upsert, expire, or sync." }, 400);
