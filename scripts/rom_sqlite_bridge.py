@@ -108,6 +108,112 @@ def get_services(db_path, guild_id):
     finally:
         conn.close()
 
+def get_member_snapshots(db_path, guild_id):
+    """Aggregate matchmaking-related profile preferences and score totals by Discord ID."""
+    conn = read_only(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        user_ids = set()
+        id_queries = [
+            ("SELECT UserId FROM GamingDayForUsers WHERE GuildId=?", (int(guild_id),)),
+            ("SELECT UserId FROM GamingHoursRecords WHERE GuildId=?", (int(guild_id),)),
+            ("SELECT UserId FROM ConnectivityMethods WHERE RoleId IN (SELECT RoleId FROM ConnectionTypes WHERE GuildId=?)", (int(guild_id),)),
+            ("SELECT UserId FROM TopGamesForUser", ()),
+            ("SELECT UserId FROM UserNotInterestedGames", ()),
+            ("SELECT UserId FROM RegionLocks", ()),
+            ("SELECT UserId FROM GameListsForUser", ()),
+            ("SELECT WinnerUserId AS UserId FROM Wins", ()),
+            ("SELECT WinnerUserId AS UserId FROM TeamRankedWinners", ()),
+            ("SELECT LoserUserId AS UserId FROM TeamRankedLoser", ()),
+        ]
+        for query, args in id_queries:
+            try:
+                user_ids.update(str(row[0]) for row in conn.execute(query, args) if row[0] is not None and len(str(row[0])) >= 15)
+            except sqlite3.OperationalError:
+                continue
+
+        def all_rows(query, args):
+            return [dict(row) for row in conn.execute(query, args).fetchall()]
+
+        members = []
+        for discord_id in sorted(user_ids):
+            uid = int(discord_id)
+            top_games = all_rows("""
+              SELECT g.Title AS title,c.Abbreviation AS console
+              FROM TopGamesForUser t JOIN Games g ON g.Id=t.GameId
+              JOIN Consoles c ON c.Id=g.ConsoleId WHERE t.UserId=?
+            """, (uid,))
+            disliked = all_rows("""
+              SELECT u.Id AS preference_id,g.Title AS title,c.Abbreviation AS console
+              FROM UserNotInterestedGames u JOIN Games g ON g.Id=u.GameId
+              JOIN Consoles c ON c.Id=g.ConsoleId WHERE u.UserId=?
+            """, (uid,))
+            for item in disliked:
+                item["role_overrides"] = [r["RoleName"] or str(r["RoleId"]) for r in all_rows("""
+                  SELECT o.RoleId,ct.RoleName FROM ConnectivityMethodOverride o
+                  LEFT JOIN ConnectionTypes ct ON ct.RoleId=o.RoleId AND ct.GuildId=?
+                  WHERE o.UserNotInterestedGameId=?
+                """, (int(guild_id), item["preference_id"]))]
+                item.pop("preference_id", None)
+            connection_methods = all_rows("""
+              SELECT cm.RoleId AS role_id,ct.RoleName AS role_name,ct.Description AS description
+              FROM ConnectivityMethods cm
+              LEFT JOIN ConnectionTypes ct ON ct.RoleId=cm.RoleId AND ct.GuildId=?
+              WHERE cm.UserId=? ORDER BY ct.RoleName
+            """, (int(guild_id), uid))
+            gaming_days = {}
+            for row in all_rows("""
+              SELECT d.Id AS id,d.Day AS day,d.GMTOffSet AS gmt_offset,h.Ticks AS ticks
+              FROM GamingDayForUsers d LEFT JOIN GamingHours h ON h.GamingDayId=d.Id
+              WHERE d.GuildId=? AND d.UserId=? ORDER BY d.Day
+            """, (int(guild_id), uid)):
+                day_key = str(row["id"])
+                entry = gaming_days.setdefault(day_key, {"day":row["day"],"gmt_offset":row["gmt_offset"],"hours_ticks":[]})
+                if row["ticks"] is not None: entry["hours_ticks"].append(row["ticks"])
+            hour_records = all_rows("""
+              SELECT Day AS day,StartTimeTicks AS start_time_ticks,EndTimeTicks AS end_time_ticks,GMTOffSet AS gmt_offset
+              FROM GamingHoursRecords WHERE GuildId=? AND UserId=? ORDER BY Day
+            """, (int(guild_id), uid))
+            region_locks = all_rows("""
+              SELECT g.Title AS game,c.Abbreviation AS console,r.LockRange AS lock_range
+              FROM RegionLocks r JOIN Games g ON g.Id=r.GameId
+              JOIN Consoles c ON c.Id=g.ConsoleId WHERE r.UserId=?
+            """, (uid,))
+            game_lists = []
+            for listing in all_rows("SELECT Id,ListName AS name FROM GameListsForUser WHERE UserId=? ORDER BY Id", (uid,)):
+                listing["games"] = all_rows("""
+                  SELECT g.Title AS title,c.Abbreviation AS console
+                  FROM GamesInList x JOIN Games g ON g.Id=x.GameId
+                  JOIN Consoles c ON c.Id=g.ConsoleId WHERE x.GameListId=?
+                """, (listing["Id"],))
+                listing.pop("Id", None)
+                game_lists.append(listing)
+            recent_wins = all_rows("""
+              SELECT g.Title AS game,c.Abbreviation AS console,w.WinDateTimeUtc AS won_at
+              FROM Wins w JOIN Games g ON g.Id=w.GameId JOIN Consoles c ON c.Id=g.ConsoleId
+              WHERE w.WinnerUserId=? ORDER BY w.WinDateTimeUtc DESC LIMIT 25
+            """, (uid,))
+            total_wins = conn.execute("SELECT count(*) FROM Wins WHERE WinnerUserId=?", (uid,)).fetchone()[0]
+            team_wins = conn.execute("SELECT count(DISTINCT TeamWinId) FROM TeamRankedWinners WHERE WinnerUserId=?", (uid,)).fetchone()[0]
+            profile_data = {
+              "source":"ROM Discord matchmaking database",
+              "top_games":top_games,
+              "not_interested_games":disliked,
+              "connection_methods":connection_methods,
+              "gaming_days":list(gaming_days.values()),
+              "gaming_hours_records":hour_records,
+              "region_locks":region_locks,
+              "custom_game_lists":game_lists,
+              "recent_wins":recent_wins,
+              "total_wins":int(total_wins or 0),
+              "team_wins":int(team_wins or 0)
+            }
+            members.append({"discord_user_id":discord_id,"guild_id":str(guild_id),
+              "profile_data":profile_data,"total_wins":int(total_wins or 0),"team_wins":int(team_wins or 0)})
+        return members
+    finally:
+        conn.close()
+
 def post(url, secret, payload):
     req=urllib.request.Request(url,data=json.dumps(payload).encode(),method="POST",
       headers={"Content-Type":"application/json","x-rom-bridge-secret":secret})
@@ -137,7 +243,12 @@ def main():
             lobby_result=post(url,secret,{"action":"sync","guild_id":str(guild),"lobbies":lobbies})
             services=get_services(db,guild)
             service_result=post(url,secret,{"action":"sync_services","guild_id":str(guild),"services":services})
-            print(f"{dt.datetime.now(dt.timezone.utc).isoformat()} | {len(lobbies)} active LFG searches | {len(services)} live service records | {lobby_result} | {service_result}",flush=True)
+            members=get_member_snapshots(db,guild)
+            member_results=[]
+            for start in range(0,len(members),100):
+                batch=members[start:start+100]
+                member_results.append(post(url,secret,{"action":"sync_members","guild_id":str(guild),"members":batch}))
+            print(f"{dt.datetime.now(dt.timezone.utc).isoformat()} | {len(lobbies)} active LFG searches | {len(services)} live service records | {len(members)} member profiles | {lobby_result} | {service_result} | {member_results}",flush=True)
         except Exception as exc:
             print(f"Sync failed: {exc}",file=sys.stderr,flush=True)
         if not args.watch: break
