@@ -1,6 +1,7 @@
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
 import { initNotifications } from './lib/notifications.js';
 import { getRandomQuote } from './lib/quote-machine.js';
+import { initLiveServicesTicker } from './modules/live-services-ticker.js';
 
 let currentModule = null;
 
@@ -90,6 +91,7 @@ async function initializeApp() {
         });
         
         await updateAuthUI();
+        initLiveServicesTicker();
         window.addEventListener('hashchange', handleHashChange);
         await handleHashChange();
         console.log('✅ App initialized successfully');
