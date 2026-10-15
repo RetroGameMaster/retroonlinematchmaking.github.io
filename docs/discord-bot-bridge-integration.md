@@ -1,61 +1,48 @@
-# Bot-side Discord live-lobby bridge patch
+# ROM external read-only bridge (no bot changes)
 
-**This is a patch guide, not an already-installed bot change.** The GitHub connector declined authorization for the bot repository edit, so the existing bot source was not modified. The website and bridge can receive lobby data only after this bot-side patch is added, built, and deployed.
+**This is a separate helper process. It does not patch, rebuild, restart, or modify the Discord bot.** The bridge opens the existing SQLite database in read-only mode and sends a filtered snapshot to Supabase. Keep the bot running exactly as it is.
 
-## Configuration on the VM
+## What this first version syncs
 
-Set these environment variables for the bot process:
+- Active LFG searches from `LfgMessages` that have not expired.
+- Game title and console from `Games` and `Consoles`.
+- Minimum player count, host Discord ID, connection methods, notes, and expiry time.
+- A snapshot is sent every 60 seconds when run with `--watch`.
 
-- `ROM_DISCORD_LOBBY_BRIDGE_URL=https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/discord-lobby-bridge`
-- `ROM_DISCORD_LOBBY_BRIDGE_SECRET=<the exact ROM_BRIDGE_SECRET configured for the Edge Function>`
+This first version only syncs LFG searches. It does **not yet** sync all profile preferences, role mappings, leaderboard history, or the API/service activity tables. Those are separate data streams being implemented so that stale data is not presented as live.
 
-Keep the secret out of source control and logs.
+## Setup requirements
 
-## Upsert when Find Players creates its LFG record
+1. Apply `supabase/migrations/202610130002_discord_live_lobbies.sql` in the Supabase SQL Editor.
+2. Deploy the `discord-lobby-bridge` Edge Function.
+3. In Supabase Dashboard → Edge Functions → Secrets, add `ROM_BRIDGE_SECRET` with a long random secret. Do not put this secret in the website code or GitHub.
+4. Download `rom_sqlite_bridge.py` from the project’s bridge folder / release location, or use the copy supplied directly in the project conversation.
+5. Run the script on the same VM as the database (recommended) or another machine that can read the database file. Set the environment variables below.
 
-The primary waiting-room creation path in `FindPlayersModule.cs` saves an `LfgMessage` with `GuildId`, `ChannelId`, `MessageId`, `UserId`, `ExpireDateTime`, `MinimumPlayersNeeded`, `RoleName`, `ConnectionMethods`, and `GameId`. Immediately after that successful `LfgMessageStore.AddMessage(...)`, call a helper that POSTs:
+## Windows PowerShell example
 
-```json
-{
-  "action": "upsert",
-  "guild_id": "DISCORD_GUILD_SNOWFLAKE",
-  "channel_id": "WAITING_ROOM_THREAD_SNOWFLAKE",
-  "message_id": "LOBBY_MESSAGE_SNOWFLAKE",
-  "host_discord_id": "HOST_USER_SNOWFLAKE",
-  "game_id": 123,
-  "game_title": "Game title",
-  "minimum_players": 2,
-  "joined_players": 0,
-  "connection_methods": "Connection option names",
-  "additional_notes": "Optional notes",
-  "expires_at": "2026-10-13T23:00:00.000Z"
-}
+Replace the example values with your actual values. Do not send the secret to anyone.
+
+```powershell
+$env:ROM_SQLITE_PATH = "C:\path\to\localdb.db"
+$env:ROM_SUPABASE_FUNCTION_URL = "https://YOUR_PROJECT_REF.supabase.co/functions/v1/discord-lobby-bridge"
+$env:ROM_BRIDGE_SECRET = "PASTE_THE_SECRET_YOU_SET_IN_SUPABASE"
+$env:ROM_DISCORD_GUILD_ID = "YOUR_DISCORD_SERVER_ID"
+python .\rom_sqlite_bridge.py
 ```
 
-Send the JSON to the bridge URL with `Content-Type: application/json` and header `x-rom-bridge-secret`. Convert every Discord snowflake to a **string** to avoid 64-bit integer precision loss. Convert the expiry to UTC ISO-8601.
+If the command succeeds, it prints how many active lobbies were synced. After a successful one-time test, run continuously with:
 
-Use the existing Newtonsoft.Json dependency for serialization and `HttpClient` for the request. Catch bridge errors and log only the HTTP status; the website outage must not break the Discord matchmaking command.
-
-## Expire when the bot marks an LFG record expired
-
-In `MessageExpirationService.CheckExpiredMessages()`, after the bot has processed an expired record, POST this payload:
-
-```json
-{
-  "action": "expire",
-  "guild_id": "DISCORD_GUILD_SNOWFLAKE",
-  "channel_id": "THREAD_SNOWFLAKE",
-  "message_id": "LOBBY_MESSAGE_SNOWFLAKE"
-}
+```powershell
+python .\rom_sqlite_bridge.py --watch --interval 60
 ```
 
-Use the same secret header. The bridge keys records by `guild_id:message_id`, so preserve the same guild and message IDs used in the upsert.
+For a production setup, run the bridge under Windows Task Scheduler or a service manager so it restarts after a reboot. Do not run multiple copies simultaneously.
 
-## Test checklist
+## Safety notes
 
-1. Deploy the two live-lobby SQL migrations and the `discord-lobby-bridge` Edge Function.
-2. Set the two VM environment variables and restart the bot process.
-3. Start a test Find Players search; confirm one row appears in `discord_live_lobbies` and on the website.
-4. Let the search expire or test the expiry helper; confirm it disappears from the website feed.
-5. Test a deliberately incorrect bridge secret; the endpoint must return HTTP 401.
-6. Only after the test passes should the updated bot executable replace the running version.
+- The script connects using SQLite `mode=ro`; it cannot write to the bot database.
+- Never copy the SQLite database to a public website or commit it to GitHub.
+- Keep the bridge secret private.
+- A failed website sync must not affect Discord matchmaking.
+- Test against the deployed Edge Function before enabling continuous polling.
