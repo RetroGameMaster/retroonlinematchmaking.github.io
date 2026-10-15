@@ -102,10 +102,10 @@ export async function initModule() {
     });
   }
 
-  async function toggleReplies(postId, signedInUser) {
+  async function toggleReplies(postId, signedInUser, forceReload = false) {
     const panel = postsContainer.querySelector('[data-forum-replies="' + CSS.escape(postId) + '"]');
     if (!panel) return;
-    if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
+    if (!panel.classList.contains('hidden') && !forceReload) { panel.classList.add('hidden'); return; }
     panel.classList.remove('hidden');
     panel.innerHTML = '<p class="text-gray-400">Loading replies…</p>';
     const { data: replies, error } = await supabase.from('community_forum_replies')
@@ -127,7 +127,7 @@ export async function initModule() {
         </form>` : '<p class="text-gray-400 text-sm"><a href="#/auth" class="text-cyan-300 underline">Log in</a> to reply.</p>'}`;
     panel.querySelectorAll('[data-forum-delete-reply]').forEach(button => button.addEventListener('click', async () => {
       const { error } = await supabase.from('community_forum_replies').delete().eq('id',button.dataset.forumDeleteReply).eq('user_id',signedInUser.id);
-      if (error) alert('Could not delete the reply.'); else await toggleReplies(postId,signedInUser);
+      if (error) alert('Could not delete the reply.'); else await toggleReplies(postId,signedInUser,true);
     }));
     const form = panel.querySelector('[data-forum-reply-form]');
     if (form) form.addEventListener('submit', async event => {
