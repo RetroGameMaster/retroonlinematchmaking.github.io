@@ -35,6 +35,45 @@ Deno.serve(async (req: Request) => {
     return json({ error: "guild_id must be a Discord snowflake string." }, 400);
   }
 
+  // Sync live API/service activity from the separate read-only SQLite bridge.
+  // This path is deliberately separate from LFG lobby sync.
+  if (body.action === "sync_services") {
+    if (!Array.isArray(body.services) || body.services.length > 500) {
+      return json({ error: "services must be an array with at most 500 records." }, 400);
+    }
+    const activeKeys: string[] = [];
+    for (const service of body.services as Array<Record<string, unknown>>) {
+      if (typeof service.source_key !== "string" || !service.source_key.trim() ||
+          service.source_key.length > 180 || !validSnowflake(service.guild_id) ||
+          service.guild_id !== guildId || typeof service.service_name !== "string" ||
+          !service.service_name.trim() || typeof service.game_title !== "string" || !service.game_title.trim()) {
+        return json({ error: "A service record has missing or invalid source_key, guild_id, service_name, or game_title." }, 400);
+      }
+      const numeric = (v: unknown) => typeof v === "number" && Number.isFinite(v)
+        ? Math.min(1000000, Math.max(0, Math.floor(v))) : 0;
+      const row = {
+        source_key: service.source_key.trim().slice(0, 180),
+        guild_id: guildId,
+        service_name: service.service_name.trim().slice(0, 100),
+        game_title: service.game_title.trim().slice(0, 200),
+        console: typeof service.console === "string" ? service.console.slice(0, 80) : null,
+        players_online: numeric(service.players_online),
+        discord_url: typeof service.discord_url === "string" && service.discord_url.startsWith("https://discord.com/") ? service.discord_url.slice(0, 500) : null,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await admin.from("discord_live_services").upsert(row, { onConflict: "source_key" });
+      if (error) return json({ error: "Could not upsert live service snapshot." }, 500);
+      activeKeys.push(row.source_key);
+    }
+    let staleQuery = admin.from("discord_live_services")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("guild_id", guildId).eq("is_active", true);
+    if (activeKeys.length) staleQuery = staleQuery.not("source_key", "in", "(" + activeKeys.map(k => '"' + k.replace(/"/g, '\\"') + '"').join(",") + ")");
+    const { error: staleError } = await staleQuery;
+    if (staleError) return json({ error: "Could not expire stale service records." }, 500);
+    return json({ ok: true, action: "sync_services", active_services: activeKeys.length });
+  }
   // Snapshot sync lets a separate read-only process poll the bot's SQLite database.
   // It does not require modifying the bot application.
   if (body.action === "sync") {
