@@ -27,9 +27,9 @@ The bot database export is available as `rom_bot_game_catalog.csv` and contains 
 
 ## Live Discord lobbies
 
-The website now reads a dedicated `discord_live_lobbies` table and subscribes to Supabase Realtime. Apply `supabase/migrations/202610130002_discord_live_lobbies.sql` and deploy `supabase/functions/discord-lobby-bridge` before the panel can receive rows. Configure the function secret `ROM_BRIDGE_SECRET`.
+The website reads dedicated `discord_live_lobbies`, `discord_live_services`, and `discord_member_snapshots` mirror tables and subscribes to Supabase Realtime where applicable. The ticker, profile panel, leaderboard, and forum are separate website features. Apply `supabase/migrations/202610130002_discord_live_lobbies.sql` and deploy `supabase/functions/discord-lobby-bridge` before the panel can receive rows. Configure the function secret `ROM_BRIDGE_SECRET`.
 
-The bot integration itself still needs to be added to the running bot source and rebuilt/deployed. `supabase/config.toml` disables gateway JWT verification for this endpoint because the bot authenticates with the separate bridge secret; the function checks that secret on every request. Its `Find Players` handler should send an authenticated `upsert` event when it creates the lobby record; its expiration handler should send `expire` when it marks the record expired. Use the endpoint `https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/discord-lobby-bridge` and header `x-rom-bridge-secret`. Payload details are validated in `supabase/functions/discord-lobby-bridge/index.ts`. Never put the bridge secret in browser code. SQLite remains authoritative; this table is a live website projection.
+No bot source changes or rebuild are required. Run the separate read-only bridge in `scripts/rom_sqlite_bridge.py` on the VM that can read `localdb.db`. It polls SQLite and sends active LFG searches, service/API activity, member matchmaking profiles, and leaderboard totals to `https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/discord-lobby-bridge` using the `x-rom-bridge-secret` header. The Edge Function validates the secret and writes only website mirror tables; the bridge opens SQLite with `mode=ro`. Never put the bridge secret in browser code or GitHub. SQLite remains authoritative; Supabase tables are website projections.
 
 ## Deployment order
 
