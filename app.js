@@ -16,6 +16,7 @@ const modules = {
     'submit-game': () => import('./modules/submit-game/submit-game.js'),
     'search-users': () => import('./modules/search-users/search-users.js'),
     'live-lobbies': () => import('./modules/live-lobbies/live-lobbies.js'),
+    'discord-leaderboard': () => import('./modules/discord-leaderboard.js'),
     'lfg-scheduler': () => import('./modules/lfg-scheduler/lfg-scheduler.js'),
     'guides': () => import('./modules/guides/guides.js'),
     'lfg': () => import('./modules/lfg/lfg.js'),
