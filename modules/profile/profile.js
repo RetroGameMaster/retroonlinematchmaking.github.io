@@ -138,6 +138,7 @@ async function renderDiscordMatchmakingSnapshot(container, siteUserId) {
     section.className = 'mt-8 rounded-xl border border-green-500/30 bg-gray-900/80 p-5 shadow-lg';
     const connectionHtml = list(data.connection_methods, item => escape(item.role_name || item.description || ('Role ' + item.role_id)), 'No connection methods synced yet.');
     const gamesHtml = list(data.top_games, item => escape(item.title) + (item.console ? ' <span class="text-green-300">(' + escape(item.console) + ')</span>' : ''), 'No favorite games synced yet.');
+    const avoidGamesHtml = list(data.not_interested_games, item => escape(item.title) + (item.console ? ' <span class="text-green-300">(' + escape(item.console) + ')</span>' : ''), 'No games marked as not interested.');
     const hoursHtml = list(data.gaming_hours_records, item => {
       const format = ticks => {
         const mins = Math.floor((Number(ticks) || 0) / 10000000 / 60) % 1440;
@@ -158,6 +159,7 @@ async function renderDiscordMatchmakingSnapshot(container, siteUserId) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Favorite Games</h3>${gamesHtml}</div>
         <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Connection Services / Roles</h3>${connectionHtml}</div>
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Games to Avoid</h3>${avoidGamesHtml}</div>
         <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Gaming Availability</h3>${hoursHtml}</div>
         <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Region Locks</h3>${regionHtml}</div>
         <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Custom Game Lists</h3>${listsHtml}</div>
