@@ -16,7 +16,7 @@ The current bridge syncs active LFG searches, live API/service activity from `Ac
 1. Apply these migrations in order in the Supabase SQL Editor: `202610130001_discord_account_links.sql`, `202610130002_discord_live_lobbies.sql`, `202610130003_bot_game_catalog_staging.sql`, `202610150001_discord_live_services.sql`, `202610150002_discord_member_snapshots.sql`, and `202610150003_public_discord_profile_links.sql`, and `202610150004_community_forum.sql`.
 2. Deploy the `discord-link` and `discord-lobby-bridge` Edge Functions.
 3. In Supabase Dashboard → Edge Functions → Secrets, add `ROM_BRIDGE_SECRET` with a long random secret. Do not put this secret in the website code or GitHub.
-4. Download [`scripts/rom_sqlite_bridge.py`](../scripts/rom_sqlite_bridge.py) from this branch. It sends both lobby and service snapshots.
+4. Download [`scripts/rom_sqlite_bridge.py`](../scripts/rom_sqlite_bridge.py) from this branch. It sends lobby, service, and member-profile snapshots.
 5. Run the script on the same VM as the database (recommended) or another machine that can read the database file. Set the environment variables below.
 
 ## Windows PowerShell example
