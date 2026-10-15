@@ -99,6 +99,7 @@ export async function initModule(container, params) {
     
     // 3. Render the Layout
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
+    await renderDiscordMatchmakingSnapshot(targetContainer, targetUser.id);
 
     // 4. Attach Event Listeners
     attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
@@ -112,6 +113,67 @@ export async function initModule(container, params) {
         <button onclick="window.location.reload()" class="mt-4 bg-cyan-600 text-white px-4 py-2 rounded">Refresh Page</button>
       </div>
     `;
+  }
+}
+
+
+async function renderDiscordMatchmakingSnapshot(container, siteUserId) {
+  const escape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+  const list = (items, renderItem, emptyText) => Array.isArray(items) && items.length
+    ? '<ul class="space-y-1">' + items.map(item => '<li class="text-gray-300">' + renderItem(item) + '</li>').join('') + '</ul>'
+    : '<p class="text-gray-500 text-sm">' + escape(emptyText) + '</p>';
+  try {
+    const { data: link } = await supabase.from('discord_account_links')
+      .select('discord_user_id,discord_username,discord_avatar_hash')
+      .eq('user_id', siteUserId).maybeSingle();
+    if (!link) return;
+    const { data: snapshot } = await supabase.from('discord_member_snapshots')
+      .select('profile_data,total_wins,team_wins,updated_at')
+      .eq('discord_user_id', link.discord_user_id).maybeSingle();
+
+    const data = snapshot?.profile_data || {};
+    const section = document.createElement('section');
+    section.className = 'mt-8 rounded-xl border border-green-500/30 bg-gray-900/80 p-5 shadow-lg';
+    const connectionHtml = list(data.connection_methods, item => escape(item.role_name || item.description || ('Role ' + item.role_id)), 'No connection methods synced yet.');
+    const gamesHtml = list(data.top_games, item => escape(item.title) + (item.console ? ' <span class="text-green-300">(' + escape(item.console) + ')</span>' : ''), 'No favorite games synced yet.');
+    const avoidGamesHtml = list(data.not_interested_games, item => escape(item.title) + (item.console ? ' <span class="text-green-300">(' + escape(item.console) + ')</span>' : ''), 'No games marked as not interested.');
+    const hoursHtml = list(data.gaming_hours_records, item => {
+      const format = ticks => {
+        const mins = Math.floor((Number(ticks) || 0) / 10000000 / 60) % 1440;
+        return String(Math.floor(mins / 60)).padStart(2,'0') + ':' + String(mins % 60).padStart(2,'0');
+      };
+      return 'Day ' + escape(item.day) + ': ' + format(item.start_time_ticks) + '–' + format(item.end_time_ticks) + ' (GMT ' + (Number(item.gmt_offset) >= 0 ? '+' : '') + escape(item.gmt_offset) + ')';
+    }, 'No availability schedule synced yet.');
+    const regionHtml = list(data.region_locks, item => escape(item.game) + ' — region lock ' + escape(item.lock_range), 'No region locks synced.');
+    const listsHtml = list(data.custom_game_lists, item => '<strong>' + escape(item.name || 'Game list') + '</strong>: ' + (item.games || []).map(game => escape(game.title)).join(', '), 'No custom game lists synced.');
+    const winsHtml = list(data.recent_wins, item => escape(item.game) + ' — ' + escape(String(item.won_at || '').slice(0,10)), 'No individual win history synced.');
+    section.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div><h2 class="text-2xl font-bold text-green-300">🎮 Discord Matchmaking Profile</h2>
+          <p class="text-sm text-gray-400">Synced from the ROM bot database; Discord bot remains unchanged.</p></div>
+        <span class="rounded-full border border-indigo-400/40 bg-indigo-900/30 px-3 py-1 text-sm text-indigo-200">Discord: ${escape(link.discord_username || link.discord_user_id)}</span>
+      </div>
+      ${snapshot ? `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Favorite Games</h3>${gamesHtml}</div>
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Connection Services / Roles</h3>${connectionHtml}</div>
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Games to Avoid</h3>${avoidGamesHtml}</div>
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Gaming Availability</h3>${hoursHtml}</div>
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Region Locks</h3>${regionHtml}</div>
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Custom Game Lists</h3>${listsHtml}</div>
+        <div class="rounded-lg bg-gray-800/70 p-4"><h3 class="font-bold text-cyan-300 mb-2">Matchmaking Record</h3>
+          <p class="text-white text-lg font-bold">${Number(snapshot.total_wins || 0)} wins · ${Number(snapshot.team_wins || 0)} team wins</p>
+          <div class="mt-3">${winsHtml}</div>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mt-4">Last synced: ${escape(new Date(snapshot.updated_at).toLocaleString())}</p>
+      ` : '<p class="text-amber-300">Your Discord account is linked. Matchmaking preferences will appear after the read-only bridge syncs.</p>'}
+    `;
+    container.appendChild(section);
+  } catch (error) {
+    console.warn('Discord matchmaking profile snapshot unavailable:', error);
   }
 }
 
@@ -1019,9 +1081,27 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Could not check Discord status.');
-        discordLinkStatus.textContent = result.linked
-          ? `Linked to Discord: ${result.username || 'Connected account'}`
-          : 'Your Discord account is not linked yet.';
+        const oauthResult = new URLSearchParams(window.location.search).get('discord_link');
+        const oauthMessages = {
+          success: 'Discord account linked successfully.',
+          already_linked: 'That Discord account or ROM account is already linked elsewhere.',
+          invalid_or_expired_state: 'The Discord linking request expired or could not be verified. Please try again.',
+          token_exchange_failed: 'Discord authorization could not be completed. Please try again.',
+          discord_identity_failed: 'Discord did not return your account identity. Please try again.',
+          link_failed: 'Discord could not be linked. If this continues, contact ROM support.',
+          missing_parameters: 'Discord returned an incomplete authorization response.',
+          invalid_discord_identity: 'Discord returned an invalid account identity.'
+        };
+        discordLinkStatus.textContent = oauthResult && oauthMessages[oauthResult]
+          ? oauthMessages[oauthResult]
+          : result.linked
+            ? `Linked to Discord: ${result.username || 'Connected account'}`
+            : 'Your Discord account is not linked yet.';
+        if (oauthResult) {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('discord_link');
+          window.history.replaceState({}, document.title, cleanUrl.toString());
+        }
         discordLinkButton.textContent = result.linked ? 'Discord Linked' : 'Link Discord';
         discordLinkButton.disabled = !!result.linked;
         discordLinkButton.classList.toggle('opacity-60', !!result.linked);

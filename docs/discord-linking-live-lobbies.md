@@ -5,7 +5,7 @@ This feature is intentionally additive. It does not migrate Supabase Auth users,
 ## Discord account linking
 
 1. Apply `supabase/migrations/202610130001_discord_account_links.sql`.
-2. Deploy `supabase/functions/discord-link` with Supabase CLI.
+2. From the repository root, deploy `supabase/functions/discord-link` with Supabase CLI. Keep `supabase/config.toml` in place: it disables gateway JWT verification for the OAuth callback, while the function itself verifies the user's Supabase JWT on authenticated POST actions and validates one-time OAuth state on the callback.
 3. In Supabase Function secrets, configure:
    - `DISCORD_CLIENT_ID`
    - `DISCORD_CLIENT_SECRET`
@@ -16,12 +16,20 @@ This feature is intentionally additive. It does not migrate Supabase Auth users,
 
 The function validates the current Supabase JWT before starting a flow, uses a random one-time state stored as a hash, exchanges the code server-side, and writes the Discord identity through the service role. The service role key and Discord client secret must never be put in browser code.
 
-## Game catalog and live lobbies
+## Game catalog import
 
-These are separate data tasks and are deliberately not silently deployed by the account-linking migration:
-- Import the SQLite `Games` + `Consoles` + `GameAlternateNames` catalog into the existing Supabase `games` table only after matching its actual columns, IDs, slug uniqueness, and existing catalog. Use normalized title + console matching to avoid duplicates; preserve all current website game IDs.
-- For live lobbies, the bot should send authenticated create/update/expire events for `LfgMessage` records to a backend endpoint. The website can read a dedicated `discord_live_lobbies` view/table using Realtime. The bot's SQLite remains authoritative; website sync is a projection, not a migration.
-- Do not expose bot tokens or use a public unauthenticated endpoint to accept lobby events. Configure a separate bridge secret and validate it server-side.
+The bot database export is available as `rom_bot_game_catalog.csv` and contains 1,454 games, 32 console labels, and 360 alternate names. Its columns are `source_game_id`, `title`, `console`, and `alternate_names_json`.
+
+1. Apply `supabase/migrations/202610130003_bot_game_catalog_staging.sql`.
+2. In the Supabase Table Editor, open `bot_game_catalog_staging` and use its CSV import feature to import the export. Map the four CSV columns to the same-named fields; `imported_at` can use its default.
+3. Compare staging rows against `public.games` using normalized title + console. Do not blindly copy rows into `public.games`: its schema has additional required fields and existing slugs/IDs that must be preserved.
+4. Review duplicate and missing-game candidates before performing a separate, deliberate merge into the public catalog. The staging table does not automatically publish games.
+
+## Live Discord lobbies
+
+The website reads dedicated `discord_live_lobbies`, `discord_live_services`, and `discord_member_snapshots` mirror tables and subscribes to Supabase Realtime where applicable. The ticker, profile panel, leaderboard, and forum are separate website features. Apply `supabase/migrations/202610130002_discord_live_lobbies.sql` and deploy `supabase/functions/discord-lobby-bridge` before the panel can receive rows. Configure the function secret `ROM_BRIDGE_SECRET`.
+
+No bot source changes or rebuild are required. Run the separate read-only bridge in `scripts/rom_sqlite_bridge.py` on the VM that can read `localdb.db`. It polls SQLite and sends active LFG searches, service/API activity, member matchmaking profiles, and leaderboard totals to `https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/discord-lobby-bridge` using the `x-rom-bridge-secret` header. The Edge Function validates the secret and writes only website mirror tables; the bridge opens SQLite with `mode=ro`. Never put the bridge secret in browser code or GitHub. SQLite remains authoritative; Supabase tables are website projections.
 
 ## Deployment order
 

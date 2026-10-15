@@ -1,6 +1,7 @@
 import { supabase, initAuthListener, updateAuthUI } from './lib/supabase.js';
 import { initNotifications } from './lib/notifications.js';
 import { getRandomQuote } from './lib/quote-machine.js';
+import { initLiveServicesTicker } from './modules/live-services-ticker.js';
 
 let currentModule = null;
 
@@ -11,10 +12,12 @@ const modules = {
     'auth': () => import('./modules/auth/auth.js'),
     'admin': () => import('./modules/admin/admin.js'),
     'chat': () => import('./modules/chat/chat.js'),
+    'forum': () => import('./modules/forum.js'),
     'profile': () => import('./modules/profile/profile.js'),
     'submit-game': () => import('./modules/submit-game/submit-game.js'),
     'search-users': () => import('./modules/search-users/search-users.js'),
     'live-lobbies': () => import('./modules/live-lobbies/live-lobbies.js'),
+    'discord-leaderboard': () => import('./modules/discord-leaderboard.js'),
     'lfg-scheduler': () => import('./modules/lfg-scheduler/lfg-scheduler.js'),
     'guides': () => import('./modules/guides/guides.js'),
     'lfg': () => import('./modules/lfg/lfg.js'),
@@ -28,6 +31,7 @@ const fallbackContent = {
     'auth': `<div class="max-w-md mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400 text-center">🔐 Authentication</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading auth module...</p></div></div>`,
     'admin': `<div class="max-w-6xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">🛠️ Admin Panel</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading admin panel...</p></div></div>`,
     'chat': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">💬 Live Chat</h1><div class="bg-gray-800 p-6 rounded-lg"><p class="text-gray-300">Chat module coming soon!</p></div></div>`,
+    'forum': `<div class="max-w-5xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-green-300">ROM Community Forum</h1><p class="text-gray-300">Community discussions and replies.</p></div>`,
     'profile': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">👤 Your Profile</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div></div>`,
     'submit-game': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">➕ Submit Game</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading submission form...</p></div></div>`,
     'search-users': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">🔍 Find Users</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading user search...</p></div></div>`,
@@ -90,6 +94,7 @@ async function initializeApp() {
         });
         
         await updateAuthUI();
+        initLiveServicesTicker();
         window.addEventListener('hashchange', handleHashChange);
         await handleHashChange();
         console.log('✅ App initialized successfully');
