@@ -40,20 +40,23 @@ Deno.serve(async (req: Request) => {
     if (!Array.isArray(body.members) || body.members.length > 100) {
       return json({ error: "members must be an array with at most 100 records." }, 400);
     }
-    const numeric = (v: unknown) => typeof v === "number" && Number.isFinite(v) ? Math.min(2147483647, Math.max(0, Math.floor(v))) : 0;
-    const rows = (body.members as Array<Record<string, unknown>>).map(member => {
+    const numeric = (v: unknown) => typeof v === "number" && Number.isFinite(v)
+      ? Math.min(2147483647, Math.max(0, Math.floor(v))) : 0;
+    const rows: Array<Record<string, unknown>> = [];
+    for (const member of body.members as Array<Record<string, unknown>>) {
       if (!validSnowflake(member.discord_user_id) || member.guild_id !== guildId ||
-          !member.profile_data || typeof member.profile_data !== "object" || Array.isArray(member.profile_data)) return null;
-      return {
+          !member.profile_data || typeof member.profile_data !== "object" || Array.isArray(member.profile_data)) {
+        return json({ error: "A member snapshot has invalid IDs or profile_data." }, 400);
+      }
+      rows.push({
         discord_user_id: member.discord_user_id,
         guild_id: guildId,
         profile_data: member.profile_data,
         total_wins: numeric(member.total_wins),
         team_wins: numeric(member.team_wins),
         updated_at: new Date().toISOString(),
-      };
-    });
-    if (rows.some(row => row === null)) return json({ error: "A member snapshot has invalid IDs or profile_data." }, 400);
+      });
+    }
     if (rows.length) {
       const { error } = await admin.from("discord_member_snapshots").upsert(rows, { onConflict: "discord_user_id" });
       if (error) return json({ error: "Could not save member snapshots." }, 500);
