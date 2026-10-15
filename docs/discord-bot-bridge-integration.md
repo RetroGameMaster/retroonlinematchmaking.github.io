@@ -9,14 +9,14 @@
 - Minimum player count, host Discord ID, connection methods, notes, and expiry time.
 - A snapshot is sent every 60 seconds when run with `--watch`.
 
-This first version only syncs LFG searches. It does **not yet** sync all profile preferences, role mappings, leaderboard history, or the API/service activity tables. Those are separate data streams being implemented so that stale data is not presented as live.
+The current bridge syncs active LFG searches and the bot's live API/service activity from `ActiveGames`, `ActiveOpenSpyGameRecords`, `ActiveRewiredGameRecords`, and `ActiveSocomCCGameRecords`. It shows only records reporting more than zero players in the service ticker. Profile preferences, role mappings, and leaderboard history are not included in this first bridge version and must be migrated separately.
 
 ## Setup requirements
 
 1. Apply `supabase/migrations/202610130002_discord_live_lobbies.sql` in the Supabase SQL Editor.
 2. Deploy the `discord-lobby-bridge` Edge Function.
 3. In Supabase Dashboard → Edge Functions → Secrets, add `ROM_BRIDGE_SECRET` with a long random secret. Do not put this secret in the website code or GitHub.
-4. Download `rom_sqlite_bridge.py` from the project’s bridge folder / release location, or use the copy supplied directly in the project conversation.
+4. Download [`scripts/rom_sqlite_bridge.py`](../scripts/rom_sqlite_bridge.py) from this branch. It sends both lobby and service snapshots.
 5. Run the script on the same VM as the database (recommended) or another machine that can read the database file. Set the environment variables below.
 
 ## Windows PowerShell example
