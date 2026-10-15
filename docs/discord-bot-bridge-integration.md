@@ -13,7 +13,7 @@ The current bridge syncs active LFG searches, live API/service activity from `Ac
 
 ## Setup requirements
 
-1. Apply these migrations in order in the Supabase SQL Editor: `202610130001_discord_account_links.sql`, `202610130002_discord_live_lobbies.sql`, `202610130003_bot_game_catalog_staging.sql`, `202610150001_discord_live_services.sql`, `202610150002_discord_member_snapshots.sql`, and `202610150003_public_discord_profile_links.sql`.
+1. Apply these migrations in order in the Supabase SQL Editor: `202610130001_discord_account_links.sql`, `202610130002_discord_live_lobbies.sql`, `202610130003_bot_game_catalog_staging.sql`, `202610150001_discord_live_services.sql`, `202610150002_discord_member_snapshots.sql`, and `202610150003_public_discord_profile_links.sql`, and `202610150004_community_forum.sql`.
 2. Deploy the `discord-link` and `discord-lobby-bridge` Edge Functions.
 3. In Supabase Dashboard → Edge Functions → Secrets, add `ROM_BRIDGE_SECRET` with a long random secret. Do not put this secret in the website code or GitHub.
 4. Download [`scripts/rom_sqlite_bridge.py`](../scripts/rom_sqlite_bridge.py) from this branch. It sends both lobby and service snapshots.
@@ -37,7 +37,7 @@ If the command succeeds, it prints counts for active LFG searches, live service 
 python .\rom_sqlite_bridge.py --watch --interval 60
 ```
 
-The website branch also includes a Live Services ticker and a Discord Matchmaking Leaderboards page. Linked member profiles can display the synced matchmaking profile panel. These features remain empty until the migrations, functions, and bridge are deployed. For a production setup, run the bridge under Windows Task Scheduler or a service manager so it restarts after a reboot. Do not run multiple copies simultaneously.
+The website branch also includes a Live Services ticker, a Discord Matchmaking Leaderboards page, linked member profile panels, and a community forum with posts and replies. These features remain empty until the migrations, functions, and bridge are deployed. For a production setup, run the bridge under Windows Task Scheduler or a service manager so it restarts after a reboot. Do not run multiple copies simultaneously.
 
 ## Safety notes
 
