@@ -87,6 +87,12 @@ function renderChatProfileCard(userId, displayName, avatarUrl, profile) {
   `;
 }
 
+function escapeHtml(value) {
+  const element = document.createElement('span');
+  element.textContent = String(value ?? '');
+  return element.innerHTML;
+}
+
 function safeImageUrl(value) {
   if (!value) return '';
   try {

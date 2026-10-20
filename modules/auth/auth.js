@@ -18,25 +18,36 @@ export async function initModule(_rom) {
 }
 
 async function handleAuthResponse() {
-    // Supabase puts tokens in the hash fragment: #/auth?access_token=...&type=email
     const hash = window.location.hash;
     
-    if (!hash || !hash.includes('access_token')) {
+    if (!hash || !/(?:access_token|code|error)=/.test(hash)) {
         return false; // No auth response detected
     }
 
-    console.log('🔍 Detected auth response in URL:', hash);
+    console.log('🔍 Detected Supabase auth response in URL');
 
     try {
-        // This tells Supabase to parse the hash and set the session
-        const { data, error } = await supabase.auth.getSession();
+        const callbackText = hash
+            .replace(/^#\/?auth(?:[?#])?/, '')
+            .replace(/^#/, '');
+        const callbackParams = new URLSearchParams(callbackText);
+        let { data, error } = await supabase.auth.getSession();
 
         if (error) throw error;
 
+        if (!data.session && callbackParams.get('access_token') && callbackParams.get('refresh_token')) {
+            ({ data, error } = await supabase.auth.setSession({
+                access_token: callbackParams.get('access_token'),
+                refresh_token: callbackParams.get('refresh_token'),
+            }));
+            if (error) throw error;
+        } else if (!data.session && callbackParams.get('code')) {
+            ({ data, error } = await supabase.auth.exchangeCodeForSession(callbackParams.get('code')));
+            if (error) throw error;
+        }
+
         if (data.session) {
-            // Determine what happened based on the 'type' param in the hash
-            const urlParams = new URLSearchParams(hash.split('?')[1]);
-            const type = urlParams.get('type');
+            const type = callbackParams.get('type');
 
             if (type === 'email') {
                 showMessage('✅ Email confirmed successfully! You are now logged in.', 'success');
@@ -58,6 +69,9 @@ async function handleAuthResponse() {
                 showResetPasswordForm();
                 return true;
             }
+        }
+        if (callbackParams.get('error_description')) {
+            throw new Error(callbackParams.get('error_description'));
         }
     } catch (error) {
         console.error('Error processing auth response:', error);
@@ -321,7 +335,7 @@ async function handleForgotPassword(e) {
     
     try {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/#/auth`, // Crucial: Point to auth page
+            redirectTo: `${window.location.origin}/`,
         });
         
         if (error) throw error;

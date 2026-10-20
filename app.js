@@ -131,7 +131,9 @@ function stopPresenceHeartbeat() {
 
 // Handle hash changes
 async function handleHashChange() {
-    const hash = window.location.hash.slice(2) || 'home';
+    const rawHash = window.location.hash;
+    const isSupabaseAuthCallback = /[?&#](?:access_token|refresh_token|code|error)=/.test(rawHash);
+    const hash = isSupabaseAuthCallback ? 'auth' : rawHash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
     const isProfileRoute = hash === 'profile' || hash.startsWith('profile/');
     const isGameRoute = hash.startsWith('game/');
