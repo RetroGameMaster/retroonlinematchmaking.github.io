@@ -237,7 +237,18 @@ export default async function initForumModule(rom, params = {}) {
       date.className = 'text-xs text-gray-500';
       date.dateTime = post.created_at;
       date.textContent = formatDate(post.created_at);
-      header.append(name, date);
+      const postActions = document.createElement('div');
+      postActions.className = 'flex items-center gap-3';
+      postActions.appendChild(date);
+      if (user?.id === post.author_id) {
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'text-xs font-semibold text-red-300 hover:text-red-200';
+        deleteButton.textContent = 'Delete post';
+        deleteButton.addEventListener('click', () => void deletePost(post));
+        postActions.appendChild(deleteButton);
+      }
+      header.append(name, postActions);
       const body = document.createElement('p');
       body.className = 'whitespace-pre-wrap break-words text-sm leading-7 text-gray-200';
       body.textContent = post.content;
@@ -335,6 +346,42 @@ export default async function initForumModule(rom, params = {}) {
     }
     postOffset = 0;
     await loadTopic(topicId);
+  }
+
+  async function deletePost(post) {
+    if (!user || user.id !== post.author_id) return;
+    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+
+    const { data, error } = await supabase
+      .from('forum_posts')
+      .delete()
+      .eq('id', post.id)
+      .eq('author_id', user.id)
+      .select('id');
+    if (error) {
+      showError(`Could not delete your post: ${error.message}`);
+      return;
+    }
+    if (!data?.length) {
+      showError('That post was already removed or you do not have permission to delete it.');
+      return;
+    }
+
+    const { data: topic, error: topicError } = await supabase
+      .from('forum_topics')
+      .select('id')
+      .eq('id', post.topic_id)
+      .maybeSingle();
+    if (topicError) {
+      showError(`The post was deleted, but the discussion could not be reloaded: ${topicError.message}`);
+      return;
+    }
+    if (!topic) {
+      window.location.hash = `#/forum${activeCategory ? `?category=${encodeURIComponent(activeCategory)}` : ''}`;
+      return;
+    }
+    postOffset = 0;
+    await loadTopic(post.topic_id);
   }
 
   function showError(message) {

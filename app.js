@@ -3,6 +3,7 @@ import { initNotifications } from './lib/notifications.js';
 import { getRandomQuote } from './lib/quote-machine.js';
 
 let currentModule = null;
+let presenceHeartbeat = null;
 
 // Initialize modules
 const modules = {
@@ -81,9 +82,11 @@ async function initializeApp() {
             console.log('Auth state changed:', event, session);
             if (session?.user) {
                 window.rom.currentUser = session.user;
+                startPresenceHeartbeat();
                 console.log('✅ Updated rom.currentUser:', session.user.email);
             } else {
                 window.rom.currentUser = null;
+                stopPresenceHeartbeat();
                 console.log('❌ No user logged in');
             }
             await updateAuthUI();
@@ -101,6 +104,31 @@ async function initializeApp() {
         showError('App Initialization Error', error.message);
     }
 }
+
+function startPresenceHeartbeat() {
+    const updatePresence = async () => {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+            console.error('Could not check user for presence update:', authError);
+            return;
+        }
+        if (!user) return;
+        const { error } = await supabase
+            .from('profiles')
+            .update({ last_seen: new Date().toISOString(), is_online: true })
+            .eq('id', user.id);
+        if (error) console.error('Could not update website presence:', error);
+    };
+
+    void updatePresence();
+    if (!presenceHeartbeat) presenceHeartbeat = setInterval(updatePresence, 30000);
+}
+
+function stopPresenceHeartbeat() {
+    if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+    presenceHeartbeat = null;
+}
+
 // Handle hash changes
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
@@ -302,36 +330,6 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         await loadProfileDetail(providedSlug);
         return;
     }
-
-    // Heartbeat Logic
-   let heartbeatInterval;
-    async function startHeartbeat() {
-        // FIX: Use window.rom instead of rom
-        if (!window.rom?.currentUser) return; 
-        
-        const updatePresence = async () => {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
-                await supabase.from('profiles').update({ last_seen: new Date().toISOString(), is_online: true }).eq('id', user.id);
-            } catch (err) { console.error('Heartbeat failed:', err); }
-        };
-        await updatePresence();
-        heartbeatInterval = setInterval(updatePresence, 30000);
-    }
-    function stopHeartbeat() { if (heartbeatInterval) clearInterval(heartbeatInterval); }
-    
-    supabase.auth.onAuthStateChange((event, session) => {
-        // FIX: Update window.rom
-        if (event === 'SIGNED_IN') { 
-            window.rom.currentUser = session.user; 
-            startHeartbeat(); 
-        } 
-        else if (event === 'SIGNED_OUT') { 
-            window.rom.currentUser = null; 
-            stopHeartbeat(); 
-        }
-    });
 
     cleanupGameBackgrounds();
     await loadModule(hash);

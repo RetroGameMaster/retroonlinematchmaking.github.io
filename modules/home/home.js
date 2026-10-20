@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase.js';
 import { getRecentTournamentsForTicker } from '../tournaments/tournaments.js';
 
 let realtimeChannel = null;
+let homeStatsInterval = null;
+let onlineUsersInterval = null;
 let dynamicMessages = []; // Stores combined LFG and Tournament messages
 let standardMessages = [
   "Welcome to ROM! 🎮", 
@@ -29,6 +31,8 @@ export default function initModule(rom) {
   loadFeaturedGame();
   loadGameOfTheWeek();
   loadOnlineUsers();
+  if (onlineUsersInterval) clearInterval(onlineUsersInterval);
+  onlineUsersInterval = setInterval(loadOnlineUsers, 60000);
   loadHomeLeaderboardPreview(); // Load Top Players
   loadRecentActivity();
   loadCommunitySpotlight();
@@ -168,11 +172,11 @@ function renderHomeLayout() {
             </div>
             <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
               <span class="block text-2xl font-bold text-green-400" id="stat-online">-</span>
-              <span class="text-gray-500 text-xs uppercase">Online</span>
+              <span class="text-gray-500 text-xs uppercase" title="Signed-in website members seen in the last five minutes">Online Members</span>
             </div>
             <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
-              <span class="block text-2xl font-bold text-yellow-400" id="stat-bot-wins">-</span>
-              <span class="text-gray-500 text-xs uppercase">Discord Wins</span>
+              <span class="block text-2xl font-bold text-indigo-400" id="stat-live-players">-</span>
+              <span class="text-gray-500 text-xs uppercase" title="Sum of recent player counts from active game services; upstream sources may overlap">Players Reported Online</span>
             </div>
             <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
               <span class="block text-2xl font-bold text-indigo-400" id="stat-bot-lfg">-</span>
@@ -327,28 +331,58 @@ async function loadStats() {
       supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('discord_bot_public_stats')
-        .select('total_wins, active_invite_count')
+        .select('active_invite_count')
         .eq('scope_key', 'global')
         .maybeSingle()
     ]);
 
+    if (gamesRes.error) throw gamesRes.error;
+    if (usersRes.error) throw usersRes.error;
     const gameCount = gamesRes.count || 0;
     const userCount = usersRes.count || 0;
 
     animateValue("stat-games", 0, gameCount, 1500);
     animateValue("stat-users", 0, userCount, 1500);
     if (!botStatsRes.error && botStatsRes.data) {
-      animateValue("stat-bot-wins", 0, botStatsRes.data.total_wins || 0, 1500);
       animateValue("stat-bot-lfg", 0, botStatsRes.data.active_invite_count || 0, 1500);
+    } else if (botStatsRes.error) {
+      console.error('Discord LFG stats error:', botStatsRes.error);
     }
+    await loadLivePlayerCount();
   } catch (error) {
     console.error('Stats error:', error);
   }
 }
 
+async function loadLivePlayerCount() {
+  const cutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+  const pageSize = 500;
+  let offset = 0;
+  let playerCount = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('discord_live_services')
+      .select('players_online')
+      .eq('is_active', true)
+      .gte('updated_at', cutoff)
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+
+    playerCount += (data || []).reduce((total, service) =>
+      total + Math.max(0, Number(service.players_online) || 0), 0);
+    if (!data || data.length < pageSize) break;
+    offset += pageSize;
+    if (offset > 50000) throw new Error('Live service player count exceeded the safety limit.');
+  }
+  animateValue('stat-live-players', 0, playerCount, 1000);
+}
+
 function animateValue(id, start, end, duration) {
   const obj = document.getElementById(id);
   if (!obj) return;
+  const currentValue = Number(obj.textContent.replaceAll(',', ''));
+  if (Number.isFinite(currentValue)) start = currentValue;
   let startTimestamp = null;
   const step = (timestamp) => {
     if (!startTimestamp) startTimestamp = timestamp;
@@ -531,17 +565,24 @@ async function loadOnlineUsers() {
   if (!listEl && !miniListEl) return;
 
   try {
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-    const { data: users, error } = await supabase
-      .from('profiles')
-      .select('id, username, avatar_url')
-      .gte('last_seen', twoMinutesAgo)
-      .order('last_seen', { ascending: false })
-      .limit(10);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const [countResult, usersResult] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .gte('last_seen', fiveMinutesAgo),
+      supabase
+        .from('profiles')
+        .select('id, username, avatar_url, last_seen')
+        .gte('last_seen', fiveMinutesAgo)
+        .order('last_seen', { ascending: false })
+        .limit(10),
+    ]);
+    if (countResult.error) throw countResult.error;
+    if (usersResult.error) throw usersResult.error;
 
-    if (error) throw error;
-
-    const count = users?.length || 0;
+    const count = countResult.count || 0;
+    const users = usersResult.data || [];
     if(countEl) countEl.textContent = count;
     if(miniCountEl) miniCountEl.textContent = count;
     if(statEl) animateValue("stat-online", 0, count, 1000);
@@ -772,6 +813,8 @@ async function refreshDynamicTicker(rom) {
 function startRealtimeFeed(rom) {
   // Initial Stats Load
   loadStats();
+  if (homeStatsInterval) clearInterval(homeStatsInterval);
+  homeStatsInterval = setInterval(loadStats, 60000);
 
   const tickerEl = document.getElementById('ticker-content');
   const tickerDup = document.getElementById('ticker-content-dup');
@@ -899,4 +942,6 @@ function flashTicker(text) {
 
 window.addEventListener('beforeunload', () => {
   if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+  if (homeStatsInterval) clearInterval(homeStatsInterval);
+  if (onlineUsersInterval) clearInterval(onlineUsersInterval);
 });
