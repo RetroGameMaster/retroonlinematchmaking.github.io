@@ -1,5 +1,5 @@
 // modules/chat/components.js
-import { createUserProfileLink, createUserAvatarLink } from '../../lib/userLinks.js';
+import { createUserAvatarLink } from '../../lib/userLinks.js';
 import { formatMessageTime, linkifyText, sanitizeInput } from './utils.js';
 
 /**
@@ -10,7 +10,7 @@ import { formatMessageTime, linkifyText, sanitizeInput } from './utils.js';
  * @param {string} avatarUrl - The resolved avatar URL
  * @returns {string} HTML string
  */
-export function renderMessage(msg, currentUserId, displayName, avatarUrl = '') {
+export function renderMessage(msg, currentUserId, displayName, avatarUrl = '', profile = {}) {
   const isSystem = msg.message_type !== 'text';
   const isOwn = msg.user_id === currentUserId;
   
@@ -32,30 +32,17 @@ export function renderMessage(msg, currentUserId, displayName, avatarUrl = '') {
 
   const timeString = formatMessageTime(msg.created_at);
   const safeMessage = linkifyText(sanitizeInput(msg.message));
+  const profileCard = renderChatProfileCard(msg.user_id || msg.sender_id, displayName, avatarUrl, profile);
 
   return `
     <div class="message-group mb-4 hover:bg-gray-800/30 p-2 rounded-lg transition-colors group ${isOwn ? 'flex-row-reverse' : ''}" data-message-id="${msg.id}">
       <div class="flex items-start gap-3 max-w-full">
-        
-        <!-- Avatar -->
-        <div class="flex-shrink-0 mt-1">
-          ${createUserAvatarLink(msg.user_id, displayName, avatarUrl)} 
-        </div>
-
-        <!-- Content -->
         <div class="flex-1 min-w-0">
-          <!-- Header: Name & Time -->
-          <div class="flex items-baseline gap-2 ${isOwn ? 'justify-end' : ''}">
-            ${createUserProfileLink(msg.user_id, displayName, msg.user_email)}
-            <span class="text-xs text-gray-500 font-mono">${timeString}</span>
-            ${isOwn ? `
-              <button onclick="window.chatActions.openMenu('${msg.id}')" class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white transition ml-1">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
-              </button>
-            ` : ''}
+          <div class="mb-2 flex items-center gap-2 ${isOwn ? 'justify-end' : ''}">
+            ${profileCard}
+            <span class="text-xs text-gray-400 font-mono" title="${new Date(msg.created_at).toLocaleString()}">${timeString}</span>
+            ${isOwn ? `<button onclick="window.chatActions.openMenu('${escapeAttribute(msg.id)}')" aria-label="Message options" class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white transition ml-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg></button>` : ''}
           </div>
-
-          <!-- Message Body -->
           <div class="text-gray-200 text-sm leading-relaxed break-words mt-1 ${isOwn ? 'text-right' : ''}">
             ${safeMessage}
           </div>
@@ -65,6 +52,59 @@ export function renderMessage(msg, currentUserId, displayName, avatarUrl = '') {
       </div>
     </div>
   `;
+}
+
+function renderChatProfileCard(userId, displayName, avatarUrl, profile) {
+  const username = escapeHtml(displayName || 'Anonymous');
+  const href = userId ? `#/profile/${encodeURIComponent(userId)}` : '#';
+  const rank = Array.isArray(profile.rank) ? profile.rank[0] : profile.rank;
+  const rankText = rank?.name ? ` · ${escapeHtml(rank.name)}` : '';
+  const motto = profile.motto ? `<span class="block truncate text-[10px] text-gray-200">${escapeHtml(profile.motto)}</span>` : '';
+  const xp = Number.isFinite(Number(profile.xp_total)) ? `${Number(profile.xp_total).toLocaleString()} XP` : '';
+  const bgValue = String(profile.gamercard_bg_value || '#1f2937');
+  let backgroundStyle = 'background-color: #1f2937;';
+  if (profile.gamercard_bg_type === 'image') {
+    try {
+      const imageUrl = new URL(bgValue, window.location.href);
+      if (imageUrl.protocol === 'https:' || imageUrl.protocol === 'http:') {
+        backgroundStyle = `background-image: linear-gradient(#0005, #0008), url("${escapeAttribute(imageUrl.href)}"); background-size: cover; background-position: center;`;
+      }
+    } catch {
+      backgroundStyle = 'background-color: #1f2937;';
+    }
+  } else if (profile.gamercard_bg_type === 'gradient' && /^[#(),.%\w\s-]+$/.test(bgValue)) {
+    backgroundStyle = `background-image: ${bgValue};`;
+  } else if (profile.gamercard_bg_type === 'color' && /^#[0-9a-f]{3,8}$/i.test(bgValue)) {
+    backgroundStyle = `background-color: ${bgValue};`;
+  }
+  const safeAvatar = safeImageUrl(avatarUrl);
+
+  return `
+    <a href="${escapeAttribute(href)}" class="inline-flex max-w-[220px] min-w-0 items-center gap-2 overflow-hidden rounded-lg border border-gray-600 px-2 py-1 shadow-sm hover:border-cyan-400" style="${backgroundStyle}" aria-label="View ${username}'s profile">
+      ${safeAvatar ? `<img src="${escapeAttribute(safeAvatar)}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-white/50 object-cover">` : '<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-800 font-bold text-white">?</span>'}
+      <span class="min-w-0 text-left"><span class="block truncate text-xs font-bold text-white">${username}${rankText}</span>${motto}${xp ? `<span class="block text-[10px] text-cyan-100">${xp}</span>` : ''}</span>
+    </a>
+  `;
+}
+
+function safeImageUrl(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(value, window.location.href);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
+function escapeAttribute(value) {
+  return String(value ?? '').replace(/[&"'<>]/g, character => ({
+    '&': '&amp;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '<': '&lt;',
+    '>': '&gt;',
+  })[character]);
 }
 
 /**

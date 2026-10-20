@@ -437,6 +437,21 @@ async function loadDiscordServices(rom) {
       return;
     }
 
+    const gameTitles = [...new Set(filteredServices.map(service => service.game_title).filter(Boolean))];
+    const { data: games, error: gamesError } = await rom.supabase
+      .from('games')
+      .select('id, slug, title, console')
+      .eq('status', 'approved')
+      .in('title', gameTitles);
+    if (gamesError) throw gamesError;
+
+    const gamesByTitle = new Map();
+    (games || []).forEach(game => {
+      const key = normalizeGameTitle(game.title);
+      if (!gamesByTitle.has(key)) gamesByTitle.set(key, []);
+      gamesByTitle.get(key).push(game);
+    });
+
     const servicesByNetwork = new Map();
     filteredServices.forEach(service => {
       const rawName = String(service.service_name || 'Other').trim();
@@ -457,6 +472,13 @@ async function loadDiscordServices(rom) {
           const title = escapeHtml(service.game_title || 'Unknown game');
           const consoleName = escapeHtml(service.console || '');
           const playerCount = Number(service.players_online || 0);
+          const titleMatches = gamesByTitle.get(normalizeGameTitle(service.game_title)) || [];
+          const matchingGame = titleMatches.find(game =>
+            !service.console || normalizeGameTitle(game.console) === normalizeGameTitle(service.console)
+          ) || (titleMatches.length === 1 ? titleMatches[0] : null);
+          const gameHref = matchingGame
+            ? `#/game/${encodeURIComponent(matchingGame.slug || matchingGame.id)}`
+            : `#/games?search=${encodeURIComponent(service.game_title || '')}`;
           const url = /^https:\/\/discord\.com\/channels\/\d+(?:\/\d+){1,2}$/.test(service.discord_url || '')
             ? service.discord_url
             : null;
@@ -464,7 +486,7 @@ async function loadDiscordServices(rom) {
             <article class="rounded-lg border border-green-500/30 bg-gray-950/70 p-4 flex flex-col gap-3">
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <h4 class="text-lg font-bold text-white">${title}</h4>
+                  <h4 class="text-lg font-bold text-white"><a href="${gameHref}" class="rounded-sm hover:text-cyan-300 hover:underline focus:outline-none focus:ring-2 focus:ring-cyan-400">${title}</a></h4>
                   ${consoleName ? `<p class="text-xs text-gray-400 mt-1">${consoleName}</p>` : ''}
                 </div>
                 <span class="shrink-0 text-[10px] uppercase tracking-wide rounded border border-green-500/30 bg-green-900/30 text-green-300 px-2 py-1">Online</span>
@@ -492,6 +514,10 @@ async function loadDiscordServices(rom) {
     container.innerHTML = '<div class="col-span-full rounded-lg border border-gray-700 bg-gray-950/50 p-5 text-sm text-gray-400">Discord active game sync is not available right now.</div>';
     if (count) count.textContent = 'Not connected';
   }
+}
+
+function normalizeGameTitle(value) {
+  return String(value || '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
 function startDiscordRealtimeListener(rom) {

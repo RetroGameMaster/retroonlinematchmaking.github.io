@@ -133,6 +133,14 @@ function stopPresenceHeartbeat() {
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
+    const isProfileRoute = hash === 'profile' || hash.startsWith('profile/');
+    const isGameRoute = hash.startsWith('game/');
+    if (!isGameRoute) window.cleanupGameBackgrounds?.();
+    if (!isProfileRoute) {
+        document.getElementById('dynamic-profile-bg')?.remove();
+        document.getElementById('profile-bg-overlay')?.remove();
+    }
+
     if (hash === 'forum' || hash.startsWith('forum/') || hash.startsWith('forum?')) {
         const [route, queryString = ''] = hash.split('?', 2);
         const routeParts = route.split('/');

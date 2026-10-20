@@ -406,9 +406,10 @@ async function loadMessages() {
       .from('chat_messages')
       .select('*')
       .eq('room_id', currentRoom)
-      .order('created_at', { ascending: true })
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false })
       .limit(50);
-    messages = data || [];
+    messages = (data || []).reverse();
     error = e;
   } else {
     const { data, error: e } = await supabase
@@ -433,13 +434,13 @@ async function loadMessages() {
   }
 
   // 2. Fetch Profiles for all unique User IDs in this message list
-  const userIds = [...new Set(messages.map(m => m.user_id))];
+  const userIds = [...new Set(messages.map(m => chatType === 'dm' ? (m.sender_id || m.user_id) : m.user_id).filter(Boolean))];
   let profilesMap = {};
   
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url')
+      .select('id, username, avatar_url, motto, xp_total, gamercard_bg_type, gamercard_bg_value, rank:user_ranks (name, color)')
       .in('id', userIds);
     
     if (profiles) {
@@ -453,11 +454,12 @@ async function loadMessages() {
   // 3. Render with Merged Data
   container.innerHTML = '';
   messages.forEach(msg => {
-    const profile = profilesMap[msg.user_id] || {};
+    const messageUserId = chatType === 'dm' ? (msg.sender_id || msg.user_id) : msg.user_id;
+    const profile = profilesMap[messageUserId] || {};
     const displayName = profile.username || msg.username || 'Anonymous';
     const avatarUrl = profile.avatar_url || '';
-    
-    const msgHtml = renderMessage(msg, currentUser.id, displayName, avatarUrl);
+    const normalizedMessage = msg.user_id ? msg : { ...msg, user_id: messageUserId };
+    const msgHtml = renderMessage(normalizedMessage, currentUser.id, displayName, avatarUrl, profile);
     const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
   });
@@ -465,42 +467,51 @@ async function loadMessages() {
   container.scrollTop = container.scrollHeight;
 }
 
-function handleRealtimeMessage(payload) {
+async function handleRealtimeMessage(payload) {
   const { eventType, new: newRow, old: oldRow } = payload;
   const container = document.getElementById('messages-container');
+  if (!container) return;
   
   if (eventType === 'INSERT') {
-    if (document.querySelector(`[data-msg-id="${newRow.id}"]`)) return;
-
-    // For realtime, we might not have the profile yet. 
-    // Fallback to msg.username or fetch profile if needed. 
-    // Ideally, the payload includes enough info, or we do a quick fetch.
-    // For now, use what we have + global userProfile if it's self
+    if (container.querySelector(`[data-message-id="${newRow.id}"]`)) return;
+    const messageUserId = newRow.user_id || newRow.sender_id;
     let displayName = newRow.username || 'Anonymous';
     let avatarUrl = '';
+    let profile = {};
 
-    if (newRow.user_id === currentUser.id) {
+    if (messageUserId === currentUser.id) {
       displayName = userProfile?.username || 'Me';
       avatarUrl = userProfile?.avatar_url || '';
+      profile = userProfile || {};
     } else {
-      // Optional: Quick fetch for other users if needed, but usually username is in payload
-      // To keep it fast, we rely on the username stored in the message row for others
-      // If you need avatars for others in realtime, you'd need a small fetch here.
+      if (messageUserId) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, motto, xp_total, gamercard_bg_type, gamercard_bg_value, rank:user_ranks (name, color)')
+          .eq('id', messageUserId)
+          .maybeSingle();
+        if (error) console.error('Could not load realtime chat message profile:', error);
+        profile = data || {};
+        displayName = profile.username || displayName;
+        avatarUrl = profile.avatar_url || '';
+      }
     }
 
-    const msgHtml = renderMessage(newRow, currentUser.id, displayName, avatarUrl);
+    const normalizedMessage = newRow.user_id ? newRow : { ...newRow, user_id: messageUserId };
+    const msgHtml = renderMessage(normalizedMessage, currentUser.id, displayName, avatarUrl, profile);
     const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
     container.scrollTop = container.scrollHeight;
   } else if (eventType === 'UPDATE') {
-    const el = document.querySelector(`[data-msg-id="${newRow.id}"]`);
+    const el = container.querySelector(`[data-message-id="${newRow.id}"]`);
     if (el) {
-      const newHtml = renderMessage(newRow, currentUser.id, newRow.username || 'User', '');
+      const normalizedMessage = newRow.user_id ? newRow : { ...newRow, user_id: newRow.sender_id };
+      const newHtml = renderMessage(normalizedMessage, currentUser.id, newRow.username || 'User', '', {});
       const newEl = htmlToElement(newHtml);
       el.replaceWith(newEl);
     }
   } else if (eventType === 'DELETE') {
-    const el = document.querySelector(`[data-msg-id="${oldRow.id}"]`);
+    const el = container.querySelector(`[data-message-id="${oldRow.id}"]`);
     if (el) el.remove();
   }
 }
@@ -557,7 +568,12 @@ function updateRoomUserCounts() {
 }
 
 async function getUserProfile(uid) {
-  const { data } = await supabase.from('profiles').select('username, avatar_url').eq('id', uid).single();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url, motto, xp_total, gamercard_bg_type, gamercard_bg_value, rank:user_ranks (name, color)')
+    .eq('id', uid)
+    .single();
+  if (error) console.error('Could not load current chat profile:', error);
   return data;
 }
 

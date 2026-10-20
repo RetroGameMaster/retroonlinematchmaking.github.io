@@ -24,8 +24,50 @@ function getEmbedUrl(url) {
 
 // ===== GLOBAL STATE FOR CHAT =====
 let chatChannel = null;
+let lobbyStreamChannel = null;
 let heartbeatInterval = null;
+let streamExpiryTimeout = null;
 let currentRoomId = null;
+let currentStreamMuted = true;
+let currentStreamMinimized = false;
+
+function getLiveStreamEmbedUrl(rawUrl, muted = true) {
+    let url;
+    try {
+        url = new URL(rawUrl);
+    } catch {
+        throw new Error('Enter a valid Twitch or YouTube live link.');
+    }
+    if (url.protocol !== 'https:') throw new Error('Stream links must use HTTPS.');
+
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    if (host === 'youtube.com' || host === 'youtu.be') {
+        const videoId = host === 'youtu.be'
+            ? url.pathname.split('/').filter(Boolean)[0]
+            : url.searchParams.get('v') || url.pathname.match(/^\/(?:live|embed|shorts)\/([^/]+)/)?.[1];
+        if (!videoId || !/^[\w-]{11}$/.test(videoId)) {
+            throw new Error('Use a YouTube video or live-stream URL.');
+        }
+        return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muted ? 1 : 0}&enablejsapi=1`;
+    }
+    if (host === 'twitch.tv') {
+        const parts = url.pathname.split('/').filter(Boolean);
+        const query = new URLSearchParams({
+            parent: window.location.hostname,
+            autoplay: 'true',
+            muted: String(muted),
+        });
+        if (parts[0]?.toLowerCase() === 'videos' && /^\d+$/.test(parts[1] || '')) {
+            query.set('video', `v${parts[1]}`);
+        } else if (parts[0] && /^[a-zA-Z0-9_]{1,25}$/.test(parts[0])) {
+            query.set('channel', parts[0]);
+        } else {
+            throw new Error('Use a Twitch channel or video URL.');
+        }
+        return `https://player.twitch.tv/?${query}`;
+    }
+    throw new Error('Only Twitch and YouTube live links are supported.');
+}
 
 // ===== MAIN INIT FUNCTION =====
 export default async function initGameDetail(rom, identifier) {
@@ -754,6 +796,11 @@ async function initLiveSessionPanel(rom, game) {
         chatChannel = null;
     }
     if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (lobbyStreamChannel) {
+        rom.supabase.removeChannel(lobbyStreamChannel);
+        lobbyStreamChannel = null;
+    }
+    if (streamExpiryTimeout) clearTimeout(streamExpiryTimeout);
 
     // Check for existing active room
     const { data: room } = await rom.supabase
@@ -880,6 +927,7 @@ async function createSession(rom, game) {
             .single();
 
         if (roomError) throw roomError;
+        void recordLobbyActivity(rom, room.id, 'host');
 
         // 4. Create Initial LFG Post linked to this room
         await rom.supabase.from('lfg_posts').insert([{
@@ -925,6 +973,11 @@ async function renderActiveSession(container, room, rom, game) {
         rom.supabase.removeChannel(chatChannel);
         chatChannel = null;
     }
+    if (lobbyStreamChannel) {
+        rom.supabase.removeChannel(lobbyStreamChannel);
+        lobbyStreamChannel = null;
+    }
+    if (streamExpiryTimeout) clearTimeout(streamExpiryTimeout);
 
     container.classList.remove('hidden');
     container.innerHTML = `
@@ -943,11 +996,7 @@ async function renderActiveSession(container, room, rom, game) {
                 </div>
             </div>
 
-            <!-- Stream Area -->
-            <div id="stream-area" class="hidden bg-black aspect-video relative group">
-                <iframe id="stream-frame" class="w-full h-full" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-                <button id="close-stream" class="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition">Close Stream</button>
-            </div>
+            <section id="lobby-stream-panel" class="border-b border-gray-700"></section>
 
             <!-- Chat Messages Area -->
             <div id="chat-messages" class="h-64 overflow-y-auto p-4 space-y-3 bg-gray-900/50 scroll-smooth custom-scrollbar relative">
@@ -961,11 +1010,6 @@ async function renderActiveSession(container, room, rom, game) {
 
             <!-- Controls -->
             <div class="p-4 bg-gray-800/50 border-t border-gray-700 flex flex-col gap-2">
-                <!-- Stream Input -->
-                <div class="flex gap-2">
-                    <input type="text" id="stream-url-input" placeholder="Paste Twitch/YouTube stream link..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none">
-                    <button id="btn-go-live" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm font-bold whitespace-nowrap">Go Live</button>
-                </div>
                 <!-- Chat Input -->
                 <form id="chat-form" class="flex gap-2">
                     <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none" autocomplete="off">
@@ -974,6 +1018,7 @@ async function renderActiveSession(container, room, rom, game) {
             </div>
         </div>
     `;
+    await setupLobbyStreamPanel(rom, game, room);
  // ==========================================
     // 🚀 SPRITE ENGINE INITIALIZATION
     // ==========================================
@@ -1027,36 +1072,6 @@ async function renderActiveSession(container, room, rom, game) {
             }
         });
 
-    // Stream Logic
-    const btnGoLive = document.getElementById('btn-go-live');
-    const streamArea = document.getElementById('stream-area');
-    const streamFrame = document.getElementById('stream-frame');
-    const closeStream = document.getElementById('close-stream');
-    const input = document.getElementById('stream-url-input');
-
-    btnGoLive.addEventListener('click', () => {
-        const url = input.value.trim();
-        if (!url) return;
-        
-        const embedUrl = getEmbedUrl(url);
-        streamFrame.src = embedUrl;
-        streamArea.classList.remove('hidden');
-        
-        rom.supabase.from('chat_rooms').update({ stream_url: url }).eq('id', room.id);
-    });
-
-    closeStream.addEventListener('click', () => {
-        streamArea.classList.add('hidden');
-        streamFrame.src = '';
-        rom.supabase.from('chat_rooms').update({ stream_url: null }).eq('id', room.id);
-    });
-
-    if (room.stream_url) {
-        input.value = room.stream_url;
-        streamFrame.src = getEmbedUrl(room.stream_url);
-        streamArea.classList.remove('hidden');
-    }
-
     // Chat Form Logic
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
@@ -1071,6 +1086,7 @@ async function renderActiveSession(container, room, rom, game) {
         sendBtn.textContent = '...';
 
         try {
+            await recordLobbyActivity(rom, room.id, 'participant');
             // Fetch fresh profile data for avatar/username
             const { data: profile } = await rom.supabase
                 .from('profiles')
@@ -1101,6 +1117,181 @@ async function renderActiveSession(container, room, rom, game) {
             sendBtn.textContent = 'Send';
         }
     });
+}
+
+async function setupLobbyStreamPanel(rom, game, room) {
+    currentStreamMuted = true;
+    currentStreamMinimized = false;
+    await refreshLobbyStream(rom, game, room);
+
+    lobbyStreamChannel = rom.supabase
+        .channel(`game-lobby-stream:${game.id}`)
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'game_lobby_streams',
+            filter: `game_id=eq.${game.id}`,
+        }, () => void refreshLobbyStream(rom, game, room))
+        .subscribe(status => {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.error('Game lobby stream realtime subscription failed:', status);
+            }
+        });
+}
+
+async function refreshLobbyStream(rom, game, room) {
+    if (streamExpiryTimeout) clearTimeout(streamExpiryTimeout);
+
+    const { data: stream, error } = await rom.supabase
+        .from('game_lobby_streams')
+        .select('game_id, room_id, user_id, stream_url, claimed_at, expires_at')
+        .eq('game_id', game.id)
+        .maybeSingle();
+    if (error) {
+        console.error('Could not load the game lobby stream:', error);
+        renderLobbyStreamPanel(rom, game, room, null, null, 'The stream panel could not load.');
+        return;
+    }
+
+    let owner = null;
+    if (stream?.user_id) {
+        const { data, error: ownerError } = await rom.supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', stream.user_id)
+            .maybeSingle();
+        if (ownerError) console.error('Could not load the current streamer profile:', ownerError);
+        owner = data;
+
+        const timeUntilExpiry = new Date(stream.expires_at).getTime() - Date.now();
+        if (timeUntilExpiry > 0) {
+            streamExpiryTimeout = setTimeout(
+                () => void refreshLobbyStream(rom, game, room),
+                Math.min(timeUntilExpiry + 500, 2147483647)
+            );
+        }
+    }
+    renderLobbyStreamPanel(rom, game, room, stream, owner);
+}
+
+function renderLobbyStreamPanel(rom, game, room, stream, owner, loadError = '') {
+    const panel = document.getElementById('lobby-stream-panel');
+    if (!panel) return;
+
+    if (stream) {
+        let embedUrl = '';
+        let embedError = '';
+        try {
+            embedUrl = getLiveStreamEmbedUrl(stream.stream_url, currentStreamMuted);
+        } catch (error) {
+            embedError = error.message;
+        }
+        const ownerName = escapeHtml(owner?.username || 'ROM member');
+        const expiresAt = new Date(stream.expires_at);
+        panel.innerHTML = `
+          <div class="p-4">
+            <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h4 class="font-bold text-purple-200">📺 Live Game Stream</h4>
+                <p class="text-xs text-gray-400">Streaming by ${ownerName} · slot expires ${expiresAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="toggle-stream-mute" type="button" class="min-h-10 rounded-lg bg-gray-700 px-3 py-2 text-sm text-white hover:bg-gray-600">${currentStreamMuted ? 'Unmute' : 'Mute'}</button>
+                <button id="toggle-stream-minimize" type="button" class="min-h-10 rounded-lg bg-gray-700 px-3 py-2 text-sm text-white hover:bg-gray-600">${currentStreamMinimized ? 'Show Stream' : 'Minimize'}</button>
+                ${rom.currentUser?.id === stream.user_id ? '<button id="stop-game-stream" type="button" class="min-h-10 rounded-lg bg-red-800 px-3 py-2 text-sm font-bold text-white hover:bg-red-700">End Stream</button>' : ''}
+              </div>
+            </div>
+            <div id="lobby-stream-video" class="${currentStreamMinimized ? 'hidden' : ''} aspect-video overflow-hidden rounded-lg border border-gray-700 bg-black">
+              ${embedUrl ? `<iframe id="lobby-stream-iframe" src="${escapeAttribute(embedUrl)}" title="${escapeAttribute(game.title)} live stream" class="h-full w-full" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>` : `<p class="p-4 text-sm text-red-300">${escapeHtml(embedError || 'This stream link cannot be embedded.')}</p>`}
+            </div>
+            <p id="stream-action-status" class="mt-2 min-h-5 text-xs text-red-300" role="status">${escapeHtml(loadError)}</p>
+          </div>`;
+
+        panel.querySelector('#toggle-stream-mute')?.addEventListener('click', () => {
+            currentStreamMuted = !currentStreamMuted;
+            renderLobbyStreamPanel(rom, game, room, stream, owner);
+        });
+        panel.querySelector('#toggle-stream-minimize')?.addEventListener('click', () => {
+            currentStreamMinimized = !currentStreamMinimized;
+            const video = panel.querySelector('#lobby-stream-video');
+            const button = panel.querySelector('#toggle-stream-minimize');
+            video?.classList.toggle('hidden', currentStreamMinimized);
+            if (button) button.textContent = currentStreamMinimized ? 'Show Stream' : 'Minimize';
+        });
+        panel.querySelector('#stop-game-stream')?.addEventListener('click', async event => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+                const { error: releaseError } = await rom.supabase.rpc('release_game_lobby_stream', {
+                    p_game_id: game.id,
+                });
+                if (releaseError) throw releaseError;
+                await refreshLobbyStream(rom, game, room);
+            } catch (error) {
+                console.error('Could not stop the game lobby stream:', error);
+                panel.querySelector('#stream-action-status').textContent = error.message || 'Could not stop the stream.';
+                button.disabled = false;
+            }
+        });
+        return;
+    }
+
+    panel.innerHTML = `
+      <div class="p-4">
+        <div class="mb-3">
+          <h4 class="font-bold text-purple-200">📺 Live Game Stream</h4>
+          <p class="text-xs text-gray-400">One streamer at a time for this live lobby. The slot automatically opens after one hour.</p>
+        </div>
+        ${rom.currentUser ? `
+          <form id="claim-game-stream-form" class="flex flex-col gap-2 sm:flex-row">
+            <input name="stream_url" type="url" required maxlength="2048" placeholder="Paste a public Twitch or YouTube live link" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-sm text-white">
+            <button type="submit" class="min-h-11 rounded-lg bg-purple-700 px-4 py-2 font-bold text-white hover:bg-purple-600">Claim 1-Hour Stream Slot</button>
+          </form>
+        ` : '<p class="text-sm text-gray-300"><a href="#/auth" class="font-bold text-cyan-300 hover:underline">Sign in</a> to claim the streamer slot.</p>'}
+        <p id="stream-action-status" class="mt-2 min-h-5 text-xs text-red-300" role="status">${escapeHtml(loadError)}</p>
+      </div>`;
+
+    panel.querySelector('#claim-game-stream-form')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        const url = String(data.get('stream_url') || '').trim();
+        try {
+            getLiveStreamEmbedUrl(url, true);
+        } catch (error) {
+            panel.querySelector('#stream-action-status').textContent = error.message;
+            return;
+        }
+
+        const button = form.querySelector('[type="submit"]');
+        button.disabled = true;
+        panel.querySelector('#stream-action-status').textContent = 'Claiming the stream slot...';
+        try {
+            const { error: claimError } = await rom.supabase.rpc('claim_game_lobby_stream', {
+                p_game_id: game.id,
+                p_room_id: room.id,
+                p_stream_url: url,
+            });
+            if (claimError) throw claimError;
+            await refreshLobbyStream(rom, game, room);
+        } catch (error) {
+            console.error('Could not claim the game lobby stream:', error);
+            panel.querySelector('#stream-action-status').textContent = error.message || 'Could not claim the stream slot.';
+            button.disabled = false;
+        }
+    });
+}
+
+async function recordLobbyActivity(rom, roomId, activityType) {
+    if (!rom.currentUser) return;
+    try {
+        const { error } = await rom.supabase.rpc('record_game_lobby_activity', {
+            p_room_id: roomId,
+        });
+        if (error) console.error(`Could not record ${activityType} lobby activity:`, error);
+    } catch (error) {
+        console.error(`Could not record ${activityType} lobby activity:`, error);
+    }
 }
 
 async function loadChatMessages(rom, roomId) {

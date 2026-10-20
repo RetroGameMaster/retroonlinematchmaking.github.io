@@ -597,10 +597,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
           <!-- Stats Row -->
           <div class="ra-stats-row flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 mt-4 pt-4 border-t border-white/10 w-full">
             <div class="ra-stat text-center">
-              <div class="text-xl font-bold text-white">${profile.stats?.games_approved || 0}</div>
-              <div class="text-xs text-gray-400 uppercase">Games</div>
-            </div>
-            <div class="ra-stat text-center">
              <div style="font-size: 1.2rem; font-weight: bold; color: #fbbf24;">${profile.stats?.site_posts_total || 0}</div>
              <div style="font-size: 0.75rem; color: #fbbf24; text-transform: uppercase;">Site Posts</div>
             </div>
@@ -647,6 +643,14 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
                   <span class="ml-2 text-sm">Loading games...</span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-cyan-500/30 p-6 order-2 lg:order-none">
+            <h3 class="text-lg font-bold text-cyan-300 mb-1">🎮 Most Played & Recently Played</h3>
+            <p class="mb-4 text-xs text-gray-400">Based on hosting or participating in ROM live lobbies, not external console telemetry.</p>
+            <div id="game-play-history" class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <p class="text-sm text-gray-500">Loading game history...</p>
             </div>
           </div>
 
@@ -1277,6 +1281,7 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   }
 
   loadCurrentlyPlayingList(profile);
+  loadGamePlayHistory(profile.id);
 
   loadSiteAwardsWall(profile.id);
   loadProudAchievementsWall(profile.id, isOwnProfile); 
@@ -1553,6 +1558,77 @@ async function loadCurrentlyPlayingList(profile) {
         ? JSON.parse(profile.currently_playing) 
         : profile.currently_playing;
     } catch (e) { rawGames = []; }
+  }
+
+  async function loadGamePlayHistory(userId) {
+    const historyEl = document.getElementById('game-play-history');
+    if (!historyEl) return;
+
+    const { data: activity, error } = await supabase
+      .from('game_lobby_activity')
+      .select('game_id, played_at')
+      .eq('user_id', userId)
+      .order('played_at', { ascending: false })
+      .limit(500);
+    if (error) {
+      console.error('Could not load lobby game history:', error);
+      historyEl.innerHTML = '<p class="text-sm text-red-300">Game history is unavailable.</p>';
+      return;
+    }
+
+    if (!activity?.length) {
+      historyEl.innerHTML = '<p class="text-sm text-gray-400">No live-lobby game activity yet.</p>';
+      return;
+    }
+
+    const totals = new Map();
+    for (const event of activity) {
+      const current = totals.get(event.game_id) || { count: 0, lastPlayed: event.played_at };
+      current.count += 1;
+      totals.set(event.game_id, current);
+    }
+
+    const gameIds = [...totals.keys()];
+    const { data: games, error: gamesError } = await supabase
+      .from('games')
+      .select('id, title, slug, cover_image_url, console')
+      .in('id', gameIds);
+    if (gamesError) {
+      console.error('Could not load game details for lobby history:', gamesError);
+      historyEl.innerHTML = '<p class="text-sm text-red-300">Game history is unavailable.</p>';
+      return;
+    }
+
+    const gameMap = new Map((games || []).map(game => [game.id, game]));
+    const rankedGames = [...totals.entries()]
+      .map(([id, data]) => ({ ...gameMap.get(id), ...data }))
+      .filter(game => game.id)
+      .sort((a, b) => b.count - a.count || new Date(b.lastPlayed) - new Date(a.lastPlayed));
+    const mostPlayed = rankedGames.slice(0, 3);
+    const recentActivity = activity.slice(0, 5).map(event => ({
+      ...gameMap.get(event.game_id),
+      lastPlayed: event.played_at,
+    })).filter(game => game.id);
+    const renderGameLink = game => `
+      <a href="${getGameLink(game)}" class="flex min-w-0 items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/70 p-2 hover:border-cyan-500">
+        <img src="${escapeHtml(game.cover_image_url || 'https://placehold.co/80x100/1f2937/06b6d4?text=Game')}" alt="" class="h-14 w-11 shrink-0 rounded object-cover">
+        <span class="min-w-0">
+          <span class="block truncate text-sm font-semibold text-white">${escapeHtml(game.title)}</span>
+          <span class="block text-xs text-gray-400">${escapeHtml(game.console || '')}</span>
+          ${game.count ? `<span class="block text-xs text-cyan-300">${game.count} lobby ${game.count === 1 ? 'session' : 'sessions'}</span>` : ''}
+          ${game.lastPlayed ? `<time class="block text-xs text-gray-500" datetime="${escapeHtml(game.lastPlayed)}">${new Date(game.lastPlayed).toLocaleString()}</time>` : ''}
+        </span>
+      </a>`;
+
+    historyEl.innerHTML = `
+      <div>
+        <h4 class="mb-2 text-sm font-bold uppercase tracking-wide text-gray-300">Top 3</h4>
+        <div class="space-y-2">${mostPlayed.map(renderGameLink).join('') || '<p class="text-sm text-gray-500">No ranked games yet.</p>'}</div>
+      </div>
+      <div>
+        <h4 class="mb-2 text-sm font-bold uppercase tracking-wide text-gray-300">Recently Played</h4>
+        <div class="space-y-2">${recentActivity.map(renderGameLink).join('') || '<p class="text-sm text-gray-500">No recent games.</p>'}</div>
+      </div>`;
   }
 
   if (rawGames.length === 0) {

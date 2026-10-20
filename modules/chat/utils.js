@@ -22,12 +22,18 @@ export function formatTime(timestamp) {
 }
 
 /**
- * Formats a timestamp for the message bubble (HH:MM AM/PM)
+ * Formats a timestamp with the local date and time.
  * @param {string|Date} timestamp 
  * @returns {string}
  */
 export function formatMessageTime(timestamp) {
-  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(timestamp).toLocaleString([], {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 /**
