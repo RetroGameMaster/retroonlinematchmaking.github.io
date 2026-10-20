@@ -449,7 +449,26 @@ async function loadCurrentlyHot() {
       if (offset >= 50000) throw new Error('Active tracked services exceeded the 50,000-row safety limit.');
     }
 
-    const gameIds = [...new Set(rooms.map(room => room.game_id).filter(Boolean))];
+    const externalServiceCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from('external_live_services')
+        .select('service_name, game_title, console, matched_game_id, players_online, updated_at')
+        .eq('is_active', true)
+        .gte('updated_at', externalServiceCutoff)
+        .gt('players_online', 0)
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      services.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+      if (offset >= 50000) throw new Error('External live services exceeded the 50,000-row safety limit.');
+    }
+
+    const gameIds = [...new Set([
+      ...rooms.map(room => room.game_id),
+      ...services.map(service => service.matched_game_id),
+    ].filter(Boolean))];
     const trackedTitles = [...new Set(services.map(service => service.game_title).filter(Boolean))];
     const games = [];
 
@@ -511,7 +530,9 @@ async function loadCurrentlyHot() {
       const consoleMatches = titleMatches.filter(game =>
         normalizeLiveGameTitle(game.console) === normalizeLiveGameTitle(service.console)
       );
-      const game = consoleMatches[0] || (titleMatches.length === 1 ? titleMatches[0] : null);
+      const game = gamesById.get(service.matched_game_id) ||
+        consoleMatches[0] ||
+        (titleMatches.length === 1 ? titleMatches[0] : null);
       const entry = getEntry(game, service.game_title, service.console);
       entry.servicePlayers += Math.max(0, Number(service.players_online) || 0);
       if (service.service_name) entry.services.add(service.service_name);
@@ -1137,6 +1158,10 @@ function startRealtimeFeed(rom) {
 
   realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'discord_live_services' }, () => {
     refreshDynamicTicker(rom);
+    scheduleCurrentlyHotRefresh();
+  });
+
+  realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'external_live_services' }, () => {
     scheduleCurrentlyHotRefresh();
   });
 

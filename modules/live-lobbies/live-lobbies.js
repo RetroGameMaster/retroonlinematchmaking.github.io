@@ -48,12 +48,12 @@ function renderLayout(rom) {
         </div>
       </div>
 
-      <!-- Discord Bot Active Games -->
+      <!-- Tracked Network Activity -->
       <section class="mb-8 rounded-xl border border-green-500/40 bg-gray-900/70 p-5 shadow-lg">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h2 class="text-2xl font-bold text-green-300">🟢 Games Live by Network</h2>
-            <p class="text-sm text-gray-400 mt-1">Currently active games reported by each ROM bot network.</p>
+            <p class="text-sm text-gray-400 mt-1">Live activity reported by the ROM bot and public game networks. Counts may overlap.</p>
           </div>
           <span id="discord-service-count" class="text-xs font-bold rounded-full border border-green-400/40 bg-green-900/40 px-3 py-1 text-green-200">Loading…</span>
         </div>
@@ -429,6 +429,20 @@ async function loadDiscordServices(rom) {
       if (!data || data.length < pageSize) break;
     }
 
+    const externalServiceCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await rom.supabase
+        .from('external_live_services')
+        .select('source_key, service_name, game_title, console, matched_game_id, activity_kind, players_online, updated_at')
+        .eq('is_active', true)
+        .gte('updated_at', externalServiceCutoff)
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      services.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+    }
+
     const search = document.getElementById('filter-search')?.value?.trim().toLowerCase() || '';
     const sort = document.getElementById('filter-sort')?.value || 'newest';
     const filteredServices = services.filter(service =>
@@ -453,9 +467,22 @@ async function loadDiscordServices(rom) {
       .eq('status', 'approved')
       .in('title', gameTitles);
     if (gamesError) throw gamesError;
+    const matchedGameIds = [...new Set(services.map(service => service.matched_game_id).filter(Boolean))];
+    let mappedGames = [];
+    if (matchedGameIds.length) {
+      const { data, error } = await rom.supabase
+        .from('games')
+        .select('id, slug, title, console')
+        .eq('status', 'approved')
+        .in('id', matchedGameIds);
+      if (error) throw error;
+      mappedGames = data || [];
+    }
 
     const gamesByTitle = new Map();
-    (games || []).forEach(game => {
+    const gamesById = new Map();
+    [...(games || []), ...mappedGames].forEach(game => {
+      gamesById.set(game.id, game);
       const key = normalizeGameTitle(game.title);
       if (!gamesByTitle.has(key)) gamesByTitle.set(key, []);
       gamesByTitle.get(key).push(game);
@@ -481,8 +508,9 @@ async function loadDiscordServices(rom) {
           const title = escapeHtml(service.game_title || 'Unknown game');
           const consoleName = escapeHtml(service.console || '');
           const playerCount = Number(service.players_online || 0);
+          const activityLabel = service.activity_kind === 'lobbies' ? 'lobby' : 'player';
           const titleMatches = gamesByTitle.get(normalizeGameTitle(service.game_title)) || [];
-          const matchingGame = titleMatches.find(game =>
+          const matchingGame = gamesById.get(service.matched_game_id) || titleMatches.find(game =>
             !service.console || normalizeGameTitle(game.console) === normalizeGameTitle(service.console)
           ) || (titleMatches.length === 1 ? titleMatches[0] : null);
           const gameHref = matchingGame
@@ -501,7 +529,7 @@ async function loadDiscordServices(rom) {
                 <span class="shrink-0 text-[10px] uppercase tracking-wide rounded border border-green-500/30 bg-green-900/30 text-green-300 px-2 py-1">Online</span>
               </div>
               <div class="mt-auto flex items-center justify-between gap-3 border-t border-gray-800 pt-3">
-                <span class="text-xs text-gray-400">${playerCount} player${playerCount === 1 ? '' : 's'} online</span>
+                <span class="text-xs text-gray-400">${playerCount} ${activityLabel}${playerCount === 1 ? '' : 's'} ${activityLabel === 'lobby' ? 'reported' : 'online'}</span>
                 ${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="rounded bg-green-700 hover:bg-green-600 px-3 py-2 text-sm font-bold text-white">Open Discord ↗</a>` : ''}
               </div>
             </article>
@@ -542,6 +570,13 @@ function startDiscordRealtimeListener(rom) {
     event: '*',
     schema: 'public',
     table: 'discord_live_services'
+  }, () => {
+    clearTimeout(window.discordServicesRefreshTimeout);
+    window.discordServicesRefreshTimeout = setTimeout(() => loadDiscordServices(rom), 350);
+  }).on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'external_live_services'
   }, () => {
     clearTimeout(window.discordServicesRefreshTimeout);
     window.discordServicesRefreshTimeout = setTimeout(() => loadDiscordServices(rom), 350);

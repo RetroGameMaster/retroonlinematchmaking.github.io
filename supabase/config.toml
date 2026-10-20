@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.discord-lobby-bridge]
 verify_jwt = false
+
+[functions.external-live-services]
+verify_jwt = false
