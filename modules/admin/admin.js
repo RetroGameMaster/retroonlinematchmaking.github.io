@@ -2,6 +2,8 @@
 import { supabase, getCurrentUser, isAdmin } from '../../lib/supabase.js';
 
 let allGames = [];
+let currentAdminGameResults = [];
+let currentAdminGamePage = 0;
 let currentDeleteGameId = null;
 let currentUser = null;
 
@@ -75,7 +77,7 @@ async function loadAdminPanel() {
   }
 
   document.getElementById('app-content').innerHTML = `
-    <div class="max-w-7xl mx-auto p-4">
+    <div class="max-w-screen-2xl mx-auto p-4">
       <h1 class="text-3xl font-bold text-white mb-6">👑 Admin Panel</h1>
       
       <!-- Navigation Tabs -->
@@ -1188,101 +1190,70 @@ async function loadAdminGames() {
       </div>
     `;
 
-    const { data: games, error } = await supabase
-      .from('games')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    const pageSize = 500;
+    const games = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from('games')
+        .select('id, title, console, year, submitted_email, status, updated_at')
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      games.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+      if (offset >= 50000) throw new Error('Game library exceeded the 50,000-row safety limit.');
+    }
 
-    if (error) throw error;
-
-    allGames = games || [];
+    allGames = games;
     
     // Update tab count
     document.querySelector('#tab-games').textContent = `🎮 Games (${allGames.length})`;
 
     let html = `
-      <div>
-        <h2 class="text-2xl font-bold text-white mb-6">Game Library (${allGames.length})</h2>
-       
-        <div class="mb-4">
-          <input type="text" 
-                id="game-search" 
-                placeholder="Search games..." 
-                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+      <div class="space-y-5">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-white">Game Library</h2>
+            <p id="admin-games-result-count" class="mt-1 text-sm text-gray-400">${allGames.length.toLocaleString()} games</p>
+          </div>
+          <input type="search"
+                id="game-search"
+                placeholder="Search title, console, or submitter…"
+                aria-label="Search games"
+                class="w-full md:max-w-md px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
         </div>
-       
-        <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-          <table class="min-w-full divide-y divide-gray-700">
+        <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-900">
+          <div class="overflow-x-auto">
+          <table class="w-full min-w-[900px] divide-y divide-gray-700">
             <thead class="bg-gray-800">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Game
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Submitted By
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th scope="col" class="w-[36%] px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300">Game</th>
+                <th scope="col" class="w-[30%] px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300">Submitted by</th>
+                <th scope="col" class="w-[14%] px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300">Status</th>
+                <th scope="col" class="w-[20%] px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-300">Actions</th>
               </tr>
             </thead>
-            <tbody id="gamesList" class="bg-gray-900 divide-y divide-gray-800">
-              ${allGames.map(game => `
-                <tr class="hover:bg-gray-800">
-                  <td class="px-6 py-4">
-                    <div class="flex items-center">
-                      <div>
-                        <div class="text-white font-medium">${game.title}</div>
-                        <div class="text-gray-400 text-sm">${game.console} • ${game.year || 'N/A'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 text-gray-300">${game.submitted_email || 'N/A'}</td>
-                  <td class="px-6 py-4">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-900 text-green-200">
-                      Approved
-                    </span>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="flex flex-wrap gap-2">
-                      <button onclick="adminEditGame('${game.id}')" 
-                             class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded-lg transition">
-                        Edit
-                      </button>
-                      <button onclick="adminDeleteGame('${game.id}', '${escapeString(game.title)}')" 
-                             class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition">
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('') || `
-                <tr>
-                  <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                    No games found in the library.
-                  </td>
-                </tr>
-              `}
-            </tbody>
+            <tbody id="gamesList" class="divide-y divide-gray-800"></tbody>
           </table>
+          </div>
+          <div id="admin-games-pagination" class="flex flex-col gap-3 border-t border-gray-700 bg-gray-950/60 p-4 sm:flex-row sm:items-center sm:justify-between"></div>
         </div>
       </div>
     `;
 
     content.innerHTML = html;
+    renderGamesTable(allGames, 0);
 
     // Add search functionality
     document.getElementById('game-search')?.addEventListener('input', (e) => {
-      const searchTerm = e.target.value.toLowerCase();
-      const filteredGames = allGames.filter(game => 
-        game.title.toLowerCase().includes(searchTerm) ||
-        game.console.toLowerCase().includes(searchTerm) ||
-        (game.submitted_email && game.submitted_email.toLowerCase().includes(searchTerm))
+      const searchTerm = e.target.value.trim().toLowerCase();
+      const filteredGames = allGames.filter(game =>
+        String(game.title || '').toLowerCase().includes(searchTerm) ||
+        String(game.console || '').toLowerCase().includes(searchTerm) ||
+        String(game.submitted_email || '').toLowerCase().includes(searchTerm)
       );
-      renderGamesTable(filteredGames);
+      renderGamesTable(filteredGames, 0);
     });
 
   } catch (error) {
@@ -1299,50 +1270,74 @@ async function loadAdminGames() {
   }
 }
 
-function renderGamesTable(games) {
+function renderGamesTable(games, page = currentAdminGamePage) {
   const gamesListEl = document.getElementById('gamesList');
   if (!gamesListEl) return;
-  if (!games || games.length === 0) {
-    gamesListEl.innerHTML = `
-      <tr>
-        <td colspan="4" class="px-6 py-8 text-center text-gray-400">
-          No games found matching your search.
+  currentAdminGameResults = games || [];
+  const pageSize = 50;
+  const pageCount = Math.ceil(currentAdminGameResults.length / pageSize);
+  currentAdminGamePage = Math.max(0, Math.min(page, pageCount - 1));
+  const start = currentAdminGamePage * pageSize;
+  const pageGames = currentAdminGameResults.slice(start, start + pageSize);
+
+  gamesListEl.innerHTML = pageGames.length ? pageGames.map(game => {
+    const status = String(game.status || 'approved');
+    const statusColors = status === 'approved'
+      ? 'bg-green-900 text-green-200'
+      : status === 'pending'
+        ? 'bg-yellow-900 text-yellow-200'
+        : 'bg-gray-700 text-gray-200';
+    return `
+      <tr class="align-top transition-colors hover:bg-gray-800/80">
+        <td class="px-5 py-4">
+          <div class="break-words font-semibold text-white">${escapeHtml(game.title || 'Untitled game')}</div>
+          <div class="mt-1 text-sm text-gray-400">${escapeHtml(game.console || 'Unspecified console')} · ${escapeHtml(String(game.year || 'N/A'))}</div>
         </td>
-      </tr>
-    `;
-    return;
+        <td class="break-all px-5 py-4 text-sm text-gray-300">${escapeHtml(game.submitted_email || 'N/A')}</td>
+        <td class="px-5 py-4"><span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusColors}">${escapeHtml(status)}</span></td>
+        <td class="px-5 py-4">
+          <div class="flex justify-end gap-2">
+            <button type="button" data-admin-edit-game="${escapeHtml(game.id)}" class="min-h-10 rounded-lg bg-cyan-700 px-4 text-sm font-semibold text-white transition hover:bg-cyan-600">Edit</button>
+            <button type="button" data-admin-delete-game="${escapeHtml(game.id)}" class="min-h-10 rounded-lg bg-red-800 px-4 text-sm font-semibold text-white transition hover:bg-red-700">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('') : `
+    <tr><td colspan="4" class="px-5 py-12 text-center text-gray-400">No games found matching your search.</td></tr>
+  `;
+
+  const summary = document.getElementById('admin-games-result-count');
+  if (summary) {
+    const first = currentAdminGameResults.length ? start + 1 : 0;
+    const last = Math.min(start + pageSize, currentAdminGameResults.length);
+    summary.textContent = `Showing ${first.toLocaleString()}–${last.toLocaleString()} of ${currentAdminGameResults.length.toLocaleString()} games`;
   }
 
-  gamesListEl.innerHTML = games.map(game => `
-    <tr class="hover:bg-gray-800">
-      <td class="px-6 py-4">
-        <div class="flex items-center">
-          <div>
-            <div class="text-white font-medium">${game.title}</div>
-            <div class="text-gray-400 text-sm">${game.console} • ${game.year || 'N/A'}</div>
-          </div>
-        </div>
-      </td>
-      <td class="px-6 py-4 text-gray-300">${game.submitted_email || 'N/A'}</td>
-      <td class="px-6 py-4">
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-900 text-green-200">
-          Approved
-        </span>
-      </td>
-      <td class="px-6 py-4">
-        <div class="flex flex-wrap gap-2">
-          <button onclick="adminEditGame('${game.id}')" 
-                 class="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded-lg transition">
-            Edit
-          </button>
-          <button onclick="adminDeleteGame('${game.id}', '${escapeString(game.title)}')" 
-                 class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition">
-            Delete
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+  const pagination = document.getElementById('admin-games-pagination');
+  if (pagination) {
+    pagination.innerHTML = pageCount > 1 ? `
+      <p class="text-sm text-gray-400">Page ${currentAdminGamePage + 1} of ${pageCount.toLocaleString()}</p>
+      <div class="flex gap-2">
+        <button type="button" data-games-page="${currentAdminGamePage - 1}" ${currentAdminGamePage === 0 ? 'disabled' : ''} class="min-h-10 rounded-lg border border-gray-600 px-4 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+        <button type="button" data-games-page="${currentAdminGamePage + 1}" ${currentAdminGamePage >= pageCount - 1 ? 'disabled' : ''} class="min-h-10 rounded-lg border border-gray-600 px-4 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+      </div>
+    ` : '';
+    pagination.querySelectorAll('[data-games-page]').forEach(button => {
+      button.addEventListener('click', () => {
+        renderGamesTable(currentAdminGameResults, Number(button.dataset.gamesPage));
+      });
+    });
+  }
+
+  gamesListEl.querySelectorAll('[data-admin-edit-game]').forEach(button => {
+    button.addEventListener('click', () => window.adminEditGame(button.dataset.adminEditGame));
+  });
+  gamesListEl.querySelectorAll('[data-admin-delete-game]').forEach(button => {
+    button.addEventListener('click', () => {
+      const game = allGames.find(item => item.id === button.dataset.adminDeleteGame);
+      window.adminDeleteGame(button.dataset.adminDeleteGame, game?.title || 'this game');
+    });
+  });
 }
 
 // SHOW GAME EDIT FORM FUNCTION - FIXED

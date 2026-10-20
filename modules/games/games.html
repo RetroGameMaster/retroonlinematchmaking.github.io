@@ -8,12 +8,16 @@
         </div>
         
         <!-- Submit Game Button -->
-        <div class="text-center mb-8">
+        <div class="mb-8 flex flex-wrap items-center justify-center gap-3">
             <a href="#/submit-game" 
                class="inline-block bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-700 hover:to-cyan-700 text-white font-bold py-4 px-10 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-xl">
                 🎮 Submit a New Game to ROM
             </a>
-            <p class="text-gray-400 text-sm mt-3">Help grow our retro gaming community by adding new games!</p>
+            <a href="#/submit-game?tab=decomp"
+               class="inline-block rounded-lg border border-purple-500/50 bg-purple-900/50 px-6 py-4 text-lg font-bold text-purple-100 transition hover:bg-purple-800">
+                🧩 Submit a Decomp / Recomp
+            </a>
+            <p class="w-full text-center text-gray-400 text-sm">Help grow the game library and community project directory.</p>
         </div>
         
         <!-- Search and Filter -->
@@ -32,6 +36,7 @@
                         <option value="ARCADE">ARCADE</option>
                         <option value="Atari">Atari</option>
                         <option value="Dreamcast">Dreamcast</option>
+                        <option value="Decomps">Decomps / Recomps</option>
                         <option value="GAMECUBE">GAMECUBE</option>
                         <option value="GBA">GBA</option>
                         <option value="GBC">GBC</option>

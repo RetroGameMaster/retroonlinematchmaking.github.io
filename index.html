@@ -1163,6 +1163,10 @@ body {
     min-width: 0;
 }
 
+#app-content:has(#admin-content) {
+    max-width: min(100%, 1600px);
+}
+
 #app-content img,
 #app-content video,
 #app-content iframe {
@@ -1231,6 +1235,7 @@ body {
                 <a href="#/home" class="text-2xl font-bold text-cyan-400 glow">🎮 ROM</a>
                 <a href="#/home" class="hover:text-cyan-300 text-sm">Home</a>
                 <a href="#/games" class="hover:text-cyan-300 text-sm">Games</a>
+                <a href="#/submit-game?tab=decomp" class="hover:text-purple-300 text-sm whitespace-nowrap">🧩 Submit a Decomp / Recomp</a>
                 <a href="#/chat" class="hover:text-cyan-300 text-sm">Chat</a>
                 <a href="#/guides" class="hover:text-cyan-300 text-sm flex items-center gap-1">
     📚 Guides

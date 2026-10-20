@@ -218,6 +218,7 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
             const urlParams = new URLSearchParams(queryString);
             if (urlParams.has('filter')) params.filter = urlParams.get('filter');
             if (urlParams.has('value')) params.value = urlParams.get('value');
+            if (urlParams.has('console')) params.console = urlParams.get('console');
         }
 
         console.log('🎮 Loading games module...', params);

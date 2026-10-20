@@ -25,6 +25,11 @@ function initSubmitGame(rom, params = {}) {
   }
 
   setupDecompSubmissionForm(rom);
+  document.getElementById('console')?.addEventListener('change', event => {
+    if (event.target.value === 'Decomps') {
+      document.getElementById('decomp-submission-tab')?.click();
+    }
+  });
   if (params.tab === 'decomp') document.getElementById('decomp-submission-tab')?.click();
 
   let methodCount = 1;
@@ -104,6 +109,11 @@ function initSubmitGame(rom, params = {}) {
     const maxPlayers = document.getElementById('maxPlayers').value;
     const genre = document.getElementById('genre').selectedOptions;
     const consoleSelect = document.getElementById("console");
+
+    if (consoleSelect.value === 'Decomps') {
+      document.getElementById('decomp-submission-tab')?.click();
+      return;
+    }
     
     if (!consoleSelect.value) {
       showResult('error', 'Please select a system/console');

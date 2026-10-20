@@ -1,7 +1,7 @@
 // modules/games/games.js
 let isInitialized = false;
 
-async function initGamesModule(rom) {
+async function initGamesModule(rom, params = {}) {
     console.log('🎮 Initializing games module...');
     const pageSize = 36;
     let activeQueryFactory;
@@ -35,6 +35,15 @@ async function initGamesModule(rom) {
             showMessage('error', 'Database connection error');
             return;
         }
+    }
+
+    const requestedConsole = String(params.console || '').trim();
+    const consoleFilter = document.getElementById('console-filter');
+    if (requestedConsole && consoleFilter) {
+        if (![...consoleFilter.options].some(option => option.value === requestedConsole)) {
+            consoleFilter.add(new Option(requestedConsole, requestedConsole));
+        }
+        consoleFilter.value = requestedConsole;
     }
     
     setTimeout(() => {
