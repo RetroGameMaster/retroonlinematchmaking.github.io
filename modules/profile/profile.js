@@ -101,7 +101,7 @@ export async function initModule(container, params) {
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
     // 4. Attach Event Listeners
-    attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
+    attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser, params?.discordLinkResult);
 
   } catch (error) {
     console.error("💥 Error loading profile:", error);
@@ -991,7 +991,7 @@ function getBackgroundCSS(bg) {
 // EVENT LISTENERS & INTERACTIVITY
 // ============================================================================
 
-function attachEventListeners(container, profile, isOwnProfile, currentUser) {
+function attachEventListeners(container, profile, isOwnProfile, currentUser, discordLinkResult = null) {
   const editBtn = document.getElementById('btn-edit-profile');
   const modal = document.getElementById('edit-modal');
   const cancelBtn = document.getElementById('btn-cancel-edit');
@@ -1053,7 +1053,22 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser) {
         discordLinkButton.textContent = 'Link Discord';
       }
     });
-    loadDiscordLinkStatus();
+    loadDiscordLinkStatus().then(() => {
+      const resultMessages = {
+        success: 'Discord linked successfully.',
+        already_linked: 'This Discord account or ROM account is already linked.',
+        authorization_denied: 'Discord authorization was canceled. You can try again.',
+        missing_parameters: 'Discord did not return the information needed to finish linking. Please try again.',
+        invalid_or_expired_state: 'The Discord link request expired or was already used. Please try again.',
+        token_exchange_failed: 'Discord authorization could not be completed. Please try again.',
+        discord_identity_failed: 'Discord did not return your account details. Please try again.',
+        invalid_discord_identity: 'Discord returned an invalid account identity.',
+        link_failed: 'Could not save the Discord account link. Please try again.',
+      };
+      if (discordLinkResult && resultMessages[discordLinkResult]) {
+        discordLinkStatus.textContent = resultMessages[discordLinkResult];
+      }
+    });
   }
 
   if (editBtn && modal) editBtn.addEventListener('click', () => {

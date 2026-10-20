@@ -290,6 +290,19 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         await loadGameDetail(identifier);
         return;
     }
+    if (hash === 'auth' || hash.startsWith('auth?')) {
+        const [authRoute, queryString = ''] = hash.split('?', 2);
+        const discordLinkResult = new URLSearchParams(queryString).get('discord_link');
+        if (discordLinkResult) {
+            window.history.replaceState(
+                null,
+                '',
+                `${window.location.pathname}${window.location.search}#/${authRoute}`
+            );
+        }
+        await loadModule(authRoute, { discordLinkResult });
+        return;
+    }
     // Check for guide detail page
     if (hash.startsWith('guide/')) {
         const slug = hash.split('/')[1];
@@ -308,8 +321,10 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
 
     // Check for profile detail page
     if (hash === 'profile' || hash.startsWith('profile/')) {
-        const parts = hash.split('/');
+        const [profileRoute, queryString = ''] = hash.split('?', 2);
+        const parts = profileRoute.split('/');
         const providedSlug = parts[1];
+        const discordLinkResult = new URLSearchParams(queryString).get('discord_link');
         if (!providedSlug) {
             const user = window.rom?.currentUser;
             if (!user) {
@@ -335,7 +350,14 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
                 return;
             }
         }
-        await loadProfileDetail(providedSlug);
+        if (discordLinkResult) {
+            window.history.replaceState(
+                null,
+                '',
+                `${window.location.pathname}${window.location.search}#/${profileRoute}`
+            );
+        }
+        await loadProfileDetail(providedSlug, discordLinkResult);
         return;
     }
 
@@ -375,7 +397,7 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
 }
 
 // Load module function
-async function loadModule(moduleName) {
+async function loadModule(moduleName, params = {}) {
     try {
         console.log(`📦 Loading module: ${moduleName}`);
         const appContent = document.getElementById('app-content');
@@ -403,12 +425,12 @@ async function loadModule(moduleName) {
                     navigateTo: function(module) { window.location.hash = `#/${module}`; }
                 };
 
-                if (module.default && typeof module.default === 'function') await module.default(rom);
-                else if (module.initModule) await module.initModule(rom);
-                else if (module.default && module.default.initModule) await module.default.initModule(rom);
-                else if (module.initAuthModule) await module.initAuthModule(rom);
-                else if (module.init) await module.init(rom);
-                else if (typeof module === 'function') await module(rom);
+                if (module.default && typeof module.default === 'function') await module.default(rom, params);
+                else if (module.initModule) await module.initModule(rom, params);
+                else if (module.default && module.default.initModule) await module.default.initModule(rom, params);
+                else if (module.initAuthModule) await module.initAuthModule(rom, params);
+                else if (module.init) await module.init(rom, params);
+                else if (typeof module === 'function') await module(rom, params);
 
                 currentModule = module;
                 console.log(`✅ Module ${moduleName} initialized`);
@@ -1042,7 +1064,7 @@ async function saveGameEdit(game) {
     }
 }
 
-async function loadProfileDetail(profileId) {
+async function loadProfileDetail(profileId, discordLinkResult = null) {
     const appContent = document.getElementById('app-content');
     if (!appContent) return;
     console.log('👤 Loading profile for ID/Slug:', profileId); 
@@ -1061,7 +1083,7 @@ async function loadProfileDetail(profileId) {
             loadModule: loadModule,
             navigateTo: function(module) { window.location.hash = `#/${module}`; }
         };
-        const params = { slug: profileId };
+        const params = { slug: profileId, discordLinkResult };
 
         if (module.default && typeof module.default === 'function') await module.default(rom, params);
         else if (module.initModule) await module.initModule(rom, params);

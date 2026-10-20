@@ -14,10 +14,12 @@ This feature is intentionally additive. It does not migrate Supabase Auth users,
 3. In Supabase Function secrets, configure:
    - `DISCORD_CLIENT_ID`
    - `DISCORD_CLIENT_SECRET`
-   - `SITE_URL` (the canonical ROM website origin, without a trailing slash)
+   - `SITE_URL` (the exact browser origin `https://retroonlinematchmaking.com`, without a trailing slash; it is also used for CORS)
 4. In the Discord Developer Portal, set the OAuth2 redirect URL to:
    `https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/discord-link?mode=callback`
 5. Verify the site origin in the Edge Function CORS configuration before production deployment.
+
+After changing `supabase/functions/discord-link/index.ts`, redeploy the function with `supabase functions deploy discord-link` and publish the website changes. The Discord Developer Portal redirect URL must exactly match the function's `redirect_uri`, including `?mode=callback`.
 
 The function validates the current Supabase JWT before starting a flow, uses a random one-time state stored as a hash, exchanges the code server-side, and writes the Discord identity through the service role. The service role key and Discord client secret must never be put in browser code.
 

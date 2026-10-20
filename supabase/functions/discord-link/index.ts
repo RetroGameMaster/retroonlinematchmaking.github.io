@@ -32,7 +32,7 @@ function redirectResult(userId: string | null, result: string) {
   const url = new URL(siteUrl || "https://retroonlinematchmaking.com");
   url.hash = userId
     ? `/profile/${encodeURIComponent(userId)}?discord_link=${encodeURIComponent(result)}`
-    : `/login?discord_link=${encodeURIComponent(result)}`;
+    : `/auth?discord_link=${encodeURIComponent(result)}`;
   return Response.redirect(url.toString(), 302);
 }
 
@@ -57,7 +57,7 @@ async function requireUser(req: Request) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  if (!siteUrl || !clientId || !clientSecret || !supabaseUrl || !serviceKey) {
+  if (!siteUrl || !clientId || !clientSecret || !supabaseUrl || !anonKey || !serviceKey) {
     return json({ error: "Discord linking is not configured on the server." }, 503);
   }
 
@@ -67,6 +67,23 @@ Deno.serve(async (req: Request) => {
   if (req.method === "GET" && url.searchParams.get("mode") === "callback") {
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
+    const oauthError = url.searchParams.get("error");
+    if (oauthError) {
+      if (!state) return redirectResult(null, "authorization_denied");
+      const stateHash = await sha256(state);
+      const now = new Date().toISOString();
+      const { data: stateRow, error: stateError } = await admin
+        .from("discord_oauth_states")
+        .update({ used_at: now })
+        .eq("state_hash", stateHash)
+        .is("used_at", null)
+        .gt("expires_at", now)
+        .select("user_id")
+        .maybeSingle();
+      if (stateError) console.error("Discord OAuth state lookup failed:", stateError.message);
+      if (!stateRow) return redirectResult(null, "invalid_or_expired_state");
+      return redirectResult(stateRow.user_id, "authorization_denied");
+    }
     if (!code || !state) return redirectResult(null, "missing_parameters");
 
     const stateHash = await sha256(state);
@@ -80,7 +97,8 @@ Deno.serve(async (req: Request) => {
       .select("user_id")
       .maybeSingle();
 
-    if (stateError || !stateRow) return redirectResult(null, "invalid_or_expired_state");
+    if (stateError) console.error("Discord OAuth state lookup failed:", stateError.message);
+    if (!stateRow) return redirectResult(null, "invalid_or_expired_state");
 
     try {
       const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
@@ -94,13 +112,19 @@ Deno.serve(async (req: Request) => {
           redirect_uri: redirectUri,
         }),
       });
-      if (!tokenResponse.ok) return redirectResult(stateRow.user_id, "token_exchange_failed");
+      if (!tokenResponse.ok) {
+        console.error("Discord OAuth token exchange failed:", tokenResponse.status);
+        return redirectResult(stateRow.user_id, "token_exchange_failed");
+      }
 
       const tokenData = await tokenResponse.json();
       const discordResponse = await fetch("https://discord.com/api/users/@me", {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
-      if (!discordResponse.ok) return redirectResult(stateRow.user_id, "discord_identity_failed");
+      if (!discordResponse.ok) {
+        console.error("Discord identity request failed:", discordResponse.status);
+        return redirectResult(stateRow.user_id, "discord_identity_failed");
+      }
 
       const discordUser = await discordResponse.json();
       if (typeof discordUser.id !== "string" || !/^\d{15,22}$/.test(discordUser.id)) {
@@ -116,10 +140,12 @@ Deno.serve(async (req: Request) => {
 
       if (insertError) {
         // Unique conflict means this website account or Discord account is already linked.
+        console.error("Discord account link insert failed:", insertError.code, insertError.message);
         return redirectResult(stateRow.user_id, insertError.code === "23505" ? "already_linked" : "link_failed");
       }
       return redirectResult(stateRow.user_id, "success");
-    } catch {
+    } catch (error) {
+      console.error("Discord OAuth callback failed:", error);
       return redirectResult(stateRow.user_id, "link_failed");
     }
   }
@@ -137,7 +163,10 @@ Deno.serve(async (req: Request) => {
       .select("discord_username, linked_at")
       .eq("user_id", user.id)
       .maybeSingle();
-    if (error) return json({ error: "Could not load Discord link status." }, 500);
+    if (error) {
+      console.error("Discord link status query failed:", error.message);
+      return json({ error: "Could not load Discord link status." }, 500);
+    }
     return json({ linked: !!data, username: data?.discord_username ?? null, linked_at: data?.linked_at ?? null });
   }
 
@@ -150,7 +179,10 @@ Deno.serve(async (req: Request) => {
     state_hash: await sha256(state),
     expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
-  if (stateInsertError) return json({ error: "Could not start Discord linking." }, 500);
+  if (stateInsertError) {
+    console.error("Discord OAuth state insert failed:", stateInsertError.message);
+    return json({ error: "Could not start Discord linking." }, 500);
+  }
 
   const discordUrl = new URL("https://discord.com/oauth2/authorize");
   discordUrl.search = new URLSearchParams({
