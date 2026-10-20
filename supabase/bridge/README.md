@@ -18,7 +18,7 @@ The `.bat` is a launcher, not a replacement for the one-time Supabase setup belo
 The sync includes:
 
 - `Games`, `Consoles`, and `GameAlternateNames`, inserted into the website's approved `games` catalog while preserving existing website game UUIDs. Existing exact title/console matches are linked; ambiguous duplicates are skipped for review.
-- Generic `ActiveGames` and `ActiveGameRecords`, plus provider-specific OpenSpy, PSRewired, and SOCOM.cc active-game records, published to `discord_live_services`. Generic connection types such as Dolphin Netplay and RetroArch Netplay retain their configured names; each service is displayed in its own website section.
+- Generic `ActiveGames` and `ActiveGameRecords`, plus provider-specific OpenSpy, PSRewired, and SOCOM.cc active-game records, published to `discord_live_services`. Active games without a matching per-guild record are associated with the guild configured for their connection type, so they are still included. Generic connection types such as Dolphin Netplay and RetroArch Netplay retain their configured names; each service is displayed in its own website section.
 - Active `LfgMessages`, with participant counts from `Users`, published to `discord_bot_lfg_invites`. Participant Discord IDs are not copied.
 - Aggregate game, active-service, active-player, active-invite, win, and team-win counts. No per-member profile or preference data is synced.
 

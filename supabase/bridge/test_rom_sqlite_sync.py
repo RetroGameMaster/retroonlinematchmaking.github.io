@@ -178,6 +178,25 @@ class ReadOnlyBridgeTests(unittest.TestCase):
             for service in services["12345678901234567"]
         ))
 
+    def test_active_games_without_records_are_included(self):
+        guild_id = "98765432109876543"
+        with sqlite3.connect(self.database_path) as connection:
+            connection.execute(
+                "INSERT INTO ConnectionTypes VALUES (?, ?, ?, ?, ?)",
+                (32, 1, int(guild_id), "Fallback Network", ""),
+            )
+            connection.execute("INSERT INTO ActiveGames VALUES (42, 10, 6, 32)")
+
+        with SYNC.open_database(self.database_path) as connection:
+            services = SYNC.read_services(connection)
+
+        fallback_service = services[guild_id][0]
+        self.assertEqual(fallback_service["source_key"], "generic-active:42")
+        self.assertEqual(fallback_service["service_name"], "Fallback Network")
+        self.assertEqual(fallback_service["game_title"], "Example Game")
+        self.assertEqual(fallback_service["players_online"], 6)
+        self.assertIn(guild_id, SYNC.read_known_guilds(self.database_path))
+
     def test_provider_only_guild_is_included_for_snapshot_cleanup(self):
         provider_only_guild = "98765432109876543"
         with sqlite3.connect(self.database_path) as connection:

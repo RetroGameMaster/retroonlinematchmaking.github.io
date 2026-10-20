@@ -17,6 +17,7 @@ const modules = {
     'live-lobbies': () => import('./modules/live-lobbies/live-lobbies.js'),
     'lfg-scheduler': () => import('./modules/lfg-scheduler/lfg-scheduler.js'),
     'guides': () => import('./modules/guides/guides.js'),
+    'forum': () => import('./modules/forum/forum.js'),
     'lfg': () => import('./modules/lfg/lfg.js'),
     'tournaments': () => import('./modules/tournaments/tournaments.js'),
 };
@@ -31,6 +32,7 @@ const fallbackContent = {
     'profile': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">👤 Your Profile</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading profile...</p></div></div>`,
     'submit-game': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">➕ Submit Game</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading submission form...</p></div></div>`,
     'search-users': `<div class="max-w-4xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">🔍 Find Users</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading user search...</p></div></div>`,
+    'forum': `<div class="max-w-6xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">💬 Community Forum</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading forum...</p></div></div>`,
     'lfg': `<div class="max-w-6xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">📅 Looking For Group</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading LFG board...</p></div></div>`,
     'tournaments': `<div class="max-w-6xl mx-auto p-4"><h1 class="text-3xl font-bold mb-6 text-cyan-400">🏆 Community Tournaments</h1><div class="text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div><p class="mt-2 text-gray-300">Loading tournament list...</p></div></div>`
 };
@@ -103,6 +105,15 @@ async function initializeApp() {
 async function handleHashChange() {
     const hash = window.location.hash.slice(2) || 'home';
     console.log('Hash changed to:', hash);
+    if (hash === 'forum' || hash.startsWith('forum/') || hash.startsWith('forum?')) {
+        const [route, queryString = ''] = hash.split('?', 2);
+        const routeParts = route.split('/');
+        await loadModule('forum', {
+            topicId: routeParts[1] === 'topic' ? routeParts[2] : null,
+            category: new URLSearchParams(queryString).get('category')
+        });
+        return;
+    }
 if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         const moduleName = 'direct-messages'; // Folder and File name
         let params = {};

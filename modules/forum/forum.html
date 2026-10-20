@@ -1,0 +1,41 @@
+<div id="forum-root" class="max-w-6xl mx-auto p-4 animate-fade-in">
+    <header class="mb-8 rounded-xl border border-cyan-500/30 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 p-6 md:p-8">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <p class="mb-2 text-sm font-bold uppercase tracking-widest text-cyan-400">ROM Community</p>
+                <h1 class="text-3xl md:text-4xl font-bold text-white">Community Forum</h1>
+                <p class="mt-2 max-w-2xl text-gray-400">Start a conversation, share retro gaming stories, ask for help, and talk with the community.</p>
+            </div>
+            <button id="forum-new-topic-button" type="button" class="rounded-lg bg-cyan-600 px-5 py-3 font-bold text-white transition hover:bg-cyan-500">
+                + New discussion
+            </button>
+        </div>
+    </header>
+
+    <div id="forum-status" role="status" aria-live="polite" class="mb-4 hidden rounded-lg border border-red-500/30 bg-red-950/40 p-3 text-sm text-red-200"></div>
+
+    <section id="forum-topic-form-panel" class="mb-6 hidden rounded-xl border border-cyan-500/30 bg-gray-800/80 p-5">
+        <h2 class="mb-4 text-xl font-bold text-white">Start a discussion</h2>
+        <form id="forum-topic-form" class="space-y-3">
+            <label class="block text-sm font-semibold text-gray-300" for="forum-topic-category">Category</label>
+            <select id="forum-topic-category" required class="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white"></select>
+            <label class="block text-sm font-semibold text-gray-300" for="forum-topic-title">Title</label>
+            <input id="forum-topic-title" type="text" maxlength="160" required placeholder="What would you like to discuss?" class="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white">
+            <label class="block text-sm font-semibold text-gray-300" for="forum-topic-content">Your post</label>
+            <textarea id="forum-topic-content" maxlength="10000" rows="6" required placeholder="Share the details..." class="w-full resize-y rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white"></textarea>
+            <div class="flex justify-end gap-3">
+                <button id="forum-cancel-topic" type="button" class="rounded-lg px-4 py-2 text-gray-300 hover:bg-gray-700">Cancel</button>
+                <button type="submit" class="rounded-lg bg-cyan-600 px-5 py-2 font-bold text-white hover:bg-cyan-500">Post discussion</button>
+            </div>
+        </form>
+    </section>
+
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div id="forum-category-filter" class="flex flex-wrap gap-2"></div>
+        <span id="forum-auth-hint" class="text-sm text-gray-500"></span>
+    </div>
+
+    <main id="forum-content" aria-live="polite">
+        <div class="rounded-xl border border-gray-700 bg-gray-800/60 p-8 text-center text-gray-400">Loading discussions…</div>
+    </main>
+</div>

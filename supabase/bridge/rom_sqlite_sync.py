@@ -153,6 +153,29 @@ def read_services(connection: sqlite3.Connection) -> dict[str, list[dict[str, An
         """
     ).fetchall())
 
+    rows.extend(connection.execute(
+        """
+        SELECT ag.Id AS source_key, ct.GuildId AS guild_id,
+               g.Title AS game_title, c.Abbreviation AS console,
+               ag.PlayersOnline AS players_online,
+               COALESCE(NULLIF(TRIM(ct.RoleName), ''), 'Discord') AS service_name,
+               'generic-active:' || ag.Id AS stable_source_key,
+               NULL AS thread_id
+        FROM ActiveGames ag
+        JOIN ConnectionTypes ct ON ct.Id = ag.ConnectionTypeId
+        LEFT JOIN Games g ON g.Id = ag.GameId
+        LEFT JOIN Consoles c ON c.Id = g.ConsoleId
+        WHERE ag.PlayersOnline > 0
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ActiveGameRecords agr
+            WHERE agr.ActiveGameId = ag.Id
+              AND agr.GuildId = ct.GuildId
+          )
+        ORDER BY ct.GuildId, ag.Id
+        """
+    ).fetchall())
+
     providers = (
         ("ActiveOpenSpyGameRecords", "OpenSpy", "Console"),
         ("ActiveRewiredGameRecords", "PSRewired", None),
@@ -357,6 +380,7 @@ def read_known_guilds(database_path: Path) -> set[str]:
         guild_queries = [
             "SELECT GuildId FROM LfgMessages",
             "SELECT GuildId FROM ActiveGameRecords",
+            "SELECT GuildId FROM ConnectionTypes",
             *(
                 f"SELECT GuildId FROM {table}"
                 for table in provider_tables
