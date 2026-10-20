@@ -38,6 +38,7 @@ export default function initModule(rom) {
   loadHomeLeaderboardPreview(); // Load Top Players
   loadRecentActivity();
   loadCommunitySpotlight();
+  loadDecompSpotlight();
   
   // 5. Start Realtime Listeners & Ticker
   refreshDynamicTicker(rom); // Initial Load of LFG + Tournaments
@@ -263,6 +264,21 @@ function renderHomeLayout() {
 
         <!-- RIGHT COLUMN -->
         <div class="space-y-6">
+
+          <!-- Decomp Community Hub -->
+          <section class="ambient-card overflow-hidden rounded-xl border border-purple-500/40 bg-gradient-to-br from-purple-950/80 via-gray-900 to-gray-800 shadow-lg shadow-purple-900/20">
+            <div class="border-b border-purple-500/30 p-4">
+              <h2 class="text-lg font-bold text-purple-200">🧩 Decomp Community Hub</h2>
+              <p class="mt-1 text-xs leading-relaxed text-gray-300">Discover community-led game decompilation projects and help bring their player communities together.</p>
+            </div>
+            <div id="home-decomp-projects" class="space-y-2 p-4">
+              <p class="text-sm text-gray-400">Loading approved projects…</p>
+            </div>
+            <div class="flex flex-wrap gap-2 border-t border-gray-700 p-4">
+              <a href="#/games" class="rounded-lg border border-gray-600 px-3 py-2 text-xs font-bold text-gray-200 hover:border-purple-400">Browse games</a>
+              <a href="#/submit-game?tab=decomp" class="rounded-lg bg-purple-700 px-3 py-2 text-xs font-bold text-white hover:bg-purple-600">Submit a project</a>
+            </div>
+          </section>
           
           <!-- Top Players (Leaderboard Preview) -->
           <div class="ambient-card bg-gray-800 rounded-xl border border-yellow-500/30 shadow-lg shadow-yellow-900/10 overflow-hidden">
@@ -663,6 +679,56 @@ async function loadCommunitySpotlight() {
 
   } catch (error) {
     console.error('Spotlight error:', error);
+  }
+}
+
+async function loadDecompSpotlight() {
+  const container = document.getElementById('home-decomp-projects');
+  if (!container) return;
+  try {
+    const { data: games, error } = await supabase
+      .from('games')
+      .select('id, slug, title, description, github_url')
+      .eq('status', 'approved')
+      .eq('console', 'Decomps')
+      .order('approved_at', { ascending: false })
+      .limit(3);
+    if (error) throw error;
+
+    container.replaceChildren();
+    if (!games?.length) {
+      const empty = document.createElement('p');
+      empty.className = 'text-sm text-gray-400';
+      empty.textContent = 'No projects are listed yet. Submit a project and help kick off the hub.';
+      container.appendChild(empty);
+      return;
+    }
+
+    for (const game of games) {
+      const link = document.createElement('a');
+      link.href = `#/game/${encodeURIComponent(game.slug || game.id)}`;
+      link.className = 'block rounded-lg border border-gray-700 bg-gray-950/60 p-3 hover:border-purple-400';
+      const title = document.createElement('span');
+      title.className = 'block truncate text-sm font-bold text-white';
+      title.textContent = game.title || 'Untitled project';
+      link.appendChild(title);
+      if (game.description) {
+        const description = document.createElement('span');
+        description.className = 'mt-1 block line-clamp-2 text-xs text-gray-400';
+        description.textContent = game.description;
+        link.appendChild(description);
+      }
+      if (game.github_url) {
+        const repo = document.createElement('span');
+        repo.className = 'mt-2 block text-[10px] text-cyan-300';
+        repo.textContent = 'View project details ↗';
+        link.appendChild(repo);
+      }
+      container.appendChild(link);
+    }
+  } catch (error) {
+    console.error('Could not load Decomp projects for home:', error);
+    container.innerHTML = '<p class="text-sm text-amber-300">Project listings are temporarily unavailable. You can still submit a project.</p>';
   }
 }
 

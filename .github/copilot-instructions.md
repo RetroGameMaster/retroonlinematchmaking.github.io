@@ -1,31 +1,43 @@
-# Copilot instructions
+# Copilot instructions for RetroOnlineMatchmaking
 
-## Build, test, and deploy
+## Build, test, and validation
 
-This is a browser-native static site: there is no package manifest, build step, configured linter, or automated test runner. There is no single-test command.
-
-To run the site locally, serve the repository root over HTTP (native ES modules and fetched templates need an HTTP origin):
-
-```sh
-python3 -m http.server 8000
-```
-
-Open `http://localhost:8000` and exercise the affected hash route and browser flow. Features that use Supabase require the configured project and suitable test accounts/data.
-
-`.github/workflows/deploy.yml` publishes the repository root to GitHub Pages on pushes to `main` or via manual workflow dispatch; there is no build artifact generation step.
+- This repository is a browser-only static site. There is no package manifest, no bundler, and no repo-wide lint configuration. The project is served directly from the repository root.
+- Local preview:
+  ```sh
+  cd /workspaces/retroonlinematchmaking.github.io
+  python3 -m http.server 8000
+  ```
+  Then open `http://localhost:8000` and exercise the relevant hash route in the browser.
+- Deploys are done by `.github/workflows/deploy.yml`, which uploads the repository root to GitHub Pages; there is no build artifact generation step.
+- For the Discord/bridge sync script (`supabase/bridge/rom_sqlite_sync.py`), the repo includes a focused test file:
+  ```sh
+  python3 -m unittest discover -s supabase/bridge -p 'test_*.py' -v
+  ```
+  To run a single case, use:
+  ```sh
+  python3 -m unittest supabase.bridge.test_rom_sqlite_sync.ReadOnlyBridgeTests.test_catalog_includes_alternate_names
+  ```
+- When touched code is not in the Python bridge tests, validate by browser flow rather than a generic "run all tests" command; there is no broader frontend test runner to use.
 
 ## Architecture
 
-- `index.html` is the site shell: it contains the shared navigation and app container, global styles, and CDN-loaded browser libraries (including Supabase JS). `app.js` initializes auth and shared UI, parses hash routes, and loads page modules into `#app-content`.
-- The standard module loader fetches `modules/<feature>/<feature>.html` and dynamically imports a JavaScript entry point registered in the `modules` map in `app.js`. Other paths (including direct messages, game lists with query parameters, game/guide/profile details, game discussions, and game editing) have dedicated dispatch logic in `app.js`. A module folder is not auto-discovered: add route/import handling there and preserve any existing route parameters.
-- Module entry points receive or use the shared `window.rom` app context (including the current user, Supabase client, and navigation/module-loading helpers), but initialization signatures and export styles vary. Check both the module and its call site in `app.js` before changing or adding one.
-- Shared browser-side services and helpers live in `lib/`; feature-specific UI and behavior live in `modules/`. Supabase data access is primarily made directly from those browser modules, so the database schema and row-level security policies are part of the feature contract.
-- Realtime subscriptions are created by individual features; follow the feature's existing subscription and cleanup pattern when changing realtime behavior.
-- Database changes belong in ordered SQL migrations under `supabase/migrations/`. Read `docs/discord-linking-live-lobbies.md` before changing Discord linking or live-lobby integration: that design is additive and deliberately keeps the Discord bot's database authoritative.
+- `index.html` is the app shell and shared styling layer. It includes the global navigation, the `#app-content` mount, Tailwind/CDN libraries, and the browser Supabase client.
+- `app.js` owns the app's hash-router behavior and module loading. It keeps a `modules` map for standard pages, handles special routes such as `#/auth`, `#/game/...`, `#/profile/...`, forum topic pages, and loads HTML templates from `modules/<feature>/<feature>.html` before initializing the matching JS entry point.
+- Feature modules live under `modules/`; shared helpers live under `lib/`. Most browser modules talk directly to Supabase instead of going through a backend layer, so DB tables and row-level security are part of the feature contract.
+- The app relies on `window.rom` as the shared context object. Module entry points usually receive `rom` and may read `currentUser`, `supabase`, `loadModule`, and `navigateTo`; check both the module and its call site in `app.js` before changing a module's signature or route handling.
+- Realtime subscriptions are started and cleaned up per feature; follow the local feature pattern when editing live data or presence features.
+- Privileged integrations live in Supabase Edge Functions under `supabase/functions/`; browser modules must use the shared public client and must not contain server secrets. The separate Python bridge under `supabase/bridge/` reads the bot SQLite database and sends allow-listed snapshots to the bridge function.
+- Database changes belong in ordered SQL migrations under `supabase/migrations/`. The migration order is significant; many features depend on the schema and permissions created there.
+- Feature-specific design notes live in `docs/`. Read the relevant doc before touching those systems, especially `docs/discord-linking-live-lobbies.md` and `docs/community-forum.md`.
 
-## Repository conventions
+## Key conventions
 
-- Use native JavaScript ES modules and relative imports; this project has no bundler or server-side application layer. Keep template fetch paths and import paths consistent with the existing router and deployment from the repository root.
-- Reuse the existing Supabase client from `lib/supabase.js` or the app context passed to the module; do not create a separate client. Keep privileged credentials and server-only integrations out of browser code. The Discord integration guide describes the intended server-side boundary.
-- Keep feature-specific markup in its matching HTML template when the route follows the standard module pattern, and keep its behavior in the matching JavaScript entry point. Update `app.js` when adding a feature that needs route or import registration; preserve special route/query handling where applicable.
-- Preserve existing hash URLs (`#/...`) when changing navigation; the site uses hash routing rather than server-side route handling.
+- Use native JavaScript ES modules and relative imports. There is no build tool to rewrite paths or bundle modules.
+- Keep feature markup in the matching HTML template and behavior in the matching JS entry point. When new page routes are added, update both the route logic in `app.js` and the module registration map.
+- Preserve the current hash-based URLs (`#/...`). Do not rename or silently remove routes unless you are intentionally changing the app's navigation contract.
+- Reuse the same Supabase client instead of creating a second browser client. Keep service-role secrets, server tokens, and other privileged values out of browser code.
+- Keep database-only logic and server-side integration in the migration / function boundary, not inside browser modules. The Discord bridge docs explicitly describe the intended server-side boundary.
+- When changing Discord or lobby integration, follow the additive design notes in `docs/discord-linking-live-lobbies.md`: the bot database remains authoritative, and the sync bridge is read-only with allow-listed data exports.
+- For forum changes, follow the schema and security model in `supabase/migrations/202610200004_community_forum.sql` and related deletion migration; the forum is a distinct table set and not part of the temporary chat-room system.
+- The repository already includes a Playwright MCP configuration in `.mcp.json` for browser-style validation. Use it when a route-level UI check needs browser automation.

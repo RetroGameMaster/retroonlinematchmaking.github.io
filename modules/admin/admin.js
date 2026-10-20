@@ -80,24 +80,27 @@ async function loadAdminPanel() {
       
       <!-- Navigation Tabs -->
       <div class="mb-6 border-b border-gray-700">
-        <nav class="flex flex-wrap -mb-px">
-    <button id="tab-submissions" class="admin-tab active py-3 px-4 font-medium text-sm border-b-2 border-cyan-500 text-cyan-500">
+        <nav class="flex -mb-px gap-1 overflow-x-auto" aria-label="Admin sections">
+    <button id="tab-submissions" class="admin-tab shrink-0 whitespace-nowrap active py-3 px-4 font-medium text-sm border-b-2 border-cyan-500 text-cyan-500">
         📥 Submissions (0)
     </button>
-    <button id="tab-games" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+    <button id="tab-decomp-submissions" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+        🧩 Decomp Projects
+    </button>
+    <button id="tab-games" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
         🎮 Games (0)
     </button>
-    <button id="tab-achievements" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+    <button id="tab-achievements" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     🏆 Game Achievements
 </button>
-<button id="tab-awards" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+<button id="tab-awards" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     🎖️ Award Manager
 </button>
-<button id="tab-guides" class="admin-tab ...">📚 Guides</button>
-<button id="tab-admins" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+<button id="tab-guides" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">📚 Guides</button>
+<button id="tab-admins" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     👑 Admins
 </button>
-    <button id="tab-users" class="admin-tab py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
+    <button id="tab-users" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
         👥 Users
     </button>
 </nav>
@@ -153,6 +156,9 @@ async function loadAdminPanel() {
       case 'tab-submissions':
         loadPendingSubmissions();
         break;
+      case 'tab-decomp-submissions':
+        openDecompSubmissions();
+        break;
       case 'tab-games':
         loadAdminGames();
         break;
@@ -197,6 +203,9 @@ function setupTabListeners() {
     case 'tab-submissions':
         loadPendingSubmissions();
         break;
+    case 'tab-decomp-submissions':
+        openDecompSubmissions();
+        break;
     case 'tab-games':
         loadAdminGames();
         break;
@@ -218,6 +227,16 @@ function setupTabListeners() {
 }
     });
   });
+}
+
+async function openDecompSubmissions() {
+  if (typeof window.loadDecompSubmissions === 'function') {
+    await window.loadDecompSubmissions();
+    return;
+  }
+
+  await loadPendingSubmissions();
+  await window.loadDecompSubmissions?.();
 }
 
 async function loadInitialStats() {
@@ -348,9 +367,11 @@ async function loadPendingSubmissions() {
       .from('game_submissions')
       .select('*')
       .eq('status', 'pending')
+      .neq('console', 'Decomps')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+    window.loadDecompSubmissions = loadDecompSubmissions;
 
     // Update count
     document.getElementById('pending-count').textContent = submissions?.length || 0;
@@ -370,6 +391,134 @@ async function loadPendingSubmissions() {
         </div>
       `;
       return;
+    }
+
+    async function loadDecompSubmissions() {
+      const content = document.getElementById('admin-content');
+      if (!content) return;
+      content.innerHTML = '<div class="py-10 text-center text-gray-400">Loading Decomp project submissions…</div>';
+
+      try {
+        const { data: submissions, error } = await supabase
+          .from('game_submissions')
+          .select('*')
+          .eq('console', 'Decomps')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        const tab = document.getElementById('tab-decomp-submissions');
+        if (tab) tab.textContent = `🧩 Decomp Projects (${submissions?.length || 0})`;
+
+        if (!submissions?.length) {
+          content.innerHTML = '<div class="py-12 text-center"><div class="mb-3 text-4xl">🧩</div><h2 class="text-xl font-bold text-white">No pending Decomp projects</h2><p class="mt-2 text-sm text-gray-400">New community submissions will be listed here for review.</p></div>';
+          return;
+        }
+
+        content.innerHTML = `
+          <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div><h2 class="text-xl font-bold text-white">Decomp project review</h2><p class="mt-1 text-sm text-gray-400">Check the project’s GitHub repository and optional gameplay video before approving.</p></div>
+            <span class="rounded-full border border-cyan-500/30 bg-cyan-950/50 px-3 py-1 text-sm text-cyan-200">${submissions.length} pending</span>
+          </div>
+          <div class="space-y-5">${submissions.map(submission => {
+            const github = parseGitHubRepository(submission.github_url);
+            const video = getYouTubeEmbedUrl(submission.youtube_url);
+            const previewId = `github-preview-${submission.id}`;
+            return `
+              <article class="rounded-xl border border-gray-700 bg-gray-900 p-4 sm:p-6">
+                <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <h3 class="break-words text-xl font-bold text-white">${escapeHtml(submission.title || 'Untitled project')}</h3>
+                    <p class="mt-1 text-sm text-gray-400">${escapeHtml(submission.year || 'Year not provided')} · ${escapeHtml(submission.multiplayer_type || 'Multiplayer details not provided')}</p>
+                  </div>
+                  <span class="rounded-full bg-yellow-900/60 px-3 py-1 text-xs font-semibold text-yellow-200">Pending review</span>
+                </div>
+                <p class="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">${escapeHtml(submission.description || 'No description provided.')}</p>
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div id="${previewId}" class="min-h-24 rounded-lg border border-gray-700 bg-gray-950 p-4">
+                    ${github ? `
+                      <a href="${escapeHtml(github.url)}" target="_blank" rel="noopener noreferrer" class="font-semibold text-cyan-300 hover:underline">🐙 GitHub · ${escapeHtml(github.owner)}/${escapeHtml(github.repo)}</a>
+                      <p class="mt-2 text-xs text-gray-500">Loading public repository preview…</p>
+                    ` : '<p class="text-sm text-red-300">Missing or invalid GitHub repository URL.</p>'}
+                  </div>
+                  <div class="rounded-lg border border-gray-700 bg-gray-950 p-3">
+                    ${video ? `<iframe src="${escapeHtml(video)}" title="${escapeHtml(submission.title || 'Decomp project')} YouTube preview" class="aspect-video w-full rounded" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>` : submission.youtube_url ? `<p class="text-sm text-red-300">The supplied video is not a valid YouTube URL.</p>` : '<p class="p-2 text-sm text-gray-500">No optional YouTube preview was submitted.</p>'}
+                  </div>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-400">
+                  <span>Submitted by ${escapeHtml(submission.user_email || 'Unknown')}</span>
+                  ${submission.notes ? `<span>Contact / notes: ${escapeHtml(submission.notes)}</span>` : ''}
+                  <span>${submission.created_at ? new Date(submission.created_at).toLocaleString() : ''}</span>
+                  ${github ? `<a href="${escapeHtml(github.url)}" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:underline">Open project repository ↗</a>` : ''}
+                  ${video ? `<a href="${escapeHtml(submission.youtube_url)}" target="_blank" rel="noopener noreferrer" class="text-red-300 hover:underline">Open video on YouTube ↗</a>` : ''}
+                </div>
+                <div class="mt-5 flex flex-col gap-2 border-t border-gray-800 pt-4 sm:flex-row">
+                  <button type="button" onclick="approveSubmission('${escapeHtml(submission.id)}')" class="min-h-11 flex-1 rounded-lg bg-green-700 px-4 py-2 font-bold text-white hover:bg-green-600">Approve and publish</button>
+                  <button type="button" onclick="rejectSubmission('${escapeHtml(submission.id)}')" class="min-h-11 flex-1 rounded-lg bg-red-900 px-4 py-2 font-bold text-white hover:bg-red-800">Reject</button>
+                </div>
+              </article>`;
+          }).join('')}</div>`;
+
+        for (const submission of submissions) {
+          const repo = parseGitHubRepository(submission.github_url);
+          if (repo) void loadGitHubRepositoryPreview(repo, `github-preview-${submission.id}`);
+        }
+      } catch (error) {
+        console.error('Could not load Decomp project submissions:', error);
+        content.innerHTML = `<div class="rounded-lg border border-red-900 bg-red-950/30 p-5 text-red-300">Could not load Decomp submissions: ${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    function parseGitHubRepository(rawUrl) {
+      if (!rawUrl) return null;
+      try {
+        const url = new URL(rawUrl);
+        if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== 'github.com') return null;
+        const parts = url.pathname.split('/').filter(Boolean);
+        if (parts.length < 2 || !/^[\w.-]+$/.test(parts[0]) || !/^[\w.-]+$/.test(parts[1])) return null;
+        const repo = parts[1].replace(/\.git$/i, '');
+        return { owner: parts[0], repo, url: `https://github.com/${parts[0]}/${repo}` };
+      } catch {
+        return null;
+      }
+    }
+
+    function getYouTubeEmbedUrl(rawUrl) {
+      if (!rawUrl) return '';
+      try {
+        const url = new URL(rawUrl);
+        if (!['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(url.hostname.toLowerCase())) return '';
+        const id = url.hostname.toLowerCase() === 'youtu.be'
+          ? url.pathname.split('/').filter(Boolean)[0]
+          : url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts|live)\/([^/]+)/)?.[1];
+        return id && /^[\w-]{11}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${id}` : '';
+      } catch {
+        return '';
+      }
+    }
+
+    async function loadGitHubRepositoryPreview(repo, containerId) {
+      const preview = document.getElementById(containerId);
+      if (!preview) return;
+      try {
+        const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.repo)}`, {
+          headers: { Accept: 'application/vnd.github+json' },
+        });
+        if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
+        const data = await response.json();
+        preview.innerHTML = `
+          <a href="${escapeHtml(data.html_url)}" target="_blank" rel="noopener noreferrer" class="font-semibold text-cyan-300 hover:underline">🐙 ${escapeHtml(data.full_name)}</a>
+          <p class="mt-2 text-sm text-gray-300">${escapeHtml(data.description || 'No repository description.')}</p>
+          <div class="mt-3 flex flex-wrap gap-3 text-xs text-gray-400">
+            ${data.language ? `<span>${escapeHtml(data.language)}</span>` : ''}
+            <span>★ ${Number(data.stargazers_count || 0).toLocaleString()}</span>
+            <span>⑂ ${Number(data.forks_count || 0).toLocaleString()}</span>
+            ${data.license?.spdx_id ? `<span>${escapeHtml(data.license.spdx_id)}</span>` : ''}
+            <span>${data.archived ? 'Archived' : 'Active repository'}</span>
+          </div>`;
+      } catch (error) {
+        console.warn('GitHub repository preview unavailable:', repo.url, error);
+        preview.insertAdjacentHTML('beforeend', '<p class="mt-2 text-xs text-amber-300">Repository preview unavailable; open the verified GitHub link to inspect it.</p>');
+      }
     }
 
     let html = ` <div class="space-y-6">`;
@@ -853,119 +1002,126 @@ window.removeAdminFromList = async function(userId, userEmail) {
 // USER MANAGEMENT FUNCTION
 async function loadAllUsers() {
   const content = document.getElementById('admin-content');
+  if (!content) return;
   try {
-    content.innerHTML = `
-      <div class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
-        <p class="text-gray-400 mt-2">Loading users...</p>
-      </div>
-    `;
-
+    content.innerHTML = '<div class="py-8 text-center text-gray-400">Loading users and moderation status…</div>';
     const { data: users, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, email, username, avatar_url, favorite_console, created_at, is_admin')
       .order('created_at', { ascending: false });
-
     if (error) throw error;
 
-    let html = `
-      <div>
-        <h2 class="text-2xl font-bold text-white mb-6">All Users (${users?.length || 0})</h2>
-       
-        <div class="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-          <table class="min-w-full divide-y divide-gray-700">
-            <thead class="bg-gray-800">
-              <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  User
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Email
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Joined
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody id="usersList" class="bg-gray-900 divide-y divide-gray-800">
-              ${users?.map(user => {
-                // Check if user is admin - handle missing column
-                const isUserAdmin = user.is_admin === true;
-                 return `
-                <tr class="hover:bg-gray-800">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
-                        <span class="text-white font-bold">
-                          ${(user.username || user.email).charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div class="ml-4">
-                        <div class="text-sm font-medium text-white">
-                          ${user.username || 'No username'}
-                          ${user.email === 'retrogamemasterra@gmail.com' ?  
-                            ' <span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Main Admin</span>' : ''}
-                          ${isUserAdmin && user.email !== 'retrogamemasterra@gmail.com' ? 
-                            ' <span class="ml-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs">Admin</span>' : ''}
-                        </div>
-                        <div class="text-sm text-gray-300">
-                          ${user.favorite_console || 'No console'}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    ${user.email}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      isUserAdmin ? 'bg-yellow-900 text-yellow-200' : 'bg-green-900 text-green-200'
-                    }">
-                      ${isUserAdmin ? 'Admin' : 'User'}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    ${new Date(user.created_at).toLocaleDateString()}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div class="flex space-x-2">
-                      ${user.email === 'retrogamemasterra@gmail.com' ? 
-                        '<span class="text-gray-400">Main Admin</span>' :
-                        isUserAdmin ? 
-                          `<button onclick="removeAdminFromList('${user.id}', '${escapeString(user.email)}')" 
-                                   class="text-red-400 hover:text-red-300 bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
-                            Remove Admin
-                          </button>` :
-                          currentUser.email === 'retrogamemasterra@gmail.com' ?
-                            `<button onclick="promoteUserToAdmin('${user.id}', '${escapeString(user.email)}')" 
-                                     class="text-green-400 hover:text-green-300 bg-green-600 hover:bg-green-700 px-3 py-1 rounded">
-                              Make Admin
-                            </button>` :
-                            '<span class="text-gray-400">Main admin only</span>'
-                      }
-                    </div>
-                  </td>
-                </tr>
-              `}).join('') || `
-                <tr>
-                  <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                    No users found.
-                  </td>
-                </tr>
-              `}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
+    const { data: restrictions, error: restrictionError } = await supabase
+      .from('community_user_restrictions')
+      .select('user_id, restriction_type, reason, expires_at');
+    if (restrictionError) throw restrictionError;
+    const restrictionsByUser = new Map((restrictions || []).map(item => [item.user_id, item]));
 
-    content.innerHTML = html;
+    content.innerHTML = `
+      <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-bold text-white">User management</h2>
+          <p class="mt-1 text-sm text-gray-400">Timeouts and bans restrict community posting, messages, and game submissions. Browsing and sign-in remain available.</p>
+        </div>
+        <span class="rounded-full border border-gray-600 bg-gray-900 px-3 py-1 text-sm text-gray-300">${users?.length || 0} accounts</span>
+      </div>
+      <div class="space-y-3">
+        ${(users || []).map(user => {
+          const admin = user.is_admin === true;
+          const restriction = restrictionsByUser.get(user.id);
+          const active = restriction && (restriction.restriction_type === 'ban' || new Date(restriction.expires_at) > new Date());
+          const statusText = active
+            ? restriction.restriction_type === 'ban'
+              ? 'Permanently banned from community actions'
+              : `Timed out until ${new Date(restriction.expires_at).toLocaleString()}`
+            : admin ? 'Administrator' : 'Active';
+          const statusClass = active ? 'border-red-700 bg-red-950/50 text-red-200' : admin ? 'border-amber-700 bg-amber-950/40 text-amber-200' : 'border-green-800 bg-green-950/30 text-green-200';
+          const safeId = escapeHtml(user.id);
+          return `
+            <article class="rounded-xl border border-gray-700 bg-gray-900 p-4">
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div class="flex min-w-0 items-center gap-3">
+                  ${user.avatar_url ? `<img src="${escapeHtml(user.avatar_url)}" alt="" class="h-11 w-11 shrink-0 rounded-full object-cover">` : `<span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-700 to-purple-700 text-lg font-bold text-white">${escapeHtml((user.username || user.email || '?').slice(0, 1).toUpperCase())}</span>`}
+                  <div class="min-w-0">
+                    <p class="truncate font-bold text-white">${escapeHtml(user.username || 'No username')} ${admin ? '<span class="ml-1 text-xs font-semibold text-amber-300">Admin</span>' : ''}</p>
+                    <p class="break-all text-sm text-gray-400">${escapeHtml(user.email || 'Email unavailable')}</p>
+                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(user.favorite_console || 'No favorite console')} · Joined ${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'unknown'}</p>
+                  </div>
+                </div>
+                <span class="w-fit rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}">${escapeHtml(statusText)}</span>
+              </div>
+              ${active && restriction.reason ? `<p class="mt-3 rounded-lg bg-gray-950 px-3 py-2 text-sm text-gray-300"><span class="font-semibold text-gray-400">Reason:</span> ${escapeHtml(restriction.reason)}</p>` : ''}
+              ${admin ? '<p class="mt-3 text-xs text-gray-500">Admin accounts are protected from community moderation.</p>' : `
+                <div class="mt-4 grid grid-cols-1 gap-2 border-t border-gray-800 pt-4 md:grid-cols-[minmax(160px,1fr)_minmax(130px,0.7fr)_minmax(180px,1fr)_auto_auto]">
+                  <select data-duration-for="${safeId}" class="min-h-10 rounded-lg border border-gray-700 bg-gray-950 px-3 text-sm text-white" aria-label="Timeout duration">
+                    <option value="1">Timeout · 1 hour</option>
+                    <option value="24">Timeout · 24 hours</option>
+                    <option value="168">Timeout · 7 days</option>
+                    <option value="custom">Custom duration</option>
+                  </select>
+                  <input data-custom-hours-for="${safeId}" type="number" min="1" max="8760" placeholder="Hours (1–8760)" class="hidden min-h-10 rounded-lg border border-gray-700 bg-gray-950 px-3 text-sm text-white" aria-label="Custom timeout duration in hours">
+                  <input data-reason-for="${safeId}" maxlength="1000" placeholder="Reason (optional)" class="min-h-10 rounded-lg border border-gray-700 bg-gray-950 px-3 text-sm text-white" aria-label="Moderation reason">
+                  <button type="button" data-timeout-user="${safeId}" class="min-h-10 rounded-lg bg-amber-700 px-3 text-sm font-bold text-white hover:bg-amber-600">Apply timeout</button>
+                  <button type="button" data-ban-user="${safeId}" class="min-h-10 rounded-lg bg-red-800 px-3 text-sm font-bold text-white hover:bg-red-700">Permanent ban</button>
+                  ${active ? `<button type="button" data-unrestrict-user="${safeId}" class="min-h-10 rounded-lg border border-gray-600 px-3 text-sm font-bold text-gray-200 hover:bg-gray-800">Lift restriction</button>` : ''}
+                </div>
+              `}
+            </article>`;
+        }).join('') || '<p class="py-8 text-center text-gray-400">No users found.</p>'}
+      </div>`;
+
+    content.onchange = event => {
+      const select = event.target.closest('[data-duration-for]');
+      if (!select) return;
+      const customHours = content.querySelector(`[data-custom-hours-for="${select.dataset.durationFor}"]`);
+      customHours?.classList.toggle('hidden', select.value !== 'custom');
+      if (select.value === 'custom') customHours?.focus();
+    };
+    content.onclick = async event => {
+      const timeoutButton = event.target.closest('[data-timeout-user]');
+      const banButton = event.target.closest('[data-ban-user]');
+      const clearButton = event.target.closest('[data-unrestrict-user]');
+      const button = timeoutButton || banButton || clearButton;
+      if (!button) return;
+      const userId = button.dataset.timeoutUser || button.dataset.banUser || button.dataset.unrestrictUser;
+      button.disabled = true;
+      try {
+        if (clearButton) {
+          const { error } = await supabase.rpc('admin_clear_community_restriction', { p_user_id: userId });
+          if (error) throw error;
+          showNotification('Community restriction lifted.');
+        } else {
+          const isBan = Boolean(banButton);
+          if (isBan && !confirm('Permanently ban this account from community actions? This can be reversed by an admin.')) {
+            button.disabled = false;
+            return;
+          }
+          const row = button.closest('article');
+          const duration = row.querySelector(`[data-duration-for="${userId}"]`)?.value;
+          const customHours = row.querySelector(`[data-custom-hours-for="${userId}"]`)?.value;
+          const durationHours = isBan ? null : Number(duration === 'custom' ? customHours : duration);
+          if (!isBan && (!Number.isInteger(durationHours) || durationHours < 1 || durationHours > 8760)) {
+            showNotification('Enter a custom timeout between 1 and 8760 hours.', 'error');
+            button.disabled = false;
+            return;
+          }
+          const reason = row.querySelector(`[data-reason-for="${userId}"]`)?.value || '';
+          const { error } = await supabase.rpc('admin_set_community_restriction', {
+            p_user_id: userId,
+            p_restriction_type: isBan ? 'ban' : 'timeout',
+            p_duration_hours: durationHours,
+            p_reason: reason,
+          });
+          if (error) throw error;
+          showNotification(isBan ? 'Permanent community ban applied.' : 'Community timeout applied.');
+        }
+        await loadAllUsers();
+      } catch (error) {
+        console.error('Could not update community moderation status:', error);
+        showNotification(`Moderation action failed: ${error.message}`, 'error');
+        button.disabled = false;
+      }
+    };
 
   } catch (error) {
     console.error('Error loading users:', error);
@@ -974,7 +1130,8 @@ async function loadAllUsers() {
         <div class="text-center py-8">
           <div class="text-4xl mb-4">⚠️</div>
           <h3 class="text-xl font-bold text-white mb-2">Error</h3>
-          <p class="text-red-400">${error.message}</p>
+          <p class="text-red-400">${escapeHtml(error.message)}</p>
+          <p class="mt-2 text-sm text-gray-400">Apply the Decomp and community moderation database migration if this feature is not configured yet.</p>
         </div>
       `;
     }
@@ -1841,8 +1998,10 @@ window.approveSubmission = async (submissionId) => {
     const gameData = {
       title: submission.title,
       console: normalizeConsoleName(submission.console),
+      status: 'approved',
       year: submission.year,
       description: submission.description,
+      genre: submission.genre || (submission.console === 'Decomps' ? 'Recomps' : null),
       file_url: submission.file_url,
       submitted_by: submission.user_id,
       submitted_email: submission.user_email,
@@ -1856,6 +2015,9 @@ window.approveSubmission = async (submissionId) => {
       servers_available: submission.servers_available,
       server_details: submission.server_details,
       cover_image_url: submission.cover_image_url,
+      github_url: submission.github_url || null,
+      youtube_url: submission.youtube_url || null,
+      video_url: submission.youtube_url || submission.video_url || null,
       screenshot_urls: submission.screenshot_urls || [],
       slug: slug
     };

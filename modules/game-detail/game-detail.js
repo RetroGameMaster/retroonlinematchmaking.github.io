@@ -375,10 +375,17 @@ async function renderGame(game, container, rom, identifier) {
   </div>
 `;
     // 6. Video & Connection Details
-    const videoHTML = game.video_url ? `
+    const videoHTML = (game.video_url || game.youtube_url) ? `
         <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-2xl relative" style="aspect-ratio: 16/9;">
-            <iframe src="${getEmbedUrl(game.video_url)}" title="Game Trailer" frameborder="0" allowfullscreen class="w-full h-full absolute top-0 left-0"></iframe>
+            <iframe src="${getEmbedUrl(game.video_url || game.youtube_url)}" title="${escapeAttribute(game.console === 'Decomps' ? 'Decomp project video' : 'Game video')}" frameborder="0" allowfullscreen class="w-full h-full absolute top-0 left-0"></iframe>
         </div>
+    ` : '';
+    const projectRepositoryHTML = game.github_url ? `
+      <div class="mb-8 rounded-xl border border-purple-500/40 bg-gray-900/80 p-5">
+        <h3 class="text-lg font-bold text-purple-200">🧩 Decomp Project</h3>
+        <p class="mt-1 text-sm text-gray-300">Explore the project source and join its development community.</p>
+        <a href="${escapeAttribute(game.github_url)}" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex min-h-11 items-center rounded-lg bg-gray-800 px-4 py-2 font-bold text-cyan-300 hover:bg-gray-700 hover:underline">Open GitHub project ↗</a>
+      </div>
     ` : '';
 
     let connectionDetails = [];
@@ -456,6 +463,7 @@ async function renderGame(game, container, rom, identifier) {
                     </div>
 
                     ${videoHTML}
+                    ${projectRepositoryHTML}
                     ${connectionHTML}
                     
                     ${game.screenshot_urls && game.screenshot_urls.length > 0 ? `

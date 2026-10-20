@@ -1,5 +1,4 @@
 // modules/chat/components.js
-import { createUserAvatarLink } from '../../lib/userLinks.js';
 import { formatMessageTime, linkifyText, sanitizeInput } from './utils.js';
 
 /**
@@ -35,20 +34,17 @@ export function renderMessage(msg, currentUserId, displayName, avatarUrl = '', p
   const profileCard = renderChatProfileCard(msg.user_id || msg.sender_id, displayName, avatarUrl, profile);
 
   return `
-    <div class="message-group mb-4 hover:bg-gray-800/30 p-2 rounded-lg transition-colors group ${isOwn ? 'flex-row-reverse' : ''}" data-message-id="${msg.id}">
-      <div class="flex items-start gap-3 max-w-full">
-        <div class="flex-1 min-w-0">
-          <div class="mb-2 flex items-center gap-2 ${isOwn ? 'justify-end' : ''}">
+    <div class="message-group group mb-4 rounded-lg p-2 transition-colors hover:bg-gray-800/30" data-message-id="${escapeAttribute(msg.id)}">
+      <div class="flex w-full flex-col ${isOwn ? 'items-end' : 'items-start'}">
+        <div class="mb-1.5 flex max-w-full items-center gap-2">
             ${profileCard}
-            <span class="text-xs text-gray-400 font-mono" title="${new Date(msg.created_at).toLocaleString()}">${timeString}</span>
+            <time class="text-xs text-gray-400 font-mono" datetime="${escapeAttribute(msg.created_at)}" title="${escapeAttribute(new Date(msg.created_at).toLocaleString())}">${timeString}</time>
             ${isOwn ? `<button onclick="window.chatActions.openMenu('${escapeAttribute(msg.id)}')" aria-label="Message options" class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white transition ml-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg></button>` : ''}
-          </div>
-          <div class="text-gray-200 text-sm leading-relaxed break-words mt-1 ${isOwn ? 'text-right' : ''}">
-            ${safeMessage}
-          </div>
-          
-          ${msg.is_edited ? '<span class="text-[10px] text-gray-500 italic">(edited)</span>' : ''}
         </div>
+        <div class="max-w-[95%] break-words rounded-lg border border-gray-700 px-3 py-2 text-sm leading-relaxed text-gray-200 sm:max-w-[85%] ${isOwn ? 'rounded-tl-none bg-cyan-900/40 text-cyan-50' : 'rounded-tr-none bg-gray-800'}">
+          ${safeMessage}
+        </div>
+        ${msg.is_edited ? '<span class="mt-1 text-[10px] italic text-gray-500">(edited)</span>' : ''}
       </div>
     </div>
   `;
@@ -67,7 +63,7 @@ function renderChatProfileCard(userId, displayName, avatarUrl, profile) {
     try {
       const imageUrl = new URL(bgValue, window.location.href);
       if (imageUrl.protocol === 'https:' || imageUrl.protocol === 'http:') {
-        backgroundStyle = `background-image: linear-gradient(#0005, #0008), url("${escapeAttribute(imageUrl.href)}"); background-size: cover; background-position: center;`;
+        backgroundStyle = `background-image: url("${escapeAttribute(imageUrl.href)}"); background-size: cover; background-position: center;`;
       }
     } catch {
       backgroundStyle = 'background-color: #1f2937;';
@@ -80,9 +76,17 @@ function renderChatProfileCard(userId, displayName, avatarUrl, profile) {
   const safeAvatar = safeImageUrl(avatarUrl);
 
   return `
-    <a href="${escapeAttribute(href)}" class="inline-flex max-w-[220px] min-w-0 items-center gap-2 overflow-hidden rounded-lg border border-gray-600 px-2 py-1 shadow-sm hover:border-cyan-400" style="${backgroundStyle}" aria-label="View ${username}'s profile">
-      ${safeAvatar ? `<img src="${escapeAttribute(safeAvatar)}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-white/50 object-cover">` : '<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-800 font-bold text-white">?</span>'}
-      <span class="min-w-0 text-left"><span class="block truncate text-xs font-bold text-white">${username}${rankText}</span>${motto}${xp ? `<span class="block text-[10px] text-cyan-100">${xp}</span>` : ''}</span>
+    <a href="${escapeAttribute(href)}" class="gamercard chat-gamercard relative block w-[min(100%,260px)] overflow-hidden rounded-lg border border-gray-700 bg-gray-900 shadow-md transition hover:border-cyan-400" aria-label="View ${username}'s profile">
+      <span class="absolute inset-0" style="${backgroundStyle}; opacity: .72; filter: brightness(.82);"></span>
+      <span class="absolute inset-0 bg-gradient-to-br from-black/40 to-black/20"></span>
+      <span class="relative z-10 flex min-h-[76px] items-center gap-2 p-2">
+        ${safeAvatar ? `<img src="${escapeAttribute(safeAvatar)}" alt="" class="h-10 w-10 shrink-0 rounded-full border border-cyan-500 object-cover">` : '<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-500 bg-cyan-800 font-bold text-white">?</span>'}
+        <span class="min-w-0 flex-1 text-left">
+          <span class="flex flex-wrap items-center gap-1"><span class="max-w-full truncate text-xs font-bold text-white">${username}</span>${rankText ? `<span class="truncate text-[9px] font-bold text-cyan-100">${rankText}</span>` : ''}</span>
+          ${motto}
+          ${xp ? `<span class="mt-1 block text-[10px] font-bold text-cyan-200">${xp}</span>` : ''}
+        </span>
+      </span>
     </a>
   `;
 }

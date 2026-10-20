@@ -1,7 +1,7 @@
 // modules/submit-game/submit-game.js - COMPLETE FIXED VERSION WITH SLUGS & NEW METADATA
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 
-function initSubmitGame(rom) {
+function initSubmitGame(rom, params = {}) {
   console.log('🎮 Initializing game submission form...');
 
   // Ensure we have supabase
@@ -23,6 +23,9 @@ function initSubmitGame(rom) {
     document.getElementById('loginPrompt').style.display = 'none';
     document.getElementById('submissionForm').style.display = 'block';
   }
+
+  setupDecompSubmissionForm(rom);
+  if (params.tab === 'decomp') document.getElementById('decomp-submission-tab')?.click();
 
   let methodCount = 1;
   let selectedCoverImage = null;
@@ -709,6 +712,191 @@ function initSubmitGame(rom) {
     });
     methodCount = methods.length;
   }
+}
+
+function setupDecompSubmissionForm(rom) {
+  const standardTab = document.getElementById('standard-submission-tab');
+  const decompTab = document.getElementById('decomp-submission-tab');
+  const standardPanel = document.getElementById('standard-submission-panel');
+  const decompPanel = document.getElementById('decomp-submission-panel');
+  const githubInput = document.getElementById('decomp-github-url');
+  const youtubeInput = document.getElementById('decomp-youtube-url');
+  const result = document.getElementById('decomp-submit-result');
+  const form = document.getElementById('decompSubmissionForm');
+  if (!standardTab || !decompTab || !standardPanel || !decompPanel || !form) return;
+
+  const showTab = (tab) => {
+    const decompActive = tab === 'decomp';
+    standardPanel.classList.toggle('hidden', decompActive);
+    decompPanel.classList.toggle('hidden', !decompActive);
+    standardTab.className = `rounded-lg px-4 py-3 text-sm font-bold ${decompActive ? 'text-gray-300 hover:bg-gray-800' : 'bg-cyan-700 text-white'}`;
+    decompTab.className = `rounded-lg px-4 py-3 text-sm font-bold ${decompActive ? 'bg-purple-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`;
+  };
+  standardTab.addEventListener('click', () => showTab('standard'));
+  decompTab.addEventListener('click', () => showTab('decomp'));
+
+  let githubPreviewTimer;
+  githubInput?.addEventListener('input', () => {
+    clearTimeout(githubPreviewTimer);
+    githubPreviewTimer = setTimeout(() => void renderGitHubSubmissionPreview(githubInput.value), 400);
+  });
+  youtubeInput?.addEventListener('input', () => renderYouTubeSubmissionPreview(youtubeInput.value));
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!rom.currentUser) {
+      showDecompResult('error', 'Please sign in before submitting a project.');
+      return;
+    }
+
+    const title = document.getElementById('decomp-title').value.trim();
+    const description = document.getElementById('decomp-description').value.trim();
+    const githubUrl = normalizeGitHubRepositoryUrl(githubInput?.value);
+    const youtubeUrl = normalizeYouTubeUrl(youtubeInput?.value);
+    if (!githubUrl) {
+      showDecompResult('error', 'Enter a public GitHub repository URL such as https://github.com/owner/project.');
+      githubInput?.focus();
+      return;
+    }
+    if (youtubeInput?.value.trim() && !youtubeUrl) {
+      showDecompResult('error', 'The optional video must be a valid YouTube video URL.');
+      youtubeInput.focus();
+      return;
+    }
+    if (title.length < 2 || description.length < 20) {
+      showDecompResult('error', 'Add a project title and a description of at least 20 characters.');
+      return;
+    }
+
+    const button = document.getElementById('decomp-submit-button');
+    button.disabled = true;
+    button.textContent = 'Submitting…';
+    try {
+      const { error } = await rom.supabase.from('game_submissions').insert({
+        title,
+        console: 'Decomps',
+        year: null,
+        description,
+        notes: document.getElementById('decomp-contact').value.trim() || null,
+        user_id: rom.currentUser.id,
+        user_email: rom.currentUser.email,
+        connection_method: 'Decomp project repository',
+        connection_details: JSON.stringify({ github_url: githubUrl, youtube_url: youtubeUrl }),
+        multiplayer_type: document.getElementById('decomp-multiplayer').value,
+        players_min: 1,
+        players_max: 1,
+        servers_available: false,
+        server_details: null,
+        status: 'pending',
+        screenshot_urls: [],
+        genre: 'Recomps',
+        github_url: githubUrl,
+        youtube_url: youtubeUrl,
+        created_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+
+      form.reset();
+      document.getElementById('decomp-github-preview').textContent = 'A GitHub repository preview appears after you enter a valid project link.';
+      document.getElementById('decomp-youtube-preview').classList.add('hidden');
+      showDecompResult('success', 'Project submitted! It will appear in the Decomp review queue after admin approval.');
+    } catch (error) {
+      console.error('Decomp project submission failed:', error);
+      showDecompResult('error', `Could not submit this project: ${error.message}`);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Submit Decomp project for review';
+    }
+  });
+
+  function showDecompResult(type, message) {
+    if (!result) return;
+    result.className = `rounded-lg border p-3 text-sm ${type === 'success' ? 'border-green-700 bg-green-950/40 text-green-200' : 'border-red-700 bg-red-950/40 text-red-200'}`;
+    result.textContent = message;
+    result.classList.remove('hidden');
+  }
+}
+
+function normalizeGitHubRepositoryUrl(rawUrl) {
+  if (!rawUrl) return '';
+  try {
+    const url = new URL(rawUrl.trim());
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== 'github.com' || parts.length < 2) return '';
+    if (!/^[\w.-]+$/.test(parts[0]) || !/^[\w.-]+$/.test(parts[1])) return '';
+    return `https://github.com/${parts[0]}/${parts[1].replace(/\.git$/i, '')}`;
+  } catch {
+    return '';
+  }
+}
+
+function normalizeYouTubeUrl(rawUrl) {
+  if (!rawUrl) return '';
+  try {
+    const url = new URL(rawUrl.trim());
+    const host = url.hostname.toLowerCase();
+    if (url.protocol !== 'https:' || !['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(host)) return '';
+    const videoId = host === 'youtu.be'
+      ? url.pathname.split('/').filter(Boolean)[0]
+      : url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts|live)\/([^/]+)/)?.[1];
+    return videoId && /^[\w-]{11}$/.test(videoId) ? `https://www.youtube.com/watch?v=${videoId}` : '';
+  } catch {
+    return '';
+  }
+}
+
+function youtubeEmbedSource(rawUrl) {
+  const safeUrl = normalizeYouTubeUrl(rawUrl);
+  if (!safeUrl) return '';
+  const videoId = new URL(safeUrl).searchParams.get('v');
+  return `https://www.youtube-nocookie.com/embed/${videoId}`;
+}
+
+async function renderGitHubSubmissionPreview(rawUrl) {
+  const preview = document.getElementById('decomp-github-preview');
+  if (!preview) return;
+  const repositoryUrl = normalizeGitHubRepositoryUrl(rawUrl);
+  if (!repositoryUrl) {
+    preview.textContent = 'Enter a valid public GitHub repository URL to preview the project.';
+    return;
+  }
+  const [, owner, repository] = new URL(repositoryUrl).pathname.split('/');
+  preview.innerHTML = `<a href="${repositoryUrl}" target="_blank" rel="noopener noreferrer" class="font-bold text-cyan-300 hover:underline">🐙 ${owner}/${repository}</a><p class="mt-2 text-xs text-gray-500">Loading repository preview…</p>`;
+  try {
+    const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}`, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
+    const repo = await response.json();
+    preview.innerHTML = `<a href="${repositoryUrl}" target="_blank" rel="noopener noreferrer" class="font-bold text-cyan-300 hover:underline">🐙 ${escapeMarkup(repo.full_name)}</a><p class="mt-2 text-sm text-gray-300">${escapeMarkup(repo.description || 'No repository description.')}</p><p class="mt-2 text-xs text-gray-500">${escapeMarkup(repo.language || 'Language not listed')} · ★ ${Number(repo.stargazers_count || 0).toLocaleString()} · ${repo.archived ? 'Archived repository' : 'Active repository'}</p>`;
+  } catch (error) {
+    console.warn('GitHub submission preview unavailable:', error);
+    preview.innerHTML = `<a href="${repositoryUrl}" target="_blank" rel="noopener noreferrer" class="font-bold text-cyan-300 hover:underline">🐙 ${owner}/${repository}</a><p class="mt-2 text-xs text-amber-300">Could not load repository details. The link is restricted to github.com; check it directly.</p>`;
+  }
+}
+
+function renderYouTubeSubmissionPreview(rawUrl) {
+  const preview = document.getElementById('decomp-youtube-preview');
+  if (!preview) return;
+  const source = youtubeEmbedSource(rawUrl);
+  if (!source) {
+    preview.replaceChildren();
+    if (rawUrl?.trim()) {
+      preview.textContent = 'Enter a valid YouTube video link for an embedded preview.';
+      preview.classList.remove('hidden');
+    } else {
+      preview.classList.add('hidden');
+    }
+    return;
+  }
+  preview.innerHTML = `<iframe src="${source}" title="Decomp project YouTube preview" class="aspect-video w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+  preview.classList.remove('hidden');
+}
+
+function escapeMarkup(value) {
+  const element = document.createElement('span');
+  element.textContent = String(value ?? '');
+  return element.innerHTML;
 }
 
 export default initSubmitGame;

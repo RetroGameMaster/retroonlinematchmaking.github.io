@@ -230,6 +230,11 @@
     
     <!-- Submission Form (shown if logged in) -->
     <div id="submissionForm">
+        <div class="mb-6 grid grid-cols-2 gap-2 rounded-xl border border-cyan-500/30 bg-gray-900/80 p-2">
+            <button type="button" id="standard-submission-tab" class="rounded-lg bg-cyan-700 px-4 py-3 text-sm font-bold text-white">Standard Game</button>
+            <button type="button" id="decomp-submission-tab" class="rounded-lg px-4 py-3 text-sm font-bold text-gray-300 hover:bg-gray-800">Decomp Project</button>
+        </div>
+        <section id="standard-submission-panel">
         <form id="gameSubmissionForm">
             <!-- Basic Information -->
             <div class="form-section fade-in">
@@ -422,5 +427,43 @@ With this block:
         </form>
         
         <div id="submitResult" style="display: none;"></div>
+        </section>
+
+        <section id="decomp-submission-panel" class="hidden">
+            <div class="mb-5 rounded-xl border border-purple-500/40 bg-gradient-to-br from-purple-950/60 to-gray-900 p-5">
+                <h2 class="text-xl font-bold text-purple-200">🧩 Submit a Decomp project</h2>
+                <p class="mt-2 text-sm leading-relaxed text-gray-300">Help players discover community projects that rebuild classic games. A public GitHub project page is required. Add a YouTube video if you have one. Every submission is reviewed before it appears on ROM.</p>
+            </div>
+            <form id="decompSubmissionForm" class="space-y-5 rounded-xl border border-gray-700 bg-gray-900/80 p-5">
+                <label class="block text-sm font-bold text-gray-200">Project / game title
+                    <input id="decomp-title" required maxlength="160" class="mt-2 min-h-11 w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-white" placeholder="Name of the decomp project">
+                </label>
+                <label class="block text-sm font-bold text-gray-200">What is this project?
+                    <textarea id="decomp-description" required minlength="20" maxlength="5000" rows="5" class="mt-2 w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-white" placeholder="Describe the project and its multiplayer status or community plans."></textarea>
+                </label>
+                <label class="block text-sm font-bold text-gray-200">GitHub project page <span class="text-red-300">*</span>
+                    <input id="decomp-github-url" type="url" required maxlength="500" pattern="https://github\.com/[^/]+/[^/]+.*" class="mt-2 min-h-11 w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-white" placeholder="https://github.com/owner/project">
+                    <span class="mt-1 block text-xs font-normal text-gray-500">Use the project’s public repository page, not a personal profile.</span>
+                </label>
+                <div id="decomp-github-preview" class="rounded-lg border border-gray-700 bg-gray-950 p-4 text-sm text-gray-400">A GitHub repository preview appears after you enter a valid project link.</div>
+                <label class="block text-sm font-bold text-gray-200">YouTube video (optional)
+                    <input id="decomp-youtube-url" type="url" maxlength="500" class="mt-2 min-h-11 w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-white" placeholder="https://www.youtube.com/watch?v=...">
+                </label>
+                <div id="decomp-youtube-preview" class="hidden overflow-hidden rounded-lg border border-gray-700 bg-black"></div>
+                <label class="block text-sm font-bold text-gray-200">Multiplayer status
+                    <select id="decomp-multiplayer" class="mt-2 min-h-11 w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-white">
+                        <option value="Unknown">Not sure / not confirmed</option>
+                        <option value="Online multiplayer">Online multiplayer</option>
+                        <option value="Local multiplayer">Local multiplayer</option>
+                        <option value="Single-player">Single-player</option>
+                    </select>
+                </label>
+                <label class="block text-sm font-bold text-gray-200">Contact information (optional)
+                    <input id="decomp-contact" maxlength="255" class="mt-2 min-h-11 w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-white" placeholder="Your Discord name or email (visible to admins only)">
+                </label>
+                <button id="decomp-submit-button" type="submit" class="min-h-12 w-full rounded-lg bg-purple-700 px-5 py-3 font-bold text-white hover:bg-purple-600">Submit Decomp project for review</button>
+                <p id="decomp-submit-result" class="hidden rounded-lg p-3 text-sm" role="status"></p>
+            </form>
+        </section>
     </div>
 </div>

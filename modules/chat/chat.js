@@ -360,15 +360,6 @@ async function joinRoom(roomId) {
   if(input) input.disabled = false;
   if(btn) btn.disabled = false;
 
-  // Send a system join message using the CORRECT username from userProfile
-  await supabase.from('chat_messages').insert({
-    room_id: roomId,
-    user_id: currentUser.id,
-    username: userProfile?.username || 'Anonymous', 
-    message: `${userProfile?.username || 'User'} joined the room`,
-    message_type: 'join'
-  });
-
   subscribeToMessages(roomId, 'room', handleRealtimeMessage);
   await loadMessages();
   loadRoomsList();
@@ -428,6 +419,10 @@ async function loadMessages() {
     return;
   }
 
+  if (chatType === 'room') {
+    messages = messages.filter(message => message.message_type !== 'join');
+  }
+
   if (!messages || messages.length === 0) {
     container.innerHTML = '<div class="text-center text-gray-500 mt-10">No messages yet. Say hi!</div>';
     return;
@@ -473,6 +468,7 @@ async function handleRealtimeMessage(payload) {
   if (!container) return;
   
   if (eventType === 'INSERT') {
+    if (chatType === 'room' && newRow.message_type === 'join') return;
     if (container.querySelector(`[data-message-id="${newRow.id}"]`)) return;
     const messageUserId = newRow.user_id || newRow.sender_id;
     let displayName = newRow.username || 'Anonymous';
@@ -503,6 +499,10 @@ async function handleRealtimeMessage(payload) {
     container.appendChild(msgEl);
     container.scrollTop = container.scrollHeight;
   } else if (eventType === 'UPDATE') {
+    if (chatType === 'room' && newRow.message_type === 'join') {
+      container.querySelector(`[data-message-id="${newRow.id}"]`)?.remove();
+      return;
+    }
     const el = container.querySelector(`[data-message-id="${newRow.id}"]`);
     if (el) {
       const normalizedMessage = newRow.user_id ? newRow : { ...newRow, user_id: newRow.sender_id };

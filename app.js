@@ -291,6 +291,13 @@ if (hash.startsWith('direct-messages') || hash.startsWith('messages')) {
         await loadModule(authRoute);
         return;
     }
+    if (hash === 'submit-game' || hash.startsWith('submit-game?')) {
+        const [submitRoute, queryString = ''] = hash.split('?', 2);
+        await loadModule(submitRoute, {
+            tab: new URLSearchParams(queryString).get('tab')
+        });
+        return;
+    }
     // Check for guide detail page
     if (hash.startsWith('guide/')) {
         const slug = hash.split('/')[1];
