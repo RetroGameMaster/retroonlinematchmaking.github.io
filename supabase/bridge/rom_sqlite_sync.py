@@ -135,12 +135,13 @@ def read_invites(connection: sqlite3.Connection) -> dict[str, list[dict[str, Any
 
 
 def read_services(connection: sqlite3.Connection) -> dict[str, list[dict[str, Any]]]:
-    rows = connection.execute(
+    rows = list(connection.execute(
         """
         SELECT agr.Id AS source_key, agr.GuildId AS guild_id,
                COALESCE(NULLIF(TRIM(agr.FullGameName), ''), g.Title) AS game_title,
                c.Abbreviation AS console, ag.PlayersOnline AS players_online,
                COALESCE(NULLIF(TRIM(ct.RoleName), ''), 'Discord') AS service_name,
+               'generic:' || agr.Id AS stable_source_key,
                agr.ThreadId AS thread_id
         FROM ActiveGameRecords agr
         JOIN ActiveGames ag ON ag.Id = agr.ActiveGameId
@@ -150,7 +151,39 @@ def read_services(connection: sqlite3.Connection) -> dict[str, list[dict[str, An
         WHERE ag.PlayersOnline > 0
         ORDER BY agr.GuildId, agr.Id
         """
-    ).fetchall()
+    ).fetchall())
+
+    providers = (
+        ("ActiveOpenSpyGameRecords", "OpenSpy", "Console"),
+        ("ActiveRewiredGameRecords", "PSRewired", None),
+        ("ActiveSocomCCGameRecords", "SOCOM.cc", None),
+    )
+    existing_tables = {
+        row["name"]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    for table, service_name, console_column in providers:
+        if table not in existing_tables:
+            continue
+        console_select = f"{console_column} AS console" if console_column else "NULL AS console"
+        rows.extend(
+            connection.execute(
+                f"""
+                SELECT Id AS source_key, GuildId AS guild_id,
+                       ActiveGameName AS game_title, {console_select},
+                       TotalActivePlayers AS players_online,
+                       ? AS service_name, ? || ':' || Id AS stable_source_key,
+                       ThreadId AS thread_id
+                FROM {table}
+                WHERE TotalActivePlayers > 0
+                ORDER BY GuildId, Id
+                """,
+                (service_name, service_name.lower()),
+            ).fetchall()
+        )
+
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         guild_id = as_text(row["guild_id"])
@@ -161,7 +194,7 @@ def read_services(connection: sqlite3.Connection) -> dict[str, list[dict[str, An
         grouped[guild_id].append(
             {
                 "guild_id": guild_id,
-                "source_key": as_text(row["source_key"]),
+                "source_key": as_text(row["stable_source_key"]),
                 "game_title": game_title,
                 "console": as_text(row["console"]) or None,
                 "players_online": int(row["players_online"] or 0),
@@ -310,14 +343,30 @@ def sync_once(
 
 def read_known_guilds(database_path: Path) -> set[str]:
     with open_database(database_path) as connection:
+        existing_tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+        provider_tables = (
+            "ActiveOpenSpyGameRecords",
+            "ActiveRewiredGameRecords",
+            "ActiveSocomCCGameRecords",
+        )
+        guild_queries = [
+            "SELECT GuildId FROM LfgMessages",
+            "SELECT GuildId FROM ActiveGameRecords",
+            *(
+                f"SELECT GuildId FROM {table}"
+                for table in provider_tables
+                if table in existing_tables
+            ),
+        ]
         guilds = {
             as_text(row[0])
             for row in connection.execute(
-                """
-                SELECT GuildId FROM LfgMessages
-                UNION
-                SELECT GuildId FROM ActiveGameRecords
-                """
+                " UNION ".join(guild_queries)
             )
         }
     return {guild for guild in guilds if guild}

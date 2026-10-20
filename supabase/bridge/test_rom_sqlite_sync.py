@@ -40,6 +40,19 @@ class ReadOnlyBridgeTests(unittest.TestCase):
               Id INTEGER PRIMARY KEY, ActiveGameId INTEGER, GuildId INTEGER,
               FullGameName TEXT, MessageId INTEGER, ThreadId INTEGER
             );
+            CREATE TABLE ActiveOpenSpyGameRecords (
+              Id INTEGER PRIMARY KEY, ActiveGameName TEXT, Console TEXT,
+              GuildId INTEGER, MessageId INTEGER, TotalActivePlayers INTEGER,
+              ThreadId INTEGER
+            );
+            CREATE TABLE ActiveRewiredGameRecords (
+              Id INTEGER PRIMARY KEY, ActiveGameName TEXT, GuildId INTEGER,
+              MessageId INTEGER, TotalActivePlayers INTEGER, ThreadId INTEGER
+            );
+            CREATE TABLE ActiveSocomCCGameRecords (
+              Id INTEGER PRIMARY KEY, ActiveGameName TEXT, GuildId INTEGER,
+              MessageId INTEGER, TotalActivePlayers INTEGER, ThreadId INTEGER
+            );
             CREATE TABLE ConnectionTypes (
               Id INTEGER PRIMARY KEY, RoleId INTEGER, GuildId INTEGER,
               RoleName TEXT, Description TEXT
@@ -61,6 +74,22 @@ class ReadOnlyBridgeTests(unittest.TestCase):
             INSERT INTO ActiveGames VALUES (40, 10, 3, 30);
             INSERT INTO ActiveGameRecords VALUES (
               50, 40, 12345678901234567, NULL, 0, 62345678901234567
+            );
+            INSERT INTO ActiveOpenSpyGameRecords VALUES (
+              60, 'OpenSpy Example', 'PS2', 12345678901234567, 0, 5,
+              72345678901234567
+            );
+            INSERT INTO ActiveRewiredGameRecords VALUES (
+              70, 'Rewired Example', 12345678901234567, 0, 7,
+              82345678901234567
+            );
+            INSERT INTO ActiveSocomCCGameRecords VALUES (
+              80, 'SOCOM Example', 12345678901234567, 0, 9,
+              92345678901234567
+            );
+            INSERT INTO ActiveSocomCCGameRecords VALUES (
+              81, 'Inactive SOCOM Example', 12345678901234567, 0, 0,
+              92345678901234568
             );
             INSERT INTO Wins VALUES (1);
             INSERT INTO Wins VALUES (2);
@@ -111,6 +140,53 @@ class ReadOnlyBridgeTests(unittest.TestCase):
         self.assertEqual(stats["total_wins"], 2)
         self.assertEqual(stats["team_wins"], 1)
         self.assertEqual(stats["active_invite_count"], 1)
+
+    def test_provider_specific_active_games_are_included(self):
+        with SYNC.open_database(self.database_path) as connection:
+            services = SYNC.read_services(connection)
+
+        services_by_name = {
+            service["service_name"]: service
+            for service in services["12345678901234567"]
+        }
+        self.assertEqual(services_by_name["OpenSpy"]["game_title"], "OpenSpy Example")
+        self.assertEqual(services_by_name["OpenSpy"]["console"], "PS2")
+        self.assertEqual(services_by_name["OpenSpy"]["players_online"], 5)
+        self.assertEqual(services_by_name["OpenSpy"]["source_key"], "openspy:60")
+        self.assertEqual(services_by_name["PSRewired"]["players_online"], 7)
+        self.assertEqual(services_by_name["SOCOM.cc"]["players_online"], 9)
+        self.assertNotIn("Inactive SOCOM Example", [service["game_title"] for service in services_by_name.values()])
+
+    def test_generic_networks_remain_available(self):
+        with sqlite3.connect(self.database_path) as connection:
+            connection.execute(
+                "INSERT INTO ConnectionTypes VALUES (?, ?, ?, ?, ?)",
+                (31, 1, 12345678901234567, "Dolphin Netplay", ""),
+            )
+            connection.execute("INSERT INTO ActiveGames VALUES (41, 10, 4, 31)")
+            connection.execute(
+                "INSERT INTO ActiveGameRecords VALUES (?, ?, ?, ?, ?, ?)",
+                (51, 41, 12345678901234567, "Dolphin Example", 0, 62345678901234568),
+            )
+
+        with SYNC.open_database(self.database_path) as connection:
+            services = SYNC.read_services(connection)
+
+        self.assertTrue(any(
+            service["service_name"] == "Dolphin Netplay"
+            and service["game_title"] == "Dolphin Example"
+            for service in services["12345678901234567"]
+        ))
+
+    def test_provider_only_guild_is_included_for_snapshot_cleanup(self):
+        provider_only_guild = "98765432109876543"
+        with sqlite3.connect(self.database_path) as connection:
+            connection.execute(
+                "INSERT INTO ActiveOpenSpyGameRecords VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (61, "OpenSpy Only", "PS2", int(provider_only_guild), 0, 1, 72345678901234568),
+            )
+
+        self.assertIn(provider_only_guild, SYNC.read_known_guilds(self.database_path))
 
     def test_supabase_request_includes_gateway_headers(self):
         class Response:

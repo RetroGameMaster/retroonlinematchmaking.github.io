@@ -3,6 +3,13 @@ let isInitialized = false;
 
 async function initGamesModule(rom) {
     console.log('🎮 Initializing games module...');
+    const pageSize = 36;
+    let activeQueryFactory;
+    let loadedGameCount = 0;
+    let totalGameCount = null;
+    let gameRequestId = 0;
+    let isLoadingMore = false;
+    const consoleSections = new Map();
     
     const gamesList = document.getElementById('games-list');
     const hasGamesLoaded = gamesList && gamesList.querySelectorAll('.game-card').length > 0;
@@ -76,6 +83,22 @@ async function initGamesModule(rom) {
                 loadGames();
             });
         }
+
+        const loadMoreButton = document.getElementById('load-more-games');
+        if (loadMoreButton) {
+            loadMoreButton.addEventListener('click', () => loadPagedGames(activeQueryFactory, true));
+        }
+
+        if (gamesList) {
+            gamesList.addEventListener('click', (event) => {
+                const card = event.target.closest('.game-card');
+                if (!card || event.target.closest('.favorite-btn, .hub-tag')) return;
+
+                const gameId = card.dataset.gameId;
+                const gameSlug = card.dataset.gameSlug;
+                window.location.hash = `#/game/${gameSlug || gameId}`;
+            });
+        }
     }
     
     function initSearch() {
@@ -129,57 +152,21 @@ async function initGamesModule(rom) {
     };
 
     async function loadGamesByField(field, value) {
-        showLoading(true);
-        try {
-            let query = rom.supabase
-                .from('games')
-                .select('*')
+        const header = document.getElementById('hub-header') || document.createElement('div');
+        header.id = 'hub-header';
+        header.className = 'mb-6 text-center animate-fade-in';
+        header.innerHTML = `<h2 class="text-2xl font-bold text-cyan-400">📂 ${escapeHtml(value)}</h2>
+            <button id="clear-hub-filter" class="mt-2 text-sm text-gray-400 hover:text-white underline">Clear Filter</button>`;
+        const gamesList = document.getElementById('games-list');
+        if (!header.parentElement && gamesList) gamesList.prepend(header);
+        header.querySelector('#clear-hub-filter').addEventListener('click', loadGames);
+
+        await loadPagedGames((withCount) => {
+            let query = rom.supabase.from('games').select('*', withCount ? { count: 'exact' } : undefined)
                 .eq('status', 'approved');
-
-            // Dynamic filter based on field
-            if (field === 'year') {
-                query = query.eq('year', value);
-            } else {
-                // Use ilike for text fields (developer, publisher, genre) to handle case sensitivity
-                query = query.ilike(field, `%${value}%`);
-            }
-
-            // Always sort A-Z for hubs
-            query = query.order('title', { ascending: true });
-
-            const { data: games, error } = await query;
-            
-            if (error) throw error;
-            
-            // Update UI to show what we are viewing
-            const gamesList = document.getElementById('games-list');
-            let header = document.getElementById('hub-header');
-            if (!header) {
-                header = document.createElement('div');
-                header.id = 'hub-header';
-                header.className = 'mb-6 text-center animate-fade-in';
-                // Insert before the grid, but after any potential loading spinner
-                const grid = document.getElementById('gamesGrid');
-                if(grid) {
-                    gamesList.insertBefore(header, grid);
-                } else {
-                    gamesList.insertBefore(header, gamesList.firstChild);
-                }
-            }
-            header.innerHTML = `
-                <h2 class="text-2xl font-bold text-cyan-400">
-                    📂 ${value} <span class="text-gray-500 text-lg">(${games.length} games)</span>
-                </h2>
-                <button onclick="document.getElementById('hub-header').remove(); loadGames();" class="mt-2 text-sm text-gray-400 hover:text-white underline">Clear Filter</button>
-            `;
-
-            displayGames(games || []);
-        } catch (error) {
-            console.error('Error loading hub:', error);
-            showMessage('error', `Failed to load: ${error.message}`);
-        } finally {
-            showLoading(false);
-        }
+            query = field === 'year' ? query.eq('year', value) : query.ilike(field, `%${value}%`);
+            return query.order('console', { ascending: true }).order('title', { ascending: true }).order('id', { ascending: true });
+        });
     }
     
     async function loadGames() {
@@ -189,60 +176,37 @@ async function initGamesModule(rom) {
         const header = document.getElementById('hub-header');
         if (header) header.remove();
 
-        showLoading(true);
-        
-        try {
-            const { data: games, error } = await rom.supabase
-                .from('games')
-                .select('*')
-                .eq('status', 'approved')
-                .order('title', { ascending: true }); // ✅ FORCE A-Z ORDER
-            
-            if (error) throw error;
-            
-            console.log(`✅ Loaded ${games?.length || 0} games (Sorted A-Z)`);
-            displayGames(games || []);
-            
-        } catch (error) {
-            console.error('Error loading games:', error);
-            showMessage('error', `Failed to load games: ${error.message}`);
-        } finally {
-            showLoading(false);
-        }
+        await loadPagedGames((withCount) => rom.supabase
+            .from('games')
+            .select('*', withCount ? { count: 'exact' } : undefined)
+            .eq('status', 'approved')
+            .order('console', { ascending: true })
+            .order('title', { ascending: true })
+            .order('id', { ascending: true }));
     }
     
     async function searchGames(query) {
-        showLoading(true);
         const header = document.getElementById('hub-header');
         if (header) header.remove();
 
-        try {
-            const { data: games, error } = await rom.supabase
+        await loadPagedGames((withCount) => rom.supabase
                 .from('games')
-                .select('*')
+                .select('*', withCount ? { count: 'exact' } : undefined)
                 .eq('status', 'approved')
                 .or(`title.ilike.%${query}%,description.ilike.%${query}%,console.ilike.%${query}%`)
-                .order('title', { ascending: true });
-            
-            if (error) throw error;
-            displayGames(games || []);
-        } catch (error) {
-            console.error('Error searching games:', error);
-            showMessage('error', `Search failed: ${error.message}`);
-        } finally {
-            showLoading(false);
-        }
+                .order('console', { ascending: true })
+                .order('title', { ascending: true })
+                .order('id', { ascending: true }));
     }
     
     async function applyFilters() {
-        showLoading(true);
         const header = document.getElementById('hub-header');
         if (header) header.remove();
 
-        try {
+        await loadPagedGames((withCount) => {
             let query = rom.supabase
                 .from('games')
-                .select('*')
+                .select('*', withCount ? { count: 'exact' } : undefined)
                 .eq('status', 'approved');
             
             const consoleFilter = document.getElementById('console-filter');
@@ -254,29 +218,17 @@ async function initGamesModule(rom) {
             const sortOrder = document.getElementById('sortOrder');
             if (sortOrder) {
                 switch(sortOrder.value) {
-                    case 'newest': query = query.order('approved_at', { ascending: false }); break;
-                    case 'oldest': query = query.order('approved_at', { ascending: true }); break;
-                    case 'title_asc': query = query.order('title', { ascending: true }); break;
-                    case 'title_desc': query = query.order('title', { ascending: false }); break;
-                    case 'most_players': query = query.order('players_max', { ascending: false }); break;
-                    default: query = query.order('title', { ascending: true }); // Default to A-Z
+                    case 'newest': query = query.order('console', { ascending: true }).order('approved_at', { ascending: false }).order('title', { ascending: true }); break;
+                    case 'oldest': query = query.order('console', { ascending: true }).order('approved_at', { ascending: true }).order('title', { ascending: true }); break;
+                    case 'title_desc': query = query.order('console', { ascending: true }).order('title', { ascending: false }); break;
+                    case 'most_players': query = query.order('console', { ascending: true }).order('players_max', { ascending: false }).order('title', { ascending: true }); break;
+                    default: query = query.order('console', { ascending: true }).order('title', { ascending: true });
                 }
             } else {
-                query = query.order('title', { ascending: true }); // Ensure A-Z if no sort selected
+                query = query.order('console', { ascending: true }).order('title', { ascending: true });
             }
-            
-            const { data: games, error } = await query;
-            if (error) throw error;
-            
-            console.log(`✅ Filter result: ${games.length} games found`);
-            displayGames(games || []);
-            
-        } catch (error) {
-            console.error('Error filtering games:', error);
-            showMessage('error', `Filter failed: ${error.message}`);
-        } finally {
-            showLoading(false);
-        }
+            return query.order('id', { ascending: true });
+        });
     }
     
     function clearFilters() {
@@ -292,14 +244,80 @@ async function initGamesModule(rom) {
         const header = document.getElementById('hub-header');
         if (header) header.remove();
         
-        loadGames();
     }
     
-    function displayGames(games) {
+    async function loadPagedGames(queryFactory, append = false) {
+        if (!queryFactory || (append && isLoadingMore)) return;
+        const requestId = append ? gameRequestId : ++gameRequestId;
+        isLoadingMore = true;
+        activeQueryFactory = queryFactory;
+        const loadMoreButton = document.getElementById('load-more-games');
+        if (loadMoreButton) loadMoreButton.disabled = true;
+        showLoading(true);
+
+        if (!append) {
+            loadedGameCount = 0;
+            totalGameCount = null;
+            consoleSections.clear();
+            const list = document.getElementById('games-list');
+            const header = document.getElementById('hub-header');
+            if (list) {
+                [...list.children].forEach(child => {
+                    if (child !== header && child.id !== 'gamesLoading') child.remove();
+                });
+            }
+            updatePagination(0);
+        }
+
+        try {
+            const query = queryFactory(!append).range(loadedGameCount, loadedGameCount + pageSize - 1);
+            const { data: games, error, count } = await query;
+            if (error) throw error;
+            if (requestId !== gameRequestId) return;
+
+            const result = games || [];
+            totalGameCount = count ?? totalGameCount;
+            displayGames(result, append);
+            loadedGameCount += result.length;
+            updatePagination(result.length);
+            console.log(`✅ Loaded ${loadedGameCount}${totalGameCount === null ? '' : ` of ${totalGameCount}`} games`);
+        } catch (error) {
+            if (requestId === gameRequestId) {
+                console.error('Error loading games:', error);
+                showMessage('error', `Failed to load games: ${error.message}`);
+            }
+        } finally {
+            if (requestId === gameRequestId) {
+                isLoadingMore = false;
+                if (loadMoreButton) loadMoreButton.disabled = false;
+                showLoading(false);
+            }
+        }
+    }
+
+    function updatePagination(lastPageLength) {
+        const pagination = document.getElementById('games-pagination');
+        const button = document.getElementById('load-more-games');
+        const summary = document.getElementById('games-results-summary');
+        const hasMore = totalGameCount === null ? lastPageLength === pageSize : loadedGameCount < totalGameCount;
+        if (pagination) pagination.classList.toggle('hidden', loadedGameCount === 0);
+        if (button) {
+            button.classList.toggle('hidden', !hasMore);
+            button.disabled = isLoadingMore;
+        }
+        if (summary) {
+            summary.textContent = totalGameCount === null
+                ? `Showing ${loadedGameCount} games`
+                : `Showing ${loadedGameCount} of ${totalGameCount} games`;
+        }
+    }
+
+    function displayGames(games, append = false) {
         const gamesList = document.getElementById('games-list');
         if (!gamesList) return;
         
-        if (games.length === 0) {
+        if (!append && games.length === 0) {
+            const header = document.getElementById('hub-header');
             gamesList.innerHTML = `
                 <div class="text-center py-12">
                     <div class="text-6xl mb-4">🕹️</div>
@@ -307,46 +325,42 @@ async function initGamesModule(rom) {
                     <p class="text-gray-500 mt-2">Try adjusting your search or filters.</p>
                 </div>
             `;
+            if (header) gamesList.prepend(header);
             showLoading(false);
             return;
         }
         
         let gamesGrid = document.getElementById('gamesGrid');
         if (!gamesGrid) {
-            gamesList.innerHTML = '<div id="gamesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"></div>';
-            gamesGrid = document.getElementById('gamesGrid');
+            gamesGrid = document.createElement('div');
+            gamesGrid.id = 'gamesGrid';
+            gamesGrid.className = 'space-y-8 mt-8';
+            gamesList.appendChild(gamesGrid);
         }
         
-        gamesGrid.innerHTML = '';
+        if (!append) {
+            gamesGrid.innerHTML = '';
+            consoleSections.clear();
+        }
         
         games.forEach(game => {
-            const gameCard = createGameCard(game);
-            gamesGrid.innerHTML += gameCard;
+            const consoleName = game.console || 'Unspecified Console';
+            let section = consoleSections.get(consoleName);
+            if (!section) {
+                section = document.createElement('section');
+                section.className = 'console-game-section';
+                const heading = document.createElement('h2');
+                heading.className = 'text-2xl font-bold text-cyan-300 mb-4 border-b border-gray-700 pb-2';
+                heading.textContent = consoleName;
+                const cardsGrid = document.createElement('div');
+                cardsGrid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+                section.append(heading, cardsGrid);
+                gamesGrid.appendChild(section);
+                section.cardsGrid = cardsGrid;
+                consoleSections.set(consoleName, section);
+            }
+            section.cardsGrid.insertAdjacentHTML('beforeend', createGameCard(game));
         });
-        
-        setTimeout(() => {
-            document.querySelectorAll('.game-card').forEach(card => {
-                card.addEventListener('click', function(e) {
-                    // Prevent navigation if clicking favorite or hub tags
-                    if (e.target.closest('.favorite-btn') || 
-                        e.target.classList.contains('favorite-btn') || 
-                        e.target.closest('.hub-tag')) {
-                        return;
-                    }
-                    
-                    const gameId = this.dataset.gameId;
-                    const gameSlug = this.dataset.gameSlug;
-                    
-                    if (gameSlug) {
-                        window.location.hash = `#/game/${gameSlug}`;
-                    } else {
-                        window.location.hash = `#/game/${gameId}`;
-                    }
-                });
-            });
-        }, 100);
-        
-        showLoading(false);
     }
     
     function createGameCard(game) {
@@ -355,7 +369,7 @@ async function initGamesModule(rom) {
         const platforms = game.console?.split(',').map(p => p.trim()) || [];
         
         const platformBadges = platforms.map(platform => 
-            `<span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">${platform}</span>`
+            `<span class="inline-block bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded mr-1 mb-1">${escapeHtml(platform)}</span>`
         ).join('');
         
         // Helper for Hub Tags
@@ -374,12 +388,12 @@ async function initGamesModule(rom) {
 
         return `
             <div class="game-card bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all duration-300 cursor-pointer flex flex-col"
-                 data-game-id="${game.id}"
-                 data-game-slug="${game.slug || ''}">
+                 data-game-id="${escapeHtml(game.id || '')}"
+                 data-game-slug="${escapeHtml(game.slug || '')}">
                 <div class="relative shrink-0">
                     <div class="h-48 bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center">
                         ${game.cover_image_url ? 
-                            `<img src="${game.cover_image_url}" alt="${escapeHtml(game.title)}" class="w-full h-full object-cover">` :
+                            `<img src="${escapeHtml(game.cover_image_url)}" alt="${escapeHtml(game.title)}" loading="lazy" decoding="async" class="w-full h-full object-cover">` :
                             `<span class="text-6xl text-gray-600">🎮</span>`
                         }
                     </div>
