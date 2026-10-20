@@ -386,26 +386,36 @@ async function loadStats() {
 }
 
 async function loadLivePlayerCount() {
-  const cutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
   const pageSize = 500;
-  let offset = 0;
-  let playerCount = 0;
+  const countRecentPlayers = async (table, maxAgeMinutes, playerOnly = false) => {
+    const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000).toISOString();
+    let offset = 0;
+    let count = 0;
 
-  while (true) {
-    const { data, error } = await supabase
-      .from('discord_live_services')
-      .select('players_online')
-      .eq('is_active', true)
-      .gte('updated_at', cutoff)
-      .range(offset, offset + pageSize - 1);
-    if (error) throw error;
+    while (true) {
+      let query = supabase
+        .from(table)
+        .select('players_online')
+        .eq('is_active', true)
+        .gte('updated_at', cutoff);
+      if (playerOnly) query = query.eq('activity_kind', 'players');
+      const { data, error } = await query.range(offset, offset + pageSize - 1);
+      if (error) throw error;
 
-    playerCount += (data || []).reduce((total, service) =>
-      total + Math.max(0, Number(service.players_online) || 0), 0);
-    if (!data || data.length < pageSize) break;
-    offset += pageSize;
-    if (offset > 50000) throw new Error('Live service player count exceeded the safety limit.');
-  }
+      count += (data || []).reduce((total, service) =>
+        total + Math.max(0, Number(service.players_online) || 0), 0);
+      if (!data || data.length < pageSize) break;
+      offset += pageSize;
+      if (offset > 50000) throw new Error(`${table} player count exceeded the safety limit.`);
+    }
+    return count;
+  };
+
+  const [botPlayerCount, externalPlayerCount] = await Promise.all([
+    countRecentPlayers('discord_live_services', 3),
+    countRecentPlayers('external_live_services', 10, true),
+  ]);
+  const playerCount = botPlayerCount + externalPlayerCount;
   animateValue('stat-live-players', 0, playerCount, 1000);
 }
 
@@ -591,6 +601,14 @@ function normalizeLiveGameTitle(value) {
 function scheduleCurrentlyHotRefresh() {
   clearTimeout(currentlyHotRefreshTimeout);
   currentlyHotRefreshTimeout = setTimeout(() => void loadCurrentlyHot(), 500);
+}
+
+let livePlayerCountRefreshTimeout;
+function scheduleLivePlayerCountRefresh() {
+  clearTimeout(livePlayerCountRefreshTimeout);
+  livePlayerCountRefreshTimeout = setTimeout(() => {
+    loadLivePlayerCount().catch(error => console.error('Could not refresh live player count:', error));
+  }, 500);
 }
 
 function animateValue(id, start, end, duration) {
@@ -1159,10 +1177,12 @@ function startRealtimeFeed(rom) {
   realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'discord_live_services' }, () => {
     refreshDynamicTicker(rom);
     scheduleCurrentlyHotRefresh();
+    scheduleLivePlayerCountRefresh();
   });
 
   realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'external_live_services' }, () => {
     scheduleCurrentlyHotRefresh();
+    scheduleLivePlayerCountRefresh();
   });
 
   realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'chat_rooms' }, () => {

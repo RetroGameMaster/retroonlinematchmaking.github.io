@@ -2,7 +2,7 @@
 
 The site can poll public game-network APIs independently of the Discord bot. The Edge Function normalizes each provider response, matches exact game titles and the bot catalog's alternate names against approved website games, and writes snapshots to `external_live_services`. The home page and Live Lobbies page combine those records with the existing bot-synced services.
 
-Providers are polled independently every two minutes. A provider error is returned and logged without stopping successful providers. Failed providers keep their last good snapshot, which the website stops showing after ten minutes. A successful empty response expires that provider's old rows. Counts from different networks can overlap and should not be interpreted as unique players. RetroArch exposes lobby listings rather than player totals, so its cards are labeled as lobby counts.
+Providers are polled independently every two minutes. A provider error is returned and logged without stopping successful providers. Failed providers keep their last good snapshot, which the website stops showing after ten minutes. A successful empty response expires that provider's old rows. The home-page reported-player counter includes fresh bot snapshots and fresh external provider snapshots that report players, but excludes lobby-only counts. Counts across networks or between bot and direct API snapshots can overlap and should not be interpreted as unique players. RetroArch exposes lobby listings rather than player totals, so its cards are labeled as lobby counts.
 
 The poller currently supports:
 
@@ -56,6 +56,7 @@ PSRewired is queried using the application IDs present in the attached bot sourc
        headers := jsonb_build_object(
          'Content-Type', 'application/json',
          'apikey', 'PASTE_YOUR_PROJECT_ANON_OR_PUBLISHABLE_KEY',
+         'Authorization', 'Bearer PASTE_YOUR_PROJECT_ANON_OR_PUBLISHABLE_KEY',
          'x-live-poll-secret', 'PASTE_THE_SAME_RANDOM_VALUE_SET_AS_EXTERNAL_LIVE_POLL_SECRET'
        ),
        body := '{}'::jsonb
@@ -79,6 +80,8 @@ PSRewired is queried using the application IDs present in the attached bot sourc
 ## Verify
 
 Invoke the function once using a POST request with the `apikey` header and `x-live-poll-secret` header. Its JSON response contains an individual success or error result for each provider. Supabase Edge Function logs contain the same provider-level result; the cron request ID and response can be inspected in `net._http_response`.
+
+If the response is `401 {"error":"Unauthorized."}`, the request reached the function but the `x-live-poll-secret` value does not exactly match the `EXTERNAL_LIVE_POLL_SECRET` Edge Function secret. Set one new random value in the Edge Function secrets and in the cron job, taking care not to include quotes or spaces in one value but not the other. Updating an Edge Function secret does not require redeploying the function. Never share the secret in chat or screenshots.
 
 Check recent public rows with:
 
