@@ -19,8 +19,8 @@ export default async function initLFG(rom) {
             </div>
 
             <!-- Filters -->
-            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-6 flex flex-wrap gap-4">
-                <select id="filter-region" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 min-w-[150px]">
+            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-6 flex flex-col sm:flex-row gap-4">
+                <select id="filter-region" class="w-full sm:w-auto bg-gray-900 border border-gray-600 text-white rounded px-3 py-3 sm:py-2">
                     <option value="">All Regions</option>
                     <option value="NA">North America</option>
                     <option value="EU">Europe</option>
@@ -29,7 +29,7 @@ export default async function initLFG(rom) {
                     <option value="OCE">Oceania</option>
                     <option value="Global">Global</option>
                 </select>
-                <input type="text" id="filter-search" placeholder="Search games..." class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 flex-1 min-w-[200px]">
+                <input type="text" id="filter-search" placeholder="Search games..." class="w-full min-w-0 flex-1 bg-gray-900 border border-gray-600 text-white rounded px-3 py-3 sm:py-2">
             </div>
 
             <!-- Grid -->

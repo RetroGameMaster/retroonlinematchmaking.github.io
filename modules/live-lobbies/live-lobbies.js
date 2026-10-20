@@ -70,10 +70,10 @@ function renderLayout(rom) {
       </section>
 
       <!-- Filters -->
-      <div class="bg-gray-800/50 backdrop-blur p-4 rounded-xl border border-gray-700 mb-8 flex flex-wrap gap-4 items-center justify-between">
-        <div class="flex gap-2 items-center">
+      <div class="bg-gray-800/50 backdrop-blur p-4 rounded-xl border border-gray-700 mb-8 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
+        <div class="flex min-w-0 flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <span class="text-gray-400 text-sm font-bold">Filter:</span>
-          <input type="text" id="filter-search" placeholder="Search games..." class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none min-w-[200px]">
+          <input type="text" id="filter-search" placeholder="Search games..." class="w-full min-w-0 sm:w-auto sm:min-w-[200px] bg-gray-900 border border-gray-600 text-white rounded px-3 py-3 sm:py-2 text-sm focus:border-cyan-500 focus:outline-none">
         </div>
         <div class="flex gap-2">
            <select id="filter-sort" class="bg-gray-900 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none">

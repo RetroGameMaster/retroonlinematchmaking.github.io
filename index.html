@@ -1150,6 +1150,73 @@
     position: relative;
     z-index: 20;
 }
+
+html, body {
+    max-width: 100%;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+#app-content {
+    min-width: 0;
+}
+
+#app-content img,
+#app-content video,
+#app-content iframe {
+    max-width: 100%;
+}
+
+@media (max-width: 640px) {
+    body {
+        padding-bottom: 110px;
+    }
+
+    nav .container.mx-auto {
+        width: 100%;
+    }
+
+    nav .container.mx-auto > div:first-child {
+        column-gap: 0.75rem;
+        row-gap: 0.6rem;
+    }
+
+    nav .container.mx-auto > div:first-child > a {
+        line-height: 1.3;
+    }
+
+    #auth-buttons {
+        max-width: 100%;
+    }
+
+    #notif-dropdown {
+        width: min(20rem, calc(100vw - 1rem));
+    }
+
+    #rom-radio-container {
+        right: 0.5rem;
+        bottom: 0.5rem;
+    }
+
+    .radio-player {
+        width: min(280px, calc(100vw - 1rem));
+    }
+
+    #retro-quote-bar {
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .gamercard {
+        min-width: 0;
+    }
+
+    .chat-gamercard {
+        width: min(240px, calc(100vw - 2rem));
+    }
+}
     </style>
 </head>
 <body class="bg-gray-900">

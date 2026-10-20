@@ -75,7 +75,7 @@ export default async function initGameDetail(rom, identifier) {
         content.classList.remove('hidden');
 
         // Render Game Info + SEO + Ratings + Guides
-        await renderGame(game, content, rom);
+        await renderGame(game, content, rom, identifier);
 
         // Load Achievements
         loadAchievements(rom, game.id);
@@ -91,8 +91,9 @@ export default async function initGameDetail(rom, identifier) {
 }
 
 // ===== RENDER GAME FUNCTION =====
-async function renderGame(game, container, rom) {
+async function renderGame(game, container, rom, identifier) {
     const currentUser = rom.currentUser;
+    const adminEditButton = await renderAdminEditButton(game, rom);
 
     // 0. CHECK FOR LINKED GUIDES
     let guideButtonHTML = '';
@@ -383,7 +384,7 @@ async function renderGame(game, container, rom) {
             <div class="flex flex-col lg:flex-row gap-8">
                 <!-- Left Column -->
                 <div class="lg:w-1/3 space-y-6">
-                    <div class="sticky top-4">
+                    <div class="lg:sticky lg:top-4">
                         ${game.cover_image_url 
                             ? `<img src="${game.cover_image_url}" class="w-full rounded-lg shadow-2xl border-2 border-gray-600" alt="${escapeHtml(game.title)} cover art">` 
                             : '<div class="w-full h-64 bg-gray-700 rounded-lg flex items-center justify-center text-4xl border-2 border-gray-600 shadow-xl">🎮</div>'}
@@ -435,16 +436,310 @@ async function renderGame(game, container, rom) {
                             <p class="mt-2">Loading achievements...</p>
                         </div>
                     </div>
+                    <section id="game-reviews-section" class="mb-8 rounded-xl border border-cyan-500/30 bg-gray-900/80 p-4 sm:p-6 shadow-xl"></section>
                 </div>
             </div>
         </div>
     `;
+
+    const gameTitle = container.querySelector('h1');
+    if (gameTitle && adminEditButton) {
+        const titleRow = document.createElement('div');
+        titleRow.className = 'mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between';
+        gameTitle.parentNode.insertBefore(titleRow, gameTitle);
+        titleRow.append(gameTitle);
+        titleRow.insertAdjacentHTML('beforeend', adminEditButton);
+        document.getElementById('admin-edit-game-btn')?.addEventListener('click', () => openGameEditModal(game, rom));
+    }
 
     // Initialize Logic
     if (currentUser) {
         checkAndRenderPlayingState(game, currentUser.id, rom);
         loadUserRating(game, currentUser.id, rom);
     }
+    loadGameReviews(rom, game);
+}
+
+async function renderAdminEditButton(game, rom) {
+    const user = rom.currentUser;
+    if (!user) return '';
+
+    const { data: profile, error } = await rom.supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .maybeSingle();
+    if (error) {
+        console.error('Could not verify admin access for game editing:', error);
+        return '';
+    }
+    if (profile?.is_admin !== true) return '';
+
+    return `<button id="admin-edit-game-btn" type="button" class="self-start rounded-lg border border-amber-400/50 bg-amber-600 px-4 py-3 font-bold text-white hover:bg-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-300" aria-label="Edit ${escapeHtml(game.title)} game page">✏️ Edit Game Page</button>`;
+}
+
+function openGameEditModal(game, rom) {
+    const existing = document.getElementById('game-page-edit-modal');
+    if (existing) existing.remove();
+
+    let details = game.connection_details;
+    if (typeof details === 'string') {
+        try {
+            details = JSON.parse(details);
+        } catch {
+            details = details.trim()
+                ? [{ name: game.connection_method || 'General Connection', instructions: details, type: 'other' }]
+                : [];
+        }
+    }
+    if (!Array.isArray(details)) details = [];
+
+    const modal = document.createElement('div');
+    modal.id = 'game-page-edit-modal';
+    modal.className = 'fixed inset-0 z-[10000] overflow-y-auto bg-black/80 p-3 sm:p-6';
+    modal.innerHTML = `
+      <div class="mx-auto my-2 max-w-4xl rounded-xl border border-amber-400/50 bg-gray-900 p-4 shadow-2xl sm:my-6 sm:p-6">
+        <div class="mb-5 flex items-start justify-between gap-4">
+          <div><h2 class="text-2xl font-bold text-amber-300">Edit Game Page</h2><p class="mt-1 text-sm text-gray-400">Changes are saved to the game catalog.</p></div>
+          <button type="button" data-close-edit class="rounded-lg bg-gray-800 px-3 py-2 text-white hover:bg-gray-700" aria-label="Close editor">✕</button>
+        </div>
+        <form id="game-page-edit-form" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label class="text-sm text-gray-300">Title<input name="title" required maxlength="200" value="${escapeAttribute(game.title)}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Console<input name="console" required maxlength="100" value="${escapeAttribute(game.console || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Release year<input name="year" type="number" min="1950" max="2100" value="${game.year || ''}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Multiplayer type<input name="multiplayer_type" maxlength="100" value="${escapeAttribute(game.multiplayer_type || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Developer<input name="developer" value="${escapeAttribute(game.developer || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Publisher<input name="publisher" value="${escapeAttribute(game.publisher || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Genre<input name="genre" value="${escapeAttribute(game.genre || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Release date<input name="release_date" type="date" value="${game.release_date ? game.release_date.split('T')[0] : ''}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Description<textarea name="description" rows="5" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white">${escapeHtml(game.description || '')}</textarea></label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Features (comma-separated)<input name="features" value="${escapeAttribute(Array.isArray(game.features) ? game.features.join(', ') : '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Cover image URL<input name="cover_image_url" type="url" value="${escapeAttribute(game.cover_image_url || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Gameplay video URL<input name="video_url" type="url" value="${escapeAttribute(game.video_url || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Background image URL<input name="background_image_url" type="url" value="${escapeAttribute(game.background_image_url || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Background video URL<input name="background_video_url" type="url" value="${escapeAttribute(game.background_video_url || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Connection method<input name="connection_method" value="${escapeAttribute(game.connection_method || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Server details<input name="server_details" value="${escapeAttribute(game.server_details || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Minimum players<input name="players_min" type="number" min="1" value="${game.players_min || 1}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300">Maximum players<input name="players_max" type="number" min="1" value="${game.players_max || 1}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="flex items-center gap-3 text-sm text-gray-300 sm:col-span-2"><input name="servers_available" type="checkbox" ${game.servers_available ? 'checked' : ''} class="h-5 w-5 accent-cyan-500">Servers available</label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Connection details (JSON array)<textarea name="connection_details" rows="5" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 font-mono text-sm text-white">${escapeHtml(JSON.stringify(details, null, 2))}</textarea></label>
+          <div id="game-edit-error" class="hidden text-sm text-red-300 sm:col-span-2" role="alert"></div>
+          <div class="flex flex-col-reverse gap-3 pt-2 sm:col-span-2 sm:flex-row sm:justify-end">
+            <button type="button" data-close-edit class="rounded-lg bg-gray-700 px-5 py-3 text-white hover:bg-gray-600">Cancel</button>
+            <button type="submit" class="rounded-lg bg-amber-600 px-5 py-3 font-bold text-white hover:bg-amber-500">Save Game Page</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.append(modal);
+    modal.querySelectorAll('[data-close-edit]').forEach(button => button.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', event => {
+        if (event.target === modal) modal.remove();
+    });
+    modal.querySelector('#game-page-edit-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        const numberOrNull = name => String(data.get(name) || '').trim() ? Number(data.get(name)) : null;
+        let connectionDetails;
+        try {
+            connectionDetails = JSON.parse(String(data.get('connection_details') || '[]'));
+            if (!Array.isArray(connectionDetails)) throw new Error('Connection details must be a JSON array.');
+        } catch (error) {
+            const errorEl = modal.querySelector('#game-edit-error');
+            errorEl.textContent = error.message || 'Connection details must be valid JSON.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        const updates = {
+            title: String(data.get('title')).trim(),
+            console: String(data.get('console')).trim(),
+            year: numberOrNull('year'),
+            multiplayer_type: String(data.get('multiplayer_type')).trim() || null,
+            developer: String(data.get('developer')).trim() || null,
+            publisher: String(data.get('publisher')).trim() || null,
+            genre: String(data.get('genre')).trim() || null,
+            release_date: String(data.get('release_date')).trim() || null,
+            description: String(data.get('description')).trim() || null,
+            features: String(data.get('features')).split(',').map(feature => feature.trim()).filter(Boolean),
+            cover_image_url: String(data.get('cover_image_url')).trim() || null,
+            video_url: String(data.get('video_url')).trim() || null,
+            background_image_url: String(data.get('background_image_url')).trim() || null,
+            background_video_url: String(data.get('background_video_url')).trim() || null,
+            connection_method: String(data.get('connection_method')).trim() || null,
+            server_details: String(data.get('server_details')).trim() || null,
+            players_min: numberOrNull('players_min') || 1,
+            players_max: numberOrNull('players_max') || 1,
+            servers_available: data.get('servers_available') === 'on',
+            connection_details: connectionDetails,
+        };
+        if (updates.players_max < updates.players_min) {
+            const errorEl = modal.querySelector('#game-edit-error');
+            errorEl.textContent = 'Maximum players must be at least the minimum players.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+        const submit = form.querySelector('[type="submit"]');
+        const errorEl = modal.querySelector('#game-edit-error');
+        submit.disabled = true;
+        submit.textContent = 'Saving...';
+        errorEl.classList.add('hidden');
+        try {
+            const { error } = await rom.supabase.rpc('admin_update_game_page', {
+                p_game_id: game.id,
+                p_updates: updates,
+            });
+            if (error) throw error;
+            modal.remove();
+            await initGameDetail(rom, identifier);
+        } catch (error) {
+            console.error('Could not save game page:', error);
+            errorEl.textContent = error.message || 'Could not save game page.';
+            errorEl.classList.remove('hidden');
+            submit.disabled = false;
+            submit.textContent = 'Save Game Page';
+        }
+    });
+}
+
+async function loadGameReviews(rom, game) {
+    const section = document.getElementById('game-reviews-section');
+    if (!section) return;
+    section.innerHTML = '<p class="py-6 text-center text-gray-400">Loading player reviews...</p>';
+
+    const { data: reviewRows, error, count } = await rom.supabase
+        .from('game_reviews')
+        .select('id, user_id, rating, title, content, created_at', { count: 'exact' })
+        .eq('game_id', game.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+    if (error) {
+        console.error('Could not load game reviews:', error);
+        section.innerHTML = '<p class="py-6 text-center text-red-300">Reviews are temporarily unavailable.</p>';
+        return;
+    }
+
+    const user = rom.currentUser;
+    const latestReviews = reviewRows || [];
+    const reviews = [...latestReviews];
+    let ownReview = latestReviews.find(review => review.user_id === user?.id);
+    if (user && !ownReview) {
+        const { data: existingReview, error: ownReviewError } = await rom.supabase
+            .from('game_reviews')
+            .select('id, user_id, rating, title, content, created_at')
+            .eq('game_id', game.id)
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (ownReviewError) console.error('Could not load the signed-in user game review:', ownReviewError);
+        if (existingReview) {
+            ownReview = existingReview;
+            reviews.push(existingReview);
+        }
+    }
+    const average = latestReviews.length
+        ? (latestReviews.reduce((sum, review) => sum + review.rating, 0) / latestReviews.length).toFixed(1)
+        : '—';
+    let authors = {};
+    const authorIds = [...new Set((reviews || []).map(review => review.user_id))];
+    if (authorIds.length) {
+        const { data, error: authorError } = await rom.supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', authorIds);
+        if (authorError) console.error('Could not load game review authors:', authorError);
+        authors = Object.fromEntries((data || []).map(profile => [profile.id, profile]));
+    }
+
+    section.innerHTML = `
+      <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 class="text-2xl font-bold text-cyan-300">Player Reviews</h2><p class="text-sm text-gray-400">Share your experience with ${escapeHtml(game.title)}.</p></div>
+        <div class="rounded-lg border border-yellow-500/30 bg-gray-800 px-4 py-2 text-sm text-gray-300"><strong class="text-xl text-yellow-300">${average}</strong> / 5 latest · ${count ?? reviews.length} ${(count ?? reviews.length) === 1 ? 'review' : 'reviews'}</div>
+      </div>
+      ${user ? `
+        <form id="game-review-form" class="mb-6 space-y-3 rounded-lg border border-gray-700 bg-gray-800/70 p-4">
+          <h3 class="font-bold text-white">${ownReview ? 'Update your review' : 'Write a review'}</h3>
+          <label class="block text-sm text-gray-300">Your rating
+            <select name="rating" required class="mt-1 min-h-11 w-full rounded-lg border border-gray-600 bg-gray-900 p-3 text-white sm:w-48">
+              ${[5,4,3,2,1].map(rating => `<option value="${rating}" ${ownReview?.rating === rating ? 'selected' : ''}>${'★'.repeat(rating)} (${rating}/5)</option>`).join('')}
+            </select>
+          </label>
+          <label class="block text-sm text-gray-300">Title (optional)<input name="title" maxlength="120" value="${escapeAttribute(ownReview?.title || '')}" class="mt-1 min-h-11 w-full rounded-lg border border-gray-600 bg-gray-900 p-3 text-white"></label>
+          <label class="block text-sm text-gray-300">Review<textarea name="content" required maxlength="4000" rows="4" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-900 p-3 text-white">${escapeHtml(ownReview?.content || '')}</textarea></label>
+          <p id="game-review-status" class="min-h-5 text-sm text-gray-400" role="status"></p>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button type="submit" class="min-h-11 rounded-lg bg-cyan-700 px-5 py-2 font-bold text-white hover:bg-cyan-600">${ownReview ? 'Save Review' : 'Post Review'}</button>
+            ${ownReview ? '<button type="button" id="delete-game-review" class="min-h-11 rounded-lg border border-red-500/40 px-5 py-2 text-red-300 hover:bg-red-900/30">Delete My Review</button>' : ''}
+          </div>
+        </form>
+      ` : '<div class="mb-6 rounded-lg border border-gray-700 bg-gray-800/70 p-4"><p class="text-gray-300">Sign in to leave a review.</p><a href="#/auth" class="mt-3 inline-block rounded-lg bg-cyan-700 px-4 py-3 font-bold text-white">Sign In</a></div>'}
+      <div class="space-y-3" id="game-review-list">
+        ${reviews?.length ? reviews.map(review => {
+            const author = authors[review.user_id];
+            return `<article class="rounded-lg border border-gray-700 bg-gray-800/60 p-4">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div><div class="font-bold text-white">${escapeHtml(review.title || 'Player review')}</div><div class="text-xs text-gray-400">By ${escapeHtml(author?.username || 'ROM member')} · ${new Date(review.created_at).toLocaleDateString()}</div></div>
+                <span class="text-lg text-yellow-300" aria-label="${review.rating} out of 5 stars">${'★'.repeat(review.rating)}<span class="text-gray-600">${'☆'.repeat(5 - review.rating)}</span></span>
+              </div>
+              <p class="whitespace-pre-line break-words text-sm leading-relaxed text-gray-200">${escapeHtml(review.content)}</p>
+            </article>`;
+        }).join('') : '<p class="rounded-lg border border-dashed border-gray-700 p-6 text-center text-gray-400">No reviews yet. Be the first to share your thoughts.</p>'}
+      </div>`;
+
+    const form = section.querySelector('#game-review-form');
+    form?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const payload = {
+            game_id: game.id,
+            user_id: user.id,
+            rating: Number(data.get('rating')),
+            title: String(data.get('title') || '').trim(),
+            content: String(data.get('content') || '').trim(),
+        };
+        const status = section.querySelector('#game-review-status');
+        const submit = form.querySelector('[type="submit"]');
+        submit.disabled = true;
+        status.textContent = 'Saving review...';
+        try {
+            const result = ownReview
+                ? await rom.supabase.from('game_reviews').update({
+                    rating: payload.rating,
+                    title: payload.title,
+                    content: payload.content,
+                }).eq('id', ownReview.id).eq('user_id', user.id)
+                : await rom.supabase.from('game_reviews').insert(payload);
+            if (result.error) throw result.error;
+            await loadGameReviews(rom, game);
+        } catch (error) {
+            console.error('Could not save game review:', error);
+            status.textContent = error.message || 'Could not save your review.';
+            submit.disabled = false;
+        }
+    });
+
+    section.querySelector('#delete-game-review')?.addEventListener('click', async event => {
+        if (!confirm('Delete your review for this game?')) return;
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+            const { error: deleteError } = await rom.supabase
+                .from('game_reviews')
+                .delete()
+                .eq('id', ownReview.id)
+                .eq('user_id', user.id);
+            if (deleteError) throw deleteError;
+            await loadGameReviews(rom, game);
+        } catch (error) {
+            console.error('Could not delete game review:', error);
+            button.disabled = false;
+            section.querySelector('#game-review-status').textContent = error.message || 'Could not delete your review.';
+        }
+    });
+}
+
+function escapeAttribute(value) {
+    return escapeHtml(String(value)).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // ===== 🚀 NEW: LIVE SESSION LOGIC =====
@@ -1024,7 +1319,7 @@ function renderStars(container, currentRating, game, userId, rom, statusText) {
     for (let i = 1; i <= 5; i++) {
         const star = document.createElement('button');
         star.type = 'button';
-        star.className = `text-2xl transition-transform hover:scale-110 focus:outline-none ${i <= currentRating ? 'text-yellow-400' : 'text-gray-600'}`;
+        star.className = `flex min-h-11 min-w-11 items-center justify-center text-3xl transition-transform hover:scale-110 focus:outline-none ${i <= currentRating ? 'text-yellow-400' : 'text-gray-600'}`;
         star.innerHTML = '★';
         star.setAttribute('aria-label', `Rate ${i} stars`);
         

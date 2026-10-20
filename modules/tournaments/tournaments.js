@@ -560,7 +560,7 @@ export async function getRecentTournamentsForTicker(rom) {
         if (error || !data) return [];
 
         return data.map(tour => ({
-            text: `🏆 <strong>${tour.organizer_username}</strong> is hosting a <strong>${tour.game_title}</strong> tournament: ${tour.title}`,
+            text: `🏆 <strong>${escapeHtml(tour.organizer_username)}</strong> is hosting a <strong>${escapeHtml(tour.game_title)}</strong> tournament: ${escapeHtml(tour.title)}`,
             link: '#/tournaments'
         }));
     } catch (err) {
