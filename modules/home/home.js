@@ -5,6 +5,8 @@ import { getRecentTournamentsForTicker } from '../tournaments/tournaments.js';
 let realtimeChannel = null;
 let homeStatsInterval = null;
 let onlineUsersInterval = null;
+let currentlyHotInterval = null;
+let currentlyHotRefreshTimeout = null;
 let tickerDisplayInterval = null;
 let tickerRefreshInterval = null;
 let dynamicMessages = []; // Stores combined LFG and Tournament messages
@@ -30,8 +32,10 @@ export default function initModule(rom) {
   
   // 4. Load Dynamic Content
   loadSiteSettings();
-  loadFeaturedGame();
   loadGameOfTheWeek();
+  loadCurrentlyHot();
+  if (currentlyHotInterval) clearInterval(currentlyHotInterval);
+  currentlyHotInterval = setInterval(loadCurrentlyHot, 60000);
   loadOnlineUsers();
   if (onlineUsersInterval) clearInterval(onlineUsersInterval);
   onlineUsersInterval = setInterval(loadOnlineUsers, 60000);
@@ -250,15 +254,24 @@ function renderHomeLayout() {
             </div>
           </div>
 
-          <!-- Random Pick -->
-          <div class="ambient-card bg-gray-800 rounded-xl overflow-hidden border border-cyan-500/30 shadow-lg shadow-cyan-900/20 flex flex-col">
-            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-4 border-b border-cyan-500/30 flex justify-between items-center">
-              <h2 class="text-xl font-bold text-cyan-300 flex items-center gap-2">
-                <span class="text-2xl">🎲</span> Random Pick
-              </h2>
-              <span id="featured-game-status" class="text-xs text-gray-400 italic">Loading...</span>
+          <!-- Currently Hot -->
+          <div class="ambient-card overflow-hidden rounded-xl border border-green-500/30 bg-gray-800 shadow-lg shadow-green-900/20">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-green-500/30 bg-gradient-to-r from-green-950/70 to-cyan-950/50 p-4">
+              <div>
+                <h2 class="flex items-center gap-2 text-xl font-bold text-green-200">
+                  <span class="relative flex h-3 w-3">
+                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex h-3 w-3 rounded-full bg-green-400"></span>
+                  </span>
+                  Currently Hot
+                </h2>
+                <p class="mt-1 text-xs text-gray-400">Games active in ROM lobbies or tracked networks</p>
+              </div>
+              <a href="#/live-lobbies" class="rounded-lg border border-green-500/30 px-3 py-2 text-xs font-bold text-green-200 hover:bg-green-900/40">View live lobbies</a>
             </div>
-            <div id="featured-game-content" class="flex-1 flex flex-col"></div>
+            <div id="currently-hot-games" class="space-y-2 p-4" aria-live="polite">
+              <p class="text-sm text-gray-400">Checking live activity…</p>
+            </div>
           </div>
         </div>
 
@@ -396,6 +409,169 @@ async function loadLivePlayerCount() {
   animateValue('stat-live-players', 0, playerCount, 1000);
 }
 
+async function loadCurrentlyHot() {
+  const container = document.getElementById('currently-hot-games');
+  if (!container) return;
+
+  try {
+    const roomCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const serviceCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const pageSize = 500;
+    const rooms = [];
+    const services = [];
+
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .select('id, game_id')
+        .eq('is_ephemeral', true)
+        .gte('last_activity', roomCutoff)
+        .order('last_activity', { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      rooms.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+      if (offset >= 50000) throw new Error('Active ROM lobbies exceeded the 50,000-row safety limit.');
+    }
+
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from('discord_live_services')
+        .select('service_name, game_title, console, players_online, updated_at')
+        .eq('is_active', true)
+        .gte('updated_at', serviceCutoff)
+        .gt('players_online', 0)
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      services.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+      if (offset >= 50000) throw new Error('Active tracked services exceeded the 50,000-row safety limit.');
+    }
+
+    const gameIds = [...new Set(rooms.map(room => room.game_id).filter(Boolean))];
+    const trackedTitles = [...new Set(services.map(service => service.game_title).filter(Boolean))];
+    const games = [];
+
+    for (let offset = 0; offset < gameIds.length; offset += 100) {
+      const { data, error } = await supabase
+        .from('games')
+        .select('id, slug, title, console')
+        .in('id', gameIds.slice(offset, offset + 100))
+        .eq('status', 'approved');
+      if (error) throw error;
+      games.push(...(data || []));
+    }
+
+    for (let offset = 0; offset < trackedTitles.length; offset += 100) {
+      const { data, error } = await supabase
+        .from('games')
+        .select('id, slug, title, console')
+        .in('title', trackedTitles.slice(offset, offset + 100))
+        .eq('status', 'approved');
+      if (error) throw error;
+      games.push(...(data || []));
+    }
+
+    const uniqueGames = new Map(games.map(game => [game.id, game]));
+    const gamesByTitle = new Map();
+    for (const game of uniqueGames.values()) {
+      const key = normalizeLiveGameTitle(game.title);
+      if (!gamesByTitle.has(key)) gamesByTitle.set(key, []);
+      gamesByTitle.get(key).push(game);
+    }
+
+    const hotGames = new Map();
+    const getEntry = (game, fallbackTitle, fallbackConsole = '') => {
+      const title = game?.title || fallbackTitle || 'Unknown game';
+      const consoleName = game?.console || fallbackConsole || '';
+      const key = game?.id || `${normalizeLiveGameTitle(title)}|${normalizeLiveGameTitle(consoleName)}`;
+      if (!hotGames.has(key)) {
+        hotGames.set(key, {
+          game,
+          title,
+          console: consoleName,
+          roomCount: 0,
+          servicePlayers: 0,
+          services: new Set(),
+        });
+      }
+      return hotGames.get(key);
+    };
+
+    const gamesById = new Map(uniqueGames);
+    for (const room of rooms) {
+      const game = gamesById.get(room.game_id);
+      if (!game) continue;
+      getEntry(game).roomCount += 1;
+    }
+
+    for (const service of services) {
+      const titleMatches = gamesByTitle.get(normalizeLiveGameTitle(service.game_title)) || [];
+      const consoleMatches = titleMatches.filter(game =>
+        normalizeLiveGameTitle(game.console) === normalizeLiveGameTitle(service.console)
+      );
+      const game = consoleMatches[0] || (titleMatches.length === 1 ? titleMatches[0] : null);
+      const entry = getEntry(game, service.game_title, service.console);
+      entry.servicePlayers += Math.max(0, Number(service.players_online) || 0);
+      if (service.service_name) entry.services.add(service.service_name);
+    }
+
+    const rankedGames = [...hotGames.values()]
+      .sort((a, b) =>
+        ((b.servicePlayers + b.roomCount) - (a.servicePlayers + a.roomCount)) ||
+        (b.servicePlayers - a.servicePlayers) ||
+        a.title.localeCompare(b.title)
+      )
+      .slice(0, 10);
+
+    if (!rankedGames.length) {
+      container.innerHTML = '<p class="py-5 text-center text-sm text-gray-400">No active games reported right now. Start a ROM game lobby or check back when tracked networks have players online.</p>';
+      return;
+    }
+
+    container.innerHTML = rankedGames.map((entry, index) => {
+      const gameHref = entry.game
+        ? `#/game/${encodeURIComponent(entry.game.slug || entry.game.id)}`
+        : '#/live-lobbies';
+      const indicators = [];
+      if (entry.servicePlayers) {
+        indicators.push(`<span class="rounded-full border border-green-500/20 bg-green-950/50 px-2 py-1 text-[11px] text-green-200">${entry.servicePlayers.toLocaleString()} tracked</span>`);
+      }
+      if (entry.roomCount) {
+        indicators.push(`<span class="rounded-full border border-cyan-500/20 bg-cyan-950/50 px-2 py-1 text-[11px] text-cyan-200">${entry.roomCount} ROM ${entry.roomCount === 1 ? 'lobby' : 'lobbies'}</span>`);
+      }
+      const serviceNames = [...entry.services].sort().join(', ');
+      const consoleLabel = entry.console
+        ? `<span class="mt-0.5 block truncate text-[10px] text-gray-500">${escapeTickerHTML(entry.console)}</span>`
+        : '';
+      return `
+        <a href="${gameHref}" class="flex items-center gap-3 rounded-lg border border-gray-700/80 bg-gray-950/60 p-3 transition hover:border-green-500/50 hover:bg-gray-900">
+          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-800 text-sm font-black ${index < 3 ? 'text-green-300' : 'text-gray-400'}">${index + 1}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-bold text-white">${escapeTickerHTML(entry.title)}</span>
+            ${consoleLabel}
+            <span class="mt-1 flex flex-wrap gap-1.5">${indicators.join('')}</span>
+            ${serviceNames ? `<span class="mt-1 block truncate text-[10px] text-gray-500">${escapeTickerHTML(serviceNames)}</span>` : ''}
+          </span>
+          <span class="shrink-0 text-lg text-green-300" aria-label="Active">●</span>
+        </a>`;
+    }).join('') + '<p class="pt-2 text-[10px] leading-relaxed text-gray-500">Tracked player totals are reported by external services and may overlap across networks.</p>';
+  } catch (error) {
+    console.error('Could not load currently hot games:', error);
+    container.innerHTML = '<p class="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 text-sm text-amber-200">Live game activity is temporarily unavailable.</p>';
+  }
+}
+
+function normalizeLiveGameTitle(value) {
+  return String(value || '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+}
+
+function scheduleCurrentlyHotRefresh() {
+  clearTimeout(currentlyHotRefreshTimeout);
+  currentlyHotRefreshTimeout = setTimeout(() => void loadCurrentlyHot(), 500);
+}
+
 function animateValue(id, start, end, duration) {
   const obj = document.getElementById(id);
   if (!obj) return;
@@ -442,41 +618,6 @@ async function loadSiteSettings() {
     });
   } catch (error) {
     console.error('Site settings error:', error);
-  }
-}
-
-async function loadFeaturedGame() {
-  const container = document.getElementById('featured-game-content');
-  const statusEl = document.getElementById('featured-game-status');
-  if (!container) return;
-
-  try {
-    const { count, error: countError } = await supabase
-      .from('games')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'approved');
-
-    if (countError || count === 0) {
-       container.innerHTML = `<div class="p-8 text-center text-gray-500">No games available yet.</div>`;
-       return;
-    }
-
-    const randomOffset = Math.floor(Math.random() * count);
-    const { data: games, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('status', 'approved')
-      .range(randomOffset, randomOffset)
-      .single();
-
-    if (error || !games) {
-      const { data: fallback } = await supabase.from('games').select('*').eq('status', 'approved').limit(1).single();
-      if(fallback) renderGameCard(fallback, container, statusEl, false);
-    } else {
-      renderGameCard(games, container, statusEl, false);
-    }
-  } catch (error) {
-    console.error('Featured game error:', error);
   }
 }
 
@@ -529,7 +670,7 @@ async function loadGameOfTheWeek() {
     }
 
     if (selectedGame) {
-      renderGameCard(selectedGame, container, null, true);
+      renderGameCard(selectedGame, container, true);
     } else {
       container.innerHTML = `<div class="p-8 text-center text-gray-500">No featured game this week.</div>`;
     }
@@ -539,7 +680,7 @@ async function loadGameOfTheWeek() {
   }
 }
 
-function renderGameCard(game, container, statusEl, isFeatured = false) {
+function renderGameCard(game, container, isFeatured = false) {
   const coverUrl = game.cover_image_url || 'https://via.placeholder.com/400x220/1f2937/06b6d4?text=No+Cover';
   const gameLink = game.slug ? `#/game/${game.slug}` : `#/game/${game.id}`;
   const themeClass = isFeatured ? 'from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-purple-500/40' : 'from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 shadow-cyan-500/40';
@@ -568,7 +709,6 @@ function renderGameCard(game, container, statusEl, isFeatured = false) {
       </a>
     </div>
   `;
-  if(statusEl) statusEl.textContent = isFeatured ? "This Week's Pick" : "Random Pick";
 }
 
 async function loadOnlineUsers() {
@@ -949,7 +1089,6 @@ function startRealtimeFeed(rom) {
   realtimeChannel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'games' }, (payload) => {
     if (payload.new.status === 'approved') {
       flashTicker(`🎮 New Game Added: ${escapeTickerHTML(payload.new.title)}`);
-      loadFeaturedGame();
       loadRecentActivity();
       loadStats();
     }
@@ -998,6 +1137,15 @@ function startRealtimeFeed(rom) {
 
   realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'discord_live_services' }, () => {
     refreshDynamicTicker(rom);
+    scheduleCurrentlyHotRefresh();
+  });
+
+  realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'chat_rooms' }, () => {
+    scheduleCurrentlyHotRefresh();
+  });
+
+  realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'game_lobby_activity' }, () => {
+    scheduleCurrentlyHotRefresh();
   });
 
   realtimeChannel.subscribe((status) => {
