@@ -48,8 +48,8 @@ if errorlevel 1 (
 )
 
 echo.
-echo The bridge will now ask for the bridge secret and Supabase anon/public API key.
-echo Do NOT enter the service_role key. Both inputs are hidden.
+echo The bridge will ask for the bridge secret and anon/public API key if not already configured.
+echo Do NOT enter the service_role key.
 echo It will sync immediately and then repeat every 60 seconds.
 echo Close this window or press Ctrl+C to stop syncing.
 echo.

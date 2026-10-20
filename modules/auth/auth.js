@@ -1,6 +1,6 @@
 import { supabase, updateAuthUI } from '../../lib/supabase.js';
 
-export async function initModule(_rom, params = {}) {
+export async function initModule(_rom) {
     console.log('🔐 Auth module initialized');
     
     // 1. CRITICAL: Check for Auth Response (Verification/Reset) FIRST
@@ -13,14 +13,6 @@ export async function initModule(_rom, params = {}) {
     // If handleAuthResponse didn't redirect or show a success state, show login
     if (!handled) {
         showAuthForm('login');
-    }
-    const discordLinkMessages = {
-        authorization_denied: 'Discord authorization was canceled. You can try linking again from your profile.',
-        missing_parameters: 'Discord did not return the information needed to finish linking. Please try again.',
-        invalid_or_expired_state: 'The Discord link request expired or was already used. Please try again.',
-    };
-    if (params.discordLinkResult && discordLinkMessages[params.discordLinkResult]) {
-        showMessage(discordLinkMessages[params.discordLinkResult], 'error');
     }
     // If handled (e.g., recovery), the handler already switched the view
 }

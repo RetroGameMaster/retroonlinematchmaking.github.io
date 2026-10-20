@@ -46,14 +46,22 @@ export default async function initGameDetail(rom, identifier) {
     }
 
     try {
-        const result = await rom.supabase
+        let { data: game, error: gameError } = await rom.supabase
             .from('games')
             .select('*')
             .eq('slug', identifier)
-            .single();
+            .maybeSingle();
 
-        const game = result.data;
-        const gameError = result.error;
+        if (gameError) throw gameError;
+        if (!game && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
+            const result = await rom.supabase
+                .from('games')
+                .select('*')
+                .eq('id', identifier)
+                .maybeSingle();
+            game = result.data;
+            gameError = result.error;
+        }
 
         if (gameError || !game) {
             console.error('❌ Game not found:', gameError || 'No data');

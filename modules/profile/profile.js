@@ -101,7 +101,7 @@ export async function initModule(container, params) {
     renderProfileLayout(targetContainer, targetUser, isOwnProfile, isTargetUserAdmin, currentUser);
 
     // 4. Attach Event Listeners
-    attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser, params?.discordLinkResult);
+    attachEventListeners(targetContainer, targetUser, isOwnProfile, currentUser);
 
   } catch (error) {
     console.error("💥 Error loading profile:", error);
@@ -751,17 +751,6 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
             </ul>
           </div>
 
-          ${isOwnProfile ? `
-            <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-indigo-500/30 p-6">
-              <h3 class="text-lg font-bold text-indigo-300 mb-2">Discord Account</h3>
-              <p id="discord-link-status" class="text-sm text-gray-300 mb-4">Checking link status...</p>
-              <button id="btn-link-discord" type="button" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-lg font-bold transition">
-                Link Discord
-              </button>
-              <p class="text-xs text-gray-500 mt-3">Link your Discord identity to this existing ROM account. Your matchmaking history stays in place.</p>
-            </div>
-          ` : ''}
-
           <!-- Friends -->
           <!-- Mobile Order: 2 (Right after Details) -->
           <div class="ra-card bg-gray-900/80 backdrop-blur rounded-xl border border-gray-700 p-6 order-2 lg:order-none">
@@ -991,7 +980,7 @@ function getBackgroundCSS(bg) {
 // EVENT LISTENERS & INTERACTIVITY
 // ============================================================================
 
-function attachEventListeners(container, profile, isOwnProfile, currentUser, discordLinkResult = null) {
+function attachEventListeners(container, profile, isOwnProfile, currentUser) {
   const editBtn = document.getElementById('btn-edit-profile');
   const modal = document.getElementById('edit-modal');
   const cancelBtn = document.getElementById('btn-cancel-edit');
@@ -999,11 +988,11 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser, dis
   const bgTypeSelect = document.getElementById('bg_type');
   const bgUploadContainer = document.getElementById('bg-upload-container');
 
-  // Discord linking is an additive feature. All OAuth secrets remain server-side.
-  const discordLinkButton = document.getElementById('btn-link-discord');
-  const discordLinkStatus = document.getElementById('discord-link-status');
+  // Account linking is paused; profile pages no longer render these controls.
+  const discordLinkButton = null;
+  const discordLinkStatus = null;
   if (isOwnProfile && currentUser && discordLinkButton && discordLinkStatus) {
-    const discordFunctionUrl = 'https://lapyxhothazalssrbimb.supabase.co/functions/v1/discord-link';
+    const discordFunctionUrl = '';
     const loadDiscordLinkStatus = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -1065,9 +1054,6 @@ function attachEventListeners(container, profile, isOwnProfile, currentUser, dis
         invalid_discord_identity: 'Discord returned an invalid account identity.',
         link_failed: 'Could not save the Discord account link. Please try again.',
       };
-      if (discordLinkResult && resultMessages[discordLinkResult]) {
-        discordLinkStatus.textContent = resultMessages[discordLinkResult];
-      }
     });
   }
 

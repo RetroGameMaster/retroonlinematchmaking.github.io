@@ -309,7 +309,7 @@ window.acceptLFG = async function(postId, hostId, rom) {
         if (updateError) throw updateError;
 
         // 2. Extend Room Heartbeat
-        const { data: postData } = await rom.supabase.from('lfg_posts').select('chat_room_id, game_title').eq('id', postId).single();
+        const { data: postData } = await rom.supabase.from('lfg_posts').select('chat_room_id').eq('id', postId).single();
         
         if (postData?.chat_room_id) {
             await rom.supabase.from('chat_rooms')
@@ -317,20 +317,7 @@ window.acceptLFG = async function(postId, hostId, rom) {
                 .eq('id', postData.chat_room_id);
         }
 
-        // 3. Create Alert
-        const gameTitle = postData?.game_title || 'a game';
-
-        await rom.supabase.from('alerts').insert([{
-            user_id: hostId,
-            type: 'lfg_accepted',
-            title: 'Lobby Joined!',
-            message: `${accepterUsername} joined your ${gameTitle} lobby!`,
-            link_url: '#/lfg',
-            is_read: false
-        }]);
-
         alert('✅ You joined the lobby! Host notified.');
-        if (window.updateNotificationUI) window.updateNotificationUI(); 
         
         await renderLFGList(rom);
 

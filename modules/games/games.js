@@ -9,6 +9,7 @@ async function initGamesModule(rom) {
     let totalGameCount = null;
     let gameRequestId = 0;
     let isLoadingMore = false;
+    let activeLetter = '';
     const consoleSections = new Map();
     
     const gamesList = document.getElementById('games-list');
@@ -55,13 +56,27 @@ async function initGamesModule(rom) {
                 applyFilters();
             });
         }
+        initLetterFilter();
+        const letterFilter = document.getElementById('game-letter-filter');
+        if (letterFilter) {
+            letterFilter.addEventListener('click', event => {
+                const button = event.target.closest('[data-game-letter]');
+                if (!button) return;
+                activeLetter = button.dataset.gameLetter || '';
+                const searchInput = document.getElementById('game-search');
+                if (searchInput) searchInput.value = '';
+                initLetterFilter();
+                applyFilters();
+            });
+        }
+        loadConsoleOptions();
         
         if (filterBtn && filterPanel) {
             filterBtn.addEventListener('click', () => {
                 filterPanel.classList.toggle('hidden');
             });
         }
-        
+
         if (applyFiltersBtn) {
             applyFiltersBtn.addEventListener('click', () => {
                 applyFilters();
@@ -98,6 +113,59 @@ async function initGamesModule(rom) {
                 const gameSlug = card.dataset.gameSlug;
                 window.location.hash = `#/game/${gameSlug || gameId}`;
             });
+        }
+    }
+
+    function initLetterFilter() {
+        const letterFilter = document.getElementById('game-letter-filter');
+        if (!letterFilter) return;
+
+        const letters = ['All', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+        letterFilter.innerHTML = letters.map(letter => {
+            const value = letter === 'All' ? '' : letter;
+            const selected = value === activeLetter;
+            return `<button type="button" data-game-letter="${value}"
+                aria-pressed="${selected}"
+                class="min-w-8 px-2 py-1 rounded text-sm font-semibold transition ${selected
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'}">${letter}</button>`;
+        }).join('');
+    }
+
+    async function loadConsoleOptions() {
+        const consoleFilter = document.getElementById('console-filter');
+        if (!consoleFilter) return;
+
+        try {
+            const consoles = new Set(
+                [...consoleFilter.options].map(option => option.value.trim()).filter(Boolean)
+            );
+            const batchSize = 500;
+            for (let offset = 0; ; offset += batchSize) {
+                const { data, error } = await rom.supabase
+                    .from('games')
+                    .select('id, console')
+                    .eq('status', 'approved')
+                    .order('console', { ascending: true })
+                    .order('id', { ascending: true })
+                    .range(offset, offset + batchSize - 1);
+                if (error) throw error;
+                for (const game of data || []) {
+                    if (game.console?.trim()) consoles.add(game.console.trim());
+                }
+                if (!data || data.length < batchSize) break;
+                if (offset >= 50000) throw new Error('Console list exceeded the safety limit.');
+            }
+
+            const selectedConsole = consoleFilter.value;
+            consoleFilter.replaceChildren(new Option('All consoles', ''));
+            [...consoles].sort((a, b) => a.localeCompare(b)).forEach(consoleName => {
+                consoleFilter.add(new Option(consoleName, consoleName));
+            });
+            consoleFilter.value = [...consoles].includes(selectedConsole) ? selectedConsole : '';
+        } catch (error) {
+            console.error('Failed to load console filters:', error);
+            showMessage('error', 'Console filters could not be loaded. The game library is still available.');
         }
     }
     
@@ -152,6 +220,8 @@ async function initGamesModule(rom) {
     };
 
     async function loadGamesByField(field, value) {
+        activeLetter = '';
+        initLetterFilter();
         const header = document.getElementById('hub-header') || document.createElement('div');
         header.id = 'hub-header';
         header.className = 'mb-6 text-center animate-fade-in';
@@ -176,16 +246,30 @@ async function initGamesModule(rom) {
         const header = document.getElementById('hub-header');
         if (header) header.remove();
 
-        await loadPagedGames((withCount) => rom.supabase
-            .from('games')
-            .select('*', withCount ? { count: 'exact' } : undefined)
-            .eq('status', 'approved')
-            .order('console', { ascending: true })
-            .order('title', { ascending: true })
-            .order('id', { ascending: true }));
+        await loadPagedGames((withCount) => {
+            let query = rom.supabase
+                .from('games')
+                .select('*', withCount ? { count: 'exact' } : undefined)
+                .eq('status', 'approved');
+            query = addLibraryFilters(query);
+            return query.order('console', { ascending: true })
+                .order('title', { ascending: true })
+                .order('id', { ascending: true });
+        });
+    }
+
+    function addLibraryFilters(query) {
+        const consoleFilter = document.getElementById('console-filter');
+        if (consoleFilter?.value) {
+            query = query.eq('console', consoleFilter.value.trim());
+        }
+        if (activeLetter) query = query.ilike('title', `${activeLetter}%`);
+        return query;
     }
     
     async function searchGames(query) {
+        activeLetter = '';
+        initLetterFilter();
         const header = document.getElementById('hub-header');
         if (header) header.remove();
 
@@ -208,12 +292,7 @@ async function initGamesModule(rom) {
                 .from('games')
                 .select('*', withCount ? { count: 'exact' } : undefined)
                 .eq('status', 'approved');
-            
-            const consoleFilter = document.getElementById('console-filter');
-            if (consoleFilter && consoleFilter.value) {
-                const selectedConsole = consoleFilter.value.trim();
-                query = query.ilike('console', `%${selectedConsole}%`);
-            }
+            query = addLibraryFilters(query);
             
             const sortOrder = document.getElementById('sortOrder');
             if (sortOrder) {
@@ -240,6 +319,8 @@ async function initGamesModule(rom) {
         
         const searchInput = document.getElementById('game-search');
         if (searchInput) searchInput.value = '';
+        activeLetter = '';
+        initLetterFilter();
         
         const header = document.getElementById('hub-header');
         if (header) header.remove();

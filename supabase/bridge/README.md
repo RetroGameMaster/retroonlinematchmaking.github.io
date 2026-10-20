@@ -8,7 +8,7 @@ Once Supabase has been configured as described below:
 
 1. Put `Start-ROM-Bridge.bat` and `rom_sqlite_sync.py` in the same folder as the bot's `localdb.db`.
 2. Double-click `Start-ROM-Bridge.bat`.
-3. Confirm the dry-run counts look reasonable, then enter the `ROM_BRIDGE_SECRET` when prompted. The input is hidden. The public anon API key is already configured in the launcher; never use a `service_role` key.
+3. Confirm the dry-run counts look reasonable. During live sync, enter the `ROM_BRIDGE_SECRET` and the public anon API key if needed; secret input is hidden. Never use a `service_role` key.
 4. Leave the window open for updates every 60 seconds. Close it or press Ctrl+C to stop.
 
 If the database has a different name or is in another folder, the batch file asks for its full path. Python 3 must be installed. No Python packages are needed.
@@ -25,7 +25,7 @@ The sync includes:
 ## Supabase setup
 
 1. Review `supabase/migrations/202610200001_discord_bot_bridge.sql` against the project's current schema. Your existing `discord_live_lobbies` table has a different schema from an older migration in this repository; this migration intentionally does not alter that table.
-2. Apply this migration using the Supabase SQL Editor. Do not blindly apply older pending migrations with `supabase db push` until their assumptions about `discord_live_lobbies` have been reconciled.
+2. Apply it using the Supabase SQL Editor. Do not blindly apply older pending migrations with `supabase db push` until their assumptions about `discord_live_lobbies` have been reconciled.
 3. Deploy the updated Edge Function:
 
    ```sh
@@ -49,6 +49,7 @@ Copy `rom_sqlite_sync.py` to the directory containing the bot SQLite database. S
 - `ROM_BRIDGE_FUNCTION_URL`: the HTTPS function URL shown above.
 - `ROM_BRIDGE_SECRET`: the same secret configured in Supabase.
 - `SUPABASE_ANON_KEY`: the project's anon/public API key (not the service-role key). The batch launcher sets this automatically.
+No Discord bot token or OAuth credentials are required by this bridge. The game library’s console filter is populated from the website’s synced game catalog and also includes the systems currently present in the attached bot database.
 
 Run a read-only check first:
 
