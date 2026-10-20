@@ -1,0 +1,7 @@
+project_id = "lapyxhothazalssrbimb"
+
+[functions.discord-link]
+verify_jwt = false
+
+[functions.discord-lobby-bridge]
+verify_jwt = false

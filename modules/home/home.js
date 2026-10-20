@@ -170,6 +170,14 @@ function renderHomeLayout() {
               <span class="block text-2xl font-bold text-green-400" id="stat-online">-</span>
               <span class="text-gray-500 text-xs uppercase">Online</span>
             </div>
+            <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+              <span class="block text-2xl font-bold text-yellow-400" id="stat-bot-wins">-</span>
+              <span class="text-gray-500 text-xs uppercase">Discord Wins</span>
+            </div>
+            <div class="bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+              <span class="block text-2xl font-bold text-indigo-400" id="stat-bot-lfg">-</span>
+              <span class="text-gray-500 text-xs uppercase">Discord LFG</span>
+            </div>
           </div>
 
           <!-- Social Links (Moved Up) -->
@@ -315,9 +323,13 @@ function renderHomeLayout() {
 
 async function loadStats() {
   try {
-    const [gamesRes, usersRes] = await Promise.all([
+    const [gamesRes, usersRes, botStatsRes] = await Promise.all([
       supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true })
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('discord_bot_public_stats')
+        .select('total_wins, active_invite_count')
+        .eq('scope_key', 'global')
+        .maybeSingle()
     ]);
 
     const gameCount = gamesRes.count || 0;
@@ -325,6 +337,10 @@ async function loadStats() {
 
     animateValue("stat-games", 0, gameCount, 1500);
     animateValue("stat-users", 0, userCount, 1500);
+    if (!botStatsRes.error && botStatsRes.data) {
+      animateValue("stat-bot-wins", 0, botStatsRes.data.total_wins || 0, 1500);
+      animateValue("stat-bot-lfg", 0, botStatsRes.data.active_invite_count || 0, 1500);
+    }
   } catch (error) {
     console.error('Stats error:', error);
   }
