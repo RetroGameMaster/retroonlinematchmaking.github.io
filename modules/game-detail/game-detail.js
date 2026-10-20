@@ -30,6 +30,9 @@ let streamExpiryTimeout = null;
 let currentRoomId = null;
 let currentStreamMuted = true;
 let currentStreamMinimized = false;
+let isLoadingLobbyHistory = false;
+let pendingLobbyMessages = [];
+let renderedLobbyMessageIds = new Set();
 
 function getLiveStreamEmbedUrl(rawUrl, muted = true) {
     let url;
@@ -1049,11 +1052,6 @@ async function renderActiveSession(container, room, rom, game) {
         }
     }
 
-    // Load initial messages (Existing line below...)
-    loadChatMessages(rom, room.id);
-    // Load initial messages
-    loadChatMessages(rom, room.id);
-
     // Setup Realtime listener
     chatChannel = rom.supabase.channel(`room:${room.id}`);
     
@@ -1064,6 +1062,10 @@ async function renderActiveSession(container, room, rom, game) {
             table: 'chat_messages',
             filter: `room_id=eq.${room.id}`
         }, (payload) => {
+            if (isLoadingLobbyHistory && payload.new?.room_id === room.id) {
+                pendingLobbyMessages.push(payload.new);
+                return;
+            }
             appendMessageToDOM(payload.new, rom.currentUser?.id, rom);
         })
         .subscribe((status) => {
@@ -1071,6 +1073,8 @@ async function renderActiveSession(container, room, rom, game) {
                 console.log('✅ Joined chat channel:', room.id);
             }
         });
+
+    await loadChatMessages(rom, room.id);
 
     // Chat Form Logic
     const chatForm = document.getElementById('chat-form');
@@ -1298,6 +1302,9 @@ async function loadChatMessages(rom, roomId) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
+    isLoadingLobbyHistory = true;
+    pendingLobbyMessages = [];
+    renderedLobbyMessageIds = new Set();
     try {
         // ✅ SAFE: Only selects from chat_messages, no joins
         const { data: messages, error } = await rom.supabase
@@ -1310,18 +1317,31 @@ async function loadChatMessages(rom, roomId) {
         if (error) throw error;
 
         container.innerHTML = '';
-        if (!messages || messages.length === 0) {
-            container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No messages yet. Say hi!</div>';
-            return;
+        container.innerHTML = '';
+        for (const msg of messages || []) {
+            await appendMessageToDOM(msg, rom.currentUser?.id, rom);
         }
 
-        messages.forEach(msg => appendMessageToDOM(msg, rom.currentUser?.id, rom));
-        
+        const queuedMessages = pendingLobbyMessages;
+        pendingLobbyMessages = [];
+        isLoadingLobbyHistory = false;
+        for (const msg of queuedMessages) {
+            await appendMessageToDOM(msg, rom.currentUser?.id, rom);
+        }
+        if (!container.querySelector('[data-message-id]')) {
+            container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No messages yet. Say hi!</div>';
+        }
         container.scrollTop = container.scrollHeight;
 
     } catch (err) {
+        isLoadingLobbyHistory = false;
         console.error('Error loading messages:', err);
         container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">Failed to load chat.</div>';
+        const queuedMessages = pendingLobbyMessages;
+        pendingLobbyMessages = [];
+        for (const msg of queuedMessages) {
+            await appendMessageToDOM(msg, rom.currentUser?.id, rom);
+        }
     }
 }
 
@@ -1330,6 +1350,8 @@ async function loadChatMessages(rom, roomId) {
 async function appendMessageToDOM(msg, currentUserId, rom) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
+    if (renderedLobbyMessageIds.has(msg.id) || container.querySelector(`[data-message-id="${msg.id}"]`)) return;
+    renderedLobbyMessageIds.add(msg.id);
 
     const isMe = msg.user_id === currentUserId;
     const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1368,6 +1390,8 @@ async function appendMessageToDOM(msg, currentUserId, rom) {
     // 4. Construct HTML (STACKED LAYOUT)
     // Structure: [Container -> [Gamercard Header] + [Message Bubble]]
     const messageEl = document.createElement('div');
+    messageEl.dataset.messageId = msg.id;
+    messageEl.dataset.createdAt = msg.created_at;
     
     // Container: Flex Column (Stacks items vertically)
     // Items-start ensures left alignment for others, flex-row-reverse handles "Me" alignment

@@ -1,6 +1,13 @@
 import { supabase } from '../../lib/supabase.js';
 
 let realtimeChannel = null;
+let activeWebsiteRoomCount = 0;
+let activeServiceRoomCount = 0;
+
+function updateActiveRoomCount() {
+  const countEl = document.getElementById('lobby-count');
+  if (countEl) countEl.textContent = activeWebsiteRoomCount + activeServiceRoomCount;
+}
 
 export default function initModule(rom) {
   console.log('🌍 Live Lobbies module initialized');
@@ -115,7 +122,6 @@ function renderLayout(rom) {
 async function loadActiveLobbies(rom) {
   const container = document.getElementById('lobbies-grid');
   const emptyState = document.getElementById('empty-state');
-  const countEl = document.getElementById('lobby-count');
   
   if (!container) return;
 
@@ -200,8 +206,9 @@ async function loadActiveLobbies(rom) {
       rooms.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
-    // Update UI
-    if (countEl) countEl.textContent = rooms.length;
+    // The total includes both ROM website lobbies and service-reported active rooms.
+    activeWebsiteRoomCount = rooms.length;
+    updateActiveRoomCount();
 
     if (rooms.length === 0) {
       container.classList.add('hidden');
@@ -427,6 +434,8 @@ async function loadDiscordServices(rom) {
     const filteredServices = services.filter(service =>
       !search || `${service.game_title} ${service.console || ''} ${service.service_name || ''}`.toLowerCase().includes(search)
     );
+    activeServiceRoomCount = filteredServices.length;
+    updateActiveRoomCount();
     filteredServices.sort((a, b) => sort === 'oldest'
       ? new Date(a.updated_at) - new Date(b.updated_at)
       : new Date(b.updated_at) - new Date(a.updated_at));

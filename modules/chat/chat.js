@@ -369,8 +369,8 @@ async function joinRoom(roomId) {
     message_type: 'join'
   });
 
-  loadMessages();
   subscribeToMessages(roomId, 'room', handleRealtimeMessage);
+  await loadMessages();
   loadRoomsList();
 }
 
@@ -387,8 +387,8 @@ async function joinDM(userId, username) {
   if(input) input.disabled = false;
   if(btn) btn.disabled = false;
 
-  loadMessages();
   subscribeToMessages(userId, 'dm', handleRealtimeMessage);
+  await loadMessages();
   loadDMsList();
 }
 
@@ -528,20 +528,28 @@ async function sendMessage(text) {
   };
 
   let error;
+  let insertedMessage;
   if (chatType === 'room') {
+    payload.message_type = 'text';
     payload.room_id = currentRoom;
-    const { error: e } = await supabase.from('chat_messages').insert([payload]);
+    const { data, error: e } = await supabase.from('chat_messages').insert([payload]).select().single();
+    insertedMessage = data;
     error = e;
   } else {
     payload.recipient_id = currentDM;
     payload.sender_id = currentUser.id;
-    const { error: e } = await supabase.from('private_messages').insert([payload]);
+    const { data, error: e } = await supabase.from('private_messages').insert([payload]).select().single();
+    insertedMessage = data;
     error = e;
   }
 
   if (error) {
     console.error('Send failed:', error);
     alert('Failed to send message.');
+    return;
+  }
+  if (insertedMessage) {
+    await handleRealtimeMessage({ eventType: 'INSERT', new: insertedMessage });
   }
 }
 

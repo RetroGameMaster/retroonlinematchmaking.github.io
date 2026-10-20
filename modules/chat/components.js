@@ -11,7 +11,7 @@ import { formatMessageTime, linkifyText, sanitizeInput } from './utils.js';
  * @returns {string} HTML string
  */
 export function renderMessage(msg, currentUserId, displayName, avatarUrl = '', profile = {}) {
-  const isSystem = msg.message_type !== 'text';
+  const isSystem = ['join', 'leave', 'game_invite'].includes(msg.message_type);
   const isOwn = msg.user_id === currentUserId;
   
   if (isSystem) {
