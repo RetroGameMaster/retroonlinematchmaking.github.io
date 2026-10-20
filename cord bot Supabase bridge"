@@ -1,0 +1,13 @@
+.github/copilot-instructions.md
+.gitignore
+.vscode/mcp.json
+docs/discord-linking-live-lobbies.md
+modules/home/home.js
+modules/live-lobbies/live-lobbies.js
+supabase/bridge/README.md
+supabase/bridge/Start-ROM-Bridge.bat
+supabase/bridge/rom_sqlite_sync.py
+supabase/bridge/test_rom_sqlite_sync.py
+supabase/config.toml
+supabase/functions/discord-lobby-bridge/index.ts
+supabase/migrations/202610200001_discord_bot_bridge.sql
