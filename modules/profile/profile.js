@@ -475,10 +475,8 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
 
   if (bgType === 'image') {
     bgEl.style.backgroundImage = `url('${bgValue}')`;
-    // Mobile: Contain (Fit full image)
-    bgEl.style.backgroundSize = 'contain'; 
-    
-    // Desktop: Cover (Your perfect PC look)
+    bgEl.style.backgroundSize = 'contain';
+
     const styleSheet = document.createElement('style');
     styleSheet.textContent = `
       @media (min-width: 768px) {
@@ -488,7 +486,7 @@ function renderProfileLayout(container, profile, isOwnProfile, isTargetUserAdmin
       }
     `;
     document.head.appendChild(styleSheet);
-    
+
     const cleanupObserver = new MutationObserver(() => {
       if (!document.getElementById('dynamic-profile-bg')) {
         styleSheet.remove();

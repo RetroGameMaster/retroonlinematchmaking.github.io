@@ -1287,6 +1287,55 @@ body {
         max-height: 70vh;
         object-fit: contain;
     }
+
+    #dynamic-profile-bg {
+        background-size: cover !important;
+        background-attachment: scroll !important;
+    }
+
+    .ra-profile-wrapper,
+    .ra-header,
+    .ra-header-content,
+    .ra-info {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .ra-header-content {
+        padding: 1rem !important;
+        gap: 1rem !important;
+    }
+
+    #signature-render-target {
+        box-sizing: border-box;
+        width: calc(100% - 1rem);
+        max-width: 100%;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    #signature-render-target img,
+    #signature-render-target video,
+    #signature-render-target iframe,
+    #signature-render-target table,
+    #signature-render-target pre {
+        box-sizing: border-box;
+        max-width: 100% !important;
+    }
+
+    #signature-render-target img,
+    #signature-render-target video {
+        height: auto !important;
+        object-fit: contain;
+    }
+
+    #signature-render-target table {
+        display: block;
+        overflow-x: auto;
+    }
 }
     </style>
 </head>
@@ -1300,6 +1349,13 @@ body {
             <!-- Left: Logo & Links -->
             <div class="flex items-center space-x-6 flex-wrap justify-center">
                 <a href="#/home" class="text-2xl font-bold text-cyan-400 glow">🎮 ROM</a>
+                <a href="#/live-lobbies" class="hover:text-cyan-300 text-sm flex items-center gap-1 group">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    <span class="group-hover:text-red-400 transition">Live Lobbies</span>
+                </a>
                 <a href="#/home" class="hover:text-cyan-300 text-sm">Home</a>
                 <a href="#/games" class="hover:text-cyan-300 text-sm">Games</a>
                 <a href="#/submit-game?tab=decomp" class="hover:text-purple-300 text-sm whitespace-nowrap">🧩 Submit a Decomp / Recomp</a>
@@ -1313,13 +1369,6 @@ body {
 </a>
                 <a href="#/lfg" class="hover:text-cyan-400">📡 LFG</a>
 <a href="#/tournaments" class="hover:text-purple-400">🏆 Tournaments</a>
-                <a href="#/live-lobbies" class="hover:text-cyan-300 text-sm flex items-center gap-1 group">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                    </span>
-                    <span class="group-hover:text-red-400 transition">Live Lobbies</span>
-                </a>
                 <a href="#/profile" class="hover:text-cyan-300 text-sm">Profile</a>
                 <a href="#/search-users" class="hover:text-cyan-300 text-sm">🔍 Find Users</a>
                 <a href="#/admin" id="admin-link" class="hover:text-cyan-300 hidden text-sm">Admin</a>
