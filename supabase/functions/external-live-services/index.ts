@@ -177,6 +177,92 @@ async function loadPsRewiredActivities(): Promise<Activity[]> {
   }));
 }
 
+async function loadMgnPspActivities(): Promise<Activity[]> {
+  const response = await fetch("https://home.mgn.pub/data.json", {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!response.ok) throw new Error(`MGN PSP returned HTTP ${response.status}.`);
+  const body = await response.text();
+  if (new TextEncoder().encode(body).byteLength > maxResponseBytes) {
+    throw new Error("MGN PSP response exceeded the 5 MB safety limit.");
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    throw new Error("MGN PSP returned invalid JSON.");
+  }
+  const games = field(object(payload) ?? {}, "games");
+  if (!Array.isArray(games)) throw new Error("MGN PSP response did not contain a game list.");
+
+  return aggregate(games.flatMap(item => {
+    const game = object(item);
+    if (!game) return [];
+    const groups = field(game, "groups");
+    if (!Array.isArray(groups)) return [];
+    const players = groups.reduce((total, item) => {
+      const group = object(item);
+      if (!group || String(field(group, "name") ?? "").toLowerCase() === "groupless") return total;
+      return total + count(field(group, "usercount"));
+    }, 0);
+    const entry = activity(field(game, "name"), players, "PSP");
+    return entry ? [entry] : [];
+  }));
+}
+
+async function loadMgnXmlActivities(
+  path: string,
+  consoleName: string,
+  fallbackTitle: string,
+): Promise<Activity[]> {
+  const response = await fetch(`https://home.mgn.pub/${path}/status.xml`, {
+    headers: { Accept: "application/xml, text/xml" },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!response.ok) throw new Error(`MGN ${consoleName} returned HTTP ${response.status}.`);
+  const body = await response.text();
+  if (new TextEncoder().encode(body).byteLength > maxResponseBytes) {
+    throw new Error(`MGN ${consoleName} response exceeded the 5 MB safety limit.`);
+  }
+  const rootMatch = body.match(/<([a-z][\w-]*)\b([^>]*)>/i);
+  if (!rootMatch || !new RegExp(`<\\/${rootMatch[1]}\\s*>|<${rootMatch[1]}\\b[^>]*\\/\\s*>`, "i").test(body)) {
+    throw new Error(`MGN ${consoleName} response was not a complete XML document.`);
+  }
+
+  const entries: Activity[] = [];
+  const playersByGame = new Map<string, number>();
+  const roomPattern = /<room\b([^>]*)>([\s\S]*?)<\/room\s*>/gi;
+  let roomMatch: RegExpExecArray | null;
+  while ((roomMatch = roomPattern.exec(body))) {
+    const roomName = roomMatch[1].match(/\bname\s*=\s*["']([^"']+)["']/i)?.[1];
+    const users = [...roomMatch[2].matchAll(/<user\b([^>]*)>([\s\S]*?)<\/user\s*>/gi)];
+    if (users.length) {
+      users.forEach(user => {
+        const gameName = user[1].match(/\bgamename\s*=\s*["']([^"']+)["']/i)?.[1] || roomName;
+        if (gameName) playersByGame.set(gameName, (playersByGame.get(gameName) || 0) + 1);
+      });
+    } else if (roomName) {
+      const playerCount = count(roomMatch[1].match(/\busercount\s*=\s*["']([^"']+)["']/i)?.[1]);
+      if (playerCount) {
+        const gameName = roomName.replace(/\s+Room\s+\d+$/i, "");
+        playersByGame.set(gameName, (playersByGame.get(gameName) || 0) + playerCount);
+      }
+    }
+  }
+  for (const [gameName, playerCount] of playersByGame) {
+    const entry = activity(gameName, playerCount, consoleName);
+    if (entry) entries.push(entry);
+  }
+
+  const rootPlayers = count(rootMatch[2].match(/\busercount\s*=\s*["']([^"']+)["']/i)?.[1]);
+  if (!entries.length && rootPlayers) {
+    const entry = activity(fallbackTitle, rootPlayers, consoleName);
+    if (entry) entries.push(entry);
+  }
+  return aggregate(entries);
+}
+
 const providers: Provider[] = [
   jsonProvider("dolphin", "Dolphin Netplay", "https://lobby.dolphin-emu.org/v0/list", value => {
     const root = object(value);
@@ -195,12 +281,12 @@ const providers: Provider[] = [
       return entry ? [entry] : [];
     }))
   ),
-  {
-    key: "mgn",
-    name: "Madness Gaming Network",
-    url: "http://home.madnessgaming.network/status.xml",
-    parse: parsePrometheus,
-  },
+  { key: "mgn-psp", name: "Madness Gaming Network", load: loadMgnPspActivities },
+  { key: "mgn-3ds", name: "Madness Gaming Network", load: () => loadMgnXmlActivities("3DS", "3DS", "3DS Network") },
+  { key: "mgn-g5", name: "Madness Gaming Network", load: () => loadMgnXmlActivities("G5", "G5", "G5 Network") },
+  { key: "mgn-fw5", name: "Madness Gaming Network", load: () => loadMgnXmlActivities("FW5", "FW5", "FW5 Network") },
+  { key: "mgn-zz", name: "Madness Gaming Network", load: () => loadMgnXmlActivities("ZZ", "ZZ", "ZZ Network") },
+  { key: "mgn-minecraft", name: "Madness Gaming Network", load: () => loadMgnXmlActivities("minecraft", "Minecraft", "Minecraft") },
   jsonProvider("mohh1", "Medal of Honor Heroes Online", "http://ablondel.ddns.net/games/api", value => {
     const root = object(value);
     const stats = object(field(root ?? {}, "stats"));

@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase.js';
+import { mountContentReactionBatch } from '../../lib/content-reactions.js';
 
 let currentGameId = null;
 let currentGameSlug = null;
@@ -301,6 +302,7 @@ async function loadDiscussions(category) {
             ${reactionBarHtml}
           </div>
         ` : '<div class="text-xs text-gray-500 mt-2 italic">Log in to react</div>'}
+        <div id="sticker-reactions-${post.id}"></div>
 
         <div class="flex justify-end mb-3 mt-2">
           ${currentUser ? `<button onclick="toggleReplyForm('${post.id}')" class="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1">💬 Reply</button>` : ''}
@@ -321,7 +323,11 @@ async function loadDiscussions(category) {
     `;
   }).join('');
 
-  posts.forEach(async (post) => { await loadReplies(post.id); });
+  void mountContentReactionBatch(posts.map(post => ({
+    container: document.getElementById(`sticker-reactions-${post.id}`),
+    targetId: post.id,
+  })), supabase, 'game_discussion', currentUserId);
+  posts.forEach(post => void loadReplies(post.id));
 }
 
 // Global Handler for Reactions
@@ -406,22 +412,74 @@ async function loadReplies(parentId) {
             ${deleteBtn}
           </div>
         </div>
-        <p class="text-gray-300 text-xs whitespace-pre-wrap break-words ml-0 md:ml-0">${escapeHtml(reply.content)}</p>
+        <div class="text-gray-300 text-xs whitespace-pre-wrap break-words ml-0 md:ml-0">${processContentWithLinks(reply.content)}</div>
+        <div id="sticker-reactions-${reply.id}"></div>
       </div>
     `;
   }).join('');
+  void mountContentReactionBatch(replies.map(reply => ({
+    container: document.getElementById(`sticker-reactions-${reply.id}`),
+    targetId: reply.id,
+  })), supabase, 'game_discussion', currentUserId);
 }
 
 function processContentWithLinks(text) {
   if (!text) return '';
   let safeText = escapeHtml(text);
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return safeText.replace(urlRegex, (url) => {
-    if (url.match(/\.(jpeg|jpg|gif|png|webp|bmp)(\?.*)?$/i)) {
-      return `<div class="my-2"><a href="${url}" target="_blank"><img src="${url}" class="max-h-64 rounded-lg border border-gray-600 object-contain bg-black/50"></a></div>`;
+  const protectedParts = [];
+  const protect = html => `\uE000${protectedParts.push(html) - 1}\uE001`;
+  const getSafeUrl = value => {
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = value.trim();
+    try {
+      const url = new URL(decoder.value);
+      return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+    } catch {
+      return null;
     }
-    return `<a href="${url}" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline break-all">${url}</a>`;
+  };
+  const escapeAttribute = value => String(value).replace(/[&"'<>]/g, character => ({
+    '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;',
+  })[character]);
+
+  safeText = safeText.replace(/\[code\]([\s\S]*?)\[\/code\]/gi, (_, code) =>
+    protect(`<pre class="my-2 overflow-x-auto rounded bg-black/50 p-3 text-xs text-cyan-100">${code}</pre>`));
+  safeText = safeText.replace(/\[img\]([\s\S]*?)\[\/img\]/gi, (_, source) => {
+    const url = getSafeUrl(source);
+    return url
+      ? protect(`<a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeAttribute(url)}" alt="User-submitted image" loading="lazy" class="my-2 max-h-96 max-w-full rounded-lg border border-gray-600 object-contain"></a>`)
+      : '[invalid image URL]';
   });
+  safeText = safeText.replace(/\[url(?:=([^\]]+))?\]([\s\S]*?)\[\/url\]/gi, (_, target, label) => {
+    const linkText = target || label;
+    const url = getSafeUrl(linkText);
+    return url
+      ? protect(`<a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 underline break-all">${label || escapeHtml(url)}</a>`)
+      : label;
+  });
+
+  safeText = safeText
+    .replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<strong>$1</strong>')
+    .replace(/\[i\]([\s\S]*?)\[\/i\]/gi, '<em>$1</em>')
+    .replace(/\[u\]([\s\S]*?)\[\/u\]/gi, '<u>$1</u>')
+    .replace(/\[s\]([\s\S]*?)\[\/s\]/gi, '<del>$1</del>')
+    .replace(/\[quote\]([\s\S]*?)\[\/quote\]/gi, '<blockquote class="my-2 border-l-2 border-purple-400 pl-3 text-gray-400">$1</blockquote>')
+    .replace(/\[list\]([\s\S]*?)\[\/list\]/gi, (_, items) => {
+      const listItems = items.split(/\[\*\]/).map(item => item.trim()).filter(Boolean);
+      return `<ul class="my-2 list-inside list-disc space-y-1">${listItems.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    });
+
+  safeText = safeText.replace(/https?:\/\/[^\s<]+/g, value => {
+    const url = getSafeUrl(value);
+    if (!url) return value;
+    const safeUrl = escapeAttribute(url);
+    if (/\.(jpeg|jpg|gif|png|webp|bmp)(\?.*)?$/i.test(url)) {
+      return protect(`<a href="${safeUrl}" target="_blank" rel="noopener noreferrer"><img src="${safeUrl}" alt="User-submitted image" loading="lazy" class="my-2 max-h-96 max-w-full rounded-lg border border-gray-600 object-contain"></a>`);
+    }
+    return protect(`<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline break-all">${escapeHtml(url)}</a>`);
+  });
+
+  return safeText.replace(/\uE000(\d+)\uE001/g, (_, index) => protectedParts[Number(index)] || '');
 }
 
 window.toggleReplyForm = function(parentId) {

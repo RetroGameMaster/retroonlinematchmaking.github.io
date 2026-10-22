@@ -1,4 +1,5 @@
 import { supabase, isAdmin } from '../../lib/supabase.js';
+import { mountContentReactionBatch } from '../../lib/content-reactions.js';
 
 // ============================================================================
 // MODULE INITIALIZATION
@@ -1741,9 +1742,14 @@ async function loadWallComments(profileId) {
           <span class="text-xs text-gray-500 whitespace-nowrap">${new Date(c.created_at).toLocaleDateString()}</span>
         </div>
         <p class="text-gray-300 text-sm mt-1 break-words">${c.content}</p>
+        <div id="sticker-reactions-${c.id}"></div>
       </div>
     </div>`;
   }).join('');
+  void mountContentReactionBatch(comments.map(comment => ({
+    container: document.getElementById(`sticker-reactions-${comment.id}`),
+    targetId: comment.id,
+  })), supabase, 'profile_comment', currentUser?.id);
 }
 
 async function loadFriends(userId) {

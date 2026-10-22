@@ -99,6 +99,7 @@ async function loadAdminPanel() {
     🎖️ Award Manager
 </button>
 <button id="tab-guides" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">📚 Guides</button>
+<button id="tab-stickers" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">🎞️ Reaction Stickers</button>
 <button id="tab-admins" class="admin-tab shrink-0 whitespace-nowrap py-3 px-4 font-medium text-sm border-b-2 border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300">
     👑 Admins
 </button>
@@ -179,6 +180,9 @@ async function loadAdminPanel() {
         case 'tab-guides':
         loadAdminGuides();
         break;
+        case 'tab-stickers':
+        loadReactionStickers();
+        break;
     }
   });
 
@@ -220,6 +224,9 @@ function setupTabListeners() {
           case 'tab-guides': 
           loadAdminGuides(); 
           break;
+    case 'tab-stickers':
+        loadReactionStickers();
+        break;
     case 'tab-admins':
         loadAdminList();
         break;
@@ -3092,6 +3099,130 @@ async function loadRecentAwardsLog() {
 // ============================================================================
 // END AWARD MANAGER
 // ============================================================================
+async function loadReactionStickers() {
+  const content = document.getElementById('admin-content');
+  if (!content) return;
+
+  content.innerHTML = `
+    <section>
+      <h2 class="mb-2 text-2xl font-bold text-white">Animated Reaction Stickers</h2>
+      <p class="mb-5 text-sm text-gray-400">Upload GIF, animated WebP, or PNG reaction images. Enabled stickers appear on game discussions, profile walls, reviews, and public chat.</p>
+      <form id="reaction-sticker-form" class="mb-6 grid gap-3 rounded-lg border border-gray-700 bg-gray-900/60 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <label class="text-sm text-gray-300">Sticker label<input name="label" required maxlength="40" class="mt-1 min-h-11 w-full rounded border border-gray-600 bg-gray-800 p-2 text-white"></label>
+        <label class="text-sm text-gray-300">Sticker image<input name="image" type="file" accept="image/gif,image/webp,image/png" required class="mt-1 w-full text-sm text-gray-300"></label>
+        <button type="submit" class="min-h-11 rounded bg-purple-700 px-4 py-2 font-bold text-white hover:bg-purple-600">Upload Sticker</button>
+        <p id="reaction-sticker-status" class="text-sm text-gray-400 sm:col-span-3" role="status"></p>
+      </form>
+      <div id="reaction-sticker-list" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <p class="text-gray-400">Loading stickers…</p>
+      </div>
+    </section>`;
+
+  const list = content.querySelector('#reaction-sticker-list');
+  const status = content.querySelector('#reaction-sticker-status');
+  const form = content.querySelector('#reaction-sticker-form');
+  const { data: stickers, error } = await supabase
+    .from('reaction_stickers')
+    .select('id, label, image_url, storage_path, is_active, sort_order')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) {
+    console.error('Could not load reaction stickers:', error);
+    list.textContent = `Could not load reaction stickers: ${error.message}`;
+    list.classList.add('text-red-300');
+    return;
+  }
+
+  if (!stickers?.length) {
+    list.innerHTML = '<p class="text-gray-400">No reaction stickers have been uploaded yet.</p>';
+  } else {
+    list.innerHTML = stickers.map(sticker => `
+      <article class="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-900/60 p-3">
+        <img src="${escapeAdminAttribute(sticker.image_url)}" alt="" class="h-14 w-14 rounded bg-gray-800 object-contain">
+        <div class="min-w-0 flex-1">
+          <p class="truncate font-bold text-white">${escapeHtmlLocal(sticker.label)}</p>
+          <p class="text-xs ${sticker.is_active ? 'text-green-300' : 'text-gray-500'}">${sticker.is_active ? 'Enabled' : 'Disabled'}</p>
+        </div>
+        <button type="button" data-sticker-id="${sticker.id}" data-active="${sticker.is_active}" class="min-h-10 rounded border border-gray-600 px-3 py-2 text-xs font-bold text-gray-200 hover:bg-gray-800">${sticker.is_active ? 'Disable' : 'Enable'}</button>
+      </article>
+    `).join('');
+    list.querySelectorAll('[data-sticker-id]').forEach(button => {
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          const { data, error: updateError } = await supabase
+            .from('reaction_stickers')
+            .update({ is_active: button.dataset.active !== 'true' })
+            .eq('id', button.dataset.stickerId)
+            .select('id');
+          if (updateError) throw updateError;
+          if (!data?.length) throw new Error('Sticker was not updated.');
+          await loadReactionStickers();
+        } catch (updateError) {
+          console.error('Could not update reaction sticker:', updateError);
+          status.textContent = `Could not update sticker: ${updateError.message}`;
+          status.classList.add('text-red-300');
+          button.disabled = false;
+        }
+      });
+    });
+  }
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const label = String(new FormData(form).get('label') || '').trim();
+    const image = form.querySelector('input[type="file"]').files[0];
+    if (!label || !image) return;
+    const extensions = { 'image/gif': 'gif', 'image/webp': 'webp', 'image/png': 'png' };
+    if (!extensions[image.type]) {
+      status.textContent = 'Choose a GIF, WebP, or PNG image.';
+      status.classList.add('text-red-300');
+      return;
+    }
+    if (image.size > 4 * 1024 * 1024) {
+      status.textContent = 'Sticker files must be 4 MB or smaller.';
+      status.classList.add('text-red-300');
+      return;
+    }
+
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    status.classList.remove('text-red-300');
+    status.textContent = 'Uploading sticker…';
+    const storagePath = `${currentUser.id}/${crypto.randomUUID()}.${extensions[image.type]}`;
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('reaction-stickers')
+        .upload(storagePath, image, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: publicUrl } = supabase.storage.from('reaction-stickers').getPublicUrl(storagePath);
+      const { error: insertError } = await supabase.from('reaction_stickers').insert({
+        label,
+        image_url: publicUrl.publicUrl,
+        storage_path: storagePath,
+        created_by: currentUser.id,
+      });
+      if (insertError) {
+        const { error: cleanupError } = await supabase.storage.from('reaction-stickers').remove([storagePath]);
+        if (cleanupError) console.error('Could not clean up the unregistered reaction sticker upload:', cleanupError);
+        throw insertError;
+      }
+      await loadReactionStickers();
+    } catch (uploadError) {
+      console.error('Could not upload reaction sticker:', uploadError);
+      status.textContent = `Could not upload sticker: ${uploadError.message}`;
+      status.classList.add('text-red-300');
+      submit.disabled = false;
+    }
+  });
+}
+
+function escapeAdminAttribute(value) {
+  return String(value ?? '').replace(/[&"'<>]/g, character => ({
+    '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;',
+  })[character]);
+}
+
 // ============================================================================
 // UNIVERSAL GUIDES MANAGEMENT (FIXED)
 // ============================================================================

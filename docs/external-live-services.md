@@ -17,8 +17,13 @@ The poller currently supports:
 - Wipeout Online / SV0
 - XLink Kai
 - SOCOM.cc, SOCOM Europe, and SOCOM FTB2
+- Madness Gaming Network's PSP player JSON and 3DS, G5, FW5, ZZ, and Minecraft status XML feeds
 
 PSRewired is queried using the application IDs present in the attached bot source and mapped to approved game records through bot-synced alternate names. If those aliases are not present in `discord_bot_game_map`, the numeric application ID remains unmatched.
+
+MGN's PSP page publishes its live game data at `https://home.mgn.pub/data.json`. The other MGN pages embed their status feeds under `/3DS/status.xml`, `/G5/status.xml`, `/FW5/status.xml`, `/ZZ/status.xml`, and `/minecraft/status.xml`. Each MGN feed is polled independently; room and game player counts are shown where available, while feeds exposing only a total are labeled by their network/platform.
+
+The Fightcade API wrapper exposes game metadata, replays, rankings, and events, but not a current player/session listing. It therefore cannot provide a trustworthy "live games now" count for this page; recent replay or event activity would be a different feature and is not presented as live presence.
 
 ## Deploy
 

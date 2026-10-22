@@ -44,6 +44,7 @@ export function renderMessage(msg, currentUserId, displayName, avatarUrl = '', p
         <div class="max-w-[95%] break-words rounded-lg border border-gray-700 px-3 py-2 text-sm leading-relaxed text-gray-200 sm:max-w-[85%] ${isOwn ? 'rounded-tl-none bg-cyan-900/40 text-cyan-50' : 'rounded-tr-none bg-gray-800'}">
           ${safeMessage}
         </div>
+        ${msg.room_id && msg.id ? `<div id="sticker-reactions-${escapeAttribute(msg.id)}" data-content-reaction-target="chat_message" data-content-reaction-id="${escapeAttribute(msg.id)}"></div>` : ''}
         ${msg.is_edited ? '<span class="mt-1 text-[10px] italic text-gray-500">(edited)</span>' : ''}
       </div>
     </div>

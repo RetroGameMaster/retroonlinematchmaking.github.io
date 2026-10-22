@@ -536,13 +536,16 @@ async function loadDiscordServices(rom) {
           `;
         }).join('');
         return `
-          <section class="col-span-full rounded-lg border border-gray-700 bg-gray-900/60 p-4">
-            <div class="flex items-center justify-between gap-3 mb-4">
-              <h3 class="text-xl font-bold text-green-200">${escapeHtml(networkName)}</h3>
-              <span class="text-xs text-gray-400">${networkServices.length} live game${networkServices.length === 1 ? '' : 's'}</span>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${cards}</div>
-          </section>
+          <details class="col-span-full rounded-lg border border-gray-700 bg-gray-900/60 p-4">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400">
+              <span class="text-xl font-bold text-green-200">${escapeHtml(networkName)}</span>
+              <span class="flex items-center gap-3">
+                <span class="text-xs text-gray-400">${networkServices.length} live game${networkServices.length === 1 ? '' : 's'}</span>
+                <span class="text-gray-400" aria-hidden="true">▾</span>
+              </span>
+            </summary>
+            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">${cards}</div>
+          </details>
         `;
       });
     container.innerHTML = networkSections.join('');

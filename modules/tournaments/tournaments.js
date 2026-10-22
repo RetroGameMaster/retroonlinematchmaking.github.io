@@ -84,8 +84,8 @@ export default async function initTournaments(rom) {
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-300 mb-1">External Link (Discord/Challonge) *</label>
-                        <input type="url" id="tourney-link" required placeholder="https://discord.gg/... or https://challonge.com/..." 
+                        <label class="block text-sm text-gray-300 mb-1">External Link (optional)</label>
+                        <input type="url" id="tourney-link" placeholder="https://discord.gg/... or https://challonge.com/..."
                             class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white break-all">
                         <p class="text-xs text-gray-500 mt-1">Users will be sent here for brackets/chat.</p>
                     </div>
@@ -199,6 +199,7 @@ window.openDetailsModal = async function(tournamentId) {
 
         // Check if user is organizer
         const isOrganizer = window.rom.currentUser && window.rom.currentUser.id === tourney.organizer_id;
+        const externalLink = safeExternalLink(tourney.registration_link);
 
         // Render Details
         const dateObj = new Date(tourney.start_date);
@@ -243,23 +244,31 @@ window.openDetailsModal = async function(tournamentId) {
 
             <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-700">
                 ${isOrganizer ? `
-                    <button onclick="editTournament('${tourney.id}')" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">
+                    <button id="edit-tourney-details" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">
                         ✏️ Edit Tournament
+                    </button>
+                    <button id="delete-tourney-details" class="flex-1 bg-red-800 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">
+                        🗑️ Delete Tournament
                     </button>
                 ` : ''}
                 
                 ${!isOrganizer && window.rom.currentUser ? (
                     hasJoined 
                     ? `<button disabled class="flex-1 bg-green-900/50 border border-green-700 text-green-400 font-bold py-3 rounded-lg cursor-default flex items-center justify-center gap-2">✓ Registered</button>`
-                    : `<button onclick="joinTournament('${tourney.id}', '${tourney.registration_link}')" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">📝 Join Tournament</button>`
+                    : `<button id="join-tourney-details" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg transition flex items-center justify-center gap-2">📝 Join Tournament</button>`
                 ) : ''}
 
-                <a href="${tourney.registration_link}" target="_blank" rel="noopener noreferrer" 
+                ${externalLink ? `<a href="${escapeAttribute(externalLink)}" target="_blank" rel="noopener noreferrer"
                    class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg transition text-center flex items-center justify-center gap-2">
                     🔗 Open External Link
-                </a>
+                </a>` : ''}
             </div>
         `;
+        content.querySelector('#edit-tourney-details')?.addEventListener('click', () => window.editTournament(tourney.id));
+        content.querySelector('#delete-tourney-details')?.addEventListener('click', () => void window.deleteTournament(tourney.id));
+        content.querySelector('#join-tourney-details')?.addEventListener('click', event => {
+            void window.joinTournament(tourney.id, externalLink, event.currentTarget);
+        });
     } catch (err) {
         console.error('Error loading details:', err);
         content.innerHTML = `<div class="text-center py-8 text-red-400">Error loading details: ${err.message}</div>`;
@@ -271,13 +280,14 @@ window.closeDetailsModal = function() {
     if (modal) modal.classList.add('hidden');
 };
 
-window.joinTournament = async function(tournamentId, externalLink) {
+window.joinTournament = async function(tournamentId, externalLink, button) {
     if (!window.rom.currentUser) {
         alert('Please log in to join.');
         return;
     }
 
-    const btn = event.target;
+    const btn = button;
+    if (!btn) return;
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '⏳ Joining...';
@@ -292,10 +302,10 @@ window.joinTournament = async function(tournamentId, externalLink) {
 
         if (error) throw error;
 
-        alert('✅ You have successfully joined! Opening external link...');
+        alert(externalLink ? '✅ You have successfully joined! Opening the external event link...' : '✅ You have successfully joined!');
         
         // 2. Open External Link in New Tab
-        window.open(externalLink, '_blank');
+        if (externalLink) window.open(externalLink, '_blank', 'noopener,noreferrer');
 
         // Refresh modal to show updated count/state
         setTimeout(() => window.openDetailsModal(tournamentId), 1000);
@@ -305,6 +315,27 @@ window.joinTournament = async function(tournamentId, externalLink) {
         alert('❌ Failed to join: ' + err.message);
         btn.disabled = false;
         btn.innerHTML = originalText;
+    }
+};
+
+window.deleteTournament = async function(tournamentId) {
+    const user = window.rom.currentUser;
+    if (!user || !window.confirm('Delete this tournament? This cannot be undone.')) return;
+
+    try {
+        const { data, error } = await window.rom.supabase
+            .from('tournaments')
+            .delete()
+            .eq('id', tournamentId)
+            .eq('organizer_id', user.id)
+            .select('id');
+        if (error) throw error;
+        if (!data?.length) throw new Error('You may only delete tournaments you created.');
+        window.closeDetailsModal();
+        await renderList(window.rom);
+    } catch (error) {
+        console.error('Could not delete tournament:', error);
+        alert('Could not delete tournament: ' + error.message);
     }
 };
 
@@ -337,7 +368,7 @@ const openModal = async (editId = null) => {
             document.getElementById('tourney-platform').value = data.platform || '';
             document.getElementById('tourney-prize').value = data.prize_pool || '';
             document.getElementById('tourney-status').value = data.status;
-            document.getElementById('tourney-link').value = data.registration_link;
+            document.getElementById('tourney-link').value = data.registration_link || '';
             document.getElementById('tourney-desc').value = data.description || '';
         }
     } else {
@@ -379,8 +410,12 @@ async function handlePost(e, rom) {
     const regLink = document.getElementById('tourney-link').value.trim();
     const description = document.getElementById('tourney-desc').value.trim();
 
-    if (!gameTitle || !title || !startDate || !regLink) {
-        alert('Please fill in all required fields.');
+    if (!gameTitle || !title || !startDate) {
+        alert('Please fill in the game, tournament name, and start date.');
+        return;
+    }
+    if (regLink && !safeExternalLink(regLink)) {
+        alert('External links must use a valid HTTP or HTTPS URL.');
         return;
     }
 
@@ -397,7 +432,7 @@ async function handlePost(e, rom) {
             platform: platform,
             prize_pool: prizePool,
             status: status,
-            registration_link: regLink,
+            registration_link: regLink || null,
             description: description
         };
 
@@ -542,6 +577,26 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function escapeAttribute(value) {
+    return String(value ?? '').replace(/[&"'<>]/g, character => ({
+        '&': '&amp;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '<': '&lt;',
+        '>': '&gt;',
+    })[character]);
+}
+
+function safeExternalLink(value) {
+    if (!value) return null;
+    try {
+        const url = new URL(value);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+    } catch {
+        return null;
+    }
 }
 
 // ============================================================================

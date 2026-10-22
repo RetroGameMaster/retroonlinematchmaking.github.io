@@ -1,6 +1,7 @@
 // modules/chat/chat.js
 import { supabase, getCurrentUser } from '../../lib/supabase.js';
 import { createUserProfileLink, createUserAvatarLink } from '../../lib/userLinks.js';
+import { mountContentReactionBatch, mountContentReactions } from '../../lib/content-reactions.js';
 import { formatTime, sanitizeInput } from './utils.js';
 import { 
   renderMessage, renderRoomItem, renderUserItem, 
@@ -448,6 +449,7 @@ async function loadMessages() {
 
   // 3. Render with Merged Data
   container.innerHTML = '';
+  const chatReactionTargets = [];
   messages.forEach(msg => {
     const messageUserId = chatType === 'dm' ? (msg.sender_id || msg.user_id) : msg.user_id;
     const profile = profilesMap[messageUserId] || {};
@@ -457,7 +459,14 @@ async function loadMessages() {
     const msgHtml = renderMessage(normalizedMessage, currentUser.id, displayName, avatarUrl, profile);
     const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
+    if (chatType === 'room' && normalizedMessage.room_id) {
+      chatReactionTargets.push({
+        container: msgEl.querySelector('[data-content-reaction-target="chat_message"]'),
+        targetId: normalizedMessage.id,
+      });
+    }
   });
+  void mountContentReactionBatch(chatReactionTargets, supabase, 'chat_message', currentUser?.id);
 
   container.scrollTop = container.scrollHeight;
 }
@@ -497,6 +506,7 @@ async function handleRealtimeMessage(payload) {
     const msgHtml = renderMessage(normalizedMessage, currentUser.id, displayName, avatarUrl, profile);
     const msgEl = htmlToElement(msgHtml);
     container.appendChild(msgEl);
+    mountChatMessageReactions(msgEl, normalizedMessage);
     container.scrollTop = container.scrollHeight;
   } else if (eventType === 'UPDATE') {
     if (chatType === 'room' && newRow.message_type === 'join') {
@@ -509,11 +519,18 @@ async function handleRealtimeMessage(payload) {
       const newHtml = renderMessage(normalizedMessage, currentUser.id, newRow.username || 'User', '', {});
       const newEl = htmlToElement(newHtml);
       el.replaceWith(newEl);
+      mountChatMessageReactions(newEl, normalizedMessage);
     }
   } else if (eventType === 'DELETE') {
     const el = container.querySelector(`[data-message-id="${oldRow.id}"]`);
     if (el) el.remove();
   }
+}
+
+function mountChatMessageReactions(messageElement, message) {
+  if (chatType !== 'room' || !message?.room_id || !message.id) return;
+  const bar = messageElement.querySelector('[data-content-reaction-target="chat_message"]');
+  void mountContentReactions(bar, supabase, 'chat_message', message.id, currentUser?.id);
 }
 
 async function sendMessage(text) {

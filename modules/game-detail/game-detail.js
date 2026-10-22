@@ -1,10 +1,20 @@
+import { mountContentReactionBatch } from '../../lib/content-reactions.js';
+
 // modules/game-detail/game-detail.js 
 
 // ===== HELPER: Convert YouTube URLs to Embed Format =====
 function getEmbedUrl(url) {
     if (!url) return '';
     url = url.trim();
-    if (url.includes('youtube.com/embed/')) return url;
+    if (url.includes('youtube.com/embed/')) {
+        try {
+            const embed = new URL(url);
+            embed.searchParams.set('autoplay', '0');
+            return embed.toString();
+        } catch {
+            return url;
+        }
+    }
 
     let videoId = '';
     const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
@@ -16,7 +26,7 @@ function getEmbedUrl(url) {
     }
 
     if (videoId && videoId.length === 11) {
-        return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=1`;
+        return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=0`;
     }
     console.warn('Could not parse YouTube ID from:', url);
     return url;
@@ -51,7 +61,7 @@ function getLiveStreamEmbedUrl(rawUrl, muted = true) {
         if (!videoId || !/^[\w-]{11}$/.test(videoId)) {
             throw new Error('Use a YouTube video or live-stream URL.');
         }
-        return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muted ? 1 : 0}&enablejsapi=1`;
+        return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&mute=${muted ? 1 : 0}&enablejsapi=1`;
     }
     if (host === 'twitch.tv') {
         const parts = url.pathname.split('/').filter(Boolean);
@@ -377,7 +387,7 @@ async function renderGame(game, container, rom, identifier) {
     // 6. Video & Connection Details
     const videoHTML = (game.video_url || game.youtube_url) ? `
         <div class="mb-8 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-2xl relative" style="aspect-ratio: 16/9;">
-            <iframe src="${getEmbedUrl(game.video_url || game.youtube_url)}" title="${escapeAttribute(game.console === 'Decomps' ? 'Decomp project video' : 'Game video')}" frameborder="0" allowfullscreen class="w-full h-full absolute top-0 left-0"></iframe>
+            <iframe src="${getEmbedUrl(game.video_url || game.youtube_url)}" title="${escapeAttribute(game.console === 'Decomps' ? 'Decomp project video' : 'Game video')}" frameborder="0" allow="encrypted-media; picture-in-picture" allowfullscreen loading="lazy" class="w-full h-full absolute top-0 left-0"></iframe>
         </div>
     ` : '';
     const projectRepositoryHTML = game.github_url ? `
@@ -567,6 +577,7 @@ function openGameEditModal(game, rom) {
           <label class="text-sm text-gray-300">Release date<input name="release_date" type="date" value="${game.release_date ? game.release_date.split('T')[0] : ''}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
           <label class="text-sm text-gray-300 sm:col-span-2">Description<textarea name="description" rows="5" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white">${escapeHtml(game.description || '')}</textarea></label>
           <label class="text-sm text-gray-300 sm:col-span-2">Features (comma-separated)<input name="features" value="${escapeAttribute(Array.isArray(game.features) ? game.features.join(', ') : '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
+          <label class="text-sm text-gray-300 sm:col-span-2">Replace cover image (optional)<input name="cover_image_file" type="file" accept="image/*" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"><span class="mt-1 block text-xs text-gray-500">Leave empty to keep the current cover. No cover image is required.</span></label>
           <label class="text-sm text-gray-300 sm:col-span-2">Cover image URL<input name="cover_image_url" type="url" value="${escapeAttribute(game.cover_image_url || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
           <label class="text-sm text-gray-300 sm:col-span-2">Gameplay video URL<input name="video_url" type="url" value="${escapeAttribute(game.video_url || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
           <label class="text-sm text-gray-300 sm:col-span-2">Background image URL<input name="background_image_url" type="url" value="${escapeAttribute(game.background_image_url || '')}" class="mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-3 text-white"></label>
@@ -593,6 +604,8 @@ function openGameEditModal(game, rom) {
         event.preventDefault();
         const form = event.currentTarget;
         const data = new FormData(form);
+        const coverFile = data.get('cover_image_file');
+        let coverImageUrl = String(data.get('cover_image_url')).trim() || null;
         const numberOrNull = name => String(data.get(name) || '').trim() ? Number(data.get(name)) : null;
         let connectionDetails;
         try {
@@ -639,6 +652,25 @@ function openGameEditModal(game, rom) {
         submit.textContent = 'Saving...';
         errorEl.classList.add('hidden');
         try {
+            if (coverFile instanceof File && coverFile.size > 0) {
+                if (!coverFile.type.startsWith('image/')) throw new Error('Cover art must be an image file.');
+                if (coverFile.size > 10 * 1024 * 1024) throw new Error('Cover art must be 10 MB or smaller.');
+                const extension = ({
+                    'image/jpeg': 'jpg',
+                    'image/png': 'png',
+                    'image/gif': 'gif',
+                    'image/webp': 'webp',
+                })[coverFile.type];
+                if (!extension) throw new Error('Use a JPEG, PNG, GIF, or WebP cover image.');
+                const path = `covers/${game.id}/${Date.now()}.${extension}`;
+                const { error: uploadError } = await rom.supabase.storage
+                    .from('game-images')
+                    .upload(path, coverFile, { cacheControl: '3600', upsert: false });
+                if (uploadError) throw uploadError;
+                const { data: publicUrlData } = rom.supabase.storage.from('game-images').getPublicUrl(path);
+                coverImageUrl = publicUrlData.publicUrl;
+            }
+            updates.cover_image_url = coverImageUrl;
             const { error } = await rom.supabase.rpc('admin_update_game_page', {
                 p_game_id: game.id,
                 p_updates: updates,
@@ -735,9 +767,15 @@ async function loadGameReviews(rom, game) {
                 <span class="text-lg text-yellow-300" aria-label="${review.rating} out of 5 stars">${'★'.repeat(review.rating)}<span class="text-gray-600">${'☆'.repeat(5 - review.rating)}</span></span>
               </div>
               <p class="whitespace-pre-line break-words text-sm leading-relaxed text-gray-200">${escapeHtml(review.content)}</p>
+              <div id="sticker-reactions-${review.id}"></div>
             </article>`;
         }).join('') : '<p class="rounded-lg border border-dashed border-gray-700 p-6 text-center text-gray-400">No reviews yet. Be the first to share your thoughts.</p>'}
       </div>`;
+
+    void mountContentReactionBatch(reviews.map(review => ({
+        container: document.getElementById(`sticker-reactions-${review.id}`),
+        targetId: review.id,
+    })), rom.supabase, 'game_review', user?.id);
 
     const form = section.querySelector('#game-review-form');
     form?.addEventListener('submit', async event => {
