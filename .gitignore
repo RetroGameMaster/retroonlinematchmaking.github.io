@@ -4,3 +4,7 @@ node_modules/
 dist/
 build/
 docs/localdb.db
+docs/community-forum.md
+docs/discord-linking-live-lobbies.md
+docs/external-live-services.md
+docs/game-pages.md
